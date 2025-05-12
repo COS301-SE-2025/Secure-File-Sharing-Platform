@@ -50,7 +50,7 @@
       <h2 style="font-size: 24px; margin: 0 0 10px;"><b>Sibusiso Zotwayo</b></h2>
       <b style="font-size: 18px; color: #555;">System Architect, DevOps, Integration, Services, and Testing Engineer</b>
       <p style="font-size: 16px; color: #333; line-height: 1.5;">
-        Full-stack developer focused on learning through teamwork and growing in software testing. Enthusiastic, collaborative, and committed to continuous improvement.
+        <br> Full-stack developer focused on learning through teamwork and growing in software testing. Enthusiastic, collaborative, and committed to continuous improvement.
         <br><br>
         <b style="font-size: 16px;">Technologies & Tools Used</b><br><br>
         <a href="#"><img src="https://skillicons.dev/icons?i=cpp" /></a>
@@ -84,7 +84,7 @@
       <h2 style="font-size: 24px; margin: 0 0 10px;"><b>Tiyiso Hlungwani</b></h2>
       <b style="font-size: 18px; color: #555;">DevOps, Testing Engineer</b>
       <p style="font-size: 16px; color: #333; line-height: 1.5;">
-        Final-year CS student building real-time web apps and AI bots. Skilled in full-stack development, Git collaboration, and clean code practices.
+        <br> Final-year CS student building real-time web apps and AI bots. Skilled in full-stack development, Git collaboration, and clean code practices.
         <br><br>
         <b style="font-size: 16px;">Technologies & Tools Used</b><br><br>
         <a href="#"><img src="https://skillicons.dev/icons?i=js" /></a>
