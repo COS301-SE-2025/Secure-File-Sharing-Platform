@@ -110,6 +110,36 @@
       </a>
     </td>
   </tr>
+
+  <tr style="border-bottom: 1px solid #ddd;">
+    <td style="vertical-align: top; width: 30%; padding: 20px; text-align: center;">
+      <img src="assets/team/tumisho.jpeg" width="1500" height="auto" style="border-radius: 50%; border: 2px solid #ddd;">
+    </td>
+    <td style="vertical-align: top; width: 70%; padding: 20px;">
+      <h2 style="font-size: 24px; margin: 0 0 10px;"><b>Tumisho Makhene</b></h2>
+      <b style="font-size: 18px; color: #555;">UI/UX Design, DevOps, Integration, Services</b>
+      <p style="font-size: 16px; color: #333; line-height: 1.5;">
+        <br> I'm a passionate and teachable programmer who believes anything can be learned. I have experience in UI design, front-end, and back-end development, having built full-stack applications and APIs using Node.js and PHP (with Swagger documentation). I've also developed client libraries and front-end integrations for these APIs. I'm comfortable using Git and committed to writing clean, maintainable code while continuously improving my skills.
+        <br><br>
+        <b style="font-size: 16px;">Technologies & Tools Used</b><br><br>
+        <a href="#"><img src="https://skillicons.dev/icons?i=cpp" /></a>
+        <a href="#"><img src="https://skillicons.dev/icons?i=java" /></a>
+        <a href="#"><img src="https://skillicons.dev/icons?i=js" /></a>
+        <a href="#"><img src="https://skillicons.dev/icons?i=html" /></a>
+        <a href="#"><img src="https://skillicons.dev/icons?i=css" /></a>
+        <a href="#"><img src="https://skillicons.dev/icons?i=tailwind" /></a>
+        <a href="#"><img src="https://skillicons.dev/icons?i=nodejs" /></a>
+        <br><br>
+        <b style="font-size: 16px;">Profile Links</b><br>
+      </p>
+      <a href="" target="_blank" style="margin-right: 10px;">
+        <img src="https://skillicons.dev/icons?i=linkedin" alt="LinkedIn" width="40" height="40">
+      </a>
+      <a href="https://github.com/AntiDope00" target="_blank">
+        <img src="https://skillicons.dev/icons?i=github" alt="GitHub" width="40" height="40">
+      </a>
+    </td>
+  </tr>
   
 </table>
 </details>
