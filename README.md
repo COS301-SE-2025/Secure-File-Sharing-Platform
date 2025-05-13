@@ -6,6 +6,104 @@
 <details>
   <summary style="font-size: 55px;"><b>Team Members</b></summary>
 <table style="border: 1px solid #ddd; width: 100%; font-family: Arial, sans-serif; border-collapse: collapse;">
+
+<tr style="border-bottom: 1px solid #ddd;">
+    <td style="vertical-align: top; width: 30%; padding: 20px; text-align: center;">
+      <img src="assets/team/jessica.jpeg" width="1500" height="auto" style="border-radius: 50%; border: 2px solid #ddd;">
+    </td>
+    <td style="vertical-align: top; width: 70%; padding: 20px;">
+      <h2 style="font-size: 24px; margin: 0 0 10px;"><b>Simphiwe Jessica Zitha</b></h2>
+      <b style="font-size: 18px; color: #555;">Project Manager, Services, DevOps, Integration, Services</b>
+      <p style="font-size: 16px; color: #333; line-height: 1.5;">
+        <br> I'm a final-year Computer Science student with a solid background in backend and web development, experienced in C++, Node.js, Python, and Java. I've built projects like a Tic Tac Toe game, calculator, and winery management system, and I collaborate effectively using Git. Passionate about cybersecurity and AI, I continuously expand my skills through research and online learning. I enjoy solving problems and aim to contribute to impactful, user-centered systems.
+        <br><br>
+        <b style="font-size: 16px;">Technologies & Tools Used</b><br><br>
+        <a href="#"><img src="https://skillicons.dev/icons?i=cpp" /></a>
+        <a href="#"><img src="https://skillicons.dev/icons?i=java" /></a>
+        <a href="#"><img src="https://skillicons.dev/icons?i=js" /></a>
+        <a href="#"><img src="https://skillicons.dev/icons?i=python" /></a>
+        <a href="#"><img src="https://skillicons.dev/icons?i=html" /></a>
+        <a href="#"><img src="https://skillicons.dev/icons?i=css" /></a>
+        <a href="#"><img src="https://skillicons.dev/icons?i=nodejs" /></a>
+        <a href="#"><img src="https://skillicons.dev/icons?i=postgres" /></a>
+         <a href="#"><img src="https://skillicons.dev/icons?i=mongodb" /></a>
+        <a href="#"><img src="https://skillicons.dev/icons?i=express" /></a>
+        <a href="#"><img src="https://skillicons.dev/icons?i=mysql" /></a>
+        <br><br>
+        <b style="font-size: 16px;">Profile Links</b><br>
+      </p>
+      <a href="https://www.linkedin.com/in/sj-zitha/" target="_blank" style="margin-right: 10px;">
+        <img src="https://skillicons.dev/icons?i=linkedin" alt="LinkedIn" width="40" height="40">
+      </a>
+      <a href="https://github.com/simphiwe-jessica-zitha" target="_blank">
+        <img src="https://skillicons.dev/icons?i=github" alt="GitHub" width="40" height="40">
+      </a>
+    </td>
+  </tr>
+
+  <tr style="border-bottom: 1px solid #ddd;">
+    <td style="vertical-align: top; width: 30%; padding: 20px; text-align: center;">
+      <img src="assets/team/sibusiso.jpeg" width="1500" height="auto" style="border-radius: 50%; border: 2px solid #ddd;">
+    </td>
+    <td style="vertical-align: top; width: 70%; padding: 20px;">
+      <h2 style="font-size: 24px; margin: 0 0 10px;"><b>Sibusiso Zotwayo</b></h2>
+      <b style="font-size: 18px; color: #555;">System Architect, DevOps, Integration, Services, and Testing Engineer</b>
+      <p style="font-size: 16px; color: #333; line-height: 1.5;">
+        <br> Full-stack developer focused on learning through teamwork and growing in software testing. Enthusiastic, collaborative, and committed to continuous improvement.
+        <br><br>
+        <b style="font-size: 16px;">Technologies & Tools Used</b><br><br>
+        <a href="#"><img src="https://skillicons.dev/icons?i=cpp" /></a>
+        <a href="#"><img src="https://skillicons.dev/icons?i=java" /></a>
+        <a href="#"><img src="https://skillicons.dev/icons?i=js" /></a>
+        <a href="#"><img src="https://skillicons.dev/icons?i=ts" /></a>
+        <a href="#"><img src="https://skillicons.dev/icons?i=php" /></a>
+        <a href="#"><img src="https://skillicons.dev/icons?i=html" /></a>
+        <a href="#"><img src="https://skillicons.dev/icons?i=css" /></a>
+        <a href="#"><img src="https://skillicons.dev/icons?i=mongodb" /></a>
+        <a href="#"><img src="https://skillicons.dev/icons?i=mysql" /></a>
+        <a href="#"><img src="https://skillicons.dev/icons?i=nodejs" /></a>
+        <a href="#"><img src="https://skillicons.dev/icons?i=express" /></a>
+        <br><br>
+        <b style="font-size: 16px;">Profile Links</b><br>
+      </p>
+      <a href="https://www.linkedin.com/in/sibusiso-zotwayo-84886331b/" target="_blank" style="margin-right: 10px;">
+        <img src="https://skillicons.dev/icons?i=linkedin" alt="LinkedIn" width="40" height="40">
+      </a>
+      <a href="https://github.com/SibusisoZotwayo22591380" target="_blank">
+        <img src="https://skillicons.dev/icons?i=github" alt="GitHub" width="40" height="40">
+      </a>
+    </td>
+  </tr>
+
+   <tr style="border-bottom: 1px solid #ddd;">
+    <td style="vertical-align: top; width: 30%; padding: 20px; text-align: center;">
+      <img src="assets/team/tumisho.jpeg" width="1500" height="auto" style="border-radius: 50%; border: 2px solid #ddd;">
+    </td>
+    <td style="vertical-align: top; width: 70%; padding: 20px;">
+      <h2 style="font-size: 24px; margin: 0 0 10px;"><b>Tumisho Makhene</b></h2>
+      <b style="font-size: 18px; color: #555;">UI/UX Design, DevOps, Integration, Services</b>
+      <p style="font-size: 16px; color: #333; line-height: 1.5;">
+        <br> I'm a passionate and teachable programmer who believes anything can be learned. I have experience in UI design, front-end, and back-end development, having built full-stack applications and APIs using Node.js and PHP (with Swagger documentation). I've also developed client libraries and front-end integrations for these APIs. I'm comfortable using Git and committed to writing clean, maintainable code while continuously improving my skills.
+        <br><br>
+        <b style="font-size: 16px;">Technologies & Tools Used</b><br><br>
+        <a href="#"><img src="https://skillicons.dev/icons?i=cpp" /></a>
+        <a href="#"><img src="https://skillicons.dev/icons?i=java" /></a>
+        <a href="#"><img src="https://skillicons.dev/icons?i=js" /></a>
+        <a href="#"><img src="https://skillicons.dev/icons?i=html" /></a>
+        <a href="#"><img src="https://skillicons.dev/icons?i=css" /></a>
+        <a href="#"><img src="https://skillicons.dev/icons?i=tailwind" /></a>
+        <a href="#"><img src="https://skillicons.dev/icons?i=nodejs" /></a>
+        <br><br>
+        <b style="font-size: 16px;">Profile Links</b><br>
+      </p>
+      <a href="https://www.linkedin.com/in/tumisho-makhene-825841336/" target="_blank" style="margin-right: 10px;">
+        <img src="https://skillicons.dev/icons?i=linkedin" alt="LinkedIn" width="40" height="40">
+      </a>
+      <a href="https://github.com/AntiDope00" target="_blank">
+        <img src="https://skillicons.dev/icons?i=github" alt="GitHub" width="40" height="40">
+      </a>
+    </td>
+  </tr>
   
   <tr style="border-bottom: 1px solid #ddd;">
     <td style="vertical-align: top; width: 30%; padding: 20px; text-align: center;">
@@ -44,40 +142,6 @@
   
   <tr style="border-bottom: 1px solid #ddd;">
     <td style="vertical-align: top; width: 30%; padding: 20px; text-align: center;">
-      <img src="assets/team/sibusiso.jpeg" width="1500" height="auto" style="border-radius: 50%; border: 2px solid #ddd;">
-    </td>
-    <td style="vertical-align: top; width: 70%; padding: 20px;">
-      <h2 style="font-size: 24px; margin: 0 0 10px;"><b>Sibusiso Zotwayo</b></h2>
-      <b style="font-size: 18px; color: #555;">System Architect, DevOps, Integration, Services, and Testing Engineer</b>
-      <p style="font-size: 16px; color: #333; line-height: 1.5;">
-        <br> Full-stack developer focused on learning through teamwork and growing in software testing. Enthusiastic, collaborative, and committed to continuous improvement.
-        <br><br>
-        <b style="font-size: 16px;">Technologies & Tools Used</b><br><br>
-        <a href="#"><img src="https://skillicons.dev/icons?i=cpp" /></a>
-        <a href="#"><img src="https://skillicons.dev/icons?i=java" /></a>
-        <a href="#"><img src="https://skillicons.dev/icons?i=js" /></a>
-        <a href="#"><img src="https://skillicons.dev/icons?i=ts" /></a>
-        <a href="#"><img src="https://skillicons.dev/icons?i=php" /></a>
-        <a href="#"><img src="https://skillicons.dev/icons?i=html" /></a>
-        <a href="#"><img src="https://skillicons.dev/icons?i=css" /></a>
-        <a href="#"><img src="https://skillicons.dev/icons?i=mongodb" /></a>
-        <a href="#"><img src="https://skillicons.dev/icons?i=mysql" /></a>
-        <a href="#"><img src="https://skillicons.dev/icons?i=nodejs" /></a>
-        <a href="#"><img src="https://skillicons.dev/icons?i=express" /></a>
-        <br><br>
-        <b style="font-size: 16px;">Profile Links</b><br>
-      </p>
-      <a href="https://www.linkedin.com/in/sibusiso-zotwayo-84886331b/" target="_blank" style="margin-right: 10px;">
-        <img src="https://skillicons.dev/icons?i=linkedin" alt="LinkedIn" width="40" height="40">
-      </a>
-      <a href="https://github.com/SibusisoZotwayo22591380" target="_blank">
-        <img src="https://skillicons.dev/icons?i=github" alt="GitHub" width="40" height="40">
-      </a>
-    </td>
-  </tr>
-  
-  <tr style="border-bottom: 1px solid #ddd;">
-    <td style="vertical-align: top; width: 30%; padding: 20px; text-align: center;">
       <img src="assets/team/tiyiso.jpeg" width="1500" height="auto" style="border-radius: 50%; border: 2px solid #ddd;">
     </td>
     <td style="vertical-align: top; width: 70%; padding: 20px;">
@@ -106,36 +170,6 @@
         <img src="https://skillicons.dev/icons?i=linkedin" alt="LinkedIn" width="40" height="40">
       </a>
       <a href="https://github.com/TiyisoWolfiez" target="_blank">
-        <img src="https://skillicons.dev/icons?i=github" alt="GitHub" width="40" height="40">
-      </a>
-    </td>
-  </tr>
-
-  <tr style="border-bottom: 1px solid #ddd;">
-    <td style="vertical-align: top; width: 30%; padding: 20px; text-align: center;">
-      <img src="assets/team/tumisho.jpeg" width="1500" height="auto" style="border-radius: 50%; border: 2px solid #ddd;">
-    </td>
-    <td style="vertical-align: top; width: 70%; padding: 20px;">
-      <h2 style="font-size: 24px; margin: 0 0 10px;"><b>Tumisho Makhene</b></h2>
-      <b style="font-size: 18px; color: #555;">UI/UX Design, DevOps, Integration, Services</b>
-      <p style="font-size: 16px; color: #333; line-height: 1.5;">
-        <br> I'm a passionate and teachable programmer who believes anything can be learned. I have experience in UI design, front-end, and back-end development, having built full-stack applications and APIs using Node.js and PHP (with Swagger documentation). I've also developed client libraries and front-end integrations for these APIs. I'm comfortable using Git and committed to writing clean, maintainable code while continuously improving my skills.
-        <br><br>
-        <b style="font-size: 16px;">Technologies & Tools Used</b><br><br>
-        <a href="#"><img src="https://skillicons.dev/icons?i=cpp" /></a>
-        <a href="#"><img src="https://skillicons.dev/icons?i=java" /></a>
-        <a href="#"><img src="https://skillicons.dev/icons?i=js" /></a>
-        <a href="#"><img src="https://skillicons.dev/icons?i=html" /></a>
-        <a href="#"><img src="https://skillicons.dev/icons?i=css" /></a>
-        <a href="#"><img src="https://skillicons.dev/icons?i=tailwind" /></a>
-        <a href="#"><img src="https://skillicons.dev/icons?i=nodejs" /></a>
-        <br><br>
-        <b style="font-size: 16px;">Profile Links</b><br>
-      </p>
-      <a href="" target="_blank" style="margin-right: 10px;">
-        <img src="https://skillicons.dev/icons?i=linkedin" alt="LinkedIn" width="40" height="40">
-      </a>
-      <a href="https://github.com/AntiDope00" target="_blank">
         <img src="https://skillicons.dev/icons?i=github" alt="GitHub" width="40" height="40">
       </a>
     </td>
