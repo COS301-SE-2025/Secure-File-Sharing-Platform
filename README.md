@@ -1,5 +1,19 @@
 # Secure-File-Sharing-Platform
 
+## Project Description
+
+This project is inspired by the pressing need for privacy in today’s digital age and aims to re-imagine how we share information online. The aim is to create a highly secure, cloud based file sharing platform that ensures complete data confidentiality through end-to
+end encryption. Unlike conventional services such as Google Drive or Dropbox, where 
+files are often vulnerable to access by cloud providers, this system guarantees that only 
+the sender and the intended recipient can view the content. Files are encrypted before 
+they leave the user's device and are only decrypted once safely downloaded by the 
+receiver, keeping the information private at every stage. 
+
+Combining cybersecurity, cloud computing, and encryption, this platform uses 
+advanced technologies to solve real-world problems in digital communication. It is 
+designed not just for businesses that require safe document transfers, but also for 
+journalists, developers, and everyday users who value the privacy of their personal or 
+professional data. The goal is to offer privacy-focused alternative solution. 
 
 ## Meet CacheMe — Keeping It in Memory So You Don’t Have To
 
@@ -177,3 +191,18 @@
   
 </table>
 </details>
+
+## Documentation
+
+| Document Name     | Link                              |
+|------------------|-----------------------------------|
+| Requirements           | [Open](./assets/documentation/requirements.md)|
+
+## Demo
+
+| DEMO                |VIDEOS                         |
+|---------------------------|-------------------------------------|
+| Demo 1    |Not Available           | 
+| Demo 2    | Not Available     |
+| Demo 3   |  Not Available    |
+| Demo 4   |  Not Available    |
