@@ -30,7 +30,7 @@ professional data.
 
 <tr style="border-bottom: 1px solid #ddd;">
     <td style="vertical-align: top; width: 30%; padding: 20px; text-align: center;">
-      <img src="https://drive.google.com/file/d/1nAQkzfCTZRL9vuaECRcShHCfzZFR7HlL/view?usp=sharing" width="1500" height="auto" style="border-radius: 50%; border: 2px solid #ddd;">
+      <img src="https://drive.google.com/uc?export=view&id=1nAQkzfCTZRL9vuaECRcShHCfzZFR7HlL" width="1500" height="auto" style="border-radius: 50%; border: 2px solid #ddd;">
     </td>
     <td style="vertical-align: top; width: 70%; padding: 20px;">
       <h2 style="font-size: 24px; margin: 0 0 10px;"><b>Simphiwe Jessica Zitha</b></h2>
