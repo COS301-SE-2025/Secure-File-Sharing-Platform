@@ -1,11 +1,22 @@
 <div align="center">
     <h1>Secure File Sharing Platform</h1>
-    <img src="" width="400"/>
+    <h3>Team: CacheME</h3>
+    <!-- <img src="" width="400"/> -->
 </div>
 
-[![Issue Tracking](https://img.shields.io/badge/Issue_Tracking-GitHub_Issues-yellow)](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/issues)
-[![Build Status](https://img.shields.io/badge/Build_Status-GitHub_Actions-brightgreen)]()
-![Uptime Robot status](https://img.shields.io/uptimerobot/status/m797015486-75c486778a8f87b141372bd7)
+<!-- [![Issue Tracking](https://img.shields.io/badge/Issue_Tracking-GitHub_Issues-yellow)](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/issues) -->
+[![GitHub issues](https://img.shields.io/github/issues/COS301-SE-2025/Secure-File-Sharing-Platform)](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/issues)
+[![Build Status](https://img.shields.io/badge/Build_Status-GitHub_Actions-brightgreen)](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/actions)
+<!-- [![codecov]()]() -->
+![Uptime status](https://img.shields.io/uptimerobot/status/m797015486-75c486778a8f87b141372bd7)
+
+## 📚 Table of Contents
+
+- [Project Description](#project-description)
+- [Meet CacheME](#meet-cacheme-—-keeping-it-in-memory-so-you-don’t-have-to)
+- [Documentation](#documentation)
+- [Project Management](#project-management)
+- [Demo](#demo)
 
 ## 📋 Project Description
 
@@ -22,10 +33,15 @@ designed not just for businesses that require safe document transfers, but also 
 journalists, developers, and everyday users who value the privacy of their personal or 
 professional data. 
 
-## 🔍 Meet CacheMe — Keeping It in Memory So You Don’t Have To
+## 🔍 Meet CacheME — Keeping It in Memory So You Don’t Have To
+
+### 📬 Contact Us  
+
+[![Email](https://img.shields.io/badge/Email-cacheme.2025%40gmail.com-blue?style=for-the-badge&logo=gmail)](mailto:cacheme.2025@gmail.com) 
+
 
 <details>
-  <summary style="font-size: 55px;"><b>Team Members</b></summary>
+  <summary style="font-size: 55px;"><b>🧑‍💻🧑‍💻 Team Members</b></summary>
 <table style="border: 1px solid #ddd; width: 100%; font-family: Arial, sans-serif; border-collapse: collapse;">
 
 <tr style="border-bottom: 1px solid #ddd;">
@@ -205,11 +221,9 @@ professional data.
 |------------------|-----------------------------------|
 | Requirements           | [Open](./assets/documentation/requirements.md)|
 
-## 📌 Project Board
+## 📌 Project Management
 
-| BOARD   | LINK                             |
-|-|-|
-| GIT          | [Open](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/projects)|
+- [Github Board](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/projects)
 
 ## 💡 Demo
 
@@ -219,3 +233,7 @@ professional data.
 | Demo 2    | Not Available     |Not Available           | 
 | Demo 3   |  Not Available    |Not Available           | 
 | Demo 4   |  Not Available    |Not Available           | 
+
+## Stakeholders
+
+[![Southern Cross Solutions](https://drive.google.com/uc?export=view&id=1PiVCeNkddODLSkdydn8UgeS9wehtjnIp)](https://www.southerncross.solutions/)
