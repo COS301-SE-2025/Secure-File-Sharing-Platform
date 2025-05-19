@@ -1,6 +1,13 @@
-# Secure-File-Sharing-Platform
+<div align="center">
+    <h1>Secure File Sharing Platform</h1>
+    <img src="" width="400"/>
+</div>
 
-## Project Description
+[![Issue Tracking](https://img.shields.io/badge/Issue_Tracking-GitHub_Issues-yellow)](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/issues)
+[![Build Status](https://img.shields.io/badge/Build_Status-GitHub_Actions-brightgreen)]()
+![Uptime Robot status](https://img.shields.io/uptimerobot/status/m797015486-75c486778a8f87b141372bd7)
+
+## 📋 Project Description
 
 This project is inspired by the pressing need for privacy in today’s digital age and aims to re-imagine how we share information online. The aim is to create a highly secure, cloud based file sharing platform that ensures complete data confidentiality through end-to
 end encryption. Unlike conventional services such as Google Drive or Dropbox, where 
@@ -13,9 +20,9 @@ Combining cybersecurity, cloud computing, and encryption, this platform uses
 advanced technologies to solve real-world problems in digital communication. It is 
 designed not just for businesses that require safe document transfers, but also for 
 journalists, developers, and everyday users who value the privacy of their personal or 
-professional data. The goal is to offer privacy-focused alternative solution. 
+professional data. 
 
-## Meet CacheMe — Keeping It in Memory So You Don’t Have To
+## 🔍 Meet CacheMe — Keeping It in Memory So You Don’t Have To
 
 <details>
   <summary style="font-size: 55px;"><b>Team Members</b></summary>
@@ -23,7 +30,7 @@ professional data. The goal is to offer privacy-focused alternative solution.
 
 <tr style="border-bottom: 1px solid #ddd;">
     <td style="vertical-align: top; width: 30%; padding: 20px; text-align: center;">
-      <img src="assets/team/jessica.jpeg" width="1500" height="auto" style="border-radius: 50%; border: 2px solid #ddd;">
+      <img src="https://drive.google.com/file/d/1nAQkzfCTZRL9vuaECRcShHCfzZFR7HlL/view?usp=sharing" width="1500" height="auto" style="border-radius: 50%; border: 2px solid #ddd;">
     </td>
     <td style="vertical-align: top; width: 70%; padding: 20px;">
       <h2 style="font-size: 24px; margin: 0 0 10px;"><b>Simphiwe Jessica Zitha</b></h2>
@@ -57,7 +64,7 @@ professional data. The goal is to offer privacy-focused alternative solution.
 
   <tr style="border-bottom: 1px solid #ddd;">
     <td style="vertical-align: top; width: 30%; padding: 20px; text-align: center;">
-      <img src="assets/team/sibusiso.jpeg" width="1500" height="auto" style="border-radius: 50%; border: 2px solid #ddd;">
+      <img src="https://drive.google.com/file/d/1YPTGkt-r3QJoMoksrfG3Bkifij9vN_2g/view?usp=sharing" width="1500" height="auto" style="border-radius: 50%; border: 2px solid #ddd;">
     </td>
     <td style="vertical-align: top; width: 70%; padding: 20px;">
       <h2 style="font-size: 24px; margin: 0 0 10px;"><b>Sibusiso Zotwayo</b></h2>
@@ -91,7 +98,7 @@ professional data. The goal is to offer privacy-focused alternative solution.
 
    <tr style="border-bottom: 1px solid #ddd;">
     <td style="vertical-align: top; width: 30%; padding: 20px; text-align: center;">
-      <img src="assets/team/tumisho.jpeg" width="1500" height="auto" style="border-radius: 50%; border: 2px solid #ddd;">
+      <img src="https://drive.google.com/file/d/1EWCiXoj4TyOrU16hzKcSjnMsgLJwEPFb/view?usp=sharing" width="1500" height="auto" style="border-radius: 50%; border: 2px solid #ddd;">
     </td>
     <td style="vertical-align: top; width: 70%; padding: 20px;">
       <h2 style="font-size: 24px; margin: 0 0 10px;"><b>Tumisho Makhene</b></h2>
@@ -121,7 +128,7 @@ professional data. The goal is to offer privacy-focused alternative solution.
   
   <tr style="border-bottom: 1px solid #ddd;">
     <td style="vertical-align: top; width: 30%; padding: 20px; text-align: center;">
-      <img src="assets/team/philemon.jpeg" width="1500" height="auto" style="border-radius: 50%; border: 2px solid #ddd;">
+      <img src="https://drive.google.com/file/d/1zOozd0cF2r9aOF1ExRp9fugZL82qvqHq/view?usp=sharing" width="1500" height="auto" style="border-radius: 50%; border: 2px solid #ddd;">
     </td>
     <td style="vertical-align: top; width: 70%; padding: 20px;">
       <h2 style="font-size: 24px; margin: 0 0 10px;"><b>Philemon Muleya</b></h2>
@@ -156,7 +163,7 @@ professional data. The goal is to offer privacy-focused alternative solution.
   
   <tr style="border-bottom: 1px solid #ddd;">
     <td style="vertical-align: top; width: 30%; padding: 20px; text-align: center;">
-      <img src="assets/team/tiyiso.jpeg" width="1500" height="auto" style="border-radius: 50%; border: 2px solid #ddd;">
+      <img src="https://drive.google.com/file/d/16coYZwwyyX1C8nLi5KQLi94TXwR-EW4H/view?usp=sharing" width="1500" height="auto" style="border-radius: 50%; border: 2px solid #ddd;">
     </td>
     <td style="vertical-align: top; width: 70%; padding: 20px;">
       <h2 style="font-size: 24px; margin: 0 0 10px;"><b>Tiyiso Hlungwani</b></h2>
@@ -192,17 +199,23 @@ professional data. The goal is to offer privacy-focused alternative solution.
 </table>
 </details>
 
-## Documentation
+## 📄 Documentation
 
-| Document Name     | Link                              |
+| DOCUMENT     | LINK                             |
 |------------------|-----------------------------------|
 | Requirements           | [Open](./assets/documentation/requirements.md)|
 
-## Demo
+## 📌 Project Board
 
-| DEMO                |VIDEOS                         |
-|---------------------------|-------------------------------------|
-| Demo 1    |Not Available           | 
-| Demo 2    | Not Available     |
-| Demo 3   |  Not Available    |
-| Demo 4   |  Not Available    |
+| BOARD   | LINK                             |
+|-|-|
+| GIT          | [Open](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/projects)|
+
+## 💡 Demo
+
+| DEMO             |PRESENTATION   |VIDEOS                         |
+|-|-|-|
+| Demo 1    |Not Available           | Not Available           | 
+| Demo 2    | Not Available     |Not Available           | 
+| Demo 3   |  Not Available    |Not Available           | 
+| Demo 4   |  Not Available    |Not Available           | 

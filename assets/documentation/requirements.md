@@ -1,4 +1,4 @@
-# Requirements Documentation
+# Software Requirements Specification Documentation
 
 ## Table of Contents 
 
@@ -12,5 +12,7 @@
 This document outlines the requirements for the Secure File Sharing Platform system.
 
 ## Functional Requirements
+
+FR1. 
 
 ## Non-Functional Requirements
