@@ -64,7 +64,7 @@ professional data.
 
   <tr style="border-bottom: 1px solid #ddd;">
     <td style="vertical-align: top; width: 30%; padding: 20px; text-align: center;">
-      <img src="https://drive.google.com/file/d/1YPTGkt-r3QJoMoksrfG3Bkifij9vN_2g/view?usp=sharing" width="1500" height="auto" style="border-radius: 50%; border: 2px solid #ddd;">
+      <img src="https://drive.google.com/uc?export=view&id=1YPTGkt-r3QJoMoksrfG3Bkifij9vN_2g" width="1500" height="auto" style="border-radius: 50%; border: 2px solid #ddd;">
     </td>
     <td style="vertical-align: top; width: 70%; padding: 20px;">
       <h2 style="font-size: 24px; margin: 0 0 10px;"><b>Sibusiso Zotwayo</b></h2>
@@ -98,7 +98,7 @@ professional data.
 
    <tr style="border-bottom: 1px solid #ddd;">
     <td style="vertical-align: top; width: 30%; padding: 20px; text-align: center;">
-      <img src="https://drive.google.com/file/d/1EWCiXoj4TyOrU16hzKcSjnMsgLJwEPFb/view?usp=sharing" width="1500" height="auto" style="border-radius: 50%; border: 2px solid #ddd;">
+      <img src="https://drive.google.com/uc?export=view&id=1EWCiXoj4TyOrU16hzKcSjnMsgLJwEPFb" width="1500" height="auto" style="border-radius: 50%; border: 2px solid #ddd;">
     </td>
     <td style="vertical-align: top; width: 70%; padding: 20px;">
       <h2 style="font-size: 24px; margin: 0 0 10px;"><b>Tumisho Makhene</b></h2>
@@ -128,7 +128,7 @@ professional data.
   
   <tr style="border-bottom: 1px solid #ddd;">
     <td style="vertical-align: top; width: 30%; padding: 20px; text-align: center;">
-      <img src="https://drive.google.com/file/d/1zOozd0cF2r9aOF1ExRp9fugZL82qvqHq/view?usp=sharing" width="1500" height="auto" style="border-radius: 50%; border: 2px solid #ddd;">
+      <img src="https://drive.google.com/uc?export=view&id=1zOozd0cF2r9aOF1ExRp9fugZL82qvqHq" width="1500" height="auto" style="border-radius: 50%; border: 2px solid #ddd;">
     </td>
     <td style="vertical-align: top; width: 70%; padding: 20px;">
       <h2 style="font-size: 24px; margin: 0 0 10px;"><b>Philemon Muleya</b></h2>
@@ -163,7 +163,7 @@ professional data.
   
   <tr style="border-bottom: 1px solid #ddd;">
     <td style="vertical-align: top; width: 30%; padding: 20px; text-align: center;">
-      <img src="https://drive.google.com/file/d/16coYZwwyyX1C8nLi5KQLi94TXwR-EW4H/view?usp=sharing" width="1500" height="auto" style="border-radius: 50%; border: 2px solid #ddd;">
+      <img src="https://drive.google.com/uc?export=view&id=16coYZwwyyX1C8nLi5KQLi94TXwR-EW4H" width="1500" height="auto" style="border-radius: 50%; border: 2px solid #ddd;">
     </td>
     <td style="vertical-align: top; width: 70%; padding: 20px;">
       <h2 style="font-size: 24px; margin: 0 0 10px;"><b>Tiyiso Hlungwani</b></h2>
