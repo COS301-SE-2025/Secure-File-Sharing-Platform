@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { registerUser } from '@/lib/auth/register';
 
 export default function SignupPage() {
   const [formData, setFormData] = useState({
@@ -9,6 +11,9 @@ export default function SignupPage() {
     password: ''
   });
 
+  const [message, setMessage] = useState(null);
+  const router = useRouter();
+
   const handleChange = (e) => {
     setFormData((prev) => ({
       ...prev,
@@ -16,10 +21,44 @@ export default function SignupPage() {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const validateEmail = (email) => {
+    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return regex.test(email);
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     // Handle form submission
-    console.log('Form data submitted:', formData);
+    const { name, email, password } = formData;
+
+    if (!name || !email || !password) {
+      setMessage('All fields are required.');
+      return;
+    }
+
+    if (!validateEmail(email)) {
+      setMessage('Please enter a valid email address.');
+      return;
+    }
+
+    if (password.length < 6) {
+      setMessage('Password must be at least 6 characters long.');
+      return;
+    }
+
+    const { data, error } = await registerUser({
+      username: name,
+      email,
+      password
+    });
+
+    if (error) {
+      console.error(error);
+      setMessage('Something went wrong. Please try again.');
+    } else {
+      setMessage('User successfully registered!');
+      router.push('/login');
+    }
   };
 
   return (
