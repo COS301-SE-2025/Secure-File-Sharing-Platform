@@ -34,15 +34,38 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_public_key
 2. Navigate to Project Settings → Data API
 3. Copy the Project URL and anon/public key
 
+### 3. Set Up Database Table
+
+Create the **users** table in your Supabase database using the **SQL Editor**:
+
+```sql
+create table public.users (
+  id uuid not null default gen_random_uuid (),
+  username text not null,
+  email text not null,
+  password text null,
+  constraint users_pkey primary key (id),
+  constraint unique_email unique (email),
+  constraint unique_username unique (username)
+) TABLESPACE pg_default;
+```
+
+**Table Structure:**
+- `id`: Primary key (UUID, auto-generated)
+- `username`: Unique username for each user
+- `email`: Unique email address
+- `password`: Password field (nullable for OAuth users)
+- Unique constraints on both email and username
+
 ## Project Structure
 
 ```
 lib/
-├── supabaseClient.js
+├── supabaseClient.js     # Supabase client initialization
 └── auth/
-    └── login.js   
-    └── register.js
-    └── hash.js
+    ├── login.js          # Login authentication
+    ├── register.js       # User registration
+    └── hash.js           # Password hashing utilities
 ```
 
 ## Implementation
