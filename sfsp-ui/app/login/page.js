@@ -1,12 +1,42 @@
+'use client';
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { loginUser } from "@/lib/auth/login";
 import Link from "next/link";
 
-export default function Login() {
+
+export default function LoginPage() {
+  const router = useRouter();
+  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [message, setMessage] = useState(null);
+
+  const handleChange = (e) => {
+    setFormData((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    const { data, error } = await loginUser(formData);
+
+    if (error) {
+      setMessage(error);
+    } else {
+      setMessage('Login successful!');
+      router.push('/'); // *** TO DO: Redirect to dashboard or home page after it has been implemented ***
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 px-4">
       <div className="w-full max-w-md bg-white dark:bg-gray-800 p-8 rounded-lg shadow-lg">
         <h2 className="text-2xl font-bold text-center text-gray-900 dark:text-white mb-6">Log in to your account</h2>
 
-        <form className="space-y-6">
+        <form className="space-y-6" onSubmit={handleSubmit}>
           {/* Email */}
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
@@ -14,7 +44,9 @@ export default function Login() {
             </label>
             <input
               type="email"
-              id="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
               required
               className="mt-1 block w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
@@ -27,7 +59,9 @@ export default function Login() {
             </label>
             <input
               type="password"
-              id="password"
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
               required
               className="mt-1 block w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
