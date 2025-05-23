@@ -7,7 +7,14 @@ export default function Home() {
       {/* Navbar */}
       <nav className="fixed top-0 left-0 w-full z-50 px-8 py-4 flex justify-between items-center bg-white shadow-md dark:bg-gray-800/95">
         <div className="flex items-center gap-3">
-          <Image src="/img/shield-emp-white.png" alt="SecureShare Logo" width={28} height={28} />
+
+          {/* Light mode logo */}
+          <Image src="/img/shield-emp-black.png" alt="SecureShare Logo Light" width={28} height={28} className="block dark:hidden"
+          />
+
+          {/* Dark mode logo */}
+          <Image src="/img/shield-emp-white.png" alt="SecureShare Logo Dark" width={28} height={28} className="hidden dark:block"
+          />
           <span className="text-xl font-bold tracking-tight">SecureShare</span>
         </div>
         <ul className="flex gap-6 text-sm sm:text-base">
@@ -59,8 +66,8 @@ export default function Home() {
       </section>
 
       {/* Features */}
-      <section id="features" className="grid grid-rows-[auto_1fr_auto]  font-sans text-gray-800 dark:text-white dark:bg-gray-800">
-        <h2 className="text-2xl sm:text-3xl font-semibold text-center pt-8">
+      <section id="features" className="grid grid-rows-[auto_1fr_auto]  font-sans text-gray-800 dark:text-white dark:bg-gray-300">
+        <h2 className="text-2xl sm:text-3xl font-semibold text-center pt-8 text-gray-800">
           SecureShare supports you and your care to privacy
         </h2>
         <HomeRotator />
@@ -76,7 +83,6 @@ export default function Home() {
           Log in
         </a>
       </div>
-
 
       {/* Footer */}
       <footer className="p-6 text-center text-sm bg-gray-100 dark:bg-gray-800 dark:text-gray-400">

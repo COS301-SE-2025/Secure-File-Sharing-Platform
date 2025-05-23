@@ -27,7 +27,7 @@ export default function LoginPage() {
       setMessage(error);
     } else {
       setMessage('Login successful!');
-      router.push('/'); // *** TO DO: Redirect to dashboard or home page after it has been implemented ***
+      router.push('/dashboard'); // *** TO DO: Redirect to dashboard or home page after it has been implemented ***
     }
   };
 

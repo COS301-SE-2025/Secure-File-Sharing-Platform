@@ -57,7 +57,8 @@ export default function SignupPage() {
       setMessage('Something went wrong. Please try again.');
     } else {
       setMessage('User successfully registered!');
-      router.push('/login');
+      // success redirect
+      router.push('/dashboard');  
     }
   };
 
