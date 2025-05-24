@@ -69,7 +69,7 @@ export default function LoginPage() {
 
           {/* Forgot */}
           <div className="flex items-center justify-between">
-            <Link href="#" className="text-sm text-blue-600 hover:underline dark:text-blue-400">
+            <Link href="/requestReset" className="text-sm text-blue-600 hover:underline dark:text-blue-400">
               Forgot password?
             </Link>
           </div>

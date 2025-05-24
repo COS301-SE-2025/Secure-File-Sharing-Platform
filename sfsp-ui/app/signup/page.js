@@ -8,7 +8,8 @@ export default function SignupPage() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    password: ''
+    password: '',
+    confirmPassword: ''
   });
 
   const [message, setMessage] = useState(null);
@@ -29,9 +30,9 @@ export default function SignupPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     // Handle form submission
-    const { name, email, password } = formData;
+    const { name, email, password, confirmPassword } = formData;
 
-    if (!name || !email || !password) {
+    if (!name || !email || !password || confirmPassword) {
       setMessage('All fields are required.');
       return;
     }
@@ -43,6 +44,11 @@ export default function SignupPage() {
 
     if (password.length < 6) {
       setMessage('Password must be at least 6 characters long.');
+      return;
+    }
+
+    if(password != confirmPassword){
+      setMessage("Passwords don't match.");
       return;
     }
 
@@ -108,6 +114,20 @@ export default function SignupPage() {
               className="w-full px-4 py-2 mt-1 border rounded-md dark:bg-gray-700 dark:text-white dark:border-gray-600"
             />
           </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Confirm Password
+            </label>
+            <input
+              type="password"
+              name="confirmPassword"
+              value={formData.confirmPassword}
+              onChange={handleChange}
+              required
+              className="w-full px-4 py-2 mt-1 border rounded-md dark:bg-gray-700 dark:text-white dark:border-gray-600"
+            />
+          </div>
+
           <button
             type="submit"
             className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md font-medium"
