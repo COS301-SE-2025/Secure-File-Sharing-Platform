@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { loginUser } from "@/lib/auth/login";
+import { confirmReset } from "@/lib/auth/confirmReset";
 import Link from "next/link";
 
 
-export default function LoginPage() {
+export default function ConfirmResetPage() {
   const router = useRouter();
-  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [formData, setFormData] = useState({ email: '', resetPIn: '', newPassword: '' , confrimPassword:''});
   const [message, setMessage] = useState(null);
 
   const handleChange = (e) => {
@@ -21,13 +21,13 @@ export default function LoginPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const { data, error } = await loginUser(formData);
+    const { data, error } = await confirmReset(formData);
 
     if (error) {
       setMessage(error);
     } else {
-      setMessage('Login successful!');
-      router.push('/dashboard'); // *** TO DO: Redirect to dashboard or home page after it has been implemented ***
+      setMessage(' Password Reset successful!');
+      router.push('/login'); // *** TO DO: Redirect to dashboard or home page after it has been implemented ***
     }
   };
 
@@ -51,10 +51,9 @@ export default function LoginPage() {
               className="mt-1 block w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-
-          {/* Password */}
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+    {/*Password*/}
+        <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               Password
             </label>
             <input
@@ -63,16 +62,38 @@ export default function LoginPage() {
               value={formData.password}
               onChange={handleChange}
               required
-              className="mt-1 block w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 mt-1 border rounded-md dark:bg-gray-700 dark:text-white dark:border-gray-600"
             />
           </div>
-
-          {/* Forgot */}
-          <div className="flex items-center justify-between">
-            <Link href="/requestReset" className="text-sm text-blue-600 hover:underline dark:text-blue-400">
-              Forgot password?
-            </Link>
+            {/*confirmPassword*/}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Confirm Password
+            </label>
+            <input
+              type="password"
+              name="confirmPassword"
+              value={formData.confirmPassword}
+              onChange={handleChange}
+              required
+              className="w-full px-4 py-2 mt-1 border rounded-md dark:bg-gray-700 dark:text-white dark:border-gray-600"
+            />
           </div>
+            {/*resetPin*/}
+            <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Reset Pin
+            </label>
+            <input
+              type="test"
+              name="resetPin"
+              value={formData.resetPIn}
+              onChange={handleChange}
+              required
+              className="w-full px-4 py-2 mt-1 border rounded-md dark:bg-gray-700 dark:text-white dark:border-gray-600"
+            />
+          </div>
+        
 
           {/* Submit */}
           <button
@@ -83,13 +104,6 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* Divider */}
-        <div className="mt-6 text-sm text-center text-gray-600 dark:text-gray-300">
-          Don’t have an account?{" "}
-          <Link href="/signup" className="text-blue-600 hover:underline dark:text-blue-400">
-            Sign up
-          </Link>
-        </div>
       </div>
     </div>
   );
