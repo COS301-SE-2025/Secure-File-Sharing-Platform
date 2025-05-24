@@ -3,9 +3,9 @@ import HomeRotator from "./home_features";
 
 export default function Home() {
   return (
-    <div className="grid grid-rows-[auto_1fr_auto] min-h-screen font-sans text-gray-800 dark:text-white dark:bg-gray-900">
+    <div className="grid grid-rows-[auto_1fr_auto] min-h-screen font-sans text-gray-800  dark:text-white dark:bg-gray-900">
       {/* Navbar */}
-      <nav className="fixed top-0 left-0 w-full z-50 px-8 py-4 flex justify-between items-center bg-white shadow-md dark:bg-gray-800/95">
+      <nav className="fixed top-0 left-0 w-full z-50 px-8 py-4 flex justify-between items-center bg-neutral-200/95 shadow-md dark:bg-gray-800/95">
         <div className="flex items-center gap-3">
 
           {/* Light mode logo */}
@@ -66,7 +66,7 @@ export default function Home() {
       </section>
 
       {/* Features */}
-      <section id="features" className="grid grid-rows-[auto_1fr_auto]  font-sans text-gray-800 dark:text-white dark:bg-gray-300">
+      <section id="features" className="grid grid-rows-[auto_1fr_auto]  font-sans text-gray-800 bg-gray-300 dark:text-white dark:bg-gray-300">
         <h2 className="text-2xl sm:text-3xl font-semibold text-center pt-8 text-gray-800">
           SecureShare supports you and your care to privacy
         </h2>
@@ -85,7 +85,7 @@ export default function Home() {
       </div>
 
       {/* Footer */}
-      <footer className="p-6 text-center text-sm bg-gray-100 dark:bg-gray-800 dark:text-gray-400">
+      <footer className="p-6 text-center text-sm bg-neutral-700 text-white dark:bg-gray-800 dark:text-gray-400">
         &copy; 2025 SecureShare — Built with privacy in mind.
       </footer>
     </div>

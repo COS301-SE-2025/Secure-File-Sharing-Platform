@@ -82,7 +82,7 @@ export default function FeatureRotator() {
             key={i}
             onClick={() => setIndex(i)}
             className={`w-6 h-3 rounded-sm transition-all ${
-              i === index ? 'bg-blue-600 dark:bg-blue-400' : 'bg-gray-300 dark:bg-gray-600'
+              i === index ? 'bg-blue-600 dark:bg-blue-400' : 'bg-white dark:bg-gray-600'
             }`}
             aria-label={`Highlight ${features[i].title}`}
           />

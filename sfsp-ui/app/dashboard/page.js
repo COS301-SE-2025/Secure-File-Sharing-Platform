@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Folder, FileText, Upload, Search, MoreVertical } from 'lucide-react';
+import Image from 'next/image';
 
 const files = [
   { name: 'Project Plan.pdf', type: 'file' },
@@ -17,18 +18,33 @@ export default function DashboardPage() {
   return (
     <div className="flex min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-white">
       {/* Sidebar */}
-      <aside className="w-64 bg-white dark:bg-gray-800 p-6 shadow-md hidden md:block">
-        <h1 className="text-2xl font-bold mb-8">SecureShare</h1>
-        <nav className="space-y-4">
-          <a href="#" className="block hover:text-blue-600">My Drive</a>
-          <a href="#" className="block hover:text-blue-600">Shared with Me</a>
-          <a href="#" className="block hover:text-blue-600">Recent</a>
-          <a href="#" className="block hover:text-blue-600">Trash</a>
-        </nav>
+      <aside className="w-64 bg-white text-gray-900 dark:bg-gray-800 dark:text-white p-6 shadow-md hidden md:block">
+        <div className="flex items-center gap-3">
+          <Image src="/img/shield-emp-black.png" alt="SecureShare Logo Light" width={28} height={28} className="block dark:hidden" />
+          <Image src="/img/shield-emp-white.png" alt="SecureShare Logo Dark" width={28} height={28} className="hidden dark:block" />
+          <span className="text-xl font-bold tracking-tight">SecureShare</span>
+        </div>
+
         <button className="mt-10 w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md flex items-center justify-center gap-2">
           <Upload size={18} />
           Upload
         </button>
+
+        <nav className="space-y-4">
+          <a href="#" className="block hover:text-blue-600 dark:hover:text-blue-400">
+            My Drive
+          </a>
+          <a href="#" className="block hover:text-blue-600 dark:hover:text-blue-400">
+            Shared with Me
+          </a>
+          <a href="#" className="block hover:text-blue-600 dark:hover:text-blue-400">
+            Recent
+          </a>
+          <a href="#" className="block hover:text-blue-600 dark:hover:text-blue-400">
+            Trash
+          </a>
+        </nav>
+        
       </aside>
 
       {/* Main */}
@@ -50,7 +66,7 @@ export default function DashboardPage() {
             <MoreVertical className="text-gray-500 dark:text-gray-300 cursor-pointer" />
           </div>
         </div>
-        
+
       </main>
     </div>
   );
