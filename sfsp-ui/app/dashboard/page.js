@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Folder, FileText, Upload, Search, MoreVertical } from 'lucide-react';
+import { Folder, FileText, Upload, Search, MoreVertical, Grid3X3, Clock, Users, Settings, Trash2 } from 'lucide-react';
 import Image from 'next/image';
 
 const files = [
@@ -18,31 +18,55 @@ export default function DashboardPage() {
   return (
     <div className="flex min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-white">
       {/* Sidebar */}
-      <aside className="w-64 bg-white text-gray-900 dark:bg-gray-800 dark:text-white p-6 shadow-md hidden md:block">
-        <div className="flex items-center gap-3">
-          <Image src="/img/shield-emp-black.png" alt="SecureShare Logo Light" width={28} height={28} className="block dark:hidden" />
-          <Image src="/img/shield-emp-white.png" alt="SecureShare Logo Dark" width={28} height={28} className="hidden dark:block" />
-          <span className="text-xl font-bold tracking-tight">SecureShare</span>
-        </div>
+      <aside className="w-64 bg-white text-gray-900 dark:bg-gray-800 dark:text-white p-6 shadow-md hidden md:block relative">
+            {/* Logo and Title */}
+            <div className="flex items-center gap-3 mb-8">
+                <Image src="/img/shield-emp-black.png" alt="SecureShare Logo Light" width={28} height={28} className="block dark:hidden" />
+                <Image src="/img/shield-emp-white.png" alt="SecureShare Logo Dark" width={28} height={28} className="hidden dark:block" />
+                <span className="text-xl font-bold tracking-tight">SecureShare</span>
+            </div>
 
+            {/* Navigation */}
+            <nav className="space-y-2">
+                <a href="/dashboard" className="flex items-center gap-3 p-3 rounded-lg bg-gray-100 dark:bg-gray-700 transition-colors">
+                <Grid3X3 size={20} />
+                <span>Dashboard</span>
+                </a>
+                <a href="#" className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <FileText size={20} />
+                <span>My Files</span>
+                </a>
+                <a href="/sharedWithMe" className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <Users size={20} />
+                <span>Shared with Me</span>
+                </a>
+                <a href="/accessLogs" className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <Clock size={20} />
+                <span>Access Logs</span>
+                </a>
+                <a href="#" className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <Trash2 size={20} />
+                <span>Trash</span>
+                </a>
+            </nav>
 
-        <nav className="space-y-4">
-          <a href="#" className="block hover:text-blue-600 dark:hover:text-blue-400">
-            My Drive
-          </a>
-          <a href="#" className="block hover:text-blue-600 dark:hover:text-blue-400">
-            Shared with Me
-          </a>
-          <a href="#" className="block hover:text-blue-600 dark:hover:text-blue-400">
-            Recent
-          </a>
-          <a href="#" className="block hover:text-blue-600 dark:hover:text-blue-400">
-            Trash
-          </a>
-        </nav>
-
-        
-      </aside>
+            {/* User Profile at Bottom */}
+            <div className="absolute bottom-6 left-6 right-6">
+                <div className="flex items-center gap-3 p-3">
+                <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-bold">
+                    JD
+                </div>
+                <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">John Doe</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 truncate">johndoe@gmail.com</div>
+                </div>
+                </div>
+                <a href="#" className="flex items-center gap-3 p-3 mt-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <Settings size={20} />
+                <span>Settings</span>
+                </a>
+            </div>
+        </aside>
 
       {/* Main */}
       <main className="flex-1 flex flex-col">

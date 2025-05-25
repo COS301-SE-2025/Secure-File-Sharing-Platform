@@ -7,7 +7,9 @@ export async function loginUser({ email, password }) {
         .select('*')
         .eq('email', email);
 
-    if (error || users.length === 0) {
+    console.log('Supabase fetch result:', { users, error });
+
+    if (error || !users || users.length === 0) {
         return { error: 'User not found' };
     }
 
