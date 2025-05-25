@@ -17,11 +17,12 @@ import (
 func main() {
     mongoURI := "mongodb+srv://Sibu2025:xWQNdqTKQq5bi7Bo@cluster0.8ywqk4g.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
     client := mongo.InitMongo(mongoURI)
-	upload.SetMongoClient(client)
+	fileHandler.SetMongoClient(client)
 
 	//initialize ownCloud client
 	owncloud.InitOwnCloud("http://localhost:8080/remote.php/webdav", "admin", "admin")
 
-    http.HandleFunc("/upload", upload.UploadHandler)
+    http.HandleFunc("/upload", fileHandler.UploadHandler)
+	http.HandleFunc("/download", fileHandler.DownloadHandler)
 	log.Fatal(http.ListenAndServe(":8081", nil))
 }

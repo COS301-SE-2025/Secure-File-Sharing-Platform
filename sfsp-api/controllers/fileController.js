@@ -2,30 +2,26 @@ const axios = require('axios');
 const FormData = require('form-data');
 const fs = require('fs');
 
-exports.getFile = async (req, res) => {
-	const fullPath = req.params[0]; // captures everything after /files/
-	const parts = fullPath.split('/');
-	const fileName = parts.pop();
-	const filePath = parts.join('/');
+exports.downloadFile = async (req, res) => {
+  const { path: filePath, filename } = req.query;
 
-	if (!filePath || !fileName) {
-		return res.status(400).send('File path and file name are required');
-	}
+  try {
+    const response = await axios({
+      method: 'get',
+      url: `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/download`,
+      params: { path: filePath, filename },
+      responseType: 'stream',
+    });
 
-	try {
-		const goResponse = await axios({
-			method: 'get',
-			url: `http://localhost:8080/files/${filePath}/${fileName}`,
-			responseType: 'stream',
-		});
-		res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-		goResponse.data.pipe(res);
-	} catch (err) {
-		console.error("Error fetching file from Go server:", err.message);
-		res.status(404).send('File not found');
-	}
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Type', 'application/octet-stream');
+
+    response.data.pipe(res);
+  } catch (err) {
+    console.error("❌ Download error:", err.message);
+    res.status(500).send("Download failed");
+  }
 };
-
 
 exports.getMetaData = async (req, res) => {
 	const fileId = req.params.id;
@@ -41,48 +37,37 @@ exports.getMetaData = async (req, res) => {
 };
 
 exports.uploadFile = async (req, res) => {
-	const file = req.file;
+  try {
+    const {
+      fileType,
+      userId,
+      encryptionKey,
+      fileDescription,
+      fileTags,
+      path: uploadPath,
+    } = req.body;
 
-	if (!file) return res.status(400).send('No file uploaded');
+    const file = req.file; // Assuming you're using multer
+    if (!file) return res.status(400).send("No file uploaded");
 
-	const metadata = {
-		fileName: req.body.fileName,
-		fileSize: req.body.fileSize,
-		fileType: req.body.fileType,
-		userId: req.body.userId,
-		encryptionKey: req.body.encryptionKey,
-		uploadTimestamp: req.body.uploadTimestamp,
-		fileDescription: req.body.fileDescription,
-		fileTags: req.body.fileTags,
-		fileTypes: req.body.fileTypes,
-	};
+    const form = new FormData();
+    form.append('file', fs.createReadStream(file.path), file.originalname);
+    form.append('fileType', fileType);
+    form.append('userId', userId);
+    form.append('encryptionKey', encryptionKey);
+    form.append('fileDescription', fileDescription);
+    form.append('fileTags', fileTags);
+    form.append('path', uploadPath || 'files');
 
-	// Validate required fields
-	for (const key of Object.keys(metadata)) {
-		if (!metadata[key]) {
-			return res.status(400).send(`Missing required field: ${key}`);
-		}
-	}
+    const response = await axios.post(`${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/upload`, form, {
+      headers: form.getHeaders(),
+    });
 
-	try {
-		const form = new FormData();
-		form.append('file', fs.createReadStream(file.path)); // OR Buffer if in-memory
-		for (const key in metadata) {
-			form.append(key, metadata[key]);
-		}
-
-		const response = await axios.post('http://localhost:8080/upload', form, {
-			headers: form.getHeaders()
-		});
-
-		res.status(201).send({
-			message: 'File uploaded successfully',
-			goResponse: response.data
-		});
-	} catch (err) {
-		console.error("Error uploading to Go server:", err.message);
-		res.status(500).send('File upload failed');
-	}
+    res.status(201).json({ message: '✅ File uploaded', server: response.data });
+  } catch (err) {
+    console.error("❌ Upload error:", err.message);
+    res.status(500).send("Upload failed");
+  }
 };
 
 

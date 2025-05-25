@@ -5,7 +5,7 @@ const app = express();
 const PORT = 5000;
 
 app.use(express.json());
-app.use('/api', userRoutes);
+//app.use('/api', userRoutes);
 
 app.use('/files', fileRoutes);
 
