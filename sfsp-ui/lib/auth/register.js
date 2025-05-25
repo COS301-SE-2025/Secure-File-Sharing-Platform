@@ -8,7 +8,7 @@ export async function registerUser({ username, email, password }) {
 
     const { data, error } = await supabase
         .from('users')
-        .insert([{ username, email, password: hashed, resetPIN }]);
+        .insert([{ username, email, password: hashed, resetPasswordPIN: resetPIN }]);
 
     return { data, error };
 }
