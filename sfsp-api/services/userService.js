@@ -3,16 +3,6 @@ const jwt = require('jsonwebtoken');
 const {supabase} = require('../config/database');
 
 class UserService {
-
-    generatePIN() {
-        const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()";
-        let resetPIN = "";
-        for (let i = 0; i < 5; i++) {
-            resetPIN += characters.charAt(Math.floor(Math.random() * characters.length));
-        }
-        return resetPIN;
-    }
-
     async register(userData){
         const {username, email, password} = userData;
 
@@ -51,8 +41,7 @@ class UserService {
                 user: {
                     id: newUser.id,
                     username: newUser.username,
-                    email: newUser.email,
-                    resetPasswordPIN: newUser.resetPasswordPIN
+                    email: newUser.email
                 },
                 token
             };
@@ -60,6 +49,47 @@ class UserService {
             throw new Error('Registration failed: ' + error.message);
         }
             
+    }
+
+    async login(userData) {
+        const {email, password} = userData;
+        try {
+            const {data: user, error} = await supabase
+                .from('users')
+                .select('*')
+                .eq('email', email)
+                .single();
+
+            if (error || !user) {
+                throw new Error('User not found with this email.');
+            }
+
+            const isPasswordValid = await bcrypt.compare(password, user.password);
+            if (!isPasswordValid) {
+                throw new Error('Invalid password.');
+            }
+
+            const token = this.generateToken(user.id);
+            return {
+                user: {
+                    id: user.id,
+                    username: user.username,
+                    email: user.email
+                },
+                token
+            };
+        } catch (error) {
+            throw new Error('Login failed: ' + error.message);
+        }
+    }
+
+    generatePIN() {
+        const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()";
+        let resetPIN = "";
+        for (let i = 0; i < 5; i++) {
+            resetPIN += characters.charAt(Math.floor(Math.random() * characters.length));
+        }
+        return resetPIN;
     }
 
     generateToken(userId){
@@ -76,6 +106,8 @@ class UserService {
         }
     }
 }
+
+module.exports = new UserService();
 
 
 
