@@ -3,7 +3,8 @@ const {supabase} = require('../config/database');
 
 const authMiddleware = async (req, res, next) => {
     try{
-        const token = req.headers('Authorization')?.replace('Bearer ', '');
+        const authHeader = req.header('Authorization');
+        const token = authHeader?.replace('Bearer ', '');
 
         if (!token) {
             return res.status(401).json({
@@ -11,6 +12,7 @@ const authMiddleware = async (req, res, next) => {
                 message: 'Authentication token is required.'
             });
         }
+
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
         const {data: user, error} = await supabase

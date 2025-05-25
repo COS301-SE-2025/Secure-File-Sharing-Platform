@@ -12,17 +12,6 @@ app.use(cors({
     credentials: true
 }));
 
-const limiter = ratelimit({
-    windowMs: 15 * 60 * 1000,
-    max: 100,
-    message: {
-    success: false,
-    message: 'Too many requests from this IP, please try again later.'
-  }
-});
-
-app.use('/api', limiter);
-
 app.use(express.json({
     limit: '2gb'
 }));
@@ -32,10 +21,21 @@ app.use(express.urlencoded({
     limit: '2gb'
 }));
 
+const limiter = ratelimit({
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+    message: {
+        success: false,
+        message: 'Too many requests from this IP, please try again later.'
+    }
+});
+
+app.use('/api', limiter);
+
 app.use('/api', routes);
 
 app.listen(PORT, () => {
-    console.log("Server running at http://localhost:"+PORT)
+    console.log("Server running at http://localhost:" + PORT)
 });
 
 module.exports = app;

@@ -88,7 +88,7 @@ class UserController {
                 });
             }
 
-            const token = userService.refreshToken(email);
+            const token = await userService.refreshToken(email);
             return res.status(200).json({
                 success: true,
                 message: 'Token refreshed successfully.',
@@ -103,31 +103,6 @@ class UserController {
         }
     }
 
-    async updateProfile(req, res) {
-        try {
-            const { email, updates } = req.body;
-
-            if (!email || !updates) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Email and updates are required.'
-                });
-            }
-
-            const updatedProfile = await userService.updateProfile(email, updates);
-            return res.status(200).json({
-                success: true,
-                data: updatedProfile
-            });
-        } catch (error) {
-            console.error('Error updating user profile:', error);
-            return res.status(500).json({
-                success: false,
-                message: 'Internal server error.'
-            });
-        }
-    }
-
     async deleteProfile(req, res) {
         try {
             const { email } = req.body;
@@ -135,7 +110,7 @@ class UserController {
             if (!email) {
                 return res.status(400).json({
                     success: false,
-                    message: 'Email is required.'
+                message: 'Email is required.'
                 });
             }
 
