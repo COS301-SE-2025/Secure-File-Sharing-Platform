@@ -33,7 +33,7 @@ const sharedFiles = [
         sharedTime: '2 weeks ago',
         type: 'document'
     }
-    ];
+];
 
     export function ActionButtons() {
         return (
@@ -81,11 +81,11 @@ const sharedFiles = [
                 <FileText size={20} />
                 <span>My Files</span>
                 </a>
-                <a href="/sharedWithMe" className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <a href="/sharedWithMe" className="flex items-center gap-3 p-3 rounded-lg bg-gray-100 dark:bg-gray-700 transition-colors">
                 <Users size={20} />
                 <span>Shared with Me</span>
                 </a>
-                <a href="#" className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <a href="/accessLogs" className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                 <Clock size={20} />
                 <span>Access Logs</span>
                 </a>

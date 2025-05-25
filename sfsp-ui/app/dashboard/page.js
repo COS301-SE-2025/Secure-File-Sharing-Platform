@@ -28,7 +28,7 @@ export default function DashboardPage() {
 
             {/* Navigation */}
             <nav className="space-y-2">
-                <a href="/dashboard" className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <a href="/dashboard" className="flex items-center gap-3 p-3 rounded-lg bg-gray-100 dark:bg-gray-700 transition-colors">
                 <Grid3X3 size={20} />
                 <span>Dashboard</span>
                 </a>
@@ -40,7 +40,7 @@ export default function DashboardPage() {
                 <Users size={20} />
                 <span>Shared with Me</span>
                 </a>
-                <a href="#" className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <a href="/accessLogs" className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                 <Clock size={20} />
                 <span>Access Logs</span>
                 </a>
