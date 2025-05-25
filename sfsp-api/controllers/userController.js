@@ -52,4 +52,113 @@ class UserController {
         }
     }
 
+    async getProfile(req, res) {
+        try {
+            const { email } = req.body;
+
+            const profile = await userService.getProfile(email);
+            if (!profile) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'User profile not found.'
+                });
+            }
+
+            return res.status(200).json({
+                success: true,
+                data: profile
+            });
+        } catch (error) {
+            console.error('Error fetching user profile:', error);
+            return res.status(500).json({
+                success: false,
+                message: 'Internal server error.'
+            });
+        }
+    }
+
+    async refreshToken(req, res) {
+        try {
+            const { email } = req.body;
+
+            if (!email) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Email is required.'
+                });
+            }
+
+            const token = userService.refreshToken(email);
+            return res.status(200).json({
+                success: true,
+                message: 'Token refreshed successfully.',
+                token
+            });
+        } catch (error) {
+            console.error('Error refreshing token:', error);
+            return res.status(500).json({
+                success: false,
+                message: 'Internal server error.'
+            });
+        }
+    }
+
+    async updateProfile(req, res) {
+        try {
+            const { email, updates } = req.body;
+
+            if (!email || !updates) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Email and updates are required.'
+                });
+            }
+
+            const updatedProfile = await userService.updateProfile(email, updates);
+            return res.status(200).json({
+                success: true,
+                data: updatedProfile
+            });
+        } catch (error) {
+            console.error('Error updating user profile:', error);
+            return res.status(500).json({
+                success: false,
+                message: 'Internal server error.'
+            });
+        }
+    }
+
+    async deleteProfile(req, res) {
+        try {
+            const { email } = req.body;
+
+            if (!email) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Email is required.'
+                });
+            }
+
+            const result = await userService.deleteProfile(email);
+            if (!result) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'User profile not found.'
+                });
+            }
+
+            return res.status(200).json({
+                success: true,
+                message: 'User profile deleted successfully.'
+            });
+        } catch (error) {
+            console.error('Error deleting user profile:', error);
+            return res.status(500).json({
+                success: false,
+                message: 'Internal server error.'
+            });
+        }
+    }
 }
+
+module.exports = new UserController();
