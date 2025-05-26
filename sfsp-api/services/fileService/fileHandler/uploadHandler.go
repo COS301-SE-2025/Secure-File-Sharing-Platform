@@ -62,14 +62,14 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Encrypt file (optional)
+	// Encrypt file
 	aesKey := os.Getenv("AES_KEY")
 	if len(aesKey) != 32 {
 		http.Error(w, "Invalid AES key", http.StatusInternalServerError)
 		return
 	}
 
-	// (Optional encryption step omitted here if not needed)
+	//No encryption is done here, but you can implement it if needed
 
 	// Upload to OwnCloud
 	remotePath := req.Path

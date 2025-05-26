@@ -7,7 +7,6 @@ exports.downloadFile = async (req, res) => {
   const { path, filename } = req.body;
 
   if (!path || !filename) {
-    console.log("Path is :", path, "Filename is:", filename);
     return res.status(400).send("Missing path or filename");
   }
 
@@ -15,23 +14,17 @@ exports.downloadFile = async (req, res) => {
     const response = await axios.post(
       `${process.env.FILE_SERVICE_URL}/download`,
       { path, filename },
-      { headers: { "Content-Type": "application/json" }, responseType: "json" }
+      { headers: { "Content-Type": "application/json" } }
     );
 
     const { fileName, fileContent } = response.data;
 
-    // Send file as attachment
-    res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
-    res.setHeader("Content-Type", "application/octet-stream");
-
-    const buffer = Buffer.from(fileContent, "base64");
-    res.send(buffer);
+    res.json({ fileName, fileContent }); // ✅ Send as JSON
   } catch (err) {
     console.error("Download error:", err.message);
     res.status(500).send("Download failed");
   }
 };
-
 
 exports.getMetaData = async (req, res) => {
   const userId = req.body.userId;
