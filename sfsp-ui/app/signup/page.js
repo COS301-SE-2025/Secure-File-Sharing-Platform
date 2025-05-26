@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { registerUser } from '@/lib/auth/register';
 
 export default function SignupPage() {
   const [formData, setFormData] = useState({
@@ -30,7 +29,6 @@ export default function SignupPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // Handle form submission
     const { name, email, password, confirmPassword } = formData;
 
     setIsLoading(true);
@@ -38,37 +36,52 @@ export default function SignupPage() {
 
     if (!name || !email || !password || !confirmPassword) {
       setMessage('All fields are required.');
+      setIsLoading(false);
       return;
     }
 
     if (!validateEmail(email)) {
       setMessage('Please enter a valid email address.');
+      setIsLoading(false);
       return;
     }
 
     if (password.length < 6) {
       setMessage('Password must be at least 6 characters long.');
+      setIsLoading(false);
       return;
     }
 
-    if(password != confirmPassword){
+    if (password !== confirmPassword) {
       setMessage("Passwords don't match.");
+      setIsLoading(false);
       return;
     }
 
-    const { data, error } = await registerUser({
-      username: name,
-      email,
-      password
-    });
+    try {
+      const res = await fetch('http://localhost:5000/api/users/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: name,
+          email,
+          password
+        })
+      });
 
-    if (error) {
-      console.error(error);
-      setMessage('Something went wrong. Please try again.');
-    } else {
+      const result = await res.json();
+
+      if (!res.ok || !result.success) {
+        throw new Error(result.message || 'Registration failed');
+      }
+
       setMessage('User successfully registered!');
-      // success redirect
-      router.push('/dashboard');  
+      router.push('/dashboard');
+    } catch (err) {
+      console.error(err);
+      setMessage(err.message || 'Something went wrong. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -134,15 +147,35 @@ export default function SignupPage() {
             />
           </div>
 
+          {message && (
+            <div className="text-sm text-red-600 dark:text-red-400">{message}</div>
+          )}
+
           <button
             type="submit"
             className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md font-medium flex items-center justify-center min-h-[42px]"
           >
             {isLoading ? (
               <>
-                <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                <svg
+                  className="animate-spin -ml-1 mr-2 h-5 w-5 text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
                 </svg>
                 Signing Up...
               </>
@@ -153,7 +186,10 @@ export default function SignupPage() {
         </form>
         <p className="mt-4 text-center text-sm text-gray-600 dark:text-gray-400">
           Already have an account?{' '}
-          <a href="/login" className="text-blue-600 hover:underline dark:text-blue-400">
+          <a
+            href="/login"
+            className="text-blue-600 hover:underline dark:text-blue-400"
+          >
             Log In
           </a>
         </p>
