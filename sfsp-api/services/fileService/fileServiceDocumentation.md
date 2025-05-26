@@ -8,7 +8,7 @@
 
 ---
 
-## dowload document
+## download document
 
 **Endpoint**: `POST http://localhost:5000/files/download`
 **Authentication**: Not required
