@@ -2,7 +2,7 @@
 
 ## Table of Contents
 
-* [download document](#download-Document)
+* [download document](#download-document)
 * [Upload document](#Upload-Document)
 * [Get Meta data to display](#Get-Meta-Data-to-display)
 
