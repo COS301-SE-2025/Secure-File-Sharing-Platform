@@ -9,6 +9,9 @@ import (
     "time"
 
     "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
+    "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto"
+    //"github.com/joho/godotenv"
+    "os"
     "go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -61,6 +64,19 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
     encryptionKey := r.FormValue("encryptionKey")
     description := r.FormValue("fileDescription")
     tags := strings.Split(r.FormValue("fileTags"), ",")
+
+    //before uploading, encrypt the file
+    aesKey := os.Getenv("AES_KEY")
+    if len(aesKey) != 32 {
+	   http.Error(w, "Invalid AES_KEY length. Must be 32 bytes", http.StatusInternalServerError)
+	   return
+    }
+
+    fileBytes, err = crypto.EncryptBytes(fileBytes, aesKey)
+    if err != nil {
+	   http.Error(w, "Failed to encrypt file: "+err.Error(), http.StatusInternalServerError)
+	   return
+    }
 
     // Use your existing owncloud package here
     err = owncloud.UploadFile(remotePath, handler.Filename, fileBytes)
