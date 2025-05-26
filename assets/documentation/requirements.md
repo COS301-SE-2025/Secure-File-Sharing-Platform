@@ -5,18 +5,47 @@
 | Section                     | Link                           |
 | :-------------------------- | :----------------------------- |
 | Introduction                | [Go to](#introduction)         |
+|User Stories / User Characteristics| [Go to](#user-stories--user-characteristics) |
 | Functional Requirements     | [Go to](#functional-requirements) |
-| Non-Functional Requirements | [Go to](#non-functional-requirements) |
+|Service Contracts|[Go to](#service-contracts)|
+|Domain Model|[Go to](#domain-model)|
+|Architectural Requirements|[Go to](#architectural-requirements)|
+|.......Quality Requirements | [Go to](#non-functional-requirements) |
+|.......Architectural Patterns|[Go to](#architectural-patterns)|
+|.......Design Patterns|[Go to](#design-patterns)|
+|.......Constraints|[Go to](#constraints)|
+|Technology Requirements|[Go to](#technology-requirements)|
 
 -----
 
-## Introduction
+# Introduction
 
 This document outlines the requirements for the Secure File Sharing Platform system.
 
 -----
 
-## Functional Requirements
+# User Stories / User Characteristics
+
+
+| User Stories                                                                                                                                                                                                                                                                                     | Acceptance criteria                                                                                                                                                                                                                                                                                |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ***File Upload***<br><br>**As a** secure file sharing platform user I want to be able to securely upload my documents onto the platform **So that** they can be securely store.                                                                                                                  | Given that I see the upload slot when I copy in or attach a file for upload, Then the system should encrypt the file and store it securely.                                                                                                                                                        |
+| ***File download***<br><br>As a secure file sharing platform user I want to be able to securely download file sent by other users to me and files I stored on the platform So that I can have the information that is needed.                                                                    | Given that a user sees that files were sent to them by a peer or if they want to download previously stored files, when they click they choose the file to download, Then the file should be downloaded into there system.                                                                         |
+| ***File sharing***<br><br>As a secure file sharing platform user I want to be able to securely share my files with other users So that I can send them information I need them to have.                                                                                                          | Given that a user has the username or email of the recipient when they click the send button, Then the recipient should be alerted that someone is trying to send over a file and  they can either accept the file then receive the file securely or deny the request then never receive the file. |
+| ***File Viewing***<br><br>As a secure file sharing platform user I want the ability to view file on my device before I download them or upload them So that I know that they contain information I need.                                                                                         | Given that a user can see all the files they have on the platform they should be able to When they click a file, Then they should be able to see the contents of the file before they download or upload it.                                                                                       |
+| ***File signing***<br><br>As a secure file sharing platform user I want to be able to sign a file So that I know when the contents of my file have been changed or tampered with.                                                                                                                | Given a user has uploaded a file, When they press a button to sign the document, Then the mathematical algorithms should be applied to the document so that it create a signature that is stored on the platform, with meta date such as when the signature was created.                           |
+| ***Edit files***<br><br>As a secure file sharing platform user I want to be able to edit file in the platform before I upload them and after I download them So that I can easily change parts of the document before they are saved on the platform.                                            | Given a user has a file to upload or had just downloaded a file, When they press the the edit button they should have the ability to edit the file before they upload or download it.                                                                                                              |
+| ***Access Control logs***<br><br>As a secure file sharing platform user I want the be able to see who downloaded my file, who I shared the file with, how many files I have uploaded or downloaded, So that I can be extra sure that my files are when they belong and I have not lost any files | Given that a user is on the platform, When they press the button to access the logs, Then they should be shown information about either specific files or general information about the files that have uploaded and downloaded.                                                                   |
+| ***One time downloads***<br><br>As a secure fil sharing platform user I want to be able to create files that can be downloaded only once, So that I know that my files won't have unauthorized distribution.                                                                                     | Given that a sender sent files to me When they download the files, Then the file should be removed from ever being downloaded again by them.                                                                                                                                                       |
+| ***Set expiration on file access***<br><br>As a secure file sharing platform user I want to be able to set a time limit for how long other users can download my file even if I sent it to them So that they do not have unlimited access to my file                                             | Given that a user is sending a file to someone When the click a button to add an expiration date, Then they should be prompted to add how long the file should be downloadable by the recipient for.                                                                                               |
+| ***Group Sharing***<br><br>As a secure file sharing platform user I want to be able to share files with multiple people or an organization So that I don't have to send files individually one-by-one to every person                                                                            | Given a user want to share a file, When they press the send, Then they should be prompted on whether they want to send it to a single person or a group or organization of people and whether it should be a one-time download, whether they want to set file expirations.                         |
+| ***Password Protected files***<br><br>As a secure file sharing platform user I want to be able to set a password for a public file so that only people who know the password can decrypt it.                                                                                                     | Given a user wants to add a password to a file, When they press the button to add a password to a file, The the system should prompt them to add a password, and send that file with the password protecting it.                                                                                   |
+| ***Restore Access Logs on File Deletion***<br><br>As a secure file sharing platform user I want to be able to view who accessed my files even after I delete them This is for forensic or auditing reasons                                                                                       | Given a user has deleted a file, When they go to the deleted files tab and press on the delete file. Then they should be able to see how many people access that file before it was deleted.                                                                                                       |
+|                                                                                                                                                                                                                                                                                                  |                                                                                                                                                                                                                                                                                                    |
+
+-----
+
+# Functional Requirements
 
 The Secure File Sharing platform shall (Version 1):
 
@@ -96,9 +125,21 @@ The Secure File Sharing platform shall (Version 1):
 
 - **FR13.1** The system shall use open-source cloud infrastructure for backend file management.
 
+---
+
+# Service Contracts
+
+---
+
+# Domain Model
+
 -----
 
-## Non-Functional Requirements
+# Architectural Requirements
+
+------
+
+## Quality Requirements
 
 ### NFR1. User Authentication & Account Management
 
@@ -158,6 +199,35 @@ The Secure File Sharing platform shall (Version 1):
   * **NFR12.1**: Keys must be generated using a secure random number generator (e.g., WebCrypto).
   * **NFR12.2**: The system must ensure zero exposure of private keys to the server.
 
+
 ---
 
-##
+## Architectural Patterns
+
+# Drafts:
+
+**Microservices architecture:**
+
+![microservices](https://drive.google.com/uc?export=view&id=1ytoGTHN4bKQgv6z9nufgfS9beRtuG3CK)
+
+**MVC Architecture:**
+
+![mvc](https://drive.google.com/uc?export=view&id=1dTs8WEAZ8sjdMB9gyga10b5RKHitww2k)
+
+**Event-driven Architecture:**
+
+![event-driven](https://drive.google.com/uc?export=view&id=1CZRlsVonZZIa6h-L0yS3P2SLP4We0Sab)
+
+---
+
+## Design Patterns
+
+
+---
+
+## Constraints
+
+
+---
+
+# Technology Requirements
