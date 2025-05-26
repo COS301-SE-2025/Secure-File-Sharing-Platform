@@ -244,3 +244,24 @@ Allows for real-time features that are needed for this project.
 ---
 
 # Technology Requirements
+<div align="left">
+<a href="https://nextjs.org/" target="_blank"><img src="https://skillicons.dev/icons?i=nextjs" alt="Next.js" /></a>
+<a href="https://tailwindcss.com/" target="_blank"><img src="https://skillicons.dev/icons?i=tailwind" alt="Tailwind CSS" /></a>
+<a href="https://expressjs.com/" target="_blank"><img src="https://skillicons.dev/icons?i=express" alt="Express.js" /></a>
+<a href="https://nodejs.org/" target="_blank"><img src="https://skillicons.dev/icons?i=nodejs" alt="Node.js" /></a>
+<a href="https://golang.org/" target="_blank"><img src="https://skillicons.dev/icons?i=go" alt="Golang" /></a>
+<a href="https://supabase.com/" target="_blank"><img src="https://skillicons.dev/icons?i=supabase" alt="Supabase" /></a>
+<a href="https://www.mongodb.com/" target="_blank"><img src="https://skillicons.dev/icons?i=mongodb" alt="MongoDB" /></a>
+<a href="https://owncloud.com/" target="_blank"><img src="https://skillicons.dev/icons?i=owncloud" alt="ownCloud" /></a>
+</div>
+
+## Technology Stack Overview
+
+| Technology | Description |
+|------------|-------------|
+| **Next.js** | Main frontend framework, bootstrapped with `create-next-app` for React-based web application development. |
+| **Tailwind CSS** | Utility-first CSS framework for fast and responsive UI styling. |
+| **Express.js** + **Node.js** | Backend API server and routing logic for handling HTTP requests and business logic implementation. |
+| **Golang** | Handles large file uploads efficiently for high performance. |
+| **MongoDB** | NoSQL database for storing application metadata, user data, and file information in a flexible document format. |
+| **Supabase** | Backend-as-a-Service platform providing authentication and user management. |
