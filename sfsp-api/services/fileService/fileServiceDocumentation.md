@@ -2,11 +2,9 @@
 
 ## Table of Contents
 
-* [User Registration](#user-registration)
-* [User Login](#user-login)
-* [Get User Profile](#get-user-profile)
-* [Refresh Token](#refresh-token)
-* [Delete User](#delete-user)
+* [download document](#Download-Document)
+* [Upload document](#Upload-Document)
+* [Get Meta data to display](#Get-Meta-Data-to-display)
 
 ---
 
