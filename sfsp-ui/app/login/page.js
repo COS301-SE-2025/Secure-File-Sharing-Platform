@@ -1,5 +1,6 @@
 'use client';
 
+import Image from "next/image";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -51,7 +52,7 @@ export default function LoginPage() {
       setTimeout(() => {
         router.push('/dashboard');
       }, 1000);
-      
+
     } catch (err) {
       console.error('Login error:', err);
       setMessage(err.message || 'An unexpected error occurred. Please try again.');
@@ -61,8 +62,13 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 px-4">
-      <div className="w-full max-w-md bg-white dark:bg-gray-800 p-8 rounded-lg shadow-lg">
+    <div className="min-h-screen flex items-center justify-center bg-sky-800 dark:bg-gray-900 px-4">
+      <div className="w-full max-w-md bg-neutral-200/95 dark:bg-gray-800 p-8 rounded-lg shadow-lg">
+        <div className="flex justify-center items-center">
+          <Image src="/img/shield-emp-black.png" alt="SecureShare Logo Light" width={50} height={50} className="block dark:hidden" />
+          <Image src="/img/shield-emp-white.png" alt="SecureShare Logo Dark" width={50} height={50} className="hidden dark:block" />
+        </div>
+        
         <h2 className="text-2xl font-bold text-center text-gray-900 dark:text-white mb-6">
           Log in to your account
         </h2>
