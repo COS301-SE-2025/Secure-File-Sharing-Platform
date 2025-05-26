@@ -3,7 +3,7 @@ const router = express.Router();
 const fileController = require('../controllers/fileController');
 const multer = require('multer');
 
-const upload = multer({ dest: 'uploads/' }); // temp folder
+const upload = multer({ dest: 'uploads/' }); 
 
 router.get('/download', fileController.downloadFile);
 router.get('/metadata/:id', fileController.getMetaData);

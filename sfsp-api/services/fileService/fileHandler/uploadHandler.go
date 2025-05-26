@@ -62,7 +62,7 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
     description := r.FormValue("fileDescription")
     tags := strings.Split(r.FormValue("fileTags"), ",")
 
-    // ⬇️ Use your existing owncloud package here
+    // Use your existing owncloud package here
     err = owncloud.UploadFile(remotePath, handler.Filename, fileBytes)
     if err != nil {
         http.Error(w, fmt.Sprintf("Upload failed: %v", err), http.StatusInternalServerError)
