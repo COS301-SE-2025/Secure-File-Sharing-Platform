@@ -60,6 +60,15 @@ export default function TrashPage() {
           </table>
         </div>
       )}
+      <br></br>
+        <button
+      type="button"
+      className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+      onClick={() => {
+        //make reference to delete endpoint here 
+        alert("Trash Files Cleared");
+      }}
+    > Clear Trash </button>
     </div>
   );
 }
