@@ -22,95 +22,79 @@ The Secure File Sharing platform shall (Version 1):
 
 ### FR1. User Authentication & Account Management
     
-1.1 Users shall be able to register an account with a secure password.
-
-1.2 Users shall be able to log in using registered credentials.
-
-1.3 The system shall support multi-factor authentication.
-
-1.4 The system shall support third-party authentication.
-
-1.5 Users shall be able to reset passwords securely.
-
-1.6 The system shall enforce account lockout after multiple failed login attempts.
+- **FR1.1** Users shall be able to register an account with a secure password.
+- **FR1.2** Users shall be able to log in using registered credentials.
+- **FR1.3** The system shall support multi-factor authentication.
+- **FR1.4** The system shall support third-party authentication.
+- **FR1.5** Users shall be able to reset passwords securely.
+- **FR1.6** The system shall enforce account lockout after multiple failed login attempts.
 
 ### FR2. File Upload and Download
 
-2.1 Users shall be able to upload files to the platform.
-
-2.2 Users shall be able to download files from the platform.
-
-2.3 The system shall display upload/download progress with cancel support.
+- **FR2.1** Users shall be able to upload files to the platform.
+- **FR2.2** Users shall be able to download files from the platform.
+- **FR2.3** The system shall display upload/download progress with cancel support.
 
 ### FR3. End-to-End File Encryption
 
-3.1 Files shall be encrypted on the client side before upload.
-
-3.2 Files shall be decrypted on the client side after download.
-
-3.3 Only the sender and intended recipient(s) shall have access to encryption keys.
+- **FR3.1** Files shall be encrypted on the client side before upload.
+- **FR3.2** Files shall be decrypted on the client side after download.
+- **FR3.3** Only the sender and intended recipient(s) shall have access to encryption keys.
 
 ### FR4. File Sharing and Access Control
 
-4.1 Users shall be able to share files with specific users.
-
-4.2 The sender shall be able to set permissions:
- - view-only (cannot download)
- - Download-only (cannot preview online)
- - Full access (view + download)
-
-4.3 The sender shall be able to revoke access at any time.
+- **FR4.1** Users shall be able to share files with specific users.
+- **FR4.2** The sender shall be able to set permissions:
+	 - view-only (cannot download)
+	 - Download-only (cannot preview online)
+	 - Full access (view + download)
+- **FR4.3** The sender shall be able to revoke access at any time.
 
 ### FR5. Digital Signing
 
-5.1 Users shall be able to digitally sign files.
+- **FR5.1** Users shall be able to digitally sign files.
 
 ### FR6. Access Logs and Audit Trails
 
-6.1 All file-related events (upload, view, share, download) shall be logged.
-
-6.2 Authorized users and administrators shall be able to view access logs.
-
-6.3 Each log entry shall record time, user, and action type.
+- **FR6.1** All file-related events (upload, view, share, download) shall be logged.
+- **FR6.2** Authorized users and administrators shall be able to view access logs.
+- **FR6.3** Each log entry shall record time, user, and action type.
 
 ### FR7. Advanced Sharing Options
 
-7.1 Files shall be shareable with one-time download links.
-
-7.2 Users shall be able to set file expiration times.
-
-7.3 Sharing with multiple recipients simultaneously shall be supported.
+- **FR7.1** Files shall be shareable with one-time download links.
+- **FR7.2** Users shall be able to set file expiration times.
+- **FR7.3** Sharing with multiple recipients simultaneously shall be supported.
 
 ### FR8. Administrative Controls
 
-8.1 Administrators shall be able to monitor all user and file activity logs.
-
-8.2 Administrators shall be able to manage user accounts:
-- Remove user accounts
-- Restrict accounts for policy violations
+- **FR8.1** Administrators shall be able to monitor all user and file activity logs.
+- **FR8.2** Administrators shall be able to manage user accounts:
+	- Remove user accounts
+	- Restrict accounts for policy violations
 
 ### FR9. Notifications
 
-9.1 The system shall send push/email notifications on key events.
+- **FR9.1** The system shall send push/email notifications on key events.
 
 ### FR10. File Organization
 
-10.1 Users shall be able to create and organize folders.
-10.2 The system shall support file renaming, moving, and deletion.
+- **FR10.1** Users shall be able to create and organize folders.
+- **FR10.2** The system shall support file renaming, moving, and deletion.
 
 ### FR11. Error Handling/Detection
 
-11.1 The system shall display meaningful error messages for failed operations.
-11.2 The system shall validate input fields.
+- **FR11.1** The system shall display meaningful error messages for failed operations.
+- **FR11.2** The system shall validate input fields.
 
 ### FR12. Key Management
 
-12.1 The system shall generate key pairs for each user.
-12.2 Only public keys shall be stored on the server.
+- **FR12.1** The system shall generate key pairs for each user.
+- **FR12.2** Only public keys shall be stored on the server.
 
 ### FR13. Cloud Storage Integration
 
-13.1 The system shall use open-source cloud infrastructure for backend file management.
+- **FR13.1** The system shall use open-source cloud infrastructure for backend file management.
 
 -----
 
@@ -173,3 +157,7 @@ The Secure File Sharing platform shall (Version 1):
 
   * **NFR12.1**: Keys must be generated using a secure random number generator (e.g., WebCrypto).
   * **NFR12.2**: The system must ensure zero exposure of private keys to the server.
+
+---
+
+##

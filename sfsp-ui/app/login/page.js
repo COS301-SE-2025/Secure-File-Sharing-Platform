@@ -2,9 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { loginUser } from "@/lib/auth/login";
 import Link from "next/link";
-
 
 export default function LoginPage() {
   const router = useRouter();
@@ -21,28 +19,42 @@ export default function LoginPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Form submitted with data:', formData);
-    
     setMessage(null);
     setIsLoading(true);
 
     try {
-      const { data, error } = await loginUser(formData);
-      console.log('Login response:', { data, error });
+      const res = await fetch('http://localhost:5000/api/users/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password
+        }),
+      });
 
-      if (error) {
-        setMessage(error);
-        console.error('Login error:', error);
-      } else {
-        setMessage('Login successful!');
-        console.log('Login successful, redirecting...');
-        setTimeout(() => {
-          router.push('/dashboard');
-        }, 1000);
+      const result = await res.json();
+
+      if (!res.ok || !result.success) {
+        throw new Error(result.message || 'Invalid login credentials');
       }
+
+      // localStorage.setItem('token', result.token);
+      const bearerToken = result.data?.token;
+
+      if (!bearerToken) {
+        throw new Error('No token returned from server');
+      }
+
+      const rawToken = bearerToken.replace(/^Bearer\s/, '');
+      localStorage.setItem('token', rawToken);
+      setMessage('Login successful!');
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 1000);
+      
     } catch (err) {
-      console.error('Login submission error:', err);
-      setMessage('An unexpected error occurred. Please try again.');
+      console.error('Login error:', err);
+      setMessage(err.message || 'An unexpected error occurred. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -51,17 +63,19 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 px-4">
       <div className="w-full max-w-md bg-white dark:bg-gray-800 p-8 rounded-lg shadow-lg">
-        <h2 className="text-2xl font-bold text-center text-gray-900 dark:text-white mb-6">Log in to your account</h2>
+        <h2 className="text-2xl font-bold text-center text-gray-900 dark:text-white mb-6">
+          Log in to your account
+        </h2>
 
         <form className="space-y-6" onSubmit={handleSubmit}>
-
           {/* Error/Success Message */}
           {message && (
-            <div className={`p-3 rounded-md text-sm ${
-              message.includes('successful') 
-                ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200' 
+            <div
+              className={`p-3 rounded-md text-sm ${message.includes('successful')
+                ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200'
                 : 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200'
-            }`}>
+                }`}
+            >
               {message}
             </div>
           )}
