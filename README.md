@@ -219,7 +219,7 @@ professional data.
 
 | DOCUMENT     | LINK                             |
 |------------------|-----------------------------------|
-| Requirements           | [Open](./assets/documentation/requirements.md)|
+| Requirements (SRS)           | [Open](./assets/documentation/requirements.md)|
 
 ## 📌 Project Management
 
