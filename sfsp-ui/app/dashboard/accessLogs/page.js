@@ -32,9 +32,8 @@ export default function AccessLogsPage() {
   return (
     <div className="p-6">
       <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow">
-        <h1 className="text-2xl font-bold mb-2">Access Logs</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-          Monitor who accessed, modified, or shared your files
+        <h1 className="text-2xl font-bold mb-2 text-blue-500">Access Logs</h1>
+        <p className="text-gray-600 dark:text-gray-400 pb-8"> Monitor who accessed, modified, or shared your files
         </p>
 
         {/* Filters */}
@@ -43,7 +42,7 @@ export default function AccessLogsPage() {
             <select
               value={dateFilter}
               onChange={(e) => setDateFilter(e.target.value)}
-              className="bg-gray-100 dark:bg-gray-700 text-sm px-3 py-2 rounded-md focus:outline-none"
+              className="bg-gray-200 dark:bg-gray-700 text-sm px-3 py-2 rounded-md focus:outline-none"
             >
               <option>Last 7 days</option>
               <option>Last 30 days</option>
@@ -52,7 +51,7 @@ export default function AccessLogsPage() {
             <select
               value={actionFilter}
               onChange={(e) => setActionFilter(e.target.value)}
-              className="bg-gray-100 dark:bg-gray-700 text-sm px-3 py-2 rounded-md focus:outline-none"
+              className="bg-gray-200 dark:bg-gray-700 text-sm px-3 py-2 rounded-md focus:outline-none"
             >
               <option>All actions</option>
               <option>Viewed</option>
@@ -61,7 +60,7 @@ export default function AccessLogsPage() {
               <option>Modified</option>
             </select>
           </div>
-          <button className="border border-gray-300 dark:border-gray-600 text-sm px-4 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700">
+          <button className="border border-gray-500 dark:border-gray-600 text-sm px-4 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700">
             Export logs
           </button>
         </div>

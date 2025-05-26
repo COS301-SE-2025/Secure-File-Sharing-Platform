@@ -28,7 +28,7 @@ export default function DashboardHomePage() {
 
   return (
     <div className="p-6 bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white">
-      <h1 className="text-2xl font-semibold mb-2 text-sky-600">Welcome!</h1>
+      <h1 className="text-2xl font-semibold mb-2 text-blue-500">Welcome!</h1>
       <p className="text-gray-600 dark:text-gray-400 mb-7">
         Here's a quick look at your file sharing activity.
       </p>
