@@ -10,10 +10,10 @@
 |Service Contracts|[Go to](#service-contracts)|
 |Domain Model|[Go to](#domain-model)|
 |Architectural Requirements|[Go to](#architectural-requirements)|
-|.......Quality Requirements | [Go to](#non-functional-requirements) |
-|.......Architectural Patterns|[Go to](#architectural-patterns)|
-|.......Design Patterns|[Go to](#design-patterns)|
-|.......Constraints|[Go to](#constraints)|
+|.........Quality Requirements | [Go to](#non-functional-requirements) |
+|.........Architectural Patterns|[Go to](#architectural-patterns)|
+|.........Design Patterns|[Go to](#design-patterns)|
+|.........Constraints|[Go to](#constraints)|
 |Technology Requirements|[Go to](#technology-requirements)|
 
 -----
@@ -204,19 +204,32 @@ The Secure File Sharing platform shall (Version 1):
 
 ## Architectural Patterns
 
-# Drafts:
+### Drafts:
 
 **Microservices architecture:**
 
 ![microservices](https://drive.google.com/uc?export=view&id=1ytoGTHN4bKQgv6z9nufgfS9beRtuG3CK)
 
+*Reasoning:*
+Allows for isolation of services. Allowing for independent scalability and flexibility in languages, as we plan to use GO for encrytion services.
+
 **MVC Architecture:**
 
 ![mvc](https://drive.google.com/uc?export=view&id=1dTs8WEAZ8sjdMB9gyga10b5RKHitww2k)
 
+*Reasoning:*
+
+Allows us to organize UI, and creates a separation of concerns. This will also help down the line with mobile development.  
+
 **Event-driven Architecture:**
 
 ![event-driven](https://drive.google.com/uc?export=view&id=1CZRlsVonZZIa6h-L0yS3P2SLP4We0Sab)
+
+*Reasoning:*
+File upload/download should lead to a log action.
+Shared file should notify recipient
+
+Allows for real-time features that are needed for this project.
 
 ---
 
