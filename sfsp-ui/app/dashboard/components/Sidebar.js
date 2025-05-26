@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import {
   FileText,
@@ -10,17 +10,19 @@ import {
   Clock,
   Trash2,
   Settings,
+  ChevronDown,
+  LogOut
 } from 'lucide-react';
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [user, setUser] = useState(null);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
       const token = localStorage.getItem('token');
-      // console.log('Token from localStorage:', token);
-
       if (!token) return;
 
       try {
@@ -41,6 +43,12 @@ export default function Sidebar() {
 
     fetchProfile();
   }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    router.push('/');
+  };
 
   const linkClasses = (path) => {
     const isActive =
@@ -100,9 +108,12 @@ export default function Sidebar() {
         </a>
       </nav>
 
-      {/* User Profile */}
+      {/* User Profile and Dropdown */}
       <div className="absolute bottom-6 left-6 right-6">
-        <div className="flex items-center gap-3 p-3">
+        <button
+          className="flex items-center gap-3 p-3 w-full text-left rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          onClick={() => setDropdownOpen((prev) => !prev)}
+        >
           <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-bold">
             {user?.username?.slice(0, 2).toUpperCase() || '??'}
           </div>
@@ -112,7 +123,21 @@ export default function Sidebar() {
               {user?.email || ''}
             </div>
           </div>
-        </div>
+          <ChevronDown size={18} />
+        </button>
+
+        {dropdownOpen && (
+          <div className="mt-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg">
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 px-4 py-2 w-full text-left text-sm text-red-600 hover:bg-red-100 dark:hover:bg-red-800 dark:text-red-400"
+            >
+              <LogOut size={16} />
+              Logout
+            </button>
+          </div>
+        )}
+
         <a href="/dashboard/settings" className={linkClasses('/dashboard/settings')}>
           <Settings size={20} />
           <span>Settings</span>
@@ -128,7 +153,6 @@ export default function Sidebar() {
 // import { useEffect, useState } from 'react';
 // import { usePathname } from 'next/navigation';
 // import Image from 'next/image';
-
 // import {
 //   FileText,
 //   Grid3X3,
@@ -140,30 +164,28 @@ export default function Sidebar() {
 
 // export default function Sidebar() {
 //   const pathname = usePathname();
-//   const [profile, setProfile] = useState(null);
+//   const [user, setUser] = useState(null);
 
 //   useEffect(() => {
 //     const fetchProfile = async () => {
 //       const token = localStorage.getItem('token');
+//       // console.log('Token from localStorage:', token);
+
 //       if (!token) return;
 
 //       try {
 //         const res = await fetch('http://localhost:5000/api/users/profile', {
-//           method: 'GET',
 //           headers: {
-//             'Authorization': `Bearer ${token}`,
+//             Authorization: `Bearer ${token}`,
 //           },
 //         });
 
 //         const result = await res.json();
 
-//         if (res.ok && result.success) {
-//           setProfile(result.data);
-//         } else {
-//           console.error('Failed to fetch profile:', result.message);
-//         }
+//         if (!res.ok) throw new Error(result.message || 'Failed to fetch profile');
+//         setUser(result.data);
 //       } catch (err) {
-//         console.error('Error fetching profile:', err);
+//         console.error('Failed to fetch profile:', err.message);
 //       }
 //     };
 
@@ -182,14 +204,6 @@ export default function Sidebar() {
 //         : 'hover:bg-gray-100 dark:hover:bg-gray-700'
 //     }`;
 //   };
-
-//   const initials = profile?.username
-//     ? profile.username
-//         .split(' ')
-//         .map((word) => word[0])
-//         .join('')
-//         .toUpperCase()
-//     : '??';
 
 //   return (
 //     <aside className="w-64 bg-white text-gray-900 dark:bg-gray-800 dark:text-white p-6 shadow-md hidden md:block relative">
@@ -236,18 +250,16 @@ export default function Sidebar() {
 //         </a>
 //       </nav>
 
-//       {/* User Profile at Bottom */}
+//       {/* User Profile */}
 //       <div className="absolute bottom-6 left-6 right-6">
 //         <div className="flex items-center gap-3 p-3">
 //           <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-bold">
-//             {initials}
+//             {user?.username?.slice(0, 2).toUpperCase() || '??'}
 //           </div>
 //           <div className="flex-1 min-w-0">
-//             <div className="text-sm font-medium truncate">
-//               {profile?.username || 'Loading...'}
-//             </div>
+//             <div className="text-sm font-medium truncate">{user?.username || 'Loading...'}</div>
 //             <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
-//               {profile?.email || ''}
+//               {user?.email || ''}
 //             </div>
 //           </div>
 //         </div>
@@ -259,4 +271,3 @@ export default function Sidebar() {
 //     </aside>
 //   );
 // }
-

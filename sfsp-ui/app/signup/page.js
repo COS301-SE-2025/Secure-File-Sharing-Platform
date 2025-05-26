@@ -75,6 +75,9 @@ export default function SignupPage() {
         throw new Error(result.message || 'Registration failed');
       }
 
+      const token = result.data.token?.replace(/^Bearer\s+/, '');
+      localStorage.setItem('token', token);
+
       setMessage('User successfully registered!');
       router.push('/dashboard');
     } catch (err) {
