@@ -3,26 +3,35 @@ package metadata
 import (
 	"context"
 	"encoding/json"
-	//"fmt"
 	"net/http"
-
-	"go.mongodb.org/mongo-driver/bson"
-	//"go.mongodb.org/mongo-driver/bson/primitive"
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler"
-
-	//"go.mongodb.org/mongo-driver/mongo"
+	//"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
+	"go.mongodb.org/mongo-driver/bson"
+	"log"
+	"fmt"
 )
 
+type MetadataQueryRequest struct {
+	UserID string `json:"userId"`
+}
+
 func GetMetadataHandler(w http.ResponseWriter, r *http.Request) {
-	userId := r.URL.Query().Get("userId")
-	if userId == "" {
-		http.Error(w, "Missing 'userId' query parameter", http.StatusBadRequest)
+	var req MetadataQueryRequest
+	err := json.NewDecoder(r.Body).Decode(&req)
+
+	var rawBody map[string]interface{}
+    json.NewDecoder(r.Body).Decode(&rawBody)
+    fmt.Println("🔎 Raw decoded body:", rawBody)
+
+	if err != nil || req.UserID == "" {
+		log.Println("User Id is: " + req.UserID)
+		http.Error(w, "Missing or invalid 'userId' in request body", http.StatusBadRequest)
 		return
 	}
 
 	collection := fileHandler.MongoClient.Database("sfsp").Collection("files")
 
-	filter := bson.M{"userId": userId}
+	filter := bson.M{"userId": req.UserID}
 
 	cursor, err := collection.Find(context.TODO(), filter)
 	if err != nil {
@@ -45,4 +54,3 @@ func GetMetadataHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(results)
 }
-

@@ -1,12 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const fileController = require('../controllers/fileController');
-const multer = require('multer');
 
-const upload = multer({ dest: 'uploads/' }); 
-
-router.get('/download', fileController.downloadFile);
-router.get("/metadata", fileController.getMetaData)
-router.post('/upload', upload.single('file'), fileController.uploadFile);
+router.post('/download', fileController.downloadFile);
+router.post("/metadata", fileController.getMetaData)
+router.post('/upload', fileController.uploadFile);
 
 module.exports = router;

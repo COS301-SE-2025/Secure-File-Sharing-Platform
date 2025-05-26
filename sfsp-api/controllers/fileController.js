@@ -1,84 +1,110 @@
 const axios = require('axios');
 const FormData = require('form-data');
 const fs = require('fs');
+require('dotenv').config();
 
 exports.downloadFile = async (req, res) => {
-  const { path: filePath, filename } = req.query;
+  const { path, filename } = req.body;
+
+  if (!path || !filename) {
+    console.log("Path is :", path, "Filename is:", filename);
+    return res.status(400).send("Missing path or filename");
+  }
 
   try {
-    const response = await axios({
-      method: 'get',
-      url: `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/download`,
-      params: { path: filePath, filename },
-      responseType: 'stream',
-    });
+    const response = await axios.post(
+      `${process.env.FILE_SERVICE_URL}/download`,
+      { path, filename },
+      { headers: { "Content-Type": "application/json" }, responseType: "json" }
+    );
 
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.setHeader('Content-Type', 'application/octet-stream');
+    const { fileName, fileContent } = response.data;
 
-    response.data.pipe(res);
+    // Send file as attachment
+    res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+    res.setHeader("Content-Type", "application/octet-stream");
+
+    const buffer = Buffer.from(fileContent, "base64");
+    res.send(buffer);
   } catch (err) {
     console.error("Download error:", err.message);
     res.status(500).send("Download failed");
   }
 };
 
+
 exports.getMetaData = async (req, res) => {
-  const userId = req.query.userId;
+  const userId = req.body.userId;
 
   if (!userId) {
     return res.status(400).send('User ID is required');
   }
 
   try {
-    const response = await axios.get(`${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/metadata`, {
-      params: { userId },
-    });
+    const response = await axios.post(
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/metadata`,
+      { userId }, // ✅ Send as JSON body
+      { headers: { "Content-Type": "application/json" } }
+    );
+
     if (response.status !== 200) {
       return res.status(response.status).send('Error retrieving metadata');
     }
-    const metadataList = response.data;
 
+    const metadataList = response.data;
     res.json(metadataList);
   } catch (err) {
+    console.log("User ID:", userId);
     console.error("Error retrieving metadata:", err.message);
     res.status(500).send('Error retrieving metadata');
   }
 };
 
+
 exports.uploadFile = async (req, res) => {
   try {
     const {
+      fileName,
       fileType,
       userId,
       encryptionKey,
       fileDescription,
       fileTags,
       path: uploadPath,
+      fileContent, // base64 encoded string
     } = req.body;
 
-    const file = req.file; // Assuming you're using multer
-    if (!file) return res.status(400).send("No file uploaded");
+    if (!fileName || !fileContent) {
+      return res.status(400).send("Missing file name or file content");
+    }
 
-    const form = new FormData();
-    form.append('file', fs.createReadStream(file.path), file.originalname);
-    form.append('fileType', fileType);
-    form.append('userId', userId);
-    form.append('encryptionKey', encryptionKey);
-    form.append('fileDescription', fileDescription);
-    form.append('fileTags', fileTags);
-    form.append('path', uploadPath || 'files');
+    console.log("📡 Uploading to:", process.env.FILE_SERVICE_URL);
 
-    const response = await axios.post(`${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/upload`, form, {
-      headers: form.getHeaders(),
+    const payload = {
+      fileName,
+      fileType,
+      userId,
+      encryptionKey,
+      fileDescription,
+      fileTags,
+      path: uploadPath || "files",
+      fileContent, // still base64
+    };
+
+    const response = await axios.post(`${process.env.FILE_SERVICE_URL}/upload`, payload, {
+      headers: { "Content-Type": fileType}
     });
 
-    res.status(201).json({ message: 'File uploaded', server: response.data });
+    res.status(201).json({
+      message: " File uploaded",
+      server: response.data,
+    });
   } catch (err) {
-    console.error("Upload error:", err.message);
+    console.error(" Upload error:", err.message);
     res.status(500).send("Upload failed");
   }
 };
+
 
 
 exports.deleteFile = (req, res) => {

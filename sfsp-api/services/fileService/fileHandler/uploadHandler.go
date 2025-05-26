@@ -1,108 +1,108 @@
 package fileHandler
 
 import (
-    "context"
-    "fmt"
-    "io"
-    "net/http"
-    "strings"
-    "time"
+	"context"
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	//"strings"
+	"time"
 
-    "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
-    "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto"
-    //"github.com/joho/godotenv"
-    "os"
-    "go.mongodb.org/mongo-driver/mongo"
+	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
+	"go.mongodb.org/mongo-driver/mongo"
+	"os"
 )
 
-var MongoClient *mongo.Client // Injected from main.go
-
-type Metadata struct {
-    FileName        string    `bson:"fileName"`
-    FileSize        int64     `bson:"fileSize"`
-    FileType        string    `bson:"fileType"`
-    UserID          string    `bson:"userId"`
-    EncryptionKey   string    `bson:"encryptionKey"`
-    UploadTimestamp time.Time `bson:"uploadTimestamp"`
-    Description     string    `bson:"description"`
-    Tags            []string  `bson:"tags"`
-    Path            string    `bson:"path"`
-}
+var MongoClient *mongo.Client
 
 func SetMongoClient(client *mongo.Client) {
     MongoClient = client
 }
+type UploadRequest struct {
+	FileName      string   `json:"fileName"`
+	FileType      string   `json:"fileType"`
+	UserID        string   `json:"userId"`
+	EncryptionKey string   `json:"encryptionKey"`
+	Description   string   `json:"fileDescription"`
+	Tags          []string `json:"fileTags"`
+	Path          string   `json:"path"`
+	FileContent   string   `json:"fileContent"`
+}
+
+type Metadata struct {
+	FileName        string    `bson:"fileName"`
+	FileSize        int64     `bson:"fileSize"`
+	FileType        string    `bson:"fileType"`
+	UserID          string    `bson:"userId"`
+	EncryptionKey   string    `bson:"encryptionKey"`
+	UploadTimestamp time.Time `bson:"uploadTimestamp"`
+	Description     string    `bson:"description"`
+	Tags            []string  `bson:"tags"`
+	Path            string    `bson:"path"`
+}
 
 func UploadHandler(w http.ResponseWriter, r *http.Request) {
-    err := r.ParseMultipartForm(20 << 20) // 20 MB max
-    if err != nil {
-        http.Error(w, "Failed to parse form", http.StatusBadRequest)
-        return
-    }
+	var req UploadRequest
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+		return
+	}
 
-    file, handler, err := r.FormFile("file")
-    if err != nil {
-        http.Error(w, "File missing", http.StatusBadRequest)
-        return
-    }
-    defer file.Close()
+	if req.FileName == "" || req.FileContent == "" {
+		http.Error(w, "Missing required fields", http.StatusBadRequest)
+		return
+	}
 
-    fileBytes, err := io.ReadAll(file)
-    if err != nil {
-        http.Error(w, "Failed to read file", http.StatusInternalServerError)
-        return
-    }
+	// Decode file content
+	fileBytes, err := base64.StdEncoding.DecodeString(req.FileContent)
+	if err != nil {
+		http.Error(w, "Invalid base64 file content", http.StatusBadRequest)
+		return
+	}
 
-    // Extract metadata from form
-    remotePath := r.FormValue("path")
-    if remotePath == "" {
-        remotePath = "files"
-    }
+	// Encrypt file (optional)
+	aesKey := os.Getenv("AES_KEY")
+	if len(aesKey) != 32 {
+		http.Error(w, "Invalid AES key", http.StatusInternalServerError)
+		return
+	}
 
-    fileType := r.FormValue("fileType")
-    userId := r.FormValue("userId")
-    encryptionKey := r.FormValue("encryptionKey")
-    description := r.FormValue("fileDescription")
-    tags := strings.Split(r.FormValue("fileTags"), ",")
+	// (Optional encryption step omitted here if not needed)
 
-    //before uploading, encrypt the file
-    aesKey := os.Getenv("AES_KEY")
-    if len(aesKey) != 32 {
-	   http.Error(w, "Invalid AES_KEY length. Must be 32 bytes", http.StatusInternalServerError)
-	   return
-    }
+	// Upload to OwnCloud
+	remotePath := req.Path
+	if remotePath == "" {
+		remotePath = "files"
+	}
 
-    fileBytes, err = crypto.EncryptBytes(fileBytes, aesKey)
-    if err != nil {
-	   http.Error(w, "Failed to encrypt file: "+err.Error(), http.StatusInternalServerError)
-	   return
-    }
+	err = owncloud.UploadFile(remotePath, req.FileName, fileBytes)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Upload failed: %v", err), http.StatusInternalServerError)
+		return
+	}
 
-    // Use your existing owncloud package here
-    err = owncloud.UploadFile(remotePath, handler.Filename, fileBytes)
-    if err != nil {
-        http.Error(w, fmt.Sprintf("Upload failed: %v", err), http.StatusInternalServerError)
-        return
-    }
+	// Save metadata
+	collection := MongoClient.Database("sfsp").Collection("files")
+	metadata := Metadata{
+		FileName:        req.FileName,
+		FileSize:        int64(len(fileBytes)),
+		FileType:        req.FileType,
+		UserID:          req.UserID,
+		EncryptionKey:   req.EncryptionKey,
+		UploadTimestamp: time.Now(),
+		Description:     req.Description,
+		Tags:            req.Tags,
+		Path:            remotePath,
+	}
 
-    metadata := Metadata{
-        FileName:        handler.Filename,
-        FileSize:        handler.Size,
-        FileType:        fileType,
-        UserID:          userId,
-        EncryptionKey:   encryptionKey,
-        UploadTimestamp: time.Now(),
-        Description:     description,
-        Tags:            tags,
-        Path:            remotePath,
-    }
+	_, err = collection.InsertOne(context.TODO(), metadata)
+	if err != nil {
+		http.Error(w, "Metadata storage failed", http.StatusInternalServerError)
+		return
+	}
 
-    collection := MongoClient.Database("sfsp").Collection("files")
-    _, err = collection.InsertOne(context.TODO(), metadata)
-    if err != nil {
-        http.Error(w, fmt.Sprintf("File uploaded, but failed to save metadata: %v", err), http.StatusInternalServerError)
-        return
-    }
-
-    fmt.Fprintf(w, "✅ File %s uploaded and metadata stored!", handler.Filename)
+	w.WriteHeader(http.StatusCreated)
+	fmt.Fprintf(w, "File uploaded and metadata stored")
 }
