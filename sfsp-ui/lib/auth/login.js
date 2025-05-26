@@ -1,24 +1,11 @@
-import { supabase } from '../supabaseClient';
-import bcrypt from 'bcryptjs';
+// export const loginUser = async ({ email, password }) => {
+//   const res = await fetch('/api/auth/login', {
+//     method: 'POST',
+//     body: JSON.stringify({ email, password }),
+//     headers: { 'Content-Type': 'application/json' },
+//   });
 
-export async function loginUser({ email, password }) {
-    const { data: users, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('email', email);
+//   return res.json();
+// };
 
-    console.log('Supabase fetch result:', { users, error });
 
-    if (error || !users || users.length === 0) {
-        return { error: 'User not found' };
-    }
-
-    const user = users[0];
-
-    const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) {
-            return { error: 'Invalid credentials' };
-    }
-
-    return { data: user };
-}
