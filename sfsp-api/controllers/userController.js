@@ -54,9 +54,25 @@ class UserController {
 
     async getProfile(req, res) {
         try {
-            const { email } = req.body;
+            const authHeader = req.headers.authorization;
+            if (!authHeader || !authHeader.startsWith('Bearer ')) {
+                return res.status(401).json({
+                    success: false,
+                    message: 'Authorization token missing or invalid.'
+                });
+            }
 
-            const profile = await userService.getProfile(email);
+            const token = authHeader.split(' ')[1];
+            const decoded = await userService.verifyToken(token);
+            if (!decoded || !decoded.userId) {
+                return res.status(401).json({
+                    success: false,
+                    message: 'Invalid or expired token.'
+                });
+            }
+            const userId = decoded.userId;
+
+            const profile = await userService.getProfile(userId);
             if (!profile) {
                 return res.status(404).json({
                     success: false,

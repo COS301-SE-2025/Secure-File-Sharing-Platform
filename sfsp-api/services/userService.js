@@ -83,12 +83,13 @@ class UserService {
         }
     }
 
-    async getProfile(email) {
+    async getProfile(userId) {
         try {
+
             const {data: user, error} = await supabase
                 .from('users')
                 .select('*')
-                .eq('email', email)
+                .eq('id', userId)
                 .single();
 
             if (error || !user) {
@@ -105,12 +106,12 @@ class UserService {
         }
     }
 
-    async refreshToken(email) {
+    async refreshToken(userId) {
         try {
             const {data: user, error} = await supabase
                 .from('users')
                 .select('*')
-                .eq('email', email)
+                .eq('id', userId)
                 .single();
 
             if (error || !user) {
