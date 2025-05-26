@@ -1,0 +1,5 @@
+SUPABASE_URL=https://oiokqiwewlsbndubhsll.supabase.co
+SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9pb2txaXdld2xzYm5kdWJoc2xsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc4Njc1NTYsImV4cCI6MjA2MzQ0MzU1Nn0.6N8pASPQSfRAbOo3DPpyv_kw6UjStMCma2PZQsK4XAE
+JWT_SECRET="nobody-is-going-to-guess-this-secret"
+JWT_EXPIRES_IN=1h
+PORT=5000
