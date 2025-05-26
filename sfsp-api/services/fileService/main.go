@@ -9,6 +9,7 @@ import (
     "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/database"
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
     "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler"
+    "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/metadata"
     "os"
     "github.com/joho/godotenv"
 
@@ -27,7 +28,7 @@ func main() {
     log.Println("Environment variables loaded successfully")
     log.Println("mongoURI:", os.Getenv("MONGO_URI"))
     log.Println("ownCloud URL:", os.Getenv("OWNCLOUD_URL"))
-    
+
 
     mongoURI := os.Getenv("MONGO_URI")
     client := mongo.InitMongo(mongoURI)
@@ -38,5 +39,6 @@ func main() {
 
     http.HandleFunc("/upload", fileHandler.UploadHandler)
 	http.HandleFunc("/download", fileHandler.DownloadHandler)
+    http.HandleFunc("/metadata", metadata.GetMetadataHandler)
 	log.Fatal(http.ListenAndServe(":8081", nil))
 }

@@ -18,22 +18,32 @@ exports.downloadFile = async (req, res) => {
 
     response.data.pipe(res);
   } catch (err) {
-    console.error("❌ Download error:", err.message);
+    console.error("Download error:", err.message);
     res.status(500).send("Download failed");
   }
 };
 
 exports.getMetaData = async (req, res) => {
-	const fileId = req.params.id;
-	if (!fileId) return res.status(400).send('File ID is required');
+  const userId = req.query.userId;
 
-	try {
-		const metadata = await FileMetadata.findById(fileId);
-		if (!metadata) return res.status(404).send('File metadata not found');
-		res.json(metadata);
-	} catch (err) {
-		res.status(500).send('Error retrieving metadata');
-	}
+  if (!userId) {
+    return res.status(400).send('User ID is required');
+  }
+
+  try {
+    const response = await axios.get(`${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/metadata`, {
+      params: { userId },
+    });
+    if (response.status !== 200) {
+      return res.status(response.status).send('Error retrieving metadata');
+    }
+    const metadataList = response.data;
+
+    res.json(metadataList);
+  } catch (err) {
+    console.error("Error retrieving metadata:", err.message);
+    res.status(500).send('Error retrieving metadata');
+  }
 };
 
 exports.uploadFile = async (req, res) => {
@@ -63,9 +73,9 @@ exports.uploadFile = async (req, res) => {
       headers: form.getHeaders(),
     });
 
-    res.status(201).json({ message: '✅ File uploaded', server: response.data });
+    res.status(201).json({ message: 'File uploaded', server: response.data });
   } catch (err) {
-    console.error("❌ Upload error:", err.message);
+    console.error("Upload error:", err.message);
     res.status(500).send("Upload failed");
   }
 };

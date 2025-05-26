@@ -6,7 +6,7 @@ const multer = require('multer');
 const upload = multer({ dest: 'uploads/' }); 
 
 router.get('/download', fileController.downloadFile);
-router.get('/metadata/:id', fileController.getMetaData);
+router.get("/metadata", fileController.getMetaData)
 router.post('/upload', upload.single('file'), fileController.uploadFile);
 
 module.exports = router;
