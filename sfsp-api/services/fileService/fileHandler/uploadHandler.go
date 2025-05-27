@@ -9,6 +9,7 @@ import (
 	//"strings"
 	"time"
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
+    "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto"
 	"go.mongodb.org/mongo-driver/mongo"
 	"os"
     "log"
@@ -70,6 +71,12 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//No encryption is done here, but you can implement it if needed
+    cipher, err := crypto.EncryptBytes(fileBytes, aesKey)
+    if err != nil {
+        http.Error(w, fmt.Sprintf("Encryption failed: %v", err), http.StatusInternalServerError)
+        log.Println("Encryption error:", err)
+        return
+    }
 
 	// Upload to OwnCloud
 	remotePath := req.Path
@@ -77,7 +84,7 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 		remotePath = "files"
 	}
 
-	err = owncloud.UploadFile(remotePath, req.FileName, fileBytes)
+	err = owncloud.UploadFile(remotePath, req.FileName, cipher)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Upload failed: %v", err), http.StatusInternalServerError)
         log.Println("Upload error:", err)
