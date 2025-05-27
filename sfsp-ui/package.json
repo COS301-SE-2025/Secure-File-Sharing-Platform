@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "test": "cypress open",
-    "cypress":"cypress open"
+    "cypress": "cypress open"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.8",

@@ -1,14 +1,9 @@
-import { supabase } from '../supabaseClient';
-import { hashPassword } from './hash';
-import { generatePIN } from './generatePIN';
+// export const registerUser = async ({ username, email, password }) => {
+//   const res = await fetch('/api/auth/register', {
+//     method: 'POST',
+//     body: JSON.stringify({ username, email, password }),
+//     headers: { 'Content-Type': 'application/json' },
+//   });
 
-export async function registerUser({ username, email, password }) {
-    const hashed = await hashPassword(password);
-    const resetPIN = await generatePIN();
-
-    const { data, error } = await supabase
-        .from('users')
-        .insert([{ username, email, password: hashed, resetPasswordPIN: resetPIN }]);
-
-    return { data, error };
-}
+//   return res.json();
+// };
