@@ -71,19 +71,20 @@ export default function Sidebar() {
   };
 
   const linkClasses = (path) => {
+    const safePathname = pathname || '';
     const isActive =
       path === '/dashboard'
-        ? pathname === '/dashboard'
-        : pathname.startsWith(path);
+        ? safePathname === '/dashboard'
+        : safePathname.startsWith(path);
 
     return `flex items-center gap-3 p-3 rounded-lg transition-colors ${isActive
-        ? 'text-black dark:text-white font-bold bg-blue-300 dark:bg-gray-700'
-        : 'hover:bg-blue-300 dark:hover:bg-gray-700'
+      ? 'text-black dark:text-white font-bold bg-blue-300 dark:bg-gray-700'
+      : 'hover:bg-blue-300 dark:hover:bg-gray-700'
       }`;
   };
 
   return (
-    <aside className="w-64 bg-gray-200 text-gray-800 dark:bg-gray-800 dark:text-white p-6 shadow-md hidden md:block relative">
+    <aside data-testid="sidebar" className="w-64 bg-gray-200 text-gray-800 dark:bg-gray-800 dark:text-white p-6 shadow-md hidden md:block relative">
       {/* Logo and Title */}
       <div className="flex items-center gap-3 mb-8">
         <Image
@@ -132,6 +133,7 @@ export default function Sidebar() {
         {/* User Dropdown */}
         <div className="relative">
           <button
+            data-testid="profile-button"
             className="flex items-center gap-3 p-3 w-full text-left rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             onClick={() => setDropdownOpen((prev) => !prev)}
           >
@@ -163,6 +165,7 @@ export default function Sidebar() {
         {/* Settings Dropdown */}
         <div className="relative">
           <button
+            data-testid="settings-dropdown"
             onClick={() => setSettingsOpen((prev) => !prev)}
             className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-blue-300 dark:hover:bg-gray-700 transition-colors"
           >
@@ -172,7 +175,7 @@ export default function Sidebar() {
           </button>
 
           {settingsOpen && (
-            <div className="absolute right-0 bottom-12 w-48 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg z-10">
+            <div data-testid="settings-dropdown" className="absolute right-0 bottom-12 w-48 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg z-10">
               <a
                 href="/dashboard"
                 className="block px-4 py-2 text-sm hover:bg-blue-300 dark:hover:bg-gray-600"
