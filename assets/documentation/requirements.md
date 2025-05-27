@@ -6,6 +6,7 @@
 | :-------------------------- | :----------------------------- |
 | Introduction                | [Go to](#introduction)         |
 |User Stories / User Characteristics| [Go to](#user-stories--user-characteristics) |
+|.........Use Case Diagram| [Go to](#use-case-diagram) |
 | Functional Requirements     | [Go to](#functional-requirements) |
 |Service Contracts|[Go to](#service-contracts)|
 |Domain Model|[Go to](#domain-model)|
@@ -42,6 +43,10 @@ This document outlines the requirements for the Secure File Sharing Platform sys
 | ***Password Protected files***<br><br>As a secure file sharing platform user I want to be able to set a password for a public file so that only people who know the password can decrypt it.                                                                                                     | Given a user wants to add a password to a file, When they press the button to add a password to a file, The the system should prompt them to add a password, and send that file with the password protecting it.                                                                                   |
 | ***Restore Access Logs on File Deletion***<br><br>As a secure file sharing platform user I want to be able to view who accessed my files even after I delete them This is for forensic or auditing reasons                                                                                       | Given a user has deleted a file, When they go to the deleted files tab and press on the delete file. Then they should be able to see how many people access that file before it was deleted.                                                                                                       |
 |                                                                                                                                                                                                                                                                                                  |                                                                                                                                                                                                                                                                                                    |
+
+## Use Case Diagram
+
+![use-case-diagram](https://drive.google.com/uc?export=view&id=1yDBDS6etoqGUqMw_tXtFjdJhDdsCF2rS)
 
 -----
 
@@ -132,6 +137,8 @@ The Secure File Sharing platform shall (Version 1):
 ---
 
 # Domain Model
+
+![domain-model](https://drive.google.com/uc?export=view&id=1F9OxHFnsJeCFBFHoGP_UupHMJfyUtM8N)
 
 -----
 
@@ -244,3 +251,24 @@ Allows for real-time features that are needed for this project.
 ---
 
 # Technology Requirements
+<div align="left">
+<a href="https://nextjs.org/" target="_blank"><img src="https://skillicons.dev/icons?i=nextjs" alt="Next.js" /></a>
+<a href="https://tailwindcss.com/" target="_blank"><img src="https://skillicons.dev/icons?i=tailwind" alt="Tailwind CSS" /></a>
+<a href="https://expressjs.com/" target="_blank"><img src="https://skillicons.dev/icons?i=express" alt="Express.js" /></a>
+<a href="https://nodejs.org/" target="_blank"><img src="https://skillicons.dev/icons?i=nodejs" alt="Node.js" /></a>
+<a href="https://golang.org/" target="_blank"><img src="https://skillicons.dev/icons?i=go" alt="Golang" /></a>
+<a href="https://supabase.com/" target="_blank"><img src="https://skillicons.dev/icons?i=supabase" alt="Supabase" /></a>
+<a href="https://www.mongodb.com/" target="_blank"><img src="https://skillicons.dev/icons?i=mongodb" alt="MongoDB" /></a>
+<a href="https://owncloud.com/" target="_blank"><img src="https://skillicons.dev/icons?i=owncloud" alt="ownCloud" /></a>
+</div>
+
+## Technology Stack Overview
+
+| Technology | Description |
+|------------|-------------|
+| **Next.js** | Main frontend framework, bootstrapped with `create-next-app` for React-based web application development. |
+| **Tailwind CSS** | Utility-first CSS framework for fast and responsive UI styling. |
+| **Express.js** + **Node.js** | Backend API server and routing logic for handling HTTP requests and business logic implementation. |
+| **Golang** | Handles large file uploads efficiently for high performance. |
+| **MongoDB** | NoSQL database for storing application metadata, user data, and file information in a flexible document format. |
+| **Supabase** | Backend-as-a-Service platform providing authentication and user management. |

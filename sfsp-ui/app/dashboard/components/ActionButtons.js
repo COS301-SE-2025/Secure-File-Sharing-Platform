@@ -22,7 +22,7 @@ export function ActionButtons() {
 
   return (
     <div className="flex items-center space-x-2">
-      <button  className="relative w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center mr-10">
+      <button  className="relative w-10 h-10 rounded-full bg-gray-200 hover:bg-blue-300 flex items-center justify-center mr-10">
         <Bell className="h-5 w-5 text-gray-600" />
         <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
     
@@ -39,10 +39,10 @@ export function ActionButtons() {
           } absolute mt-2 w-48 right-5 bg-blue-100 border border-blue-300 rounded shadow-lg z-10`}
         >
          <div className="absolute right-0 mt-2 w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-md z-8">
-                <button className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700">Upload File</button>
-                <button className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700">Upload Folder</button>
-                 <button className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700">New Document</button>
-                <button className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700">New Folder</button>
+                <button className="w-full text-left px-4 py-2 hover:bg-blue-300 dark:hover:bg-gray-700">Upload File</button>
+                <button className="w-full text-left px-4 py-2 hover:bg-blue-300 dark:hover:bg-gray-700">Upload Folder</button>
+                 <button className="w-full text-left px-4 py-2 hover:bg-blue-300 dark:hover:bg-gray-700">New Document</button>
+                <button className="w-full text-left px-4 py-2 hover:bg-blue-300 dark:hover:bg-gray-700">New Folder</button>
         </div>
 
 

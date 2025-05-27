@@ -192,7 +192,7 @@ export default function MyFilesPage() {
                 setShowCreateOptions(!showCreateOptions);
                 setShowUploadOptions(false);
               }}
-              className="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-white px-4 py-2 rounded-md flex items-center gap-2"
+              className="bg-gray-100 dark:bg-gray-700 hover:bg-blue-300 dark:hover:bg-gray-600 text-gray-900 dark:text-white px-4 py-2 rounded-md flex items-center gap-2 border "
             >
               <Plus size={18} />
               Create
@@ -222,7 +222,6 @@ export default function MyFilesPage() {
               {file.size}
             </div>
             <div className="text-xs mt-1 text-gray-400">{file.type}</div>
-
             <button
               onClick={() =>
                 setActiveMenuIndex(activeMenuIndex === idx ? null : idx)
@@ -234,7 +233,7 @@ export default function MyFilesPage() {
 
             {activeMenuIndex === idx && (
               <div className="absolute top-10 right-3 w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-md z-10">
-                <button className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2">
+                <button className="w-full text-left px-4 py-2 hover:bg-blue-300 dark:hover:bg-gray-700 flex items-center gap-2">
                   <Share2 size={16} />
                   Share file
                 </button>
