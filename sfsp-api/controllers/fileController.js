@@ -12,7 +12,7 @@ exports.downloadFile = async (req, res) => {
 
   try {
     const response = await axios.post(
-      `${process.env.FILE_SERVICE_URL}/download`,
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/download`,
       { path, filename },
       { headers: { "Content-Type": "application/json" } }
     );
@@ -78,13 +78,14 @@ exports.uploadFile = async (req, res) => {
       fileType,
       userId,
       encryptionKey,
+      uploadTimestamp: new Date().toISOString(),
       fileDescription,
       fileTags,
       path: uploadPath || "files",
       fileContent, // still base64
     };
 
-    const response = await axios.post(`${process.env.FILE_SERVICE_URL}/upload`, payload, {
+    const response = await axios.post(`${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/upload`, payload, {
       headers: { "Content-Type": fileType}
     });
 

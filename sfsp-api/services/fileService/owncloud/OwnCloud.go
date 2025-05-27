@@ -3,12 +3,14 @@ package owncloud
 import (
 	"github.com/studio-b12/gowebdav"
 	"fmt"
+	"log"
 )
 
 var client *gowebdav.Client
 
 func InitOwnCloud(url, username, password string) {
 	client = gowebdav.NewClient(url, username, password)
+	log.Println("✅ OwnCloud connected")
 }
 
 func UploadFile(path, filename string, data []byte) error {
