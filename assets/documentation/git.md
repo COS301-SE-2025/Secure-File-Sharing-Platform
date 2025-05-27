@@ -33,7 +33,7 @@ This project uses a Mono-Repo approach, where both the backend (`sfsp-api`) and 
 - **Commits:**
   - Clear and descriptive commit messages.
 
-## Branching Strategy
+## Branching Strategy (Git Flow)
 
 1. **Component:**
    - Create a branch from `dev`:  
