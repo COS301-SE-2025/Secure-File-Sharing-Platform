@@ -1,13 +1,34 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { FileText, Users, Clock, ShieldCheck } from 'lucide-react';
+import axios from 'axios';
 
 export default function DashboardHomePage() {
+  const [fileCount, setFileCount] = useState(0);
+
+  const userId = '123';//again use the actual user ID from the auth system
+
+  useEffect(() => {
+    const fetchFileCount = async () => {
+      try {
+        const response = await axios.post('http://localhost:5000/api/files/getNumberOFFiles', {
+          userId,
+        });
+        setFileCount(response.data.fileCount.numberOfFiles);
+      } catch (error) {
+        console.error("Failed to fetch file count:", error.message);
+      }
+    };
+
+    fetchFileCount();
+  }, []);
+
   const stats = [
     {
       icon: <FileText className="text-blue-600 dark:text-blue-400" size={24} />,
       label: 'My Files',
-      value: 124,
+      value: fileCount,
     },
     {
       icon: <Users className="text-green-600 dark:text-green-400" size={24} />,
