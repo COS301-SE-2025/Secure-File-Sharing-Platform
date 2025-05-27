@@ -134,6 +134,43 @@ The Secure File Sharing platform shall (Version 1):
 
 # Service Contracts
 
+
+## **API SERVICE:**
+* Allow user login and signup 
+* Middleware to supabase database for user data storage
+* Connect to cloud storage for file handling
+* Routes file sharing operations
+
+INPUT:
+* Email, username , password 
+* .env.local file to connect to supabase project 
+* .env  file to connect to cloud storage 
+* user operation to be done on file
+Output:
+* A new user
+* Create new user in supabase database or retrieve user
+* Returns requested file 
+Interaction:
+* UI : enter user details to sign up login in, process UI actions
+
+## **FILE SHARING SERVICE:**
+* Encrypt shared files`
+* Deleting of a file
+* Upload/download of files
+* Signing of documents
+* Listing number of files
+
+INPUT:
+* File to be uploaded
+* File to be deleted
+* File to be signed and signature 
+Output:
+* Uploaded File
+* Downloaded File
+* Edited file with signature 
+Interaction:
+-  API : fulfil API requests for file handling 
+
 ---
 
 # Domain Model
@@ -273,40 +310,3 @@ Allows for real-time features that are needed for this project.
 | **MongoDB** | NoSQL database for storing application metadata, user data, and file information in a flexible document format. |
 | **Supabase** | Backend-as-a-Service platform providing authentication and user management. 
 
-# Service Contract
-
-## **API SERVICE:**
-* Allow user login and signup 
-* Middleware to supabase database for user data storage
-* Connect to cloud storage for file handling
-* Routes file sharing operations
-
-INPUT:
-* Email, username , password 
-* .env.local file to connect to supabase project 
-* .env  file to connect to cloud storage 
-* user operation to be done on file
-Output:
-* A new user
-* Create new user in supabase database or retrieve user
-* Returns requested file 
-Interaction:
-* UI : enter user details to sign up login in, process UI actions
-
-## **FILE SHARING SERVICE:**
-* Encrypt shared files`
-* Deleting of a file
-* Upload/download of files
-* Signing of documents
-* Listing number of files
-
-INPUT:
-* File to be uploaded
-* File to be deleted
-* File to be signed and signature 
-Output:
-* Uploaded File
-* Downloaded File
-* Edited file with signature 
-Interaction:
--  API : fulfil API requests for file handling 
