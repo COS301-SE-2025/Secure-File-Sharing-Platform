@@ -153,6 +153,8 @@ Output:
 Interaction:
 * UI : enter user details to sign up login in, process UI actions
 
+[Further Reference](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/blob/ui/sfsp-api/APIDocumentation.md)
+
 ## **FILE SHARING SERVICE:**
 * Encrypt shared files`
 * Deleting of a file
@@ -171,6 +173,7 @@ Output:
 Interaction:
 -  API : fulfil API requests for file handling 
 
+[Further Reference](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/blob/ui/sfsp-api/services/fileService/fileServiceDocumentation.md)
 ---
 
 # Domain Model
