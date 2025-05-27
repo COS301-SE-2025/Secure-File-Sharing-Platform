@@ -6,12 +6,6 @@ module.exports = defineConfig({
       framework: "next",
       bundler: "webpack",
     },
-  },
-
-  component: {
-    devServer: {
-      framework: "next",
-      bundler: "webpack",
-    },
+    supportFile: 'cypress/support/component.js',
   },
 });

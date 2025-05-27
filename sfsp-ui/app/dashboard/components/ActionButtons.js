@@ -21,7 +21,7 @@ export function ActionButtons() {
     }, []);
 
   return (
-    <div className="flex items-center space-x-2">
+    <div data-testid="action-buttons" className="flex items-center space-x-2">
       <button  className="relative w-10 h-10 rounded-full bg-gray-200 hover:bg-blue-300 flex items-center justify-center mr-10">
         <Bell className="h-5 w-5 text-gray-600" />
         <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>

@@ -35,9 +35,6 @@ export default function Topbar() {
           className="w-full bg-transparent focus:outline-none text-sm placeholder-gray-500"
         />
       </div>
-
-
-
       <ActionButtons />
     </div>
   );
