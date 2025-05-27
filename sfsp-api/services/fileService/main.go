@@ -31,7 +31,10 @@ func main() {
 
 
     mongoURI := os.Getenv("MONGO_URI")
-    client := mongo.InitMongo(mongoURI)
+    client, het := database.InitMongo(mongoURI)
+    if het != nil {
+        log.Fatalf("Failed to connect to MongoDB: %v", het)
+    }
 	fileHandler.SetMongoClient(client)
 
 	//initialize ownCloud client

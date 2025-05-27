@@ -11,9 +11,16 @@ import (
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
     "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto"
 	"go.mongodb.org/mongo-driver/mongo"
+    //"go.mongodb.org/mongo-driver/mongo/options"
 	"os"
     "log"
 )
+
+// type MongoClientInterface interface {
+//     Database(name string, opts ...*options.DatabaseOptions) MongoDatabaseInterface
+// }
+
+// var MongoClient MongoClientInterface
 
 var MongoClient *mongo.Client
 
@@ -41,6 +48,10 @@ type Metadata struct {
 	Description     string    `bson:"description"`
 	Tags            []string  `bson:"tags"`
 	Path            string    `bson:"path"`
+}
+
+var GetCollection = func() *mongo.Collection {
+    return MongoClient.Database("sfsp").Collection("files")
 }
 
 func UploadHandler(w http.ResponseWriter, r *http.Request) {

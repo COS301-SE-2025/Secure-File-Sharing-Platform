@@ -6,7 +6,7 @@ import (
 	"errors"
 )
 
-func DecryptBytes(data []byte, key string) ([]byte, error) {
+var DecryptBytes = func(data []byte, key string) ([]byte, error) {
 	keyBytes := []byte(key)
 	if len(keyBytes) != 32 {
 		return nil, errors.New("AES key must be 32 bytes")
