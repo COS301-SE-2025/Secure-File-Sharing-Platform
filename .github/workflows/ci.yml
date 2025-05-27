@@ -1,36 +1,63 @@
-# This is a basic workflow to help you get started with Actions
-
 name: CI
 
-# Controls when the workflow will run
 on:
-  # Triggers the workflow on push or pull request events but only for the "main" branch
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
-  # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch:
-
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build"
-  build:
-    # The type of runner that the job will run on
+# build:
+#   name: Linting
+#   runs-on: ubuntu-latest
+
+#   steps:
+#     - name: Checkout code
+#       uses: actions/checkout@v4
+
+#     - name: Lint Code
+#       uses: github/super-linter@v5
+#       env:
+#         VALIDATE_ALL_CODEBASE: true
+#         DEFAULT_BRANCH: main
+#         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  sfsp-ui:
+    name: SFSP UI
     runs-on: ubuntu-latest
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
+    container:
+        image: node:18
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      # Runs a single command using the runners shell
-      - name: Run a one-line script
-        run: echo Hello, world!
+    - name: Install Required Libraries
+      run: |
+        apt-get update && \
+        apt-get install -y xvfb libnss3 libgtk-3-0 libxss1 libasound2 libgbm1
 
-      # Runs a set of commands using the runners shell
-      - name: Run a multi-line script
-        run: |
-          echo Add other actions to build,
-          echo test, and deploy your project.
+    - name: Install UI dependencies
+      working-directory: ./sfsp-ui
+      run: npm ci
+
+    - name: Run Cypress Unit Tests
+      working-directory: ./sfsp-ui
+      run: xvfb-run -a npx cypress run --component
+
+  sfsp-api:
+    name: SFSP API
+    runs-on: ubuntu-latest
+    # needs: build
+    container:
+      image: node:18
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install API dependencies
+        working-directory: ./sfsp-api
+        run: npm ci
+
+      - name: Run API Tests
+        working-directory: ./sfsp-api
+        run: npm test
