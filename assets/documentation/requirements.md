@@ -6,6 +6,7 @@
 | :-------------------------- | :----------------------------- |
 | Introduction                | [Go to](#introduction)         |
 |User Stories / User Characteristics| [Go to](#user-stories--user-characteristics) |
+|.........User Case Diagram| [Go to](#) |
 | Functional Requirements     | [Go to](#functional-requirements) |
 |Service Contracts|[Go to](#service-contracts)|
 |Domain Model|[Go to](#domain-model)|
@@ -42,6 +43,10 @@ This document outlines the requirements for the Secure File Sharing Platform sys
 | ***Password Protected files***<br><br>As a secure file sharing platform user I want to be able to set a password for a public file so that only people who know the password can decrypt it.                                                                                                     | Given a user wants to add a password to a file, When they press the button to add a password to a file, The the system should prompt them to add a password, and send that file with the password protecting it.                                                                                   |
 | ***Restore Access Logs on File Deletion***<br><br>As a secure file sharing platform user I want to be able to view who accessed my files even after I delete them This is for forensic or auditing reasons                                                                                       | Given a user has deleted a file, When they go to the deleted files tab and press on the delete file. Then they should be able to see how many people access that file before it was deleted.                                                                                                       |
 |                                                                                                                                                                                                                                                                                                  |                                                                                                                                                                                                                                                                                                    |
+
+## Use Case Diagram
+
+![use-case-diagram](https://drive.google.com/uc?export=view&id=1yDBDS6etoqGUqMw_tXtFjdJhDdsCF2rS)
 
 -----
 
@@ -132,6 +137,8 @@ The Secure File Sharing platform shall (Version 1):
 ---
 
 # Domain Model
+
+![domain-model](https://drive.google.com/uc?export=view&id=1F9OxHFnsJeCFBFHoGP_UupHMJfyUtM8N)
 
 -----
 
