@@ -278,8 +278,13 @@ Allows for real-time features that are needed for this project.
 ---
 
 ## Design Patterns
+The following design patterns were selected (subject to change) for the following functionality:
 
-
+- Decorator Pattern – For logging, auditing, and digital signature.,
+- Prototype Pattern – For managing users.,
+- Observer Pattern – To support real-time notifications and updates.,
+- Proxy Pattern – For access verification and controlled resource access.,
+- Command Pattern – To queue and execute file operations like uploads/downloads.,
 ---
 
 ## Constraints
