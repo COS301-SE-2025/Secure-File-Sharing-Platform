@@ -224,6 +224,7 @@ professional data.
 ## 📌 Project Management
 
 - [Github Board](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/projects)
+- [Git structure, oraginzation and management](./assets/documentation/git.md)
 
 ## 💡 Demo
 

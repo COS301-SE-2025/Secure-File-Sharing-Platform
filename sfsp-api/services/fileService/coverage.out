@@ -1,0 +1,15 @@
+mode: set
+github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto/decrypt.go:9.60,11.25 2 1
+github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto/decrypt.go:11.25,13.3 1 1
+github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto/decrypt.go:15.2,15.31 1 1
+github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto/decrypt.go:15.31,17.3 1 1
+github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto/decrypt.go:19.2,23.16 4 1
+github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto/decrypt.go:23.16,25.3 1 0
+github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto/decrypt.go:27.2,31.23 4 1
+github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto/encrypt.go:11.60,13.25 2 1
+github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto/encrypt.go:13.25,15.3 1 1
+github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto/encrypt.go:17.2,18.16 2 1
+github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto/encrypt.go:18.16,20.3 1 0
+github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto/encrypt.go:22.2,23.56 2 1
+github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto/encrypt.go:23.56,25.3 1 0
+github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto/encrypt.go:27.2,32.39 4 1

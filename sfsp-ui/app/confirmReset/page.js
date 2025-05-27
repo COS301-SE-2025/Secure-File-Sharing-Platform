@@ -3,8 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { confirmReset } from "@/lib/auth/confirmReset";
-import Link from "next/link";
-
 
 export default function ConfirmResetPage() {
   const router = useRouter();

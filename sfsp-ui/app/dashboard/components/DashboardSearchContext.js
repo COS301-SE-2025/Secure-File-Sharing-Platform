@@ -15,3 +15,5 @@ export function DashboardSearchProvider({ children }) {
 export function useDashboardSearch() {
   return useContext(DashboardSearchContext);
 }
+
+export { DashboardSearchContext };

@@ -34,7 +34,7 @@ describe('FeatureRotator Component', () => {
     cy.get('[aria-label^="Highlight"]').eq(1).invoke('attr', 'class').should('match', /bg-gray-(600|400)/);
   });
 
-  it('clicking a dot sets the feature manually', () => {
+  it('clicking a dot sets the feature', () => {
     cy.mount(<FeatureRotator />);
 
     cy.get('[aria-label="Highlight Access Control Logs"]').click();
@@ -42,7 +42,7 @@ describe('FeatureRotator Component', () => {
     cy.get('[aria-label="Highlight Access Control Logs"]').invoke('attr', 'class').should('match', /bg-blue-(600|400)/);
   });
 
-  it('clicking a dot sets the feature manually 2', () => {
+  it('clicking a dot sets the feature 2', () => {
     cy.mount(<FeatureRotator />);
     cy.get('[aria-label="Highlight One-Time Download Links"]').click();
     cy.contains('One-Time Download Links').should('exist');
