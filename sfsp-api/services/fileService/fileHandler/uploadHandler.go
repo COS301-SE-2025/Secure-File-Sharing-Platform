@@ -8,7 +8,6 @@ import (
 	"net/http"
 	//"strings"
 	"time"
-
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
 	"go.mongodb.org/mongo-driver/mongo"
 	"os"

@@ -99,6 +99,31 @@ exports.uploadFile = async (req, res) => {
   }
 };
 
+exports.getNumberOfFiles = async (req, res) => {
+  const userId = req.body.userId;
+
+  if (!userId) {
+    return res.status(400).send('User ID is required');
+  }
+
+  try {
+    const response = await axios.post(
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/getNumberOfFiles`,
+      { userId },
+      { headers: { "Content-Type": "application/json" } }
+    );
+
+    if (response.status !== 200) {
+      return res.status(response.status).send('Error retrieving file count');
+    }
+
+    const fileCount = response.data;
+    res.json({ fileCount });
+  } catch (err) {
+    console.error("Error retrieving file count:", err.message);
+    res.status(500).send('Error retrieving file count');
+  }
+};
 
 
 exports.deleteFile = (req, res) => {
