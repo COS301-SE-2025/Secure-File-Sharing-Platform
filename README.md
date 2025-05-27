@@ -10,6 +10,13 @@
 <!-- [![codecov]()]() -->
 ![Uptime status](https://img.shields.io/uptimerobot/status/m797015486-75c486778a8f87b141372bd7)
 
+[![Next.js](https://img.shields.io/badge/Frontend-Next.js-blue)]()
+[![Tailwind CSS](https://img.shields.io/badge/Styling-TailwindCSS-38BDF8)]()
+[![Express.js](https://img.shields.io/badge/Backend-Express.js-000000)]()
+[![Node.js](https://img.shields.io/badge/Runtime-Node.js-339933)]()
+[![Go](https://img.shields.io/badge/Service-Golang-00ADD8)]()
+
+
 ## 📚 Table of Contents
 
 - [Project Description](#project-description)
