@@ -7,8 +7,15 @@
 <!-- [![Issue Tracking](https://img.shields.io/badge/Issue_Tracking-GitHub_Issues-yellow)](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/issues) -->
 [![GitHub issues](https://img.shields.io/github/issues/COS301-SE-2025/Secure-File-Sharing-Platform)](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/issues)
 [![Build Status](https://img.shields.io/badge/Build_Status-GitHub_Actions-brightgreen)](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/actions)
-<!-- [![codecov]()]() -->
+[![codecov](https://img.shields.io/badge/codecov-unavailable-lightgrey)]()
 ![Uptime status](https://img.shields.io/uptimerobot/status/m797015486-75c486778a8f87b141372bd7)
+
+[![Next.js](https://img.shields.io/badge/Frontend-Next.js-blue)]()
+[![Tailwind CSS](https://img.shields.io/badge/Styling-TailwindCSS-38BDF8)]()
+[![Express.js](https://img.shields.io/badge/Backend-Express.js-000000)]()
+[![Node.js](https://img.shields.io/badge/Runtime-Node.js-339933)]()
+[![Go](https://img.shields.io/badge/Service-Golang-00ADD8)]()
+
 
 ## 📚 Table of Contents
 

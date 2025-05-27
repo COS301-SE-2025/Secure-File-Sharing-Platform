@@ -153,6 +153,8 @@ Output:
 Interaction:
 * UI : enter user details to sign up login in, process UI actions
 
+[Further Reference](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/blob/ui/sfsp-api/APIDocumentation.md)
+
 ## **FILE SHARING SERVICE:**
 * Encrypt shared files`
 * Deleting of a file
@@ -170,6 +172,8 @@ Output:
 * Edited file with signature 
 Interaction:
 -  API : fulfil API requests for file handling 
+
+[Further Reference](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/blob/ui/sfsp-api/services/fileService/fileServiceDocumentation.md)
 
 ---
 
@@ -278,12 +282,20 @@ Allows for real-time features that are needed for this project.
 ---
 
 ## Design Patterns
+The following design patterns were selected (subject to change) for the following functionality:
 
-
+- Decorator Pattern – For logging, auditing, and digital signature.,
+- Prototype Pattern – For managing users.,
+- Observer Pattern – To support real-time notifications and updates.,
+- Proxy Pattern – For access verification and controlled resource access.,
+- Command Pattern – To queue and execute file operations like uploads/downloads.,
 ---
 
 ## Constraints
 
+- **End-to-End Encryption:** the files have to be encrypted before upload and decrypted after download on the client's side.
+- **Zero-Trust:** the server should not know what is on it as allow the files should be encrypted.
+- **Secure Key Management:** public/private keys should be securely generated, stored and shared only with the parties involved.
 
 ---
 

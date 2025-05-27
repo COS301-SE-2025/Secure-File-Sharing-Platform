@@ -1,4 +1,4 @@
-package crypto
+package unitTests
 
 import (
 	"os"
