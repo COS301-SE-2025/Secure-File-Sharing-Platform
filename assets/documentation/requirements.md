@@ -293,6 +293,9 @@ The following design patterns were selected (subject to change) for the followin
 
 ## Constraints
 
+- **End-to-End Encryption:** the files have to be encrypted before upload and decrypted after download on the client's side.
+- **Zero-Trust:** the server should not know what is on it as allow the files should be encrypted.
+- **Secure Key Management:** public/private keys should be securely generated, stored and shared only with the parties involved.
 
 ---
 
