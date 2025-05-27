@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"net/http"
 	"log"
+	"os"
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
+	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto"
 )
 
 type DownloadRequest struct {
@@ -40,8 +42,21 @@ func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	aesKey := os.Getenv("AES_KEY")
+	if len(aesKey) != 32 {
+		http.Error(w, "Invalid AES key", http.StatusInternalServerError)
+		return
+	}
+
+	// Decrypt file content if encryption key is provided
+	plain, err := crypto.DecryptBytes(data, aesKey)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Decryption failed: %v", err), http.StatusInternalServerError)
+		return
+	}
+
 	// Encode file to base64
-	base64Data := base64.StdEncoding.EncodeToString(data)
+	base64Data := base64.StdEncoding.EncodeToString(plain)
 
 	res := DownloadResponse{
 		FileName:    req.FileName,
