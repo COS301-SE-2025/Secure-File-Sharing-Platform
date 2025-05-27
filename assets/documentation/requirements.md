@@ -174,6 +174,7 @@ Interaction:
 -  API : fulfil API requests for file handling 
 
 [Further Reference](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/blob/ui/sfsp-api/services/fileService/fileServiceDocumentation.md)
+
 ---
 
 # Domain Model
