@@ -26,13 +26,13 @@ describe('SharedWithMePage Component', () => {
     cy.contains('Files and folders that have been shared with you').should('be.visible');
   });
 
-  it('shows files in grid view by default', () => {
+  it('shows files in grid view', () => {
     cy.get('div.grid').should('exist');
     cy.contains('Strategy.docx').should('be.visible');
     cy.contains('Roadmap.xlsx').should('be.visible');
   });
 
-  it('switches to list view when clicking list button', () => {
+  it('switches to list view when clicking button', () => {
     cy.get('button').eq(1).click();
     cy.contains('Presentation.pptx').should('be.visible');
   });

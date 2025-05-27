@@ -19,7 +19,7 @@ function TestComponent() {
 }
 
 describe('DashboardSearchContext', () => {
-  it('provides and updates search state', () => {
+  it('provides and updates search ', () => {
     mount(
       <DashboardSearchProvider>
         <TestComponent />

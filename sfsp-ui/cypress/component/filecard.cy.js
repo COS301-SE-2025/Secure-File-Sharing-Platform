@@ -19,7 +19,7 @@ describe('FileCard component', () => {
         type: 'image',
     };
 
-    it('renders document file correctly', () => {
+    it('renders document file ', () => {
         mountWithAppRouter(<FileCard file={documentFile} />);
 
         cy.get('h3').should('contain.text', documentFile.name);
@@ -32,7 +32,7 @@ describe('FileCard component', () => {
         cy.get('svg').should('have.class', 'text-blue-600');
     });
 
-    it('renders image file correctly', () => {
+    it('renders image file ', () => {
         mountWithAppRouter(<FileCard file={imageFile} />);
 
         cy.get('h3').should('contain.text', imageFile.name);
@@ -45,7 +45,7 @@ describe('FileCard component', () => {
         cy.get('svg').should('have.class', 'text-orange-600');
     });
 
-    it('shows MoreVertical button after forcing visibility', () => {
+    it('shows MoreVertical button', () => {
         mountWithAppRouter(<FileCard file={documentFile} />);
 
         cy.get('div.absolute.top-3.right-3.opacity-0.group-hover\\:opacity-100').invoke('css', 'opacity', '1');

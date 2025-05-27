@@ -52,7 +52,7 @@ describe('<AccessLogsPage />', () => {
         cy.get('table tbody tr').should('have.length', 1);
     });
 
-    it('shows empty state with no matches', () => {
+    it('shows empty state -no matches', () => {
         mountWithSearch('nothingmatches');
         cy.get('[data-testid="log-row"]').should('have.length', 0);
         cy.get('table tbody').should('be.empty');

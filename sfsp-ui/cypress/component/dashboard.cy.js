@@ -3,13 +3,13 @@ import DashboardHomePage from '../../app/dashboard/page';
 import '../../app/globals.css';
 
 describe('DashboardHomePage Component', () => {
-    it('renders the welcome heading and subtitle', () => {
+    it('renders welcome heading and subtitle', () => {
         cy.mount(<DashboardHomePage />);
         cy.contains('Welcome!').should('be.visible');
         cy.contains("Here's a quick look at your file sharing activity.").should('be.visible');
     });
 
-    it('renders all four stat cards with correct labels and values', () => {
+    it('renders all four stat cards ', () => {
         cy.mount(<DashboardHomePage />);
 
         const expectedStats = [
@@ -25,7 +25,7 @@ describe('DashboardHomePage Component', () => {
         });
     });
 
-    it('applies correct Tailwind classes and renders icons', () => {
+    it('applies Tailwind classes and renders icons', () => {
         cy.mount(<DashboardHomePage />);
         cy.get('.text-blue-600').should('have.length.at.least', 1);
         cy.get('.text-green-600').should('have.length.at.least', 1);

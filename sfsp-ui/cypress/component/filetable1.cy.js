@@ -24,7 +24,7 @@ describe('FileTable component', () => {
     mountWithAppRouter(<FileTable files={files} />);
   });
 
-  it('renders the table headers correctly', () => {
+  it('renders the table headers ', () => {
     cy.get('thead th').should('have.length', 5);
     cy.get('thead th').eq(0).should('contain.text', 'Name');
     cy.get('thead th').eq(1).should('contain.text', 'Size');
@@ -37,7 +37,7 @@ describe('FileTable component', () => {
     cy.get('tbody tr').should('have.length', files.length);
   });
 
-  it('renders file data correctly in rows', () => {
+  it('renders file data in rows', () => {
     cy.get('tbody tr').first().within(() => {
       cy.get('td').eq(0).within(() => {
         cy.get('span').should('contain.text', files[0].name);
@@ -63,7 +63,7 @@ describe('FileTable component', () => {
     });
   });
 
-  it('renders MoreVertical button with icon in actions column', () => {
+  it('renders MoreVertical button with icon', () => {
     cy.get('tbody tr').first().find('td').eq(4).within(() => {
       cy.get('button').should('exist');
       cy.get('svg').should('have.class', 'text-gray-500');

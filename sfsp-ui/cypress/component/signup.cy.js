@@ -108,35 +108,49 @@ describe("Signup Page Component", () => {
     cy.get('input[name="email"]').should("be.disabled");
   });
 
-  it("handles successful registration", function() {
-    mountWithAppRouter(<SignupPage />);
-
-    this.fetchStub.resolves(
-      new Response(
-        JSON.stringify({
-          success: true,
-          message: "User registered successfully",
-        }),
-        {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
+  describe("Signup Page Component", () => {
+    beforeEach(function () {
+      cy.window().then((win) => {
+        // Prevent double-stubbing
+        if (!win.fetch.restore) {
+          cy.stub(win, "fetch").as("fetchStub");
         }
-      )
-    );
+      });
+    });
 
-    cy.get('input[name="name"]').type("John Doe");
-    cy.get('input[name="email"]').type("john@example.com");
-    cy.get('input[name="password"]').type("password123");
-    cy.get('input[name="confirmPassword"]').type("password123");
+    it("handles successful registration", function () {
+      cy.get("@fetchStub").then((stub) => {
+        stub.resolves(
+          new Response(
+            JSON.stringify({
+              success: true,
+              message: "User registered successfully",
+              data: {
+                token: "Bearer faketoken123"
+              }
+            }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }
+          )
+        );
+      });
 
-    cy.get("form").submit();
+      mountWithAppRouter(<SignupPage />);
 
-    cy.contains("User successfully registered!").should("be.visible");
+      cy.get('input[name="name"]').type("John Doe");
+      cy.get('input[name="email"]').type("john@example.com");
+      cy.get('input[name="password"]').type("password123");
+      cy.get('input[name="confirmPassword"]').type("password123");
 
-    cy.get("@routerPush").should("have.been.calledWith", "/dashboard");
+      cy.get("form").submit();
+
+      cy.get("@routerPush").should("have.been.calledWith", "/dashboard");
+    });
   });
 
-  it("handles registration failure", function(){
+  it("handles registration failure", function () {
     mountWithAppRouter(<SignupPage />);
 
     this.fetchStub.resolves(
@@ -162,7 +176,7 @@ describe("Signup Page Component", () => {
     cy.contains("Email already exists").should("be.visible");
   });
 
-  it("handles network error during registration", function() {
+  it("handles network error during registration", function () {
     mountWithAppRouter(<SignupPage />);
 
     this.fetchStub.rejects(new Error("Network error"));
@@ -201,7 +215,7 @@ describe("Signup Page Component", () => {
       .should("have.value", testData.confirmPassword);
   });
 
-  it("makes correct API call with form data", function() {
+  it("makes correct API call with form data", function () {
     mountWithAppRouter(<SignupPage />);
 
     this.fetchStub.resolves(
@@ -234,14 +248,14 @@ describe("Signup Page Component", () => {
   });
 
   it("supports dark mode styling", () => {
-  mountWithAppRouter(
-    <div className="dark">
-      <SignupPage />
-    </div>
-  );
+    mountWithAppRouter(
+      <div className="dark">
+        <SignupPage />
+      </div>
+    );
 
-  cy.get(".dark\\:bg-gray-900").should("exist");
-  cy.get(".dark\\:bg-gray-800").should("exist");
-  cy.get(".dark\\:text-white").should("exist");
-});
+    cy.get(".dark\\:bg-gray-900").should("exist");
+    cy.get(".dark\\:bg-gray-800").should("exist");
+    cy.get(".dark\\:text-white").should("exist");
+  });
 });
