@@ -61,3 +61,33 @@ jobs:
       - name: Run API Tests
         working-directory: ./sfsp-api
         run: npm test
+
+  sfsp-goservice:
+    name: SFSP Go Service
+    runs-on: ubuntu-latest
+    container:
+      image: golang:1.23.0
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Go dependencies
+        working-directory: ./sfsp-api/services/fileService
+        run: go mod download
+
+      - name: Create mock .env file
+        working-directory: ./sfsp-api/services/fileService
+        run: |
+          cat <<EOF > .env
+          MONGO_URI=mongodb+srv://Sibu2025:xWQNdqTKQq5bi7Bo@cluster0.8ywqk4g.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
+
+          AES_KEY=12345678901234567890123456789012
+
+          OWNCLOUD_URL=http://localhost:8080/remote.php/webdav/
+          OWNCLOUD_USERNAME=admin
+          OWNCLOUD_PASSWORD=admin
+          EOF
+
+      - name: Run Go Tests
+        working-directory: ./sfsp-api/services/fileService
+        run: go test ./UnitTests/... -v
