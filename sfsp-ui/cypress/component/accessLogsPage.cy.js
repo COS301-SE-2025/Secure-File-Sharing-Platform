@@ -2,7 +2,6 @@ import AccessLogsPage from '@/app/dashboard/accessLogs/page';
 import { mount } from 'cypress/react';
 import { DashboardSearchContext } from '@/app/dashboard/components/DashboardSearchContext';
 
-// Utility to mount with search context
 const mountWithSearch = (search = '') => {
     cy.mount(
         <DashboardSearchContext.Provider value={{ search }}>
@@ -78,6 +77,6 @@ describe('<AccessLogsPage />', () => {
 
     it('has Export Logs button', () => {
         mountWithSearch();
-        cy.contains('Export logs').should('be.visible').click(); // No action, but confirm visibility
+        cy.contains('Export logs').should('be.visible').click(); 
     });
 });
