@@ -1,6 +1,4 @@
 const axios = require('axios');
-const FormData = require('form-data');
-const fs = require('fs');
 require('dotenv').config();
 
 exports.downloadFile = async (req, res) => {
@@ -90,7 +88,7 @@ exports.uploadFile = async (req, res) => {
     });
 
     res.status(201).json({
-      message: " File uploaded",
+      message: "File uploaded",
       server: response.data,
     });
   } catch (err) {

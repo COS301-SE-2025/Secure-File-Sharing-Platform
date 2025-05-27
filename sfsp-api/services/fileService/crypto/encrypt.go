@@ -8,7 +8,7 @@ import(
 	"io"
 )
 
-func EncryptBytes(data []byte, key string) ([]byte, error) {
+var EncryptBytes = func(data []byte, key string) ([]byte, error) {
 	keyBytes := []byte(key)
 	if len(keyBytes) != 32 {
 		return nil, fmt.Errorf("AES key must be 32 bytes long")
