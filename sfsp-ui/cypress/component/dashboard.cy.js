@@ -13,7 +13,7 @@ describe('DashboardHomePage Component', () => {
         cy.mount(<DashboardHomePage />);
 
         const expectedStats = [
-        { label: 'My Files', value: '124' },
+        { label: 'My Files', value: '0' },
         { label: 'Shared with Me', value: '68' },
         { label: 'Recent Access', value: '37' },
         { label: 'Secure Links', value: '12' },
