@@ -1,5 +1,4 @@
 import AccessLogsPage from '@/app/dashboard/accessLogs/page';
-import { mount } from 'cypress/react';
 import { DashboardSearchContext } from '@/app/dashboard/components/DashboardSearchContext';
 
 const mountWithSearch = (search = '') => {

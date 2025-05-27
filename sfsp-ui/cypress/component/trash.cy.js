@@ -1,5 +1,4 @@
 import TrashPage from '@/app/dashboard/trash/page';
-import { mount } from 'cypress/react';
 
 describe('<TrashPage />', () => {
   beforeEach(() => {
