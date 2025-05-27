@@ -40,5 +40,6 @@ func main() {
     http.HandleFunc("/upload", fileHandler.UploadHandler)
 	http.HandleFunc("/download", fileHandler.DownloadHandler)
     http.HandleFunc("/metadata", metadata.GetMetadataHandler)
+    http.HandleFunc("/getNumberOfFiles", metadata.GetNumberOfFiles)
 	log.Fatal(http.ListenAndServe(":8081", nil))
 }

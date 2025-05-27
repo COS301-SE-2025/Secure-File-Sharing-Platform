@@ -8,10 +8,10 @@ import (
 	"net/http"
 	//"strings"
 	"time"
-
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
 	"go.mongodb.org/mongo-driver/mongo"
 	"os"
+    "log"
 )
 
 var MongoClient *mongo.Client
@@ -80,6 +80,7 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 	err = owncloud.UploadFile(remotePath, req.FileName, fileBytes)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Upload failed: %v", err), http.StatusInternalServerError)
+        log.Println("Upload error:", err)
 		return
 	}
 

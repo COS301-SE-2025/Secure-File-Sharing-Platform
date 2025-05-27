@@ -9,6 +9,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"log"
 	"fmt"
+	"time"
 )
 
 type MetadataQueryRequest struct {
@@ -53,4 +54,30 @@ func GetMetadataHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(results)
+}
+
+func GetNumberOfFiles(w http.ResponseWriter, r *http.Request) {
+	var req MetadataQueryRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.UserID == "" {
+		http.Error(w, "Missing or invalid 'userId' in request body", http.StatusBadRequest)
+		return
+	}
+
+	collection := fileHandler.MongoClient.Database("sfsp").Collection("files")
+	filter := bson.M{"userId": req.UserID}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	count, err := collection.CountDocuments(ctx, filter)
+	if err != nil {
+		http.Error(w, "Error counting files: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	//log.Printf("📄 Counted %d files for user %s", count, req.UserID)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]int64{"numberOfFiles": count})
 }
