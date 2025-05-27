@@ -6,7 +6,7 @@
 | :-------------------------- | :----------------------------- |
 | Introduction                | [Go to](#introduction)         |
 |User Stories / User Characteristics| [Go to](#user-stories--user-characteristics) |
-|.........User Case Diagram| [Go to](#) |
+|.........Use Case Diagram| [Go to](#use-case-diagram) |
 | Functional Requirements     | [Go to](#functional-requirements) |
 |Service Contracts|[Go to](#service-contracts)|
 |Domain Model|[Go to](#domain-model)|
