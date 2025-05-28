@@ -237,7 +237,7 @@ professional data.
 
 | DEMO             |PRESENTATION   |VIDEOS                         |
 |-|-|-|
-| Demo 1    |Not Available           | Not Available           | 
+| Demo 1    |[Demo 1 slides](https://docs.google.com/presentation/d/1NYigzK_orVRTq1-xzFEi3_q4I8YFSjS2/edit?usp=sharing&ouid=115159733836506972614&rtpof=true&sd=true) |[Demo 1 Video](https://drive.google.com/file/d/1VWgY5ylgEroEz-dKcx-yiCANAm-9K6k6/view?usp=sharing)    | 
 | Demo 2    | Not Available     |Not Available           | 
 | Demo 3   |  Not Available    |Not Available           | 
 | Demo 4   |  Not Available    |Not Available           | 
