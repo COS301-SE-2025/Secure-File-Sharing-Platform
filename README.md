@@ -57,7 +57,7 @@ professional data.
     </td>
     <td style="vertical-align: top; width: 70%; padding: 20px;">
       <h2 style="font-size: 24px; margin: 0 0 10px;"><b>Simphiwe Jessica Zitha</b></h2>
-      <b style="font-size: 18px; color: #555;">Project Manager, Services, DevOps, Integration, Services</b>
+      <b style="font-size: 18px; color: #555;">Project Manager, Testing, UI Designer, Integration</b>
       <p style="font-size: 16px; color: #333; line-height: 1.5;">
         <br> I'm a final-year Computer Science student with a solid background in backend and web development, experienced in C++, Node.js, Python, and Java. I've built projects like a Tic Tac Toe game, calculator, and winery management system, and I collaborate effectively using Git. Passionate about cybersecurity and AI, I continuously expand my skills through research and online learning. I enjoy solving problems and aim to contribute to impactful, user-centered systems.
         <br><br>
@@ -91,7 +91,7 @@ professional data.
     </td>
     <td style="vertical-align: top; width: 70%; padding: 20px;">
       <h2 style="font-size: 24px; margin: 0 0 10px;"><b>Sibusiso Zotwayo</b></h2>
-      <b style="font-size: 18px; color: #555;">System Architect, DevOps, Integration, Services, and Testing Engineer</b>
+      <b style="font-size: 18px; color: #555;">System Architect, Full Stack, Integration, System Architecture</b>
       <p style="font-size: 16px; color: #333; line-height: 1.5;">
         <br> Full-stack developer focused on learning through teamwork and growing in software testing. Enthusiastic, collaborative, and committed to continuous improvement.
         <br><br>
@@ -125,7 +125,7 @@ professional data.
     </td>
     <td style="vertical-align: top; width: 70%; padding: 20px;">
       <h2 style="font-size: 24px; margin: 0 0 10px;"><b>Tumisho Makhene</b></h2>
-      <b style="font-size: 18px; color: #555;">UI/UX Design, DevOps, Integration, Services</b>
+      <b style="font-size: 18px; color: #555;">UI/UX Design, DevOps, Integration, Business Analysis</b>
       <p style="font-size: 16px; color: #333; line-height: 1.5;">
         <br> I'm a passionate and teachable programmer who believes anything can be learned. I have experience in UI design, front-end, and back-end development, having built full-stack applications and APIs using Node.js and PHP (with Swagger documentation). I've also developed client libraries and front-end integrations for these APIs. I'm comfortable using Git and committed to writing clean, maintainable code while continuously improving my skills.
         <br><br>
@@ -155,7 +155,7 @@ professional data.
     </td>
     <td style="vertical-align: top; width: 70%; padding: 20px;">
       <h2 style="font-size: 24px; margin: 0 0 10px;"><b>Philemon Muleya</b></h2>
-      <b style="font-size: 18px; color: #555;">System Architect and Integration Engineer</b>
+      <b style="font-size: 18px; color: #555;">System Architect, Backend, Testing and Integration Engineer</b>
       <p style="font-size: 16px; color: #333; line-height: 1.5;">
        <br> I'm a third-year Information Knowledge Systems student with experience in systems programming, real-time mobile AI, and full-stack development. I’ve built optimized apps using C++, Java, and Go, and developed secure APIs and interfaces with Node.js, Vue, and Tailwind.
         <br><br>
@@ -190,7 +190,7 @@ professional data.
     </td>
     <td style="vertical-align: top; width: 70%; padding: 20px;">
       <h2 style="font-size: 24px; margin: 0 0 10px;"><b>Tiyiso Hlungwani</b></h2>
-      <b style="font-size: 18px; color: #555;">DevOps, Testing Engineer</b>
+      <b style="font-size: 18px; color: #555;">DevOps, Testing Engineer, Integration, UI and DevOps</b>
       <p style="font-size: 16px; color: #333; line-height: 1.5;">
         <br> Final-year CS student building real-time web apps and AI bots. Skilled in full-stack development, Git collaboration, and clean code practices.
         <br><br>
