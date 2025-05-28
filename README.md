@@ -224,8 +224,8 @@ professional data.
 
 ## 📄 Documentation
 
-| DOCUMENT     | DESCRIPTION|LINK                             |
-|------------------|-----------------------------------|
+| DOCUMENT     | DESCRIPTION  |  LINK                             |
+|------------------|-----------------------------------|-----------------------------------|
 | Requirements (SRS)   | Software Requirement Specification  | [Open](./assets/documentation/requirements.md)|
 
 ## 📌 Project Management
