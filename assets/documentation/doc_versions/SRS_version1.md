@@ -1,6 +1,6 @@
 # Software Requirements Specification Documentation
 
-This is VERSION 2 of the software requirements specification document. 
+This is VERSION 1 of the software requirements specification document.
 
 
 ## Table of Contents
@@ -83,9 +83,9 @@ The Secure File Sharing platform shall (Version 1):
 
 - **FR4.1** Users shall be able to share files with specific users.
 - **FR4.2** The sender shall be able to set permissions:
-	 - view-only (cannot download)
-	 - Download-only (cannot preview online)
-	 - Full access (view + download)
+     - view-only (cannot download)
+     - Download-only (cannot preview online)
+     - Full access (view + download)
 - **FR4.3** The sender shall be able to revoke access at any time.
 
 ### FR5. Digital Signing
@@ -108,8 +108,8 @@ The Secure File Sharing platform shall (Version 1):
 
 - **FR8.1** Administrators shall be able to monitor all user and file activity logs.
 - **FR8.2** Administrators shall be able to manage user accounts:
-	- Remove user accounts
-	- Restrict accounts for policy violations
+    - Remove user accounts
+    - Restrict accounts for policy violations
 
 ### FR9. Notifications
 
@@ -330,6 +330,6 @@ The following design patterns were selected (subject to change) for the followin
 
 # Versions of SRS documents
 
-|VERSION  | LINK |
-|--------|--------|
-|Version 1| [Go to](./doc_versions/SRS_version1.md)|
+| VERSION    | LINK |
+|--------|---------|
+|Version 2| [Go to](../requirements.md)|
