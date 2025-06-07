@@ -1,3 +1,4 @@
+/* global process */
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const {supabase} = require('../config/database');
@@ -171,7 +172,7 @@ class UserService {
         try {
             return jwt.verify(token, process.env.JWT_SECRET);
         } catch (error) {
-            throw new Error('Invalid token');
+            throw new Error('Invalid token', error.message);
         }
     }
 }

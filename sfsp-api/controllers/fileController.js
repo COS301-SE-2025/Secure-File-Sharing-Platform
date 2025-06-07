@@ -1,6 +1,5 @@
+/* global process */
 const axios = require('axios');
-const FormData = require('form-data');
-const fs = require('fs');
 require('dotenv').config();
 
 exports.downloadFile = async (req, res) => {
@@ -97,13 +96,3 @@ exports.uploadFile = async (req, res) => {
     res.status(500).send("Upload failed");
   }
 };
-
-
-
-exports.deleteFile = (req, res) => {
-
-}
-
-exports.getFileList = (req, res) => {
-
-}
