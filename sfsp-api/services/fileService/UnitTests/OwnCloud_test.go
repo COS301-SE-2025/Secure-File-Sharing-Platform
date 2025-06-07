@@ -1,4 +1,4 @@
-package unitTests
+package unittests
 
 import (
     "errors"

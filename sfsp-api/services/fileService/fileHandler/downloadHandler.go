@@ -1,4 +1,4 @@
-package fileHandler
+package filehandler
 
 import (
 	"encoding/base64"
@@ -10,17 +10,20 @@ import (
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto"
 )
-
+// DownloadRequest represents the request payload for downloading a file
 type DownloadRequest struct {
+
 	Path     string `json:"path"`
 	FileName string `json:"filename"`
 }
 
+// DownloadResponse represents the response payload for a downloaded file
 type DownloadResponse struct {
 	FileName    string `json:"fileName"`
 	FileContent string `json:"fileContent"`
 }
 
+// DownloadHandler handles the file download request
 func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 	var req DownloadRequest
 	err := json.NewDecoder(r.Body).Decode(&req)

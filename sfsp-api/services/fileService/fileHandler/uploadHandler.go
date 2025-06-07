@@ -1,4 +1,4 @@
-package fileHandler
+package filehandler
 
 import (
 	"context"
@@ -22,11 +22,15 @@ import (
 
 // var MongoClient MongoClientInterface
 
+// MongoClient is a global variable to hold the MongoDB client instance
 var MongoClient *mongo.Client
 
+// SetMongoClient sets the global MongoDB client instance
 func SetMongoClient(client *mongo.Client) {
     MongoClient = client
 }
+
+// UploadRequest represents the request payload for uploading a file
 type UploadRequest struct {
 	FileName      string   `json:"fileName"`
 	FileType      string   `json:"fileType"`
@@ -38,6 +42,7 @@ type UploadRequest struct {
 	FileContent   string   `json:"fileContent"`
 }
 
+// Metadata represents the metadata structure for a file
 type Metadata struct {
 	FileName        string    `bson:"fileName"`
 	FileSize        int64     `bson:"fileSize"`
@@ -50,10 +55,12 @@ type Metadata struct {
 	Path            string    `bson:"path"`
 }
 
+// GetCollection returns the MongoDB collection for files
 var GetCollection = func() *mongo.Collection {
     return MongoClient.Database("sfsp").Collection("files")
 }
 
+// UploadHandler handles the file upload request
 func UploadHandler(w http.ResponseWriter, r *http.Request) {
 	var req UploadRequest
 	err := json.NewDecoder(r.Body).Decode(&req)

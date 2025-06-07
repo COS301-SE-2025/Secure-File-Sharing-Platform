@@ -1,5 +1,5 @@
 // mongo/client_test.go
-package unitTests
+package unittests
 
 import (
     "testing"

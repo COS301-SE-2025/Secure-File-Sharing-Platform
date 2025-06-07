@@ -1,4 +1,4 @@
-package unitTests
+package unittests
 
 import (
 	"bytes"
@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/mock"
 
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto"
-	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler"
+	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/filehandler"
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -71,8 +71,8 @@ func TestUploadHandler(t *testing.T) {
 	mockOwnCloud := new(MockOwnCloud)
 	//mockCollection := new(MockCollection)
 
-	//  originalGetCollection := fileHandler.GetCollection
-    //  fileHandler.GetCollection = func() *mongo.Collection {
+	//  originalGetCollection := filehandler.GetCollection
+    //  filehandler.GetCollection = func() *mongo.Collection {
     //     // Here you must return *mongo.Collection, but since you can't,
     //     // you can define UploadHandler to accept interface or
     //     // extract InsertOne call to a var and mock it.
@@ -89,12 +89,12 @@ func TestUploadHandler(t *testing.T) {
 	// Override global funcs/vars for test
 	origEncrypt := crypto.EncryptBytes
 	origUpload := owncloud.UploadFile
-	origMongoClient := fileHandler.MongoClient
+	origMongoClient := filehandler.MongoClient
 
 	defer func() {
 		crypto.EncryptBytes = origEncrypt
 		owncloud.UploadFile = origUpload
-		fileHandler.MongoClient = origMongoClient
+		filehandler.MongoClient = origMongoClient
 	}()
 
 	crypto.EncryptBytes = mockCrypto.EncryptBytes
@@ -102,7 +102,7 @@ func TestUploadHandler(t *testing.T) {
 
 	// Setup MongoClient with mocked Collection method
 	mockClient := &mongo.Client{}
-	fileHandler.MongoClient = mockClient
+	filehandler.MongoClient = mockClient
 
 	// We patch Collection method on client.Database("sfsp")
 	// For simplicity, we create a local function
@@ -115,7 +115,7 @@ func TestUploadHandler(t *testing.T) {
 	fileBytes, _ := base64.StdEncoding.DecodeString(fileContent)
 
 	t.Run("success", func(t *testing.T) {
-		reqData := fileHandler.UploadRequest{
+		reqData := filehandler.UploadRequest{
 			FileName:      "file.txt",
 			FileType:      "text/plain",
 			UserID:        "user123",
@@ -137,7 +137,7 @@ func TestUploadHandler(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
-		fileHandler.UploadHandler(w, req)
+		filehandler.UploadHandler(w, req)
 		//assert.Equal(t, http.StatusCreated, w.Result().StatusCode)
 		//assert.Contains(t, w.Body.String(), "File uploaded and metadata stored")
 
@@ -151,28 +151,28 @@ func TestUploadHandler(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
-		fileHandler.UploadHandler(w, req)
+		filehandler.UploadHandler(w, req)
 
 		assert.Equal(t, http.StatusBadRequest, w.Result().StatusCode)
 		assert.Contains(t, w.Body.String(), "Invalid JSON payload")
 	})
 
 	t.Run("missing required fields", func(t *testing.T) {
-		reqData := fileHandler.UploadRequest{}
+		reqData := filehandler.UploadRequest{}
 		reqBody, _ := json.Marshal(reqData)
 
 		req := httptest.NewRequest("POST", "/upload", bytes.NewBuffer(reqBody))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
-		fileHandler.UploadHandler(w, req)
+		filehandler.UploadHandler(w, req)
 
 		assert.Equal(t, http.StatusBadRequest, w.Result().StatusCode)
 		assert.Contains(t, w.Body.String(), "Missing required fields")
 	})
 
 	t.Run("invalid base64 content", func(t *testing.T) {
-		reqData := fileHandler.UploadRequest{
+		reqData := filehandler.UploadRequest{
 			FileName:    "file.txt",
 			FileContent: "!!!notbase64!!!",
 		}
@@ -182,14 +182,14 @@ func TestUploadHandler(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
-		fileHandler.UploadHandler(w, req)
+		filehandler.UploadHandler(w, req)
 
 		assert.Equal(t, http.StatusBadRequest, w.Result().StatusCode)
 		assert.Contains(t, w.Body.String(), "Invalid base64 file content")
 	})
 
 	t.Run("invalid AES key length", func(t *testing.T) {
-		reqData := fileHandler.UploadRequest{
+		reqData := filehandler.UploadRequest{
 			FileName:    "file.txt",
 			FileContent: fileContent,
 		}
@@ -201,14 +201,14 @@ func TestUploadHandler(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
-		fileHandler.UploadHandler(w, req)
+		filehandler.UploadHandler(w, req)
 
 		assert.Equal(t, http.StatusInternalServerError, w.Result().StatusCode)
 		assert.Contains(t, w.Body.String(), "Invalid AES key")
 	})
 
 	t.Run("encryption failure", func(t *testing.T) {
-		reqData := fileHandler.UploadRequest{
+		reqData := filehandler.UploadRequest{
 			FileName:    "file.txt",
 			FileContent: fileContent,
 		}
@@ -222,7 +222,7 @@ func TestUploadHandler(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
-		fileHandler.UploadHandler(w, req)
+		filehandler.UploadHandler(w, req)
 
 		assert.Equal(t, http.StatusInternalServerError, w.Result().StatusCode)
 		//assert.Contains(t, w.Body.String(), "Encryption failed")
@@ -231,7 +231,7 @@ func TestUploadHandler(t *testing.T) {
 	})
 
 	t.Run("upload failure", func(t *testing.T) {
-		reqData := fileHandler.UploadRequest{
+		reqData := filehandler.UploadRequest{
 			FileName:    "file.txt",
 			FileContent: fileContent,
 		}
@@ -246,7 +246,7 @@ func TestUploadHandler(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
-		fileHandler.UploadHandler(w, req)
+		filehandler.UploadHandler(w, req)
 
 		assert.Equal(t, http.StatusInternalServerError, w.Result().StatusCode)
 		//assert.Contains(t, w.Body.String(), "Upload failed")
@@ -256,7 +256,7 @@ func TestUploadHandler(t *testing.T) {
 	})
 
 	t.Run("metadata storage failure", func(t *testing.T) {
-		reqData := fileHandler.UploadRequest{
+		reqData := filehandler.UploadRequest{
 			FileName:    "file.txt",
 			FileContent: fileContent,
 		}
@@ -272,7 +272,7 @@ func TestUploadHandler(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
-		fileHandler.UploadHandler(w, req)
+		filehandler.UploadHandler(w, req)
 
 		assert.Equal(t, http.StatusInternalServerError, w.Result().StatusCode)
 		//assert.Contains(t, w.Body.String(), "Metadata storage failed")
@@ -283,10 +283,10 @@ func TestUploadHandler(t *testing.T) {
 	})
 }
 
-type mockDatabase struct {
-	name       string
-	collection *MockCollection
-}
+// type mockDatabase struct {
+// 	name       string
+// 	collection *MockCollection
+// }
 
 // func (db mockDatabase) Collection(name string, opts ...*options.CollectionOptions) *mongo.Collection {
 // 	// We can't return *mongo.Collection directly because it's struct from official driver

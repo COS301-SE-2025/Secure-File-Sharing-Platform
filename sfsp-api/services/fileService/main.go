@@ -8,7 +8,7 @@ import (
 
     "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/database"
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
-    "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler"
+    "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/filehandler"
     "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/metadata"
     "os"
     "github.com/joho/godotenv"
@@ -35,13 +35,13 @@ func main() {
     if het != nil {
         log.Fatalf("Failed to connect to MongoDB: %v", het)
     }
-	fileHandler.SetMongoClient(client)
+	filehandler.SetMongoClient(client)
 
 	//initialize ownCloud client
 	owncloud.InitOwnCloud(os.Getenv("OWNCLOUD_URL"), os.Getenv("OWNCLOUD_USERNAME"), os.Getenv("OWNCLOUD_PASSWORD"))
 
-    http.HandleFunc("/upload", fileHandler.UploadHandler)
-	http.HandleFunc("/download", fileHandler.DownloadHandler)
+    http.HandleFunc("/upload", filehandler.UploadHandler)
+	http.HandleFunc("/download", filehandler.DownloadHandler)
     http.HandleFunc("/metadata", metadata.GetMetadataHandler)
     http.HandleFunc("/getNumberOfFiles", metadata.GetNumberOfFiles)
 	log.Fatal(http.ListenAndServe(":8081", nil))

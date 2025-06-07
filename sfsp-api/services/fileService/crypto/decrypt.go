@@ -6,6 +6,7 @@ import (
 	"errors"
 )
 
+// DecryptBytes decrypts the given data using AES in CFB mode with the provided key.
 var DecryptBytes = func(data []byte, key string) ([]byte, error) {
 	keyBytes := []byte(key)
 	if len(keyBytes) != 32 {

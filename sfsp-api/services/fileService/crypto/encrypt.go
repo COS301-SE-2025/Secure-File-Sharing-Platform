@@ -8,6 +8,7 @@ import(
 	"io"
 )
 
+// EncryptBytes encrypts the given data using AES in CFB mode with the provided key.
 var EncryptBytes = func(data []byte, key string) ([]byte, error) {
 	keyBytes := []byte(key)
 	if len(keyBytes) != 32 {

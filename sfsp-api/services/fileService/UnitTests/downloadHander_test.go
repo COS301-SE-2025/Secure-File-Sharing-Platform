@@ -1,4 +1,4 @@
-package unitTests
+package unittests
 
 import (
 	"bytes"
@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler"
+	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/filehandler"
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto"
 )
@@ -48,7 +48,7 @@ func TestDownloadHandler(t *testing.T) {
 	os.Setenv("AES_KEY", "12345678901234567890123456789012") // valid 32-byte key
 
 	t.Run("Success", func(t *testing.T) {
-		reqBody := fileHandler.DownloadRequest{
+		reqBody := filehandler.DownloadRequest{
 			Path:     "valid/path",
 			FileName: "file.txt",
 		}
@@ -63,11 +63,11 @@ func TestDownloadHandler(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
-		fileHandler.DownloadHandler(w, req)
+		filehandler.DownloadHandler(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
 
-		var resp fileHandler.DownloadResponse
+		var resp filehandler.DownloadResponse
 		err := json.NewDecoder(w.Body).Decode(&resp)
 		assert.NoError(t, err)
 		assert.Equal(t, reqBody.FileName, resp.FileName)
@@ -82,26 +82,26 @@ func TestDownloadHandler(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
-		fileHandler.DownloadHandler(w, req)
+		filehandler.DownloadHandler(w, req)
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
 	t.Run("Missing path or filename", func(t *testing.T) {
-		reqBody := fileHandler.DownloadRequest{} // empty fields
+		reqBody := filehandler.DownloadRequest{} // empty fields
 		body, _ := json.Marshal(reqBody)
 
 		req := httptest.NewRequest(http.MethodPost, "/download", bytes.NewBuffer(body))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
-		fileHandler.DownloadHandler(w, req)
+		filehandler.DownloadHandler(w, req)
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
 	t.Run("Download error", func(t *testing.T) {
-		reqBody := fileHandler.DownloadRequest{
+		reqBody := filehandler.DownloadRequest{
 			Path:     "invalid/path",
 			FileName: "file.txt",
 		}
@@ -114,7 +114,7 @@ func TestDownloadHandler(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
-		fileHandler.DownloadHandler(w, req)
+		filehandler.DownloadHandler(w, req)
 
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 		mockOwnCloud.AssertExpectations(t)
@@ -123,7 +123,7 @@ func TestDownloadHandler(t *testing.T) {
 	t.Run("Invalid AES key", func(t *testing.T) {
 		os.Setenv("AES_KEY", "shortkey")
 
-		reqBody := fileHandler.DownloadRequest{
+		reqBody := filehandler.DownloadRequest{
 			Path:     "valid/path",
 			FileName: "file.txt",
 		}
@@ -133,7 +133,7 @@ func TestDownloadHandler(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
-		fileHandler.DownloadHandler(w, req)
+		filehandler.DownloadHandler(w, req)
 
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
@@ -141,7 +141,7 @@ func TestDownloadHandler(t *testing.T) {
 	t.Run("Decryption error", func(t *testing.T) {
 		os.Setenv("AES_KEY", "12345678901234567890123456789012")
 
-		reqBody := fileHandler.DownloadRequest{
+		reqBody := filehandler.DownloadRequest{
 			Path:     "valid/path",
 			FileName: "file.txt",
 		}
@@ -156,7 +156,7 @@ func TestDownloadHandler(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
-		fileHandler.DownloadHandler(w, req)
+		filehandler.DownloadHandler(w, req)
 
 		//assert.Equal(t, http.StatusInternalServerError, w.Code)
 		mockOwnCloud.AssertExpectations(t)

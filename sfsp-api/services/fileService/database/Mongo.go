@@ -9,6 +9,7 @@ import (
     "go.mongodb.org/mongo-driver/mongo/options"
 )
 
+// InitMongo initializes the MongoDB client and connects to the database
 func InitMongo(uri string) (*mongo.Client, error) {
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
