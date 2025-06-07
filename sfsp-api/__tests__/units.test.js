@@ -1,3 +1,4 @@
+/* global describe, it, expect, beforeEach, afterEach, jest */
 const UserController = require('../controllers/userController');
 const userService = require('../services/userService');
 
