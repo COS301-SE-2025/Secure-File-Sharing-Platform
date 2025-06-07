@@ -39,6 +39,7 @@ export default function Footer() {
             <ul className="space-y-2">
               {group.links.map((link) => (
                 <li key={link}>
+                    {/* {link} */}
                   <a href="#" className="hover:underline">
                     {link}
                   </a>
