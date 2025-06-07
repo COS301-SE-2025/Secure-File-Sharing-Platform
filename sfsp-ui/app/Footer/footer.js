@@ -19,7 +19,8 @@ const footerLinks = [
     title: "Support",
     links: [
       "Help center",
-      "Contact us"
+      "Contact us",
+      "FAQ"
     ],
   },
   
