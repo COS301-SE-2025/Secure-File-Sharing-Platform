@@ -1,5 +1,6 @@
 import Image from "next/image";
 import HomeRotator from "./home_features";
+import Footer from "./Footer/footer";
 
 export default function Home() {
   return (
@@ -85,9 +86,11 @@ export default function Home() {
       </div>
 
       {/* Footer */}
-      <footer className="p-6 text-center text-sm bg-neutral-700 text-white dark:bg-gray-800 dark:text-gray-400">
+      {/* <footer className="p-6 text-center text-sm bg-neutral-700 text-white dark:bg-gray-800 dark:text-gray-400">
         &copy; 2025 SecureShare — Built with privacy in mind.
-      </footer>
+      </footer> */}
+
+      <Footer />
     </div>
   );
 }
