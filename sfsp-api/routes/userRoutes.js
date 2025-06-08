@@ -10,5 +10,6 @@ router.post('/login', userController.login);
 router.get('/profile', authMiddleware, userController.getProfile);
 router.delete('/profile', authMiddleware, userController.deleteProfile);
 router.post('/token_refresh', authMiddleware, userController.refreshToken);
+router.put('/profile', authMiddleware, userController.updateProfile);
 
 module.exports = router;

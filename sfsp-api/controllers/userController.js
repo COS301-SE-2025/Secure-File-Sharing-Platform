@@ -150,6 +150,34 @@ class UserController {
             });
         }
     }
+
+    async updateProfile(req, res) {
+        try {
+            const userId = req.user.id;
+            const { username } = req.body;
+
+            if (!username) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Username is required.'
+                });
+            }
+
+            const updatedUser = await userService.updateProfile(userId, { username });
+
+            res.status(200).json({
+                success: true,
+                message: 'Profile updated successfully.',
+                data: updatedUser
+            });
+        } catch (error) {
+            console.error('Error updating profile:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to update profile.'
+            });
+        }
+    }
 }
 
 module.exports = new UserController();
