@@ -161,7 +161,7 @@ Authorization: Bearer <JWT_TOKEN>
 
 ## Update User Profile
 
-**Endpoint**: `DELETE http://localhost:5000/api/users/profile`
+**Endpoint**: `PUT http://localhost:5000/api/users/profile`
 
 **Authentication**: Required
 
