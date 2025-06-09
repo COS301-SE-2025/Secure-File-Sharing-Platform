@@ -155,7 +155,7 @@ export default function MyFilesPage() {
     <div className="flex-1 p-6 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold">My Files</h1>
+          <h1 className="text-2xl font-semibold text-blue-500">My Files</h1>
           <p className="text-gray-600 dark:text-gray-400">
             Manage your personal files and folders
           </p>

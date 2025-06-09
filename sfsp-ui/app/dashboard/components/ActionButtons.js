@@ -38,10 +38,10 @@ export function ActionButtons() {
             open ? 'scale-100 opacity-100' : 'scale-95 opacity-0 pointer-events-none'
           } absolute mt-2 w-48 right-5 bg-blue-100 border border-blue-300 rounded shadow-lg z-10`}
         >
-         <div className="absolute right-0 mt-2 w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-md z-8">
+        <div className="absolute right-0 mt-2 w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-md z-8">
                 <button className="w-full text-left px-4 py-2 hover:bg-blue-300 dark:hover:bg-gray-700">Upload File</button>
                 <button className="w-full text-left px-4 py-2 hover:bg-blue-300 dark:hover:bg-gray-700">Upload Folder</button>
-                 <button className="w-full text-left px-4 py-2 hover:bg-blue-300 dark:hover:bg-gray-700">New Document</button>
+                <button className="w-full text-left px-4 py-2 hover:bg-blue-300 dark:hover:bg-gray-700">New Document</button>
                 <button className="w-full text-left px-4 py-2 hover:bg-blue-300 dark:hover:bg-gray-700">New Folder</button>
         </div>
 

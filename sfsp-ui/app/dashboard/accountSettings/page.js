@@ -11,7 +11,7 @@ export default function AccountSettings() {
         email: ''
     });
 
-    const tabs = ['MY ACCOUNT', 'CHANGE PASSWORD', 'NOTIFICATIONS', 'API ACCESS'];
+    const tabs = ['MY ACCOUNT', 'CHANGE PASSWORD', 'NOTIFICATIONS'];
 
     const handleInputChange = (field, value) => {
         setFormData(prev => ({
@@ -79,16 +79,14 @@ export default function AccountSettings() {
 
     return (
         <div className = "p-6">
-        <div className="p-6 bg-slate-800 text-white min-h-screen">
-        {/* Header */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow">
         <div className="flex items-center gap-4 mb-8">
             <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-bold">
                 {user?.username?.slice(0, 2).toUpperCase() || '??'}
             </div>
-            <h1 className="text-2xl text-blue-400">{user?.username || 'Loading...'}</h1>
+            <h1 className="text-2xl text-blue-600">{user?.username || 'Loading...'}</h1>
         </div>
 
-        {/* Tabs */}
         <div className="mb-8">
             <div className="flex gap-8 border-b border-slate-600">
             {tabs.map((tab) => (
@@ -119,7 +117,7 @@ export default function AccountSettings() {
                 <div className="w-15 h-15 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-semibold text-2xl">
                     {user?.username?.slice(0, 2).toUpperCase() || '??'}
                 </div>
-                <button className="px-4 py-2 bg-slate-700 text-slate-300 rounded-lg hover:bg-slate-600 transition-colors flex items-center gap-2">
+                <button className="px-4 py-2 bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-300 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-600 transition-colors flex items-center gap-2">
                     <Camera size={16} />
                     Upload photo
                 </button>
@@ -135,7 +133,7 @@ export default function AccountSettings() {
                 type="text"
                 value={formData.username}
                 onChange={(e) => handleInputChange('username', e.target.value)}
-                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-transparent outline-none text-white"
+                className="mt-1 block w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
             </div>
 
@@ -147,7 +145,7 @@ export default function AccountSettings() {
                 type="email"
                 value={formData.email}
                 onChange={(e) => handleInputChange('email', e.target.value)}
-                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-transparent outline-none text-white"
+                className="mt-1 block w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
             </div>
             </div>
@@ -156,7 +154,7 @@ export default function AccountSettings() {
                     <button
                         onClick={handleSaveChanges}
                         disabled={isSaving}
-                        className="px-6 py-2 bg-blue-500 hover:bg-blue-400 text-white font-medium rounded-lg transition-colors"
+                        className="px-6 py-2 bg-blue-600 hover:bg-blue-400 text-white font-medium rounded-lg transition-colors"
                         >
                         Save changes
                     </button>
