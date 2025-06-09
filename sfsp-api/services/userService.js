@@ -36,7 +36,7 @@ class UserService {
                 throw new Error('Failed to create user: ' + error.message);
             }
             const token = this.generateToken(newUser.id);
-           
+
             return {
                 user: {
                     id: newUser.id,
@@ -150,6 +150,29 @@ class UserService {
         } catch (error) {
             throw new Error('Profile deletion failed: ' + error.message);
         }
+    }
+
+    async updateProfile(userId, updates) {
+        const { username } = updates;
+        console.log('Attempting to update user with ID:', userId);
+
+        const { data, error } = await supabase
+            .from('users')
+            .update({ username })
+            .eq('id', userId)
+            .select('*')
+            .single();
+
+        if (error || !data) {
+            console.error('Supabase update error:', error);
+            throw new Error('Error updating user profile.');
+        }
+
+        return {
+            id: data.id,
+            username: data.username,
+            email: data.email
+        };
     }
 
     generatePIN() {
