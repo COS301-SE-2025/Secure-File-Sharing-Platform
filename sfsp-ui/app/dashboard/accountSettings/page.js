@@ -58,6 +58,24 @@ export default function AccountSettings() {
 
 
     const handleSaveChanges = async () => {
+        const newErrors = { username: '', email: '' };
+        let hasError = false;
+
+        if (!formData.username.trim()) {
+            newErrors.username = 'Username is required';
+            hasError = true;
+        }
+
+        if (!formData.email.trim()) {
+            newErrors.email = 'Email is required';
+            hasError = true;
+        }
+
+        if (hasError) {
+            setErrors(newErrors);
+            return;
+        }
+
         const token = localStorage.getItem('token');
         setIsSaving(true);
 
@@ -70,18 +88,25 @@ export default function AccountSettings() {
                 },
                 body: JSON.stringify({
                     username: formData.username,
-            })
-        });
+                    email: formData.email,
+                }),
+            });
 
-        if (!res.ok) {
-            throw new Error('Failed to update profile');
-        }
+            if (!res.ok) {
+                throw new Error('Failed to update profile');
+            }
 
-        const data = await res.json();
-        console.log('Profile updated successfully:', data);
-        setFormData(prev => ({...prev, username: data.data.username }));
-    } catch (err) {
+            const data = await res.json();
+            console.log('Profile updated successfully:', data);
+            setFormData((prev) => ({
+                ...prev,
+                username: data.data.username,
+                email: data.data.email,
+            }));
+        } catch (err) {
             console.error('Error updating profile:', err.message);
+        } finally {
+            setIsSaving(false);
         }
     };
 

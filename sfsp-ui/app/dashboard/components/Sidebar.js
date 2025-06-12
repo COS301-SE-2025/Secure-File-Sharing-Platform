@@ -1,5 +1,5 @@
 'use client';
-
+import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -19,6 +19,7 @@ export default function Sidebar() {
   const router = useRouter();
 
   const [user, setUser] = useState(null);
+  const { theme, setTheme } = useTheme()
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [isDark, setIsDark] = useState(false);
@@ -50,12 +51,12 @@ export default function Sidebar() {
 
   // Load persisted theme
   useEffect(() => {
-    const stored = localStorage.getItem('theme');
-    if (stored === 'dark') {
-      document.documentElement.classList.add('dark');
-      setIsDark(true);
-    }
-  }, []);
+    setIsDark(theme === 'dark');
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(theme === 'dark' ? 'light' : 'dark');
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -63,12 +64,12 @@ export default function Sidebar() {
     router.push('/');
   };
 
-  const toggleTheme = () => {
-    const html = document.documentElement;
-    const isNowDark = html.classList.toggle('dark');
-    setIsDark(isNowDark);
-    localStorage.setItem('theme', isNowDark ? 'dark' : 'light');
-  };
+  // const toggleTheme = () => {
+  //   const html = document.documentElement;
+  //   const isNowDark = html.classList.toggle('dark');
+  //   setIsDark(isNowDark);
+  //   localStorage.setItem('theme', isNowDark ? 'dark' : 'light');
+  // };
 
   const linkClasses = (path) => {
     const safePathname = pathname || '';
@@ -85,6 +86,9 @@ export default function Sidebar() {
 
   return (
     <aside data-testid="sidebar" className="w-64 bg-gray-200 text-gray-800 dark:bg-gray-800 dark:text-white p-6 shadow-md hidden md:block relative">
+      <div className="bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-white">
+        Content
+      </div>
       {/* Logo and Title */}
       <div className="flex items-center gap-3 mb-8">
         <Image
