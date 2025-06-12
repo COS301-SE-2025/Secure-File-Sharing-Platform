@@ -16,6 +16,7 @@ export const metadata = {
   description: "A privacy-focused platform for secure file sharing using end-to-end encryption.",
 };
 
+
 export default function RootLayout({ children }) {
   return (
     // <html lang="en" className="dark">
