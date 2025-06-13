@@ -19,11 +19,11 @@
 
 ## 📚 Table of Contents
 
-- [Project Description](#project-description)
-- [Meet CacheME](#meet-cacheme-—-keeping-it-in-memory-so-you-don’t-have-to)
-- [Documentation](#documentation)
-- [Project Management](#project-management)
-- [Demo](#demo)
+- [Project Description](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform#-project-description)
+- [Meet CacheME](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform#-meet-cacheme--keeping-it-in-memory-so-you-dont-have-to)
+- [Documentation](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform#-documentation)
+- [Project Management](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform#-project-management)
+- [Demo](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform#-demo)
 
 ## 📋 Project Description
 

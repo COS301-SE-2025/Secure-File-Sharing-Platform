@@ -177,7 +177,7 @@ export default function Sidebar() {
           {settingsOpen && (
             <div data-testid="settings-dropdown" className="absolute right-0 bottom-12 w-48 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg z-10">
               <a
-                href="/dashboard"
+                href="/dashboard/accountSettings/"
                 className="block px-4 py-2 text-sm hover:bg-blue-300 dark:hover:bg-gray-600"
               >
                 Account Settings

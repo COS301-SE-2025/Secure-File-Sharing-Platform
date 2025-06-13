@@ -14,6 +14,21 @@ const geistMono = Geist_Mono({
 export const metadata = {
   title: "SecureShare | End-to-End Encrypted File Sharing",
   description: "A privacy-focused platform for secure file sharing using end-to-end encryption.",
+  icons: {
+    icon: [
+      {
+        media: '(prefers-color-scheme: light)',
+        url: '/img/shield-emp-black.png',
+        href: '/img/shield-emp-black.png',
+      },
+      {
+        media: '(prefers-color-scheme: dark)',
+        url: '/img/shield-emp-white.png',
+        href: '/img/shield-emp-white.png',
+      },
+    ],
+    apple: '/img/shield-emp-black.png',
+  },
 };
 
 

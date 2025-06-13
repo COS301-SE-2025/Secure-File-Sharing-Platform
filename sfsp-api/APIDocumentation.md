@@ -158,3 +158,37 @@ Authorization: Bearer <JWT_TOKEN>
   "message": "User profile deleted successfully."
 }
 ```
+
+## Update User Profile
+
+**Endpoint**: `PUT http://localhost:5000/api/users/profile`
+
+**Authentication**: Required
+
+**Header**:
+
+```
+Authorization: Bearer <JWT_TOKEN>
+Content-Type: application/json
+```
+
+### Request Body
+
+```json
+{
+  "username": "NewUsername",
+}
+```
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "67b0b467-f2e7-4346-8afe-1d4a0b0fc695",
+    "username": "NewUsername",
+    "email": "testuser@gmail.com"
+  }
+}
+```
