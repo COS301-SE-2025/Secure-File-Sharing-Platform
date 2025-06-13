@@ -51,12 +51,12 @@ export default function Sidebar() {
 
   // Load persisted theme
   useEffect(() => {
-    setIsDark(theme === 'dark');
-  }, [theme]);
-
-  const toggleTheme = () => {
-    setTheme(theme === 'dark' ? 'light' : 'dark');
-  };
+    const stored = localStorage.getItem('theme');
+    if (stored === 'dark') {
+      document.documentElement.classList.add('dark');
+      setIsDark(true);
+    }
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -64,12 +64,12 @@ export default function Sidebar() {
     router.push('/');
   };
 
-  // const toggleTheme = () => {
-  //   const html = document.documentElement;
-  //   const isNowDark = html.classList.toggle('dark');
-  //   setIsDark(isNowDark);
-  //   localStorage.setItem('theme', isNowDark ? 'dark' : 'light');
-  // };
+  const toggleTheme = () => {
+    const html = document.documentElement;
+    const isNowDark = html.classList.toggle('dark');
+    setIsDark(isNowDark);
+    localStorage.setItem('theme', isNowDark ? 'dark' : 'light');
+  };
 
   const linkClasses = (path) => {
     const safePathname = pathname || '';
