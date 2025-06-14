@@ -82,6 +82,7 @@
 |           |                             |                                     |                                                                                                                                                                                    |
 | Bitbucket | Good for small teams        | Small community                     |                                                                                                                                                                                    |
 |           | Git support                 | Less Modern UI                      |                                                                                                                                                                                    |
+
 **Cloud Infrastructure Considerations**
 
 | Framework | Pros                                              | Cons               | Justification for Selection                                                                                      |
