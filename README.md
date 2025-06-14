@@ -230,8 +230,10 @@ professional data.
 
 ## 📌 Project Management
 
+- [Coding Standard Documentation](./assets/documentation/coding_standards_doc.md)
 - [Github Board](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/projects)
 - [Git structure, oraginzation and management](./assets/documentation/git.md)
+- [User Manual Document](./assets/documentation/user_manual.md)
 
 ## 💡 Demo
 
