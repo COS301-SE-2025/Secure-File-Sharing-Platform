@@ -16,7 +16,9 @@ export default function Home() {
           {/* Dark mode logo */}
           <Image src="/img/shield-emp-white.png" alt="SecureShare Logo Dark" width={28} height={28} className="hidden dark:block"
           />
-          <span className="text-xl font-bold tracking-tight">SecureShare</span>
+          <a href="/">
+            <span className="text-xl font-bold tracking-tight">SecureShare</span>
+          </a>
         </div>
         <ul className="flex gap-6 text-sm sm:text-base">
           <li><a href="#main" className="hover:underline">Home</a></li>
@@ -26,6 +28,7 @@ export default function Home() {
 
         {/* Log In*/}
         <a
+          // href="/Support"
           href="/login"
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-full text-sm font-medium transition-colors"
         >

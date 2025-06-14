@@ -302,14 +302,34 @@ The following design patterns were selected (subject to change) for the followin
 - Prototype Pattern – For managing users.,
 - Observer Pattern – To support real-time notifications and updates.,
 - Proxy Pattern – For access verification and controlled resource access.,
-- Command Pattern – To queue and execute file operations like uploads/downloads.,
+- Command Pattern – To queue and execute file operations like uploads/downloads.
 ---
 
 ## Constraints
 
-- **End-to-End Encryption:** the files have to be encrypted before upload and decrypted after download on the client's side.
-- **Zero-Trust:** the server should not know what is on it as allow the files should be encrypted.
-- **Secure Key Management:** public/private keys should be securely generated, stored and shared only with the parties involved.
+- **End-to-End Encryption (E2EE):**  
+  All files must be encrypted on the client before upload and decrypted only after download. This ensures that server-side components cannot access the file contents in plaintext. It impacts system design by limiting the ability to process, inspect, or search file contents on the server.
+
+- **Zero-Trust Architecture:**  
+  The system assumes no implicit trust between components. Each request must be authenticated and authorized independently. File contents remain 'invisible' to the server, reinforcing the separation of concerns between storage, access control, and identity.
+
+- **Secure Key Management:**  
+  Public/private key pairs must be securely generated, distributed, and stored. Only the sender and intended recipient(s) should have access to decryption keys. This constraint requires strong encryption standards, secure key exchange implementations, and safeguards for preventing unauthorized access.
+
+- **Microservices-Based Deployment:**  
+  The architecture is composed of independently deployable microservices. This requires containerized environments (e.g. Docker), secure services communication. It also enforces separation of concerns between components such as authentication, file storage, and notifications.
+
+- **Scalability and Elasticity:**  
+  Each microservice should be able to grow or shrink on its own depending on how much it’s being used. For example, if many users are uploading files, only the upload service needs to scale. This helps the system handle high traffic without slowing down.
+
+- **Client-Side Logic Enforcement:**  
+  Due to E2EE, operations such file previews, or metadata extraction cannot occur on the server. These must be handled entirely on the client, placing architectural limits on server responsibilities.
+
+- **Event-Driven Communication:**  
+  Actions like file upload, sharing, or download must trigger asynchronous events (e.g., logging, auditing, notifications). This requires an event-driven architecture using message queues or pub/sub systems.
+
+- **Data Residency and Compliance:**  
+  The platform must comply with South Africa’s data protection laws, especially POPIA. This means storing personal data securely and only in allowed regions, and deleting logs when no longer needed.
 
 ---
 
