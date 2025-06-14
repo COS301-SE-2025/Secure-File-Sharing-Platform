@@ -12,6 +12,7 @@
 |                                           | Efficient                           |                                   |                                                                                                                |
 | Vue.js                                    | Simplicity                          | Smaller support for community     |                                                                                                                |
 |                                           | Reactive data binding               | over flexibility                  |                                                                                                                |
+
 **Backend Considerations**
 
 | Framework            | Pros                                | Cons                      | Justification for Selection                                                                                               |
