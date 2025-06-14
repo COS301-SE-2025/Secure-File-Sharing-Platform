@@ -124,9 +124,38 @@ exports.getNumberOfFiles = async (req, res) => {
 };
 
 
-exports.deleteFile = (req, res) => {
+/**implement the /delete */
+exports.deleteFile = async (req, res) => {
+  try {
+    const { fileName, userId, path: filePath } = req.body;
 
-}
+    if (!fileName || !userId) {
+      return res.status(400).send("Missing file name or user ID");
+    }
+
+    const payload = {
+      fileName,
+      userId,
+      path: filePath || "files",
+    };
+
+    console.log(" Deleting from:", process.env.FILE_SERVICE_URL);
+
+    const response = await axios.delete(
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/delete`,
+      { data: payload }
+    );
+
+    res.status(200).json({
+      message: "File deleted",
+      server: response.data,
+    });
+  } catch (err) {
+    console.error(" Delete error:", err.message);
+    res.status(500).send("Delete failed");
+  }
+};
+
 
 exports.getFileList = (req, res) => {
 
