@@ -15,21 +15,6 @@
 
 **Backend Considerations**
 
-| Framework            | Pros                                | Cons                      | Justification for Selection                                                                                               |
-| -------------------- | ----------------------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| Node.js with Express | Asynchronous Events                 | Asynchronous Complexity   | Asynchronous events via JavaScript callback, non-blocking I/O . Lightweight and modular structure makes it easy to scale. |
-|                      | Same Language for Front and Backend | Immature Libraries        |                                                                                                                           |
-|                      | Error Handling                      |                           |                                                                                                                           |
-|                      | Easy Scalability                    |                           |                                                                                                                           |
-| .NET                 | High Performance                    | Steeper Learning curve    |                                                                                                                           |
-|                      | Scalability                         | Cost of Liscencing        |                                                                                                                           |
-|                      | Cross - Platform                    | Memory Leaks              |                                                                                                                           |
-| PHP                  | Easy to Learn                       | Concurrency Llimitiations |                                                                                                                           |
-|                      | Large Host Support                  |                           |                                                                                                                           |
-|                      | Fast Setup                          |                           |                                                                                                                           |
-
-
-**Database Considerations** 
 
 | Framework           | Pros                             | Cons                     | Justification for Selection                                                                   |
 | ------------------- | -------------------------------- | ------------------------ | --------------------------------------------------------------------------------------------- |
@@ -42,6 +27,7 @@
 | ASP.NET Core C#     | Architecture support             | Steep Leaning curve      |                                                                                               |
 |                     | internal coporate tools          | Heavy Ecosystem          |                                                                                               |
 |                     | Scalability                      | Complex deployment setup |                                                                                               |
+
 **Data Storage Considerations**
 
 | Framework | Pros                                    | Cons                                       | Justification for Selection                                                                            |
@@ -55,6 +41,7 @@
 | MongoDB   | Flexible Schema                         | No built-in auth/UI hosting                |                                                                                                        |
 |           | Horizontal scalability                  | Harder to enforce strict schema validation |                                                                                                        |
 |           | Great for unstructured or evolving data |                                            |                                                                                                        |
+
 
 **IDE/Code Editor  Considerations** 
 
@@ -82,6 +69,7 @@
 | Octopus        | Visual dashbaords                  | Only for CD                              |                                                                                                                       |
 |                | complex deployment pattern support | Paid Product                             |                                                                                                                       |
 |                | deployment automation              | Requires external CI setup               |                                                                                                                       |
+
 **Version Control & Collaboration**
 
 | Framework | Pros                        | Cons                                | Justification for Selection                                                                                                                                                        |
@@ -103,6 +91,7 @@
 |           | Fast updates                                      |                    |                                                                                                                  |
 | ownCloud  | Minimal system requirements                       | Irregular updates  |                                                                                                                  |
 |           |                                                   | Performance issues |                                                                                                                  |
+
 **Testing Considerations**
 
 | Framework                          | Pros                                                   | Cons                                                  | Justification for Selection                                                             |
