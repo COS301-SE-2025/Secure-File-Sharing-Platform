@@ -21,13 +21,13 @@ This is VERSION 2 of the software requirements specification document.
 |Technology Requirements|[Go to](#technology-requirements)|
 |Versions of SRS Documents|[Go to](#versions-of-srs-documents)|
 
------s
+---
 
 # Introduction
 
 This document outlines the requirements for the Secure File Sharing Platform system.
 
------
+---
 
 # User Stories / User Characteristics
 
@@ -196,7 +196,7 @@ Interaction:
 
 ![domain-model](https://drive.google.com/uc?export=view&id=1F9OxHFnsJeCFBFHoGP_UupHMJfyUtM8N)
 
------
+---
 
 # Architectural Requirements
 
@@ -204,63 +204,41 @@ Interaction:
 
 ## Quality Requirements
 
-### NFR1. User Authentication & Account Management
+## **NF1 Security Requirements**
 
-  * **NFR1.1**: Sensitive user credentials must be encrypted using industry standard algorithms.
-  * **NFR1.2**: Multi-factor authentication must be enforced where configured.
-  * **NFR1.3**: Authentication endpoints must be resilient to brute force attacks.
-  * **NFR1.4**: Password reset tokens must expire within 15 minutes.
+* **NFR1.1**: Sensitive user credentials must be encrypted using industry standard algorithms.
+* **NFR1.2**: Multi-factor authentication must be enforced where configured.
+* **NFR1.3**: Authentication endpoints must be resilient to brute force attacks.
+* **NFR1.4**: Password reset tokens must expire within 15 minutes.
+* **NFR1.5**: Encryption algorithms must use AES-256 for symmetric encryption and x3dh asymmetric operations.
+* **NFR1.6**: No unencrypted file or key material shall be stored on the server.
+* **NFR1.7**: Compliance with GDPR and other regional data protection regulations is mandatory.
+* **NFR1.8**: Permissions shall be enforced at the backend and shall not be bypassable via client modifications.
+* **NFR1.9**: Administrative interfaces must be restricted to authenticated and authorized users only.
+* **NFR1.10**: The system must log all critical and warning-level errors with full context for debugging.
+* **NFR1.11**: Keys must be generated using a secure random number generator.
+* **NFR1.12**: The system must ensure zero exposure of private keys to the server.
+* **NFR1.13**: Private keys should be stored in a sealed vault.
+* **NFR1.14**: Signing operations must comply with digital signature standards.
 
-### NFR2. File Upload and Download
+## **NF1 Performance Requirements**
 
-  * **NFR2.1**: Progress indicators must update in real-time (less than 500 ms delay).
-  * **NFR2.2**: Cancel operations must terminate transfers within 3 seconds.
+* **NFR2.1**: Progress indicators must update in real-time (less than 500 ms delay).
+* **NFR2.2**: Cancel operations must terminate transfers within 3 seconds.
+* **NFR2.3**: Digital signature verification must be deterministic and complete within 1 second.
+* **NFR2.4**: Notification delivery (email/push/pop) must occur within 30 seconds of the triggering event.
 
-### NFR3. End-to-End File Encryption
+## **NF3 Reliability and Availability**
+* **NFR3.1**: Log entries must be immutable and tamper proof.
+* **NFR3.2**: Logs must be retained for a minimum of 5 months.
+* **NFR3.3**: Expired links must be purged within 1 hour of expiration.
+* **NFR3.4**: One time links must expire automatically after download or expiration time, whichever comes first.
 
-  * **NFR3.1**: Encryption algorithms must use AES-256 for symmetric encryption and x3dh asymmetric operations.
-  * **NFR3.2**: No unencrypted file or key material shall be stored on the server.
-  * **NFR3.3**: Compliance with GDPR and other regional data protection regulations is mandatory.
+## **NF4 Usability Requirements**
 
-### NFR4. File Sharing and Access Control
-
-  * **NFR4.1**: Permissions shall be enforced at the backend and shall not be bypassable via client modifications.
-  * **NFR4.2**: The user interface must visually distinguish between different permission levels clearly.
-
-### NFR5. Digital Signing
-
-  * **NFR5.1**: Signing operations must comply with digital signature standards.
-  * **NFR5.2**: Digital signature verification must be deterministic and complete within 1 second.
-
-### NFR6. Access Logs and Audit Trails
-
-  * **NFR6.1**: Log entries must be immutable and tamper proof.
-  * **NFR6.2**: Logs must be retained for a minimum of 5 months.
-
-### NFR7. Advanced Sharing Options
-
-  * **NFR7.1**: One time links must expire automatically after download or expiration time, whichever comes first.
-  * **NFR7.2**: Expired links must be purged within 1 hour of expiration.
-
-### NFR8. Administrative Controls
-
-  * **NFR8.1**: Administrator actions must be auditable and traceable.
-  * **NFR8.2**: Administrative interfaces must be restricted to authenticated and authorized users only.
-
-### NFR9. Notifications
-
-  * **NFR9.1**: Notification delivery (email/push/pop) must occur within 30 seconds of the triggering event.
-
-### NFR10. Error Handling/Detection
-
-  * **NFR11.1**: All error messages must be user friendly, localizable, and provide actionable guidance.
-  * **NFR11.2**: The system must log all critical and warning-level errors with full context for debugging.
-
-### NFR11. Key Management
-
-  * **NFR12.1**: Keys must be generated using a secure random number generator.
-  * **NFR12.2**: The system must ensure zero exposure of private keys to the server.
-  * **NFR12.3**: Private keys should be stored in a sealed vault.
+* **NFR4.1**: The user interface must visually distinguish between different permission levels clearly.
+* **NFR4.2**: All error messages must be user friendly, localizable, and provide actionable guidance.
+* **NFR4.3**: Administrator actions must be auditable and traceable.
 
 ---
 
