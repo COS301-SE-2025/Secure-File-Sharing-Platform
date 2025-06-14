@@ -186,7 +186,6 @@ export default function AccountSettings() {
     setPasswordErrors({});
     
     try {
-      // Call your API to verify current password
       const response = await fetch(`${API_BASE_URL}/verify-password`, {
         method: 'POST',
         headers: { 
@@ -199,12 +198,11 @@ export default function AccountSettings() {
       });
       
       if (response.ok) {
-        // Send PIN to email
         const pinResponse = await fetch(`${API_BASE_URL}/send-reset-pin`, {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}` // Add auth header
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
           }
         });
         
