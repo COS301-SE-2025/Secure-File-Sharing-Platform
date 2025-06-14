@@ -5,21 +5,21 @@ This is VERSION 2 of the software requirements specification document.
 
 ## Table of Contents
 
-| Section                     | Link                           |
-| :-------------------------- | :----------------------------- |
-| Introduction                | [Go to](#introduction)         |
-|User Stories / User Characteristics| [Go to](#user-stories--user-characteristics) |
-|.........Use Case Diagram| [Go to](#use-case-diagram) |
-| Functional Requirements     | [Go to](#functional-requirements) |
-|Service Contracts|[Go to](#service-contracts)|
-|Domain Model|[Go to](#domain-model)|
-|Architectural Requirements|[Go to](#architectural-requirements)|
-|.........Quality Requirements | [Go to](#non-functional-requirements) |
-|.........Architectural Patterns|[Go to](#architectural-patterns)|
-|.........Design Patterns|[Go to](#design-patterns)|
-|.........Constraints|[Go to](#constraints)|
-|Technology Requirements|[Go to](#technology-requirements)|
-|Versions of SRS Documents|[Go to](#versions-of-srs-documents)|
+| Section                             | Link                                         |
+| :---------------------------------- | :------------------------------------------- |
+| Introduction                        | [Go to](#introduction)                       |
+| User Stories / User Characteristics | [Go to](#user-stories--user-characteristics) |
+| .........Use Case Diagram           | [Go to](#use-case-diagram)                   |
+| Functional Requirements             | [Go to](#functional-requirements)            |
+| Service Contracts                   | [Go to](#service-contracts)                  |
+| Domain Model                        | [Go to](#domain-model)                       |
+| Architectural Requirements          | [Go to](#architectural-requirements)         |
+| .........Quality Requirements       | [Go to](#non-functional-requirements)        |
+| .........Architectural Patterns     | [Go to](#architectural-patterns)             |
+| .........Design Patterns            | [Go to](#design-patterns)                    |
+| .........Constraints                | [Go to](#constraints)                        |
+| Technology Requirements             | [Go to](#technology-requirements)            |
+| Versions of SRS Documents           | [Go to](#versions-of-srs-documents)          |
 
 -----
 
@@ -56,7 +56,7 @@ This document outlines the requirements for the Secure File Sharing Platform sys
 
 # Functional Requirements
 
-The Secure File Sharing platform shall (Version 1):
+The Secure File Sharing platform shall (Version 2):
 
 ### FR1. User Authentication & Account Management
     
@@ -119,20 +119,31 @@ The Secure File Sharing platform shall (Version 1):
 
 - **FR10.1** Users shall be able to create and organize folders.
 - **FR10.2** The system shall support file renaming, moving, and deletion.
+- **FR10.3** Users shall be able to search for files.
+- **FR10.4** The system shall support filtering of files by category.
+- **FR10.5** The system shall support bulk file actions.
 
 ### FR11. Error Handling/Detection
 
 - **FR11.1** The system shall display meaningful error messages for failed operations.
 - **FR11.2** The system shall validate input fields.
+- **FR11.3** The system shall provide confirmations for operations.
+- **FR11.4** The system shall include a user feedback/report issue.
 
 ### FR12. Key Management
 
 - **FR12.1** The system shall generate key pairs for each user.
-- **FR12.2** Only public keys shall be stored on the server.
+- **FR12.2** The system shall store public keys shall be stored in a database.
+- **FR12.3** The system shall store private keys in a vault.
+- **FR12.4** The system will allow users to rotate keys securely.
 
 ### FR13. Cloud Storage Integration
 
 - **FR13.1** The system shall use open-source cloud infrastructure for backend file management.
+
+### FR14. Session Management
+
+- **FR14.1** The system shall support secure time-outs and auto logout for inactive users.
 
 ---
 
