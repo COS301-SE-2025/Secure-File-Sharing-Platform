@@ -7,16 +7,23 @@
 <!-- [![Issue Tracking](https://img.shields.io/badge/Issue_Tracking-GitHub_Issues-yellow)](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/issues) -->
 [![GitHub issues](https://img.shields.io/github/issues/COS301-SE-2025/Secure-File-Sharing-Platform)](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/issues)
 [![Build Status](https://img.shields.io/badge/Build_Status-GitHub_Actions-brightgreen)](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/actions)
-<!-- [![codecov]()]() -->
+[![codecov](https://img.shields.io/badge/codecov-unavailable-lightgrey)]()
 ![Uptime status](https://img.shields.io/uptimerobot/status/m797015486-75c486778a8f87b141372bd7)
+
+[![Next.js](https://img.shields.io/badge/Frontend-Next.js-blue)]()
+[![Tailwind CSS](https://img.shields.io/badge/Styling-TailwindCSS-38BDF8)]()
+[![Express.js](https://img.shields.io/badge/Backend-Express.js-000000)]()
+[![Node.js](https://img.shields.io/badge/Runtime-Node.js-339933)]()
+[![Go](https://img.shields.io/badge/Service-Golang-00ADD8)]()
+
 
 ## 📚 Table of Contents
 
-- [Project Description](#project-description)
-- [Meet CacheME](#meet-cacheme-—-keeping-it-in-memory-so-you-don’t-have-to)
-- [Documentation](#documentation)
-- [Project Management](#project-management)
-- [Demo](#demo)
+- [Project Description](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform#-project-description)
+- [Meet CacheME](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform#-meet-cacheme--keeping-it-in-memory-so-you-dont-have-to)
+- [Documentation](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform#-documentation)
+- [Project Management](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform#-project-management)
+- [Demo](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform#-demo)
 
 ## 📋 Project Description
 
@@ -50,7 +57,7 @@ professional data.
     </td>
     <td style="vertical-align: top; width: 70%; padding: 20px;">
       <h2 style="font-size: 24px; margin: 0 0 10px;"><b>Simphiwe Jessica Zitha</b></h2>
-      <b style="font-size: 18px; color: #555;">Project Manager, Services, DevOps, Integration, Services</b>
+      <b style="font-size: 18px; color: #555;">Project Manager, Testing, UI Designer, Integration</b>
       <p style="font-size: 16px; color: #333; line-height: 1.5;">
         <br> I'm a final-year Computer Science student with a solid background in backend and web development, experienced in C++, Node.js, Python, and Java. I've built projects like a Tic Tac Toe game, calculator, and winery management system, and I collaborate effectively using Git. Passionate about cybersecurity and AI, I continuously expand my skills through research and online learning. I enjoy solving problems and aim to contribute to impactful, user-centered systems.
         <br><br>
@@ -84,7 +91,7 @@ professional data.
     </td>
     <td style="vertical-align: top; width: 70%; padding: 20px;">
       <h2 style="font-size: 24px; margin: 0 0 10px;"><b>Sibusiso Zotwayo</b></h2>
-      <b style="font-size: 18px; color: #555;">System Architect, DevOps, Integration, Services, and Testing Engineer</b>
+      <b style="font-size: 18px; color: #555;">System Architect, Full Stack, Integration, System Architecture</b>
       <p style="font-size: 16px; color: #333; line-height: 1.5;">
         <br> Full-stack developer focused on learning through teamwork and growing in software testing. Enthusiastic, collaborative, and committed to continuous improvement.
         <br><br>
@@ -118,7 +125,7 @@ professional data.
     </td>
     <td style="vertical-align: top; width: 70%; padding: 20px;">
       <h2 style="font-size: 24px; margin: 0 0 10px;"><b>Tumisho Makhene</b></h2>
-      <b style="font-size: 18px; color: #555;">UI/UX Design, DevOps, Integration, Services</b>
+      <b style="font-size: 18px; color: #555;">UI/UX Design, DevOps, Integration, Business Analysis</b>
       <p style="font-size: 16px; color: #333; line-height: 1.5;">
         <br> I'm a passionate and teachable programmer who believes anything can be learned. I have experience in UI design, front-end, and back-end development, having built full-stack applications and APIs using Node.js and PHP (with Swagger documentation). I've also developed client libraries and front-end integrations for these APIs. I'm comfortable using Git and committed to writing clean, maintainable code while continuously improving my skills.
         <br><br>
@@ -148,7 +155,7 @@ professional data.
     </td>
     <td style="vertical-align: top; width: 70%; padding: 20px;">
       <h2 style="font-size: 24px; margin: 0 0 10px;"><b>Philemon Muleya</b></h2>
-      <b style="font-size: 18px; color: #555;">System Architect and Integration Engineer</b>
+      <b style="font-size: 18px; color: #555;">System Architect, Backend, Testing and Integration Engineer</b>
       <p style="font-size: 16px; color: #333; line-height: 1.5;">
        <br> I'm a third-year Information Knowledge Systems student with experience in systems programming, real-time mobile AI, and full-stack development. I’ve built optimized apps using C++, Java, and Go, and developed secure APIs and interfaces with Node.js, Vue, and Tailwind.
         <br><br>
@@ -183,7 +190,7 @@ professional data.
     </td>
     <td style="vertical-align: top; width: 70%; padding: 20px;">
       <h2 style="font-size: 24px; margin: 0 0 10px;"><b>Tiyiso Hlungwani</b></h2>
-      <b style="font-size: 18px; color: #555;">DevOps, Testing Engineer</b>
+      <b style="font-size: 18px; color: #555;">DevOps, Testing Engineer, Integration, UI and DevOps</b>
       <p style="font-size: 16px; color: #333; line-height: 1.5;">
         <br> Final-year CS student building real-time web apps and AI bots. Skilled in full-stack development, Git collaboration, and clean code practices.
         <br><br>
@@ -217,19 +224,22 @@ professional data.
 
 ## 📄 Documentation
 
-| DOCUMENT     | LINK                             |
-|------------------|-----------------------------------|
-| Requirements (SRS)           | [Open](./assets/documentation/requirements.md)|
+| DOCUMENT     | DESCRIPTION  |  LINK                             |
+|------------------|-----------------------------------|-----------------------------------|
+| Requirements (SRS)   | Software Requirement Specification  | [Open](./assets/documentation/requirements.md)|
+| Coding Standard Documentation | ....| [Open](./assets/documentation/coding_standards_doc.md)|
+| User Manual Document|...|[Open](./assets/documentation/user_manual.md)|
 
 ## 📌 Project Management
 
 - [Github Board](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/projects)
+- [Git structure, oraginzation and management](./assets/documentation/git.md)
 
 ## 💡 Demo
 
 | DEMO             |PRESENTATION   |VIDEOS                         |
 |-|-|-|
-| Demo 1    |Not Available           | Not Available           | 
+| Demo 1    |[Slides 1](https://docs.google.com/presentation/d/1NYigzK_orVRTq1-xzFEi3_q4I8YFSjS2/edit?usp=sharing&ouid=115159733836506972614&rtpof=true&sd=true) |[Video 1](https://drive.google.com/file/d/1VWgY5ylgEroEz-dKcx-yiCANAm-9K6k6/view?usp=sharing)    | 
 | Demo 2    | Not Available     |Not Available           | 
 | Demo 3   |  Not Available    |Not Available           | 
 | Demo 4   |  Not Available    |Not Available           | 

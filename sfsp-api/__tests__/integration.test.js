@@ -15,6 +15,16 @@ app.delete('/profile', UserController.deleteProfile);
 
 jest.mock('../services/userService');
 
+jest.mock('../config/database', () => {
+    const mockSupabase = {
+        from: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: null, error: null }),
+    };
+    return { supabase: mockSupabase };
+});
+
 describe('UserController Integration Tests', () => {
     beforeEach(() => {
         jest.clearAllMocks();

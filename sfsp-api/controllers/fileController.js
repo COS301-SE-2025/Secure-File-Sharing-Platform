@@ -11,7 +11,7 @@ exports.downloadFile = async (req, res) => {
 
   try {
     const response = await axios.post(
-      `${process.env.FILE_SERVICE_URL}/download`,
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/download`,
       { path, filename },
       { headers: { "Content-Type": "application/json" } }
     );
@@ -77,18 +77,19 @@ exports.uploadFile = async (req, res) => {
       fileType,
       userId,
       encryptionKey,
+      uploadTimestamp: new Date().toISOString(),
       fileDescription,
       fileTags,
       path: uploadPath || "files",
       fileContent, // still base64
     };
 
-    const response = await axios.post(`${process.env.FILE_SERVICE_URL}/upload`, payload, {
-      headers: { "Content-Type": fileType}
+    const response = await axios.post(`${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/upload`, payload, {
+      headers: { "Content-Type": fileType }
     });
 
     res.status(201).json({
-      message: " File uploaded",
+      message: "File uploaded",
       server: response.data,
     });
   } catch (err) {
@@ -96,3 +97,38 @@ exports.uploadFile = async (req, res) => {
     res.status(500).send("Upload failed");
   }
 };
+
+exports.getNumberOfFiles = async (req, res) => {
+  const userId = req.body.userId;
+
+  if (!userId) {
+    return res.status(400).send('User ID is required');
+  }
+
+  try {
+    const response = await axios.post(
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/getNumberOfFiles`,
+      { userId },
+      { headers: { "Content-Type": "application/json" } }
+    );
+
+    if (response.status !== 200) {
+      return res.status(response.status).send('Error retrieving file count');
+    }
+
+    const fileCount = response.data;
+    res.json({ fileCount });
+  } catch (err) {
+    console.error("Error retrieving file count:", err.message);
+    res.status(500).send('Error retrieving file count');
+  }
+};
+
+
+exports.deleteFile = (req, res) => {
+
+}
+
+exports.getFileList = (req, res) => {
+
+}

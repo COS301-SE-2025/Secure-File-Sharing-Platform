@@ -1,0 +1,93 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+# build:
+#   name: Linting
+#   runs-on: ubuntu-latest
+
+#   steps:
+#     - name: Checkout code
+#       uses: actions/checkout@v4
+
+#     - name: Lint Code
+#       uses: github/super-linter@v5
+#       env:
+#         VALIDATE_ALL_CODEBASE: true
+#         DEFAULT_BRANCH: main
+#         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  sfsp-ui:
+    name: SFSP UI
+    runs-on: ubuntu-latest
+    container:
+        image: node:18
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Required Libraries
+      run: |
+        apt-get update && \
+        apt-get install -y xvfb libnss3 libgtk-3-0 libxss1 libasound2 libgbm1
+
+    - name: Install UI dependencies
+      working-directory: ./sfsp-ui
+      run: npm ci
+
+    - name: Run Cypress Unit Tests
+      working-directory: ./sfsp-ui
+      run: xvfb-run -a npx cypress run --component
+
+  sfsp-api:
+    name: SFSP API
+    runs-on: ubuntu-latest
+    # needs: build
+    container:
+      image: node:18
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install API dependencies
+        working-directory: ./sfsp-api
+        run: npm ci
+
+      - name: Run API Tests
+        working-directory: ./sfsp-api
+        run: npm test
+
+  sfsp-goservice:
+    name: SFSP Go Service
+    runs-on: ubuntu-latest
+    container:
+      image: golang:1.23.0
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Go dependencies
+        working-directory: ./sfsp-api/services/fileService
+        run: go mod download
+
+      - name: Create mock .env file
+        working-directory: ./sfsp-api/services/fileService
+        run: |
+          cat <<EOF > .env
+          MONGO_URI=mongodb+srv://Sibu2025:xWQNdqTKQq5bi7Bo@cluster0.8ywqk4g.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
+
+          AES_KEY=12345678901234567890123456789012
+
+          OWNCLOUD_URL=http://localhost:8080/remote.php/webdav/
+          OWNCLOUD_USERNAME=admin
+          OWNCLOUD_PASSWORD=admin
+          EOF
+
+      - name: Run Go Tests
+        working-directory: ./sfsp-api/services/fileService
+        run: go test ./UnitTests/... -v

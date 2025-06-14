@@ -31,7 +31,10 @@ func main() {
 
 
     mongoURI := os.Getenv("MONGO_URI")
-    client := mongo.InitMongo(mongoURI)
+    client, het := database.InitMongo(mongoURI)
+    if het != nil {
+        log.Fatalf("Failed to connect to MongoDB: %v", het)
+    }
 	fileHandler.SetMongoClient(client)
 
 	//initialize ownCloud client
@@ -40,5 +43,6 @@ func main() {
     http.HandleFunc("/upload", fileHandler.UploadHandler)
 	http.HandleFunc("/download", fileHandler.DownloadHandler)
     http.HandleFunc("/metadata", metadata.GetMetadataHandler)
+    http.HandleFunc("/getNumberOfFiles", metadata.GetNumberOfFiles)
 	log.Fatal(http.ListenAndServe(":8081", nil))
 }

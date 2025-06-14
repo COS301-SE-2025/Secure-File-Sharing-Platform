@@ -49,14 +49,14 @@ export default function SharedWithMePage() {
     <div className="flex-1 p-6 bg-gray-50 dark:bg-gray-900">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Shared with me</h1>
+          <h1 className="text-2xl font-semibold text-blue-500 ">Shared with me</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">Files and folders that have been shared with you</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => setViewMode('grid')} className={`p-2 rounded-md ${viewMode === 'grid' ? 'bg-gray-200 dark:bg-gray-700' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
+          <button onClick={() => setViewMode('grid')} className={`p-2 rounded-md ${viewMode === 'grid' ? 'bg-gray-200 dark:bg-gray-700' : 'text-gray-500 hover:bg-blue-300 dark:hover:bg-gray-700'}`}>
             <Grid3X3 size={20} />
           </button>
-          <button onClick={() => setViewMode('list')} className={`p-2 rounded-md ${viewMode === 'list' ? 'bg-gray-200 dark:bg-gray-700' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
+          <button onClick={() => setViewMode('list')} className={`p-2 rounded-md ${viewMode === 'list' ? 'bg-gray-200 dark:bg-gray-700' : 'text-gray-500 hover:bg-blue-300 dark:hover:bg-gray-700'}`}>
             <List size={20} />
           </button>
         </div>

@@ -1,5 +1,6 @@
 import Image from "next/image";
 import HomeRotator from "./home_features";
+import Footer from "./Footer/footer";
 
 export default function Home() {
   return (
@@ -15,7 +16,9 @@ export default function Home() {
           {/* Dark mode logo */}
           <Image src="/img/shield-emp-white.png" alt="SecureShare Logo Dark" width={28} height={28} className="hidden dark:block"
           />
-          <span className="text-xl font-bold tracking-tight">SecureShare</span>
+          <a href="/">
+            <span className="text-xl font-bold tracking-tight">SecureShare</span>
+          </a>
         </div>
         <ul className="flex gap-6 text-sm sm:text-base">
           <li><a href="#main" className="hover:underline">Home</a></li>
@@ -25,6 +28,7 @@ export default function Home() {
 
         {/* Log In*/}
         <a
+          // href="/Support"
           href="/login"
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-full text-sm font-medium transition-colors"
         >
@@ -85,9 +89,11 @@ export default function Home() {
       </div>
 
       {/* Footer */}
-      <footer className="p-6 text-center text-sm bg-neutral-700 text-white dark:bg-gray-800 dark:text-gray-400">
+      {/* <footer className="p-6 text-center text-sm bg-neutral-700 text-white dark:bg-gray-800 dark:text-gray-400">
         &copy; 2025 SecureShare — Built with privacy in mind.
-      </footer>
+      </footer> */}
+
+      <Footer />
     </div>
   );
 }

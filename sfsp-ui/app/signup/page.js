@@ -1,7 +1,10 @@
+//app/signup
+
 'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from "next/image";
 
 export default function SignupPage() {
   const [formData, setFormData] = useState({
@@ -75,6 +78,9 @@ export default function SignupPage() {
         throw new Error(result.message || 'Registration failed');
       }
 
+      const token = result.data.token?.replace(/^Bearer\s+/, '');
+      localStorage.setItem('token', token);
+
       setMessage('User successfully registered!');
       router.push('/dashboard');
     } catch (err) {
@@ -86,8 +92,12 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 px-4">
-      <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-sky-800 dark:bg-gray-900 px-4">
+      <div className="w-full max-w-md bg-neutral-200/95 dark:bg-gray-800 p-8 rounded-lg shadow-lg">
+        <div className="flex justify-center items-center">
+          <Image src="/img/shield-emp-black.png" alt="SecureShare Logo Light" width={50} height={50} className="block dark:hidden" />
+          <Image src="/img/shield-emp-white.png" alt="SecureShare Logo Dark" width={50} height={50} className="hidden dark:block" />
+        </div>
         <h2 className="text-2xl font-bold mb-6 text-center text-gray-800 dark:text-white">
           Sign Up
         </h2>
