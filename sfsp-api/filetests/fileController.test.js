@@ -197,4 +197,60 @@ describe('File Controller', () => {
       expect(res.send).toHaveBeenCalledWith('Error retrieving file count');
     });
   });
+    describe('deleteFile', () => {
+    const mockDelete = jest.spyOn(axios, 'delete');
+
+    afterEach(() => {
+      jest.clearAllMocks();
+    });
+
+    test('returns 400 if fileName or userId is missing', async () => {
+      const req = { body: { fileName: 'test.txt' } }; // userId missing
+      const res = { status: jest.fn().mockReturnThis(), send: jest.fn() };
+
+      await fileController.deleteFile(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.send).toHaveBeenCalledWith('Missing file name or user ID');
+    });
+
+    test('successfully deletes file', async () => {
+      const req = { body: { fileName: 'test.txt', userId: 'user1', path: 'files' } };
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+
+      mockDelete.mockResolvedValue({ status: 200, data: { success: true } });
+
+      await fileController.deleteFile(req, res);
+
+      expect(mockDelete).toHaveBeenCalledWith(
+        expect.stringContaining('/delete'),
+        {
+          data: {
+            fileName: 'test.txt',
+            userId: 'user1',
+            path: 'files'
+          }
+        }
+      );
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({
+        message: 'File deleted',
+        server: { success: true }
+      });
+    });
+
+    test('returns 500 on delete error', async () => {
+      const req = { body: { fileName: 'test.txt', userId: 'user1' } };
+      const res = { status: jest.fn().mockReturnThis(), send: jest.fn() };
+
+      mockDelete.mockRejectedValue(new Error('Internal server error'));
+
+      await fileController.deleteFile(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.send).toHaveBeenCalledWith('Delete failed');
+    });
+  });
+
 });
