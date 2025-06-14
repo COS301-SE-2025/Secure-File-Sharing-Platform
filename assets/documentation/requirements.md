@@ -14,14 +14,14 @@ This is VERSION 2 of the software requirements specification document.
 |Service Contracts|[Go to](#service-contracts)|
 |Domain Model|[Go to](#domain-model)|
 |Architectural Requirements|[Go to](#architectural-requirements)|
-|.........Quality Requirements | [Go to](#non-functional-requirements) |
+|.........Quality Requirements | [Go to](#quality-requirements) |
 |.........Architectural Patterns|[Go to](#architectural-patterns)|
 |.........Design Patterns|[Go to](#design-patterns)|
 |.........Constraints|[Go to](#constraints)|
 |Technology Requirements|[Go to](#technology-requirements)|
 |Versions of SRS Documents|[Go to](#versions-of-srs-documents)|
 
------
+-----s
 
 # Introduction
 
@@ -195,7 +195,7 @@ Interaction:
 
 ### NFR1. User Authentication & Account Management
 
-  * **NFR1.1**: All user credentials must be encrypted using industry standard algorithms.
+  * **NFR1.1**: Sensitive user credentials must be encrypted using industry standard algorithms.
   * **NFR1.2**: Multi-factor authentication must be enforced where configured.
   * **NFR1.3**: Authentication endpoints must be resilient to brute force attacks.
   * **NFR1.4**: Password reset tokens must expire within 15 minutes.
@@ -203,11 +203,11 @@ Interaction:
 ### NFR2. File Upload and Download
 
   * **NFR2.1**: Progress indicators must update in real-time (less than 500 ms delay).
-  * **NFR2.2**: Cancel operations must terminate transfers within 2 seconds.
+  * **NFR2.2**: Cancel operations must terminate transfers within 3 seconds.
 
 ### NFR3. End-to-End File Encryption
 
-  * **NFR3.1**: Encryption algorithms must use AES-256 for symmetric encryption and RSA-4096 or ECC for asymmetric operations.
+  * **NFR3.1**: Encryption algorithms must use AES-256 for symmetric encryption and x3dh asymmetric operations.
   * **NFR3.2**: No unencrypted file or key material shall be stored on the server.
   * **NFR3.3**: Compliance with GDPR and other regional data protection regulations is mandatory.
 
@@ -224,7 +224,7 @@ Interaction:
 ### NFR6. Access Logs and Audit Trails
 
   * **NFR6.1**: Log entries must be immutable and tamper proof.
-  * **NFR6.2**: Logs must be retained for a minimum of 1 year.
+  * **NFR6.2**: Logs must be retained for a minimum of 5 months.
 
 ### NFR7. Advanced Sharing Options
 
@@ -238,8 +238,7 @@ Interaction:
 
 ### NFR9. Notifications
 
-  * **NFR9.1**: Notification delivery (email/push) must occur within 30 seconds of the triggering event.
-  * **NFR9.2**: The system must use secure protocols (TLS, HTTPS) for sending notifications.
+  * **NFR9.1**: Notification delivery (email/push/pop) must occur within 30 seconds of the triggering event.
 
 ### NFR10. Error Handling/Detection
 
@@ -248,9 +247,9 @@ Interaction:
 
 ### NFR11. Key Management
 
-  * **NFR12.1**: Keys must be generated using a secure random number generator (e.g., WebCrypto).
+  * **NFR12.1**: Keys must be generated using a secure random number generator.
   * **NFR12.2**: The system must ensure zero exposure of private keys to the server.
-
+  * **NFR12.3**: Private keys should be stored in a sealed vault.
 
 ---
 
