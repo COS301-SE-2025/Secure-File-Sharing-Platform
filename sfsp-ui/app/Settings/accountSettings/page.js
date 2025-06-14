@@ -162,6 +162,149 @@ export default function AccountSettings() {
     alert('Avatar upload functionality coming soon!');
   };
 
+  // --------------------------------------------------------------- PASSWORD TAB ---------------------------------------------------------
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+    resetPIN: ''
+  });
+  const [passwordErrors, setPasswordErrors] = useState({});
+  const [passwordStep, setPasswordStep] = useState('verify');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [passwordMessage, setPasswordMessage] = useState('');
+
+  const handlePasswordInputChange = (field, value) => {
+    setPasswordData(prev => ({ ...prev, [field]: value }));
+    if (passwordErrors[field]) {
+      setPasswordErrors(prev => ({ ...prev, [field]: '' }));
+    }
+  };
+
+  const validateCurrentPassword = async () => {
+    setIsProcessing(true);
+    setPasswordErrors({});
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/verify-password`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ 
+          currentPassword: passwordData.currentPassword 
+        })
+      });
+      
+      if (response.ok) {
+        const pinResponse = await fetch(`${API_BASE_URL}/send-reset-pin`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        
+        if (pinResponse.ok) {
+          setPasswordStep('pin');
+          setPasswordMessage('A 5-character PIN has been sent to your email. Please check your inbox.');
+        } else {
+          const error = await pinResponse.json();
+          setPasswordErrors({ general: error.message || 'Failed to send PIN' });
+        }
+      } else {
+        const error = await response.json();
+        setPasswordErrors({ currentPassword: error.message || 'Invalid current password' });
+      }
+    } catch (error) {
+      setPasswordErrors({ general: 'Network error. Please try again.' });
+    }
+    
+    setIsProcessing(false);
+  };
+
+  const validatePIN = () => {
+    if (!passwordData.resetPIN || passwordData.resetPIN.length !== 5) {
+      setPasswordErrors({ resetPIN: 'Please enter the 5-character PIN from your email' });
+      return false;
+    }
+    setPasswordStep('newPassword');
+    setPasswordMessage('PIN verified! Now enter your new password.');
+    return true;
+  };
+
+  const validateNewPassword = () => {
+    const errors = {};
+    
+    if (!passwordData.newPassword || passwordData.newPassword.length < 8) {
+      errors.newPassword = 'Password must be at least 8 characters long';
+    }
+    
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      errors.confirmPassword = 'Passwords do not match';
+    }
+    
+    if (passwordData.newPassword === passwordData.currentPassword) {
+      errors.newPassword = 'New password must be different from current password';
+    }
+    
+    setPasswordErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleChangePassword = async () => {
+    if (!validateNewPassword()) return;
+    
+    setIsProcessing(true);
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/change-password`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          pin: passwordData.resetPIN,
+          newPassword: passwordData.newPassword
+        })
+      });
+      
+      if (response.ok) {
+        setPasswordMessage('Password changed successfully!');
+        setPasswordData({
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: '',
+          resetPIN: ''
+        });
+        setPasswordStep('verify');
+        setPasswordErrors({});
+      } else {
+        const error = await response.json();
+        setPasswordErrors({ general: error.message || 'Failed to change password' });
+      }
+    } catch (error) {
+      setPasswordErrors({ general: 'Network error. Please try again.' });
+    }
+    
+    setIsProcessing(false);
+  };
+
+  const resetPasswordFlow = () => {
+    setPasswordStep('verify');
+    setPasswordData({
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: '',
+      resetPIN: ''
+    });
+    setPasswordErrors({});
+    setPasswordMessage('');
+  };
+  // --------------------------------------------------------------- END PASSWORD TAB ---------------------------------------------------------
+
   return (
     <div className="p-6">
       <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow">
@@ -329,8 +472,166 @@ export default function AccountSettings() {
         {/* Placeholder for other tabs */}
         {activeTab === 'CHANGE PASSWORD' && (
           <div className="max-w-2xl">
-            <h3 className="text-lg font-semibold mb-4">Change Password</h3>
-            <p className="text-slate-400">Password change functionality coming soon...</p>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold">Change Password</h3>
+              {passwordStep !== 'verify' && (
+                <button
+                  type="button"
+                  onClick={resetPasswordFlow}
+                  className="text-sm text-blue-400 hover:text-blue-300"
+                >
+                  Start Over
+                </button>
+              )}
+            </div>
+
+            {/* Success/Error Messages */}
+            {passwordMessage && (
+              <div className={`mb-4 p-3 rounded-md ${
+                passwordMessage.includes('successfully') 
+                  ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+                  : 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+              }`}>
+                {passwordMessage}
+              </div>
+            )}
+
+            {passwordErrors.general && (
+              <div className="mb-4 p-3 rounded-md bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300">
+                {passwordErrors.general}
+              </div>
+            )}
+
+            {/* Step 1: Verify Current Password */}
+            {passwordStep === 'verify' && (
+              <div className="space-y-4">
+                <p className="text-sm text-slate-400 mb-4">
+                  First, please verify your current password to proceed.
+                </p>
+                
+                <div>
+                  <label htmlFor="currentPassword" className="block text-sm font-medium mb-2">
+                    Current Password <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="currentPassword"
+                    type="password"
+                    value={passwordData.currentPassword}
+                    onChange={(e) => handlePasswordInputChange('currentPassword', e.target.value)}
+                    className={`mt-1 block w-full px-4 py-2 border rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      passwordErrors.currentPassword ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                    }`}
+                    placeholder="Enter your current password"
+                  />
+                  {passwordErrors.currentPassword && (
+                    <p className="text-sm text-red-500 mt-1">{passwordErrors.currentPassword}</p>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={validateCurrentPassword}
+                  disabled={isProcessing || !passwordData.currentPassword}
+                  className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {isProcessing ? 'Verifying...' : 'Verify & Send PIN'}
+                </button>
+              </div>
+            )}
+
+            {/* Step 2: Enter PIN */}
+            {passwordStep === 'pin' && (
+              <div className="space-y-4">
+                <p className="text-sm text-slate-400 mb-4">
+                  A 5-character PIN has been sent to your email address. Please enter it below.
+                </p>
+                
+                <div>
+                  <label htmlFor="resetPIN" className="block text-sm font-medium mb-2">
+                    5-Character PIN <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="resetPIN"
+                    type="text"
+                    maxLength="5"
+                    value={passwordData.resetPIN}
+                    onChange={(e) => handlePasswordInputChange('resetPIN', e.target.value)}
+                    className={`mt-1 block w-full px-4 py-2 border rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      passwordErrors.resetPIN ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                    }`}
+                    placeholder="Enter 5-character PIN"
+                  />
+                  {passwordErrors.resetPIN && (
+                    <p className="text-sm text-red-500 mt-1">{passwordErrors.resetPIN}</p>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={validatePIN}
+                  disabled={!passwordData.resetPIN || passwordData.resetPIN.length !== 5}
+                  className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
+                >
+                  Verify PIN
+                </button>
+              </div>
+            )}
+
+            {/* Step 3: Set New Password */}
+            {passwordStep === 'newPassword' && (
+              <div className="space-y-4">
+                <p className="text-sm text-slate-400 mb-4">
+                  Now enter your new password. Make sure it's strong and secure.
+                </p>
+                
+                <div>
+                  <label htmlFor="newPassword" className="block text-sm font-medium mb-2">
+                    New Password <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="newPassword"
+                    type="password"
+                    value={passwordData.newPassword}
+                    onChange={(e) => handlePasswordInputChange('newPassword', e.target.value)}
+                    className={`mt-1 block w-full px-4 py-2 border rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      passwordErrors.newPassword ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                    }`}
+                    placeholder="Enter new password (min 8 characters)"
+                  />
+                  {passwordErrors.newPassword && (
+                    <p className="text-sm text-red-500 mt-1">{passwordErrors.newPassword}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label htmlFor="confirmPassword" className="block text-sm font-medium mb-2">
+                    Confirm New Password <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="confirmPassword"
+                    type="password"
+                    value={passwordData.confirmPassword}
+                    onChange={(e) => handlePasswordInputChange('confirmPassword', e.target.value)}
+                    className={`mt-1 block w-full px-4 py-2 border rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      passwordErrors.confirmPassword ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                    }`}
+                    placeholder="Confirm your new password"
+                  />
+                  {passwordErrors.confirmPassword && (
+                    <p className="text-sm text-red-500 mt-1">{passwordErrors.confirmPassword}</p>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleChangePassword}
+                  disabled={isProcessing || !passwordData.newPassword || !passwordData.confirmPassword}
+                  className="px-6 py-2 bg-green-600 hover:bg-green-500 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {isProcessing ? 'Changing Password...' : 'Change Password'}
+                </button>
+              </div>
+            )}
           </div>
         )}
 

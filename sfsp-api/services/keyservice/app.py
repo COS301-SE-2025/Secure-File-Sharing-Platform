@@ -6,10 +6,15 @@ import logging
 
 load_dotenv()
 
+app = Flask(__name__)
+
+@app.route('/')
+def root():
+    return jsonify({"message": "Hello from Flask root"})
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__)
 
 class VaultClient:
     def __init__(self, url=None, token=None):
