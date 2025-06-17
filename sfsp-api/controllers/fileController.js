@@ -1,3 +1,4 @@
+/* global process */
 const axios = require('axios');
 require('dotenv').config();
 
@@ -84,7 +85,7 @@ exports.uploadFile = async (req, res) => {
     };
 
     const response = await axios.post(`${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/upload`, payload, {
-      headers: { "Content-Type": fileType}
+      headers: { "Content-Type": fileType }
     });
 
     res.status(201).json({
