@@ -1,17 +1,19 @@
 //app/signup
 
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
+import sodium from "libsodium-wrappers";
+import { generateLinearEasing } from "framer-motion";
 
 export default function SignupPage() {
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    confirmPassword: ''
+    name: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
   });
 
   const router = useRouter();
@@ -21,7 +23,7 @@ export default function SignupPage() {
   const handleChange = (e) => {
     setFormData((prev) => ({
       ...prev,
-      [e.target.name]: e.target.value
+      [e.target.name]: e.target.value,
     }));
   };
 
@@ -29,6 +31,51 @@ export default function SignupPage() {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return regex.test(email);
   };
+
+  async function GenerateX3DHKeys(password) {
+    await sodium.ready();
+
+    // 1. Generate Identity Key pair (used for signing)
+    const ik = sodium.crypto_sign_keypair();
+
+    // 2. Generate Signed PreKey (used for encryption)
+    const spk = sodium.crypto_box_keypair();
+
+    // 3. Sign the SPK with IK
+    const spkSignature = sodium.crypto_sign_detached(
+      spk.publicKey,
+      ik.privateKey
+    );
+
+    // 4. Generate One-Time PreKeys
+    const opks = Array.from({ length: 10 }, () => sodium.crypto_box_keypair());
+
+    // 5. Derive a symmetric key from password
+    const salt = sodium.randombytes_buf(sodium.crypto_pwhash_SALTBYTES); // 16 bytes
+    const derivedKey = sodium.crypto_pwhash(
+      32, // key length
+      password,
+      salt,
+      sodium.crypto_pwhash_OPSLIMIT_MODERATE,
+      sodium.crypto_pwhash_MEMLIMIT_MODERATE,
+      sodium.crypto_pwhash_ALG_DEFAULT
+    );
+
+    //going to encrypt the IK private
+    const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
+    const encryptedIK = sodium.crypto_secretbox(ik.privateKey, nonce, derivedKey);
+
+    // 6. Return everything needed for storage
+    return {
+      encryptedIdentityKey : sodium.to_base64(encryptedIK),
+      publicKeyIK : sodium.to_base64(ik.publicKey),
+      nonce: sodium.to_base64(nonce),
+      signedPreKeyPair: sodium.to_base64(spk),
+      signedPreKeySignature: sodium.to_base64(spkSignature),
+      oneTimePreKeys: sodium.to_base64(opks),
+      salt: sodium.to_base64(salt),
+    };
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -38,19 +85,19 @@ export default function SignupPage() {
     setMessage(null);
 
     if (!name || !email || !password || !confirmPassword) {
-      setMessage('All fields are required.');
+      setMessage("All fields are required.");
       setIsLoading(false);
       return;
     }
 
     if (!validateEmail(email)) {
-      setMessage('Please enter a valid email address.');
+      setMessage("Please enter a valid email address.");
       setIsLoading(false);
       return;
     }
 
     if (password.length < 6) {
-      setMessage('Password must be at least 6 characters long.');
+      setMessage("Password must be at least 6 characters long.");
       setIsLoading(false);
       return;
     }
@@ -61,31 +108,48 @@ export default function SignupPage() {
       return;
     }
 
+    const {
+      encryptedIdentityKey,
+      publicKeyIK,
+      nonce,
+      signedPreKeyPair,
+      signedPreKeySignature,
+      oneTimePreKeys,
+      salt,
+    } = GenerateX3DHKeys(password);
+
     try {
-      const res = await fetch('http://localhost:5000/api/users/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("http://localhost:5000/api/users/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           username: name,
           email,
-          password
-        })
+          password,
+          encryptedIdentityKey,
+          publicKeyIK,
+          nonce,
+          signedPreKeyPair,
+          signedPreKeySignature,
+          oneTimePreKeys,
+          salt,
+        }),
       });
 
       const result = await res.json();
 
       if (!res.ok || !result.success) {
-        throw new Error(result.message || 'Registration failed');
+        throw new Error(result.message || "Registration failed");
       }
 
-      const token = result.data.token?.replace(/^Bearer\s+/, '');
-      localStorage.setItem('token', token);
+      const token = result.data.token?.replace(/^Bearer\s+/, "");
+      localStorage.setItem("token", token);
 
-      setMessage('User successfully registered!');
-      router.push('/dashboard');
+      setMessage("User successfully registered!");
+      router.push("/dashboard");
     } catch (err) {
       console.error(err);
-      setMessage(err.message || 'Something went wrong. Please try again.');
+      setMessage(err.message || "Something went wrong. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -95,8 +159,20 @@ export default function SignupPage() {
     <div className="min-h-screen flex items-center justify-center bg-sky-800 dark:bg-gray-900 px-4">
       <div className="w-full max-w-md bg-neutral-200/95 dark:bg-gray-800 p-8 rounded-lg shadow-lg">
         <div className="flex justify-center items-center">
-          <Image src="/img/shield-emp-black.png" alt="SecureShare Logo Light" width={50} height={50} className="block dark:hidden" />
-          <Image src="/img/shield-emp-white.png" alt="SecureShare Logo Dark" width={50} height={50} className="hidden dark:block" />
+          <Image
+            src="/img/shield-emp-black.png"
+            alt="SecureShare Logo Light"
+            width={50}
+            height={50}
+            className="block dark:hidden"
+          />
+          <Image
+            src="/img/shield-emp-white.png"
+            alt="SecureShare Logo Dark"
+            width={50}
+            height={50}
+            className="hidden dark:block"
+          />
         </div>
         <h2 className="text-2xl font-bold mb-6 text-center text-gray-800 dark:text-white">
           Sign Up
@@ -158,7 +234,9 @@ export default function SignupPage() {
           </div>
 
           {message && (
-            <div className="text-sm text-red-600 dark:text-red-400">{message}</div>
+            <div className="text-sm text-red-600 dark:text-red-400">
+              {message}
+            </div>
           )}
 
           <button
@@ -190,12 +268,12 @@ export default function SignupPage() {
                 Signing Up...
               </>
             ) : (
-              'Create Account'
+              "Create Account"
             )}
           </button>
         </form>
         <p className="mt-4 text-center text-sm text-gray-600 dark:text-gray-400">
-          Already have an account?{' '}
+          Already have an account?{" "}
           <a
             href="/login"
             className="text-blue-600 hover:underline dark:text-blue-400"
