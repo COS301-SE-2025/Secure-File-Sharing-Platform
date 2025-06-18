@@ -32,35 +32,37 @@ def store_private_key():
     try:
         data = request.get_json()
         if not data or 'encrypted_id' not in data or \
-                'encrypted_private_key' not in data:
+                'spk_private_key' not in data or 'opks_private' not in data:
             return jsonify({
                 'error': (
-                    'Missing required fields: encrypted_id and '
-                    'encrypted_private_key'
+                    'Missing required fields: encrypted_id, spk_private_key, '
+                    'and opks_private'
                 )
             }), 400
 
         encrypted_id = data['encrypted_id']
-        encrypted_private_key = data['encrypted_private_key']
-        if not encrypted_id or not encrypted_private_key:
+        spk_private_key = data['spk_private_key']
+        opks_private = data['opks_private']
+        if not encrypted_id or not spk_private_key or not isinstance(opks_private, list):
             return jsonify({
                 'error': (
-                    'encrypted_id and encrypted_private_key cannot be empty'
+                    'encrypted_id, spk_private_key cannot be empty and '
+                    'opks_private must be a list'
                 )
             }), 400
 
-        success = vault.write_private_key(
-            encrypted_id, encrypted_private_key
+        success = vault.write_private_key_bundle(
+            encrypted_id, spk_private_key, opks_private
         )
 
         if success:
             return jsonify({
-                'message': 'Private key stored successfully',
+                'message': 'Key bundle stored successfully',
                 'id': encrypted_id[:8] + '...'
             }), 201
         else:
             return jsonify({
-                'error': 'Failed to store private key'
+                'error': 'Failed to store key bundle'
             }), 500
 
     except Exception as e:
@@ -88,16 +90,17 @@ def retrieve_private_key():
             return jsonify({
                 'error': 'encrypted_id cannot be empty'
             }), 400
-        result = vault.read_private_key(encrypted_id)
+        result = vault.read_private_key_bundle(encrypted_id)
         if result:
             return jsonify({
-                'encrypted_private_key': result['encrypted_private_key'],
+                'spk_private_key': result.get('spk_private_key'),
+                'opks_private': result.get('opks_private'),
                 'id': (
                     encrypted_id[:8] + '...'
                 )
             }), 200
         else:
-            return jsonify({'error': 'Private key not found'}), 404
+            return jsonify({'error': 'Key bundle not found'}), 404
     except Exception as e:
         current_app.logger.error(f"Error in retrieve_private_key: {e}")
         return jsonify({'error': 'Internal server error'}), 500
@@ -118,20 +121,18 @@ def delete_private_key():
             }), 400
         encrypted_id = data['encrypted_id']
         if not encrypted_id:
-            return jsonify({
-                'error': 'encrypted_id cannot be empty'
-            }), 400
+            return jsonify({'error': 'encrypted_id cannot be empty'}), 400
         success = vault.delete_private_key(encrypted_id)
         if success:
             return jsonify({
-                'message': 'Private key deleted successfully',
+                'message': 'Key bundle deleted successfully',
                 'id': (
                     encrypted_id[:8] + '...'
                 )
             }), 200
         else:
             return jsonify({
-                'error': 'Failed to delete private key or key not found'
+                'error': 'Failed to delete key bundle or key not found'
             }), 404
     except Exception as e:
         current_app.logger.error(f"Error in delete_private_key: {e}")

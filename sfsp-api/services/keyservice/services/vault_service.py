@@ -22,40 +22,43 @@ class VaultClient:
             logger.error(f"Failed to authenticate with Vault: {e}")
             raise
 
-    def write_private_key(self, encrypted_id, encrypted_private_key):
+    def write_private_key_bundle(self, encrypted_id, spk_private_key, opks_private):
         path = f'userkeys/{encrypted_id}'
         try:
             self.client.secrets.kv.v2.create_or_update_secret(
                 path=path,
-                secret={'encrypted_private_key': encrypted_private_key}
+                secret={
+                    'spk_private_key': spk_private_key,
+                    'opks_private': opks_private
+                }
             )
-            msg = f"ID: {encrypted_id[:8]}... key stored successfully"
+            msg = f"ID: {encrypted_id[:8]}... key bundle stored successfully"
             logger.info(msg)
             return True
         except Exception as e:
-            logger.error(f"Failed to store private key: {e}")
+            logger.error(f"Failed to store key bundle: {e}")
             return False
 
-    def read_private_key(self, encrypted_id):
+    def read_private_key_bundle(self, encrypted_id):
         path = f'userkeys/{encrypted_id}'
         try:
             read_response = self.client.secrets.kv.v2.read_secret_version(path=path)
-            msg = f"ID: {encrypted_id[:8]}... key retrieved successfully"
+            msg = f"ID: {encrypted_id[:8]}... key bundle retrieved successfully"
             logger.info(msg)
             return read_response['data']['data']
         except Exception as e:
-            logger.error(f"Failed to retrieve private key: {e}")
+            logger.error(f"Failed to retrieve key bundle: {e}")
             return None
 
     def delete_private_key(self, encrypted_id):
         path = f'userkeys/{encrypted_id}'
         try:
             self.client.secrets.kv.v2.delete_metadata_and_all_versions(path=path)
-            msg = f"ID: {encrypted_id[:8]}... PK deleted successfully"
+            msg = f"ID: {encrypted_id[:8]}... key bundle deleted successfully"
             logger.info(msg)
             return True
         except Exception as e:
-            logger.error(f"Failed to delete private key: {e}")
+            logger.error(f"Failed to delete key bundle: {e}")
             return False
 
 
