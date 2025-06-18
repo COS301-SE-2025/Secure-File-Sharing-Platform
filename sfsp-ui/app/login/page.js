@@ -4,6 +4,8 @@ import Image from "next/image";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import sodium from 'libsodium-wrappers';
+import { a } from "framer-motion/dist/types.d-B_QPEvFK";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -24,6 +26,7 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
+      await sodium.ready;
       const res = await fetch('http://localhost:5000/api/users/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -39,6 +42,58 @@ export default function LoginPage() {
         throw new Error(result.message || 'Invalid login credentials');
       }
 
+      //New E2EE stuff
+      const {
+        salt,
+        nonce,
+        //private keys
+        ik_private_key,
+        spk_private_key,
+        opks_private,
+        //public keys
+        ik_public_key,
+        spk_public_key,
+        opks_public,
+      } = result.data;
+
+      //derived key from password and salt
+      const derivedKey = sodium.crypto_pwhash(
+        32, // key length
+        formData.password,
+        sodium.from_base64(salt),
+        sodium.crypto_pwhash_OPSLIMIT_MODERATE,
+        sodium.crypto_pwhash_MEMLIMIT_MODERATE,
+        sodium.crypto_pwhash_ALG_DEFAULT
+      );
+
+      //Try decrypting the private keys
+      const decryptedIkPrivateKey = sodium.crypto_secretbox_open_easy(
+        sodium.from_base64(ik_private_key),
+        sodium.from_base64(nonce),
+        derivedKey
+      );
+
+      if(!decryptedIkPrivateKey){
+        throw new Error('Failed to decrypt identity key private key');
+      }
+
+      //Store the decrypted private keys in localStorage or secure storage
+      //if you guys know of a better way to store these securely, please let me know or just change this portion of the code
+      const userKeys = {
+        identity_private_key: sodium.to_base64(decryptedIkPrivateKey),
+        signedpk_private_key: sodium.from_base64(spk_private_key),
+        oneTimepks_private: sodium.from_base64(opks_private),
+        identity_public_key: sodium.from_base64(ik_public_key),
+        signedpk_public_key: sodium.from_base64(spk_public_key),
+        oneTimepks_public: sodium.from_base64(opks_public),
+        salt: sodium.from_base64(salt),
+        nonce: sodium.from_base64(nonce),
+      }
+
+      // Store the user keys in localStorage for now we need a secure storage solution
+      localStorage.setItem('userKeys', JSON.stringify(userKeys));
+
+      console.log('User keys stored successfully:', userKeys);
       // localStorage.setItem('token', result.token);
       const bearerToken = result.data?.token;
 
