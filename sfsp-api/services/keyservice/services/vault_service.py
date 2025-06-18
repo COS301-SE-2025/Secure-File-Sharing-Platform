@@ -22,13 +22,14 @@ class VaultClient:
             logger.error(f"Failed to authenticate with Vault: {e}")
             raise
 
-    def write_private_key_bundle(self, encrypted_id, spk_private_key, opks_private):
+    def write_private_key_bundle(self, encrypted_id, spk_private_key, ik_private_key, opks_private):
         path = f'userkeys/{encrypted_id}'
         try:
             self.client.secrets.kv.v2.create_or_update_secret(
                 path=path,
                 secret={
                     'spk_private_key': spk_private_key,
+                    'ik_private_key': ik_private_key,
                     'opks_private': opks_private
                 }
             )

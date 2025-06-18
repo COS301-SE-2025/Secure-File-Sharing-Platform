@@ -41,6 +41,7 @@ def store_private_key():
             }), 400
 
         encrypted_id = data['encrypted_id']
+        ik_private_key = data['ik_private_key']
         spk_private_key = data['spk_private_key']
         opks_private = data['opks_private']
         if not encrypted_id or not spk_private_key or not isinstance(opks_private, list):
@@ -52,7 +53,7 @@ def store_private_key():
             }), 400
 
         success = vault.write_private_key_bundle(
-            encrypted_id, spk_private_key, opks_private
+            encrypted_id, spk_private_key, ik_private_key, opks_private
         )
 
         if success:
@@ -95,6 +96,7 @@ def retrieve_private_key():
             return jsonify({
                 'spk_private_key': result.get('spk_private_key'),
                 'opks_private': result.get('opks_private'),
+                'ik_private': result.get('ik_private_key'),
                 'id': (
                     encrypted_id[:8] + '...'
                 )
