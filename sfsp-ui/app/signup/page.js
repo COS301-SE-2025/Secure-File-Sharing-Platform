@@ -35,25 +35,17 @@ export default function SignupPage() {
   async function GenerateX3DHKeys(password) {
     await sodium.ready();
 
-    // 1. Generate Identity Key pair (used for signing)
     const ik = sodium.crypto_sign_keypair();
-
-    // 2. Generate Signed PreKey (used for encryption)
     const spk = sodium.crypto_box_keypair();
-
-    // 3. Sign the SPK with IK
     const spkSignature = sodium.crypto_sign_detached(
       spk.publicKey,
       ik.privateKey
     );
-
-    // 4. Generate One-Time PreKeys
     const opks = Array.from({ length: 10 }, () => sodium.crypto_box_keypair());
 
-    // 5. Derive a symmetric key from password
-    const salt = sodium.randombytes_buf(sodium.crypto_pwhash_SALTBYTES); // 16 bytes
+    const salt = sodium.randombytes_buf(sodium.crypto_pwhash_SALTBYTES);
     const derivedKey = sodium.crypto_pwhash(
-      32, // key length
+      32,
       password,
       salt,
       sodium.crypto_pwhash_OPSLIMIT_MODERATE,
@@ -61,18 +53,27 @@ export default function SignupPage() {
       sodium.crypto_pwhash_ALG_DEFAULT
     );
 
-    //going to encrypt the IK private
     const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
-    const encryptedIK = sodium.crypto_secretbox(ik.privateKey, nonce, derivedKey);
+    const encryptedIK = sodium.crypto_secretbox(
+      ik.privateKey,
+      nonce,
+      derivedKey
+    );
 
-    // 6. Return everything needed for storage
     return {
-      encryptedIdentityKey : sodium.to_base64(encryptedIK),
-      publicKeyIK : sodium.to_base64(ik.publicKey),
+      encryptedIdentityKey: sodium.to_base64(encryptedIK),
+      identityKeyPublic: sodium.to_base64(ik.publicKey),
       nonce: sodium.to_base64(nonce),
-      signedPreKeyPair: sodium.to_base64(spk),
+
+      signedPreKeyPublic: sodium.to_base64(spk.publicKey),
+      signedPreKeyPrivate: sodium.to_base64(spk.privateKey),
       signedPreKeySignature: sodium.to_base64(spkSignature),
-      oneTimePreKeys: sodium.to_base64(opks),
+
+      oneTimePreKeys: opks.map((keypair) => ({
+        publicKey: sodium.to_base64(keypair.publicKey),
+        privateKey: sodium.to_base64(keypair.privateKey),
+      })),
+
       salt: sodium.to_base64(salt),
     };
   }
@@ -108,17 +109,18 @@ export default function SignupPage() {
       return;
     }
 
-    const {
-      encryptedIdentityKey,
-      publicKeyIK,
-      nonce,
-      signedPreKeyPair,
-      signedPreKeySignature,
-      oneTimePreKeys,
-      salt,
-    } = GenerateX3DHKeys(password);
-
     try {
+      const {
+        encryptedIdentityKey,
+        identityKeyPublic,
+        nonce,
+        signedPreKeyPublic,
+        signedPreKeyPrivate,
+        signedPreKeySignature,
+        oneTimePreKeys,
+        salt,
+      } = await GenerateX3DHKeys(password);
+
       const res = await fetch("http://localhost:5000/api/users/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -127,9 +129,10 @@ export default function SignupPage() {
           email,
           password,
           encryptedIdentityKey,
-          publicKeyIK,
+          identityKeyPublic,
           nonce,
-          signedPreKeyPair,
+          signedPreKeyPublic,
+          signedPreKeyPrivate,
           signedPreKeySignature,
           oneTimePreKeys,
           salt,
