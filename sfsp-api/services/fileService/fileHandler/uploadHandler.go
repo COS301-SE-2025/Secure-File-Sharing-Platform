@@ -31,7 +31,7 @@ type UploadRequest struct {
 	FileName      string   `json:"fileName"`
 	FileType      string   `json:"fileType"`
 	UserID        string   `json:"userId"`
-	EncryptionKey string   `json:"encryptionKey"`
+	Nonce        string   `json:"nonce"`
 	Description   string   `json:"fileDescription"`
 	Tags          []string `json:"fileTags"`
 	Path          string   `json:"path"`
@@ -43,7 +43,7 @@ type Metadata struct {
 	FileSize        int64     `bson:"fileSize"`
 	FileType        string    `bson:"fileType"`
 	UserID          string    `bson:"userId"`
-	EncryptionKey   string    `bson:"encryptionKey"`
+	Nonce		    string    `bson:"nonce"`
 	UploadTimestamp time.Time `bson:"uploadTimestamp"`
 	Description     string    `bson:"description"`
 	Tags            []string  `bson:"tags"`
@@ -109,7 +109,7 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 		FileSize:        int64(len(fileBytes)),
 		FileType:        req.FileType,
 		UserID:          req.UserID,
-		EncryptionKey:   req.EncryptionKey,
+		Nonce:           req.Nonce,
 		UploadTimestamp: time.Now(),
 		Description:     req.Description,
 		Tags:            req.Tags,

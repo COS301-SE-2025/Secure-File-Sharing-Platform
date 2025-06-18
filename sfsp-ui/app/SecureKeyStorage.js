@@ -8,7 +8,14 @@ import {create} from 'zustand';
 export const useEncryptionStore = create((set) => ({
   encryptionKey: null,
   setEncryptionKey: (key) => set({ encryptionKey: key }),
+
+  userId: null,
+  setUserId: (id) => set({ userId: id })
 }));
+
+export const getUserId = () => {
+  return useEncryptionStore.getState().userId;
+};
 
 //use the function to store the user keys securely in IndexedDB
 //You can use this function to store the user keys after successful signup or login

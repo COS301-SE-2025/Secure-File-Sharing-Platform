@@ -56,8 +56,15 @@ export default function LoginPage() {
         //public keys
         ik_public_key,
         spk_public_key,
+        signedPreKeySignature,
         opks_public,
+
+        token,
+        user
       } = result.data;
+
+      //we don't need to securely store the user ID but I will store it in the Zustand store for easy access
+      useEncryptionStore.getState().setUserId(user.id);
 
       //derived key from password and salt
       const derivedKey = sodium.crypto_pwhash(
@@ -83,19 +90,20 @@ export default function LoginPage() {
       //Store the decrypted private keys in localStorage or secure storage
       //if you guys know of a better way to store these securely, please let me know or just change this portion of the code
       const userKeys = {
-        identity_private_key: sodium.from_base64(decryptedIkPrivateKey),
+        identity_private_key: decryptedIkPrivateKey,
         signedpk_private_key: sodium.from_base64(spk_private_key),
         oneTimepks_private: sodium.from_base64(opks_private),
         identity_public_key: sodium.from_base64(ik_public_key),
         signedpk_public_key: sodium.from_base64(spk_public_key),
         oneTimepks_public: sodium.from_base64(opks_public),
+        signedPreKeySignature: sodium.from_base64(signedPreKeySignature),
         salt: sodium.from_base64(salt),
         nonce: sodium.from_base64(nonce),
       };
 
       //store the user keys and derived key securely
       useEncryptionStore.getState().setEncryptionKey(derivedKey);
-      storeUserKeysSecurely(userKeys, derivedKey);
+      await storeUserKeysSecurely(userKeys, derivedKey);
 
       console.log("User keys stored successfully:", userKeys);
       // localStorage.setItem('token', result.token);
