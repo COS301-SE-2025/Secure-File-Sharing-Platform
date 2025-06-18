@@ -6,6 +6,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import sodium from "libsodium-wrappers";
+import { v4 as uuidv4 } from "uuid";
 import { generateLinearEasing } from "framer-motion";
 
 export default function SignupPage() {
@@ -41,13 +42,17 @@ export default function SignupPage() {
       spk.publicKey,
       ik.privateKey
     );
-    const opks = Array.from({ length: 10 }, () => sodium.crypto_box_keypair());
+    const opks = Array.from({ length: 10 }, () => ({
+      id: uuidv4,
+      keypair: sodium.crypto_box_keypair(),
+    }));
 
     const salt = sodium.randombytes_buf(sodium.crypto_pwhash_SALTBYTES);
     const derivedKey = sodium.crypto_pwhash(
       32,
       password,
       salt,
+
       sodium.crypto_pwhash_OPSLIMIT_MODERATE,
       sodium.crypto_pwhash_MEMLIMIT_MODERATE,
       sodium.crypto_pwhash_ALG_DEFAULT
@@ -61,19 +66,24 @@ export default function SignupPage() {
     );
 
     return {
-      encryptedIdentityKey: sodium.to_base64(encryptedIK),
-      identityKeyPublic: sodium.to_base64(ik.publicKey),
-      nonce: sodium.to_base64(nonce),
-
-      signedPreKeyPublic: sodium.to_base64(spk.publicKey),
-      signedPreKeyPrivate: sodium.to_base64(spk.privateKey),
+      // Public-side
+      ik_public_key: sodium.to_base64(ik.publicKey),
+      spk_public_key: sodium.to_base64(spk.publicKey),
       signedPreKeySignature: sodium.to_base64(spkSignature),
-
-      oneTimePreKeys: opks.map((keypair) => ({
-        publicKey: sodium.to_base64(keypair.publicKey),
-        privateKey: sodium.to_base64(keypair.privateKey),
+      opks_public: opks.map((opk) => ({
+        opk_id: opk.id,
+        publicKey: sodium.to_base64(opk.keypair.publicKey),
       })),
 
+      // Private-side
+      ik_private_key: sodium.to_base64(encryptedIK),
+      spk_private_key: sodium.to_base64(spk.privateKey),
+      opks_private: opks.map((opk) => ({
+        opk_id: opk.id,
+        private_key: sodium.to_base64(opk.keypair.privateKey),
+      })),
+
+      nonce: sodium.to_base64(nonce),
       salt: sodium.to_base64(salt),
     };
   }
@@ -111,13 +121,16 @@ export default function SignupPage() {
 
     try {
       const {
-        encryptedIdentityKey,
-        identityKeyPublic,
+        //private-side
+        ik_private_key,
+        spk_private_key,
+        opks_private,
+        //public-side
+        ik_public_key,
+        spk_public_key,
+        opks_public,
         nonce,
-        signedPreKeyPublic,
-        signedPreKeyPrivate,
         signedPreKeySignature,
-        oneTimePreKeys,
         salt,
       } = await GenerateX3DHKeys(password);
 
@@ -128,13 +141,16 @@ export default function SignupPage() {
           username: name,
           email,
           password,
-          encryptedIdentityKey,
-          identityKeyPublic,
+          //private-side
+          ik_private_key,
+          spk_private_key,
+          opks_private,
+          //public-side
+          ik_public_key,
+          spk_public_key,
+          opks_public,
           nonce,
-          signedPreKeyPublic,
-          signedPreKeyPrivate,
           signedPreKeySignature,
-          oneTimePreKeys,
           salt,
         }),
       });
