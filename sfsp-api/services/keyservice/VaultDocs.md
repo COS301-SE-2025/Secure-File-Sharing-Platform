@@ -40,7 +40,7 @@ Securely store, retrieve, and delete encrypted key bundles using a Vault-backed 
 ```json
 {
   "encrypted_id": "a1b2c3d4e5f6g7h8",
-  "ik_private_key": "dwuqidh732g3278",
+  "ik_private_key": "Encrypted_AES_GCM_base64_blob_IK==",
   "spk_private_key": "Encrypted_AES_GCM_base64_blob_SPK==",
   "opks_private": [
     {
@@ -86,6 +86,7 @@ Securely store, retrieve, and delete encrypted key bundles using a Vault-backed 
 
 ```json
 {
+  "ik_private_key": "Encrypted_AES_GCM_base64_blob_IK==",
   "spk_private_key": "Encrypted_AES_GCM_base64_blob_SPK==",
   "opks_private": [
     {
