@@ -9,9 +9,9 @@ const router = express.Router();
 router.use('/users', userRoutes);
 router.use('/files', fileRoutes);
 router.use('/contact', contactRoutes);
-router
+router.use('/vault', vaultRoutes);
 
-router.get('/health', (req, res) => {
+router.get('/health', (res) => {
     res.status(200).json({
         success: true,
         message: 'API is running'
