@@ -2,14 +2,14 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
-const {supabase} = require('../config/database');
+const { supabase } = require('../config/database');
 
 class UserService {
-    async register(userData){
-        const {username, email, password} = userData;
+    async register(userData) {
+        const { username, email, password, ik_public, spk_public } = userData;
 
-        try{
-            const {data: existinguser} = await supabase
+        try {
+            const { data: existinguser } = await supabase
                 .from('users')
                 .select('*')
                 .eq('email', email)
@@ -23,13 +23,15 @@ class UserService {
             const hashedPassword = await bcrypt.hash(password, salt);
             const resetPasswordPIN = this.generatePIN();
 
-            const {data: newUser, error} = await supabase
+            const { data: newUser, error } = await supabase
                 .from('users')
                 .insert([{
                     username,
                     email,
                     password: hashedPassword,
-                    resetPasswordPIN
+                    resetPasswordPIN,
+                    ik_public,
+                    spk_public,
                 }])
                 .select('*')
                 .single();
@@ -47,16 +49,16 @@ class UserService {
                 },
                 token
             };
-        }catch (error) {
+        } catch (error) {
             throw new Error('Registration failed: ' + error.message);
         }
-            
+
     }
 
     async login(userData) {
-        const {email, password} = userData;
+        const { email, password } = userData;
         try {
-            const {data: user, error} = await supabase
+            const { data: user, error } = await supabase
                 .from('users')
                 .select('*')
                 .eq('email', email)
@@ -88,7 +90,7 @@ class UserService {
     async getProfile(userId) {
         try {
 
-            const {data: user, error} = await supabase
+            const { data: user, error } = await supabase
                 .from('users')
                 .select('*')
                 .eq('id', userId)
@@ -110,7 +112,7 @@ class UserService {
 
     async refreshToken(userId) {
         try {
-            const {data: user, error} = await supabase
+            const { data: user, error } = await supabase
                 .from('users')
                 .select('*')
                 .eq('id', userId)
@@ -129,7 +131,7 @@ class UserService {
 
     async deleteProfile(email) {
         try {
-            const {data: user, error} = await supabase
+            const { data: user, error } = await supabase
                 .from('users')
                 .select('*')
                 .eq('email', email)
@@ -139,7 +141,7 @@ class UserService {
                 throw new Error('User profile not found.');
             }
 
-            const {error: deleteError} = await supabase
+            const { error: deleteError } = await supabase
                 .from('users')
                 .delete()
                 .eq('email', email);
@@ -148,7 +150,7 @@ class UserService {
                 throw new Error('Failed to delete profile: ' + deleteError.message);
             }
 
-            return {message: 'Profile deleted successfully.'};
+            return { message: 'Profile deleted successfully.' };
         } catch (error) {
             throw new Error('Profile deletion failed: ' + error.message);
         }
@@ -186,7 +188,7 @@ class UserService {
         return resetPIN;
     }
 
-    generateToken(userId){
+    generateToken(userId) {
         return jwt.sign({ userId }, process.env.JWT_SECRET, {
             expiresIn: '1h'
         });
@@ -203,35 +205,35 @@ class UserService {
     async sendPasswordResetPIN(userId) {
         try {
             const resetPIN = this.generatePIN();
-            
+
             const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-            
+
             const { error: updateError } = await supabase
                 .from('users')
-                .update({ 
+                .update({
                     resetPasswordPIN: resetPIN,
                     resetPINExpiry: expiresAt
                 })
                 .eq('id', userId);
-                
+
             if (updateError) {
                 throw new Error('Failed to generate reset PIN');
             }
-            
+
             const { data: user, error: fetchError } = await supabase
                 .from('users')
                 .select('email, username')
                 .eq('id', userId)
                 .single();
-                
+
             if (fetchError || !user) {
                 throw new Error('User not found');
             }
-            
+
             await this.sendResetPINEmail(user.email, user.username, resetPIN);
-            
+
             return { success: true, message: 'Reset PIN sent to your email' };
-            
+
         } catch (error) {
             throw new Error('Failed to send reset PIN: ' + error.message);
         }
@@ -244,50 +246,50 @@ class UserService {
                 .select('resetPasswordPIN, resetPINExpiry')
                 .eq('id', userId)
                 .single();
-                
+
             if (fetchError || !user) {
                 throw new Error('User not found');
             }
-            
+
             if (!user.resetPasswordPIN) {
                 throw new Error('No reset PIN found. Please request a new one.');
             }
-            
+
             const now = new Date();
             const expiryTime = new Date(user.resetPINExpiry);
-            
+
             if (now > expiryTime) {
                 await supabase
                     .from('users')
-                    .update({ 
+                    .update({
                         resetPasswordPIN: null,
                         resetPINExpiry: null
                     })
                     .eq('id', userId);
-                    
+
                 throw new Error('Reset PIN has expired. Please request a new one.');
             }
-            
+
             if (String(user.resetPasswordPIN) !== String(pin)) {
                 throw new Error('Invalid PIN. Please check your email and try again.');
             }
             const hashedPassword = await bcrypt.hash(newPassword, 10);
-            
+
             const { error: updateError } = await supabase
                 .from('users')
-                .update({ 
+                .update({
                     password: hashedPassword,
                     resetPasswordPIN: null,
                     resetPINExpiry: null
                 })
                 .eq('id', userId);
-                
+
             if (updateError) {
                 throw new Error('Failed to update password');
             }
-            
+
             return { success: true, message: 'Password updated successfully' };
-            
+
         } catch (error) {
             throw new Error('Failed to change password: ' + error.message);
         }
@@ -372,10 +374,10 @@ class UserService {
             };
 
             const info = await transporter.sendMail(mailOptions);
-            
+
             console.log('Password reset PIN email sent:', info.messageId);
             return { success: true, messageId: info.messageId };
-            
+
         } catch (error) {
             console.error('Error sending password reset PIN email:', error);
             throw new Error('Failed to send password reset email');

@@ -1,11 +1,14 @@
 const bcrypt = require('bcrypt');
-const {supabase} = require('../config/database');
+const { supabase } = require('../config/database');
 const userService = require('../services/userService');
+const axios = require('axios');
 
 class UserController {
     async register(req, res) {
         try {
-            const {username, email, password} = req.body;
+            const { username, email, password } = req.body;
+            const { ik_public, spk_public } = req.body;
+            const { ik_private_key, spk_private_key, opks_private } = req.body;
 
             if (!username || !email || !password) {
                 return res.status(400).json({
@@ -14,7 +17,39 @@ class UserController {
                 });
             }
 
-            const result = await userService.register({username, email, password});
+            if (!ik_public || !spk_public) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Public keys are required.'
+                });
+            }
+
+            if (!ik_private_key || !spk_private_key || !opks_private) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Private keys are required.'
+                });
+            }
+
+            const result = await userService.register({ username, email, password, ik_public, spk_public });
+            if (result && result.user && result.user.id) {
+                const vaultres = await axios.post('http://localhost:8080/store-key', {
+                    encrypted_id: result.user.id,
+                    ik_private_key,
+                    spk_private_key,
+                    opks_private
+                });
+
+                console.log('Vault response:', vaultres.data);
+                if (!vaultres.data.id) {
+                    return res.status(500).json({
+                        success: false,
+                        message: vaultres.data.message
+                    });
+                }
+            }
+
+            console.log(result);
             return res.status(201).json({
                 success: true,
                 message: 'User registered successfully.',
@@ -31,7 +66,7 @@ class UserController {
 
     async login(req, res) {
         try {
-            const {email, password} = req.body;
+            const { email, password } = req.body;
 
             if (!email || !password) {
                 return res.status(400).json({
@@ -40,7 +75,7 @@ class UserController {
                 });
             }
 
-            const result = await userService.login({email, password});
+            const result = await userService.login({ email, password });
             res.status(200).json({
                 success: true,
                 message: 'Login successful',
@@ -128,7 +163,7 @@ class UserController {
             if (!email) {
                 return res.status(400).json({
                     success: false,
-                message: 'Email is required.'
+                    message: 'Email is required.'
                 });
             }
 
@@ -183,103 +218,103 @@ class UserController {
 
     async verifyPassword(req, res) {
         try {
-        const { currentPassword } = req.body;
-        const userId = req.user.id;
-        
-        if (!currentPassword) {
-            return res.status(400).json({ 
-            success: false, 
-            message: 'Current password is required' 
+            const { currentPassword } = req.body;
+            const userId = req.user.id;
+
+            if (!currentPassword) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Current password is required'
+                });
+            }
+
+            const { data: user, error } = await supabase
+                .from('users')
+                .select('password')
+                .eq('id', userId)
+                .single();
+
+            if (error || !user) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'User not found'
+                });
+            }
+
+            const isValid = await bcrypt.compare(currentPassword, user.password);
+
+            if (!isValid) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Current password is incorrect'
+                });
+            }
+
+            res.json({
+                success: true,
+                message: 'Password verified successfully'
             });
-        }
-        
-        const { data: user, error } = await supabase
-            .from('users')
-            .select('password')
-            .eq('id', userId)
-            .single();
-            
-        if (error || !user) {
-            return res.status(404).json({ 
-            success: false, 
-            message: 'User not found' 
-            });
-        }
-        
-        const isValid = await bcrypt.compare(currentPassword, user.password);
-        
-        if (!isValid) {
-            return res.status(400).json({ 
-            success: false, 
-            message: 'Current password is incorrect' 
-            });
-        }
-        
-        res.json({ 
-            success: true, 
-            message: 'Password verified successfully' 
-        });
         } catch (error) {
-        console.error('Error verifying password:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Internal server error' 
-        });
+            console.error('Error verifying password:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Internal server error'
+            });
         }
     }
 
     async sendResetPIN(req, res) {
         try {
-        const userId = req.user.id;
-        
-        const result = await userService.sendPasswordResetPIN(userId);
-        
-        res.json({
-            success: true,
-            message: result.message
-        });
-        } catch (error) {
-        console.error('Error sending reset PIN:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: error.message || 'Failed to send reset PIN' 
-        });
-        }
-    }
-
-    async changePassword(req, res){
-        try {
-            const { pin, newPassword } = req.body;
             const userId = req.user.id;
-            
-            if (!pin || !newPassword) {
-                return res.status(400).json({ 
-                success: false, 
-                message: 'PIN and new password are required' 
-                });
-            }
-            
-            if (newPassword.length < 8) {
-                return res.status(400).json({ 
-                success: false, 
-                message: 'Password must be at least 8 characters long' 
-                });
-            }
-            
-            const result = await userService.verifyPINAndChangePassword(userId, pin, newPassword);
-            
+
+            const result = await userService.sendPasswordResetPIN(userId);
+
             res.json({
                 success: true,
                 message: result.message
             });
-            } catch (error) {
-            console.error('Error changing password:', error);
-            res.status(500).json({ 
-                success: false, 
-                message: error.message || 'Failed to change password' 
+        } catch (error) {
+            console.error('Error sending reset PIN:', error);
+            res.status(500).json({
+                success: false,
+                message: error.message || 'Failed to send reset PIN'
             });
-            }
         }
+    }
+
+    async changePassword(req, res) {
+        try {
+            const { pin, newPassword } = req.body;
+            const userId = req.user.id;
+
+            if (!pin || !newPassword) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'PIN and new password are required'
+                });
+            }
+
+            if (newPassword.length < 8) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Password must be at least 8 characters long'
+                });
+            }
+
+            const result = await userService.verifyPINAndChangePassword(userId, pin, newPassword);
+
+            res.json({
+                success: true,
+                message: result.message
+            });
+        } catch (error) {
+            console.error('Error changing password:', error);
+            res.status(500).json({
+                success: false,
+                message: error.message || 'Failed to change password'
+            });
+        }
+    }
 }
 
 module.exports = new UserController();
