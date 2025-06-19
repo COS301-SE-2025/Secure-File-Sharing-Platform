@@ -40,16 +40,14 @@ class UserController {
                     opks_private
                 });
 
-                console.log('Vault response:', vaultres.data);
-                if (!vaultres.data.id) {
+                if (!vaultres.status == 201 && !vaultres.data.status == 'success') {
                     return res.status(500).json({
                         success: false,
-                        message: vaultres.data.message
+                        message: vaultres.data.error
                     });
                 }
             }
 
-            console.log(result);
             return res.status(201).json({
                 success: true,
                 message: 'User registered successfully.',
