@@ -7,7 +7,7 @@ class UserController {
     async register(req, res) {
         try {
             const { username, email, password } = req.body;
-            const { ik_public, spk_public } = req.body;
+            const { ik_public, spk_public, opks_public, nonce, signedPreKeySignature, salt } = req.body;
             const { ik_private_key, spk_private_key, opks_private } = req.body;
 
             if (!username || !email || !password) {
@@ -17,7 +17,7 @@ class UserController {
                 });
             }
 
-            if (!ik_public || !spk_public) {
+            if (!ik_public || !spk_public || !opks_public || !nonce || !signedPreKeySignature || !salt) {
                 return res.status(400).json({
                     success: false,
                     message: 'Public keys are required.'
@@ -31,7 +31,7 @@ class UserController {
                 });
             }
 
-            const result = await userService.register({ username, email, password, ik_public, spk_public });
+            const result = await userService.register({ username, email, password, ik_public, spk_public, opks_public, nonce, signedPreKeySignature, salt });
             if (result && result.user && result.user.id) {
                 const vaultres = await axios.post('http://localhost:8080/store-key', {
                     encrypted_id: result.user.id,

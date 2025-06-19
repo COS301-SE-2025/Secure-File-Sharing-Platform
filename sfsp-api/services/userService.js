@@ -6,7 +6,7 @@ const { supabase } = require('../config/database');
 
 class UserService {
     async register(userData) {
-        const { username, email, password, ik_public, spk_public } = userData;
+        const { username, email, password, ik_public, spk_public, opks_public, nonce, signedPreKeySignature, salt } = userData;
 
         try {
             const { data: existinguser } = await supabase
@@ -19,8 +19,8 @@ class UserService {
                 throw new Error('User already exists with this email.');
             }
 
-            const salt = await bcrypt.genSalt(10);
-            const hashedPassword = await bcrypt.hash(password, salt);
+            const newsalt = await bcrypt.genSalt(10);
+            const hashedPassword = await bcrypt.hash(password, newsalt);
             const resetPasswordPIN = this.generatePIN();
 
             const { data: newUser, error } = await supabase
@@ -32,6 +32,10 @@ class UserService {
                     resetPasswordPIN,
                     ik_public,
                     spk_public,
+                    opks_public,
+                    nonce,
+                    signedPreKeySignature,
+                    salt
                 }])
                 .select('*')
                 .single();
