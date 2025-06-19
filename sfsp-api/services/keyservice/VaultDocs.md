@@ -22,8 +22,11 @@ Securely store, retrieve, and delete encrypted key bundles using a Vault-backed 
 
 ```json
 {
-  "status": "healthy",
-  "vault_status": "connected"
+  "status": "success",
+  "health": {
+    "status": "healthy",
+    "vault_status": "connected"
+  }
 }
 ```
 
@@ -59,6 +62,7 @@ Securely store, retrieve, and delete encrypted key bundles using a Vault-backed 
 
 ```json
 {
+  "status": "success",
   "message": "Key bundle stored successfully",
   "id": "a1b2c3d4..."
 }
@@ -86,6 +90,7 @@ Securely store, retrieve, and delete encrypted key bundles using a Vault-backed 
 
 ```json
 {
+  "status": "success",
   "ik_private_key": "Encrypted_AES_GCM_base64_blob_IK==",
   "spk_private_key": "Encrypted_AES_GCM_base64_blob_SPK==",
   "opks_private": [
@@ -122,6 +127,7 @@ Securely store, retrieve, and delete encrypted key bundles using a Vault-backed 
 
 ```json
 {
+  "status": "success",
   "message": "Key bundle deleted successfully",
   "id": "a1b2c3d4..."
 }
@@ -131,10 +137,10 @@ Securely store, retrieve, and delete encrypted key bundles using a Vault-backed 
 
 ## Error Responses
 
-| HTTP Code | Message                                 |
-| --------- | --------------------------------------- |
-| 400       | Missing or invalid input data           |
-| 404       | Key bundle not found                    |
-| 405       | Method not allowed                      |
-| 500       | Internal server error / Vault not ready |
+| HTTP Code | status  | Message                                 |
+| --------- | ------- | --------------------------------------- |
+| 400       | error   | Missing or invalid input data           |
+| 404       | error   | Key bundle not found                    |
+| 405       | error   | Method not allowed                      |
+| 500       | error   | Internal server error / Vault not ready |
 
