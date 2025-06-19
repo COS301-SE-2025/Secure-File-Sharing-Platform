@@ -13,10 +13,6 @@ export const useEncryptionStore = create((set) => ({
   setUserId: (id) => set({ userId: id })
 }));
 
-export const getUserId = () => {
-  return useEncryptionStore.getState().userId;
-};
-
 //use the function to store the user keys securely in IndexedDB
 //You can use this function to store the user keys after successful signup or login
 export const storeUserKeysSecurely = async (userKeys, encryptionKey) => {

@@ -13,10 +13,8 @@ import {
 } from "lucide-react";
 import Share from "../components/sharePU";
 import {
-  storeUserKeysSecurely,
-  deleteUserKeysSecurely,
-  getUserKeysSecurely,
   useEncryptionStore,
+  getUserId,
 } from "@/app/SecureKeyStorage";
 import sodium from "libsodium-wrappers";
 
@@ -94,6 +92,7 @@ export default function MyFilesPage() {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    //remember the encryption key is what we get when we login and store in indexed DB, it is the derived key in login file
     const { encryptionKey, userId } = useEncryptionStore.getState();
     if (!encryptionKey || !userId) {
       alert("Missing user ID or encryption key.");

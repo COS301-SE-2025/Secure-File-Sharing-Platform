@@ -14,5 +14,6 @@ router.put('/profile', authMiddleware, userController.updateProfile);
 router.post('/verify-password', authMiddleware, userController.verifyPassword);
 router.post('/send-reset-pin', authMiddleware, userController.sendResetPIN);
 router.post('/change-password', authMiddleware, userController.changePassword);
+router.get('/:userId/public-keys', authMiddleware, userController.getUserKeys);
 
 module.exports = router;

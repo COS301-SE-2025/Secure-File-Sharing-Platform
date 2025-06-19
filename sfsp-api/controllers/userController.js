@@ -280,6 +280,31 @@ class UserController {
             });
             }
         }
+
+    async getUserKeys(req, res) {
+        try {
+            const userId = req.user.id;
+
+            const userKeys = await userService.getUserKeys(userId);
+            if (!userKeys) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'User keys not found.'
+                });
+            }
+
+            return res.status(200).json({
+                success: true,
+                data: userKeys
+            });
+        } catch (error) {
+            console.error('Error fetching user keys:', error);
+            return res.status(500).json({
+                success: false,
+                message: 'Internal server error.'
+            });
+        }
+    }
 }
 
 module.exports = new UserController();

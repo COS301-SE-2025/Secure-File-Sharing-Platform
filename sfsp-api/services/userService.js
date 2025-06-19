@@ -3,8 +3,30 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const {supabase} = require('../config/database');
+const { getUserKeys } = require('../controllers/userController');
 
 class UserService {
+
+    //change this to fetch 1 opk(randomly or from top to bottom, and mark it as used)
+    //this should return the opk public key and the opk id separately
+    async getUserKeys(userId) {
+        try {
+            const {data: userKeys, error} = await supabase
+                .from('users')
+                .select('ik_public','spk_public','opks_public','signedPreKeySignature')
+                .eq('id', userId)
+                .single();
+
+            if (error) {
+                throw new Error('Failed to fetch user keys: ' + error.message);
+            }
+
+            return userKeys;
+        } catch (error) {
+            throw new Error('Failed to fetch user keys: ' + error.message);
+        }
+    }
+
     async register(userData){
         const {username, email, password} = userData;
 
