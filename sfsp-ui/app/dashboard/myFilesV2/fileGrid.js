@@ -21,7 +21,7 @@ export function FileGrid({
     folder: <Folder className="h-8 w-8 text-blue-500" />,
     pdf: <FileText className="h-8 w-8 text-red-500" />,
     document: <FileText className="h-8 w-8 text-red-500" />,
-    image: <Image className="h-8 w-8 text-green-500" />,
+    image: <Image className="h-8 w-8 text-green-500" alt=""/>,
     video: <Video className="h-8 w-8 text-purple-500" />,
   };
 

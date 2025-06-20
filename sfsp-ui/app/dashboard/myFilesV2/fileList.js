@@ -3,17 +3,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  FileIcon,
-  Download,
-  Share,
-  Folder,
-  FileText,
-  Image,
-  Video,
-  Star,
-  MoreVertical,
-} from 'lucide-react';
+import {FileIcon,Download,Share,Folder,FileText, Image,Video,Star,MoreVertical,} from 'lucide-react';
 
 export function FileList({
   files,
@@ -31,7 +21,7 @@ export function FileList({
     folder: <Folder className="h-5 w-5 text-blue-500" />,
     pdf: <FileText className="h-5 w-5 text-red-500" />,
     document: <FileText className="h-5 w-5 text-red-500" />,
-    image: <Image className="h-5 w-5 text-green-500" />,
+    image: <Image className="h-5 w-5 text-green-500" alt="" />,
     video: <Video className="h-5 w-5 text-purple-500" />,
   };
 
@@ -57,21 +47,21 @@ export function FileList({
 
   return (
     <>
-      <table className="w-full bg-white rounded-lg border">
+      <table className="w-full bg-white rounded-lg ">
         <thead>
-          <tr>
+          <tr className="bg-gray-300 dark:bg-gray-700">
             <th className="text-left p-2">Name</th>
             <th className="text-left p-2">Size</th>
             <th className="text-left p-2">Modified</th>
             <th className="text-left p-2">Actions</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody className="divide-y divide-gray-300 dark:divide-gray-700 ">
           {files.map((file) => (
             <tr
               key={file.id}
               onContextMenu={(e) => handleContextMenu(e, file)}
-              className="hover:bg-gray-50 cursor-pointer"
+              className="hover:bg-gray-200 cursor-pointer"
             >
               <td className="p-2 flex items-center gap-2" onClick={() => onViewDetails(file)}>
                 {getIcon(file.type)}
