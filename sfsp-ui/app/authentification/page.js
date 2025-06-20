@@ -66,7 +66,7 @@ export default function AuthPage() {
 
     const handleSignupSubmit = async (e) => {
         e.preventDefault();
-        const { name, email, password, confirmPassword } = formData;
+        const { name, email, password, confirmPassword } = signupData;
 
         setIsLoading(true);
         setMessage(null);
@@ -76,6 +76,11 @@ export default function AuthPage() {
             setIsLoading(false);
             return;
         }
+
+        const validateEmail = (email) => {
+            const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return regex.test(email);
+        };
 
         if (!validateEmail(email)) {
             setMessage("Please enter a valid email address.");
@@ -144,10 +149,6 @@ export default function AuthPage() {
         }
     };
 
-    const validateEmail = (email) => {
-        const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return regex.test(email);
-    };
 
     async function GenerateX3DHKeys(password) {
         await sodium.ready();
@@ -199,11 +200,11 @@ export default function AuthPage() {
         <div className="min-h-screen bg-white flex">
             {/* Left Panel */}
             <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 relative overflow-hidden">
-                <div className="absolute inset-0 bg-blue-800 bg-opacity-10" />
+                <div className="absolute inset-0 bg-blue-600 bg-opacity-10 dark:bg-gray-900" />
                 <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-white/10" />
-                <div className="absolute top-20 left-20 w-32 h-32 bg-white/10 rounded-full animate-pulse" />
-                <div className="absolute bottom-40 right-20 w-24 h-24 bg-white/5 rounded-full animate-bounce" />
-                <div className="absolute top-1/2 right-40 w-16 h-16 bg-blue-400/20 rounded-full animate-ping" />
+                <div className="absolute top-20 left-20 w-32 h-32 bg-white/20 rounded-full animate-pulse" />
+                <div className="absolute bottom-40 right-20 w-24 h-24 bg-white/10 rounded-full animate-bounce" />
+                <div className="absolute top-1/2 right-40 w-16 h-16 bg-blue-400/40 rounded-full animate-ping" />
                 <div className="relative z-10 flex flex-col justify-center px-12 py-16 text-white">
                     <div className="mb-8">
                         <div className="flex items-center mb-6">
@@ -225,7 +226,7 @@ export default function AuthPage() {
             </div>
 
             {/* Right Panel */}
-            <div className="flex-1 lg:w-1/2 flex items-center justify-center p-8">
+            <div className="flex-1 lg:w-1/2 flex items-center justify-center p-8 bg-neutral-100 dark:bg-gray-300">
                 <div className="w-full max-w-md">
 
                     {/* Tabs */}
@@ -233,7 +234,7 @@ export default function AuthPage() {
                         <div
                             onClick={() => { setTab('login'); setMessage(null); }}
                             className={`cursor-pointer text-center pb-2 font-medium transition-all ${tab === 'login'
-                                ? 'text-blue-700 font-bold text-lg border-b-2 border-blue-700'
+                                ? 'text-blue-600 font-bold text-lg border-b-2 border-blue-600'
                                 : 'text-gray-500 hover:text-blue-600'
                                 }`}
                         >
@@ -242,7 +243,7 @@ export default function AuthPage() {
                         <div
                             onClick={() => { setTab('signup'); setMessage(null); }}
                             className={`cursor-pointer text-center pb-2 font-medium transition-all ${tab === 'signup'
-                                ? 'text-blue-700 font-bold text-lg border-b-2 border-blue-700'
+                                ? 'text-blue-600 font-bold text-lg border-b-2 border-blue-600'
                                 : 'text-gray-500 hover:text-blue-600'
                                 }`}
                         >
@@ -282,7 +283,7 @@ export default function AuthPage() {
                                         value={loginData.email}
                                         onChange={handleChange(setLoginData)}
                                         required
-                                        className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                                        className="w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                                     />
                                 </div>
                                 <div>
@@ -296,7 +297,7 @@ export default function AuthPage() {
                                         value={loginData.password}
                                         onChange={handleChange(setLoginData)}
                                         required
-                                        className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                                        className="w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                                     />
                                 </div>
                                 <div className="flex items-center justify-between">
@@ -314,9 +315,9 @@ export default function AuthPage() {
 
                                 {/* Or separator */}
                                 <div className="flex items-center my-4">
-                                    <hr className="flex-grow border-t border-gray-300" />
+                                    <hr className="flex-grow border-t dark:border-gray-400 border-gray-300" />
                                     <span className="mx-2 text-gray-500 text-sm">or</span>
-                                    <hr className="flex-grow border-t border-gray-300" />
+                                    <hr className="flex-grow border-t dark:border-gray-400 border-gray-300" />
                                 </div>
 
                                 {/* Google login button */}
@@ -326,7 +327,7 @@ export default function AuthPage() {
                                         //Replace this with Google OAuth logic
                                         window.location.href = '/api/auth/google';
                                     }}
-                                    className="w-full flex items-center justify-center space-x-2 border border-gray-300 rounded-md py-2 hover:bg-gray-100 transition"
+                                    className="w-full flex items-center justify-center space-x-2 border dark:border-gray-400 border-gray-300 rounded-md py-2 hover:bg-gray-100 transition"
                                 >
                                     <svg
                                         className="w-5 h-5"
@@ -373,7 +374,7 @@ export default function AuthPage() {
                                         value={signupData.name}
                                         onChange={handleChange(setSignupData)}
                                         required
-                                        className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 "
+                                        className="w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 "
                                     />
                                 </div>
                                 <div>
@@ -385,7 +386,7 @@ export default function AuthPage() {
                                         value={signupData.email}
                                         onChange={handleChange(setSignupData)}
                                         required
-                                        className="w-full px-4 py-2 mt-1 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 "
+                                        className="w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900  "
                                     />
                                 </div>
                                 <div>
@@ -397,7 +398,7 @@ export default function AuthPage() {
                                         value={signupData.password}
                                         onChange={handleChange(setSignupData)}
                                         required
-                                        className="w-full px-4 py-2 mt-1 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 "
+                                        className="w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900  "
                                     />
                                 </div>
                                 <div>
@@ -409,7 +410,7 @@ export default function AuthPage() {
                                         value={signupData.confirmPassword}
                                         onChange={handleChange(setSignupData)}
                                         required
-                                        className="w-full px-4 py-2 mt-1 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 "
+                                        className="w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900  "
                                     />
                                 </div>
 
@@ -442,9 +443,9 @@ export default function AuthPage() {
                                     )}
                                 </button>
                                 <div className="flex items-center my-4">
-                                    <hr className="flex-grow border-t border-gray-300" />
+                                    <hr className="flex-grow border-t dark:border-gray-400 border-gray-300" />
                                     <span className="mx-2 text-gray-500 text-sm">or</span>
-                                    <hr className="flex-grow border-t border-gray-300" />
+                                    <hr className="flex-grow border-t dark:border-gray-400 border-gray-300" />
                                 </div>
 
                                 {/* Google Sign Up button */}
@@ -454,7 +455,7 @@ export default function AuthPage() {
                                         // Replace with your actual Google signup route
                                         window.location.href = '/api/auth/google';
                                     }}
-                                    className="w-full flex items-center justify-center space-x-2 border border-gray-300 rounded-md py-2 hover:bg-gray-100 transition"
+                                    className="w-full flex items-center justify-center space-x-2 border dark:border-gray-400 border-gray-300 rounded-md py-2 hover:bg-gray-100 transition"
                                 >
                                     <svg
                                         className="w-5 h-5"
