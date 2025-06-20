@@ -3,28 +3,8 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import {
-  FileIcon,
-  Download,
-  Share,
-  Star,
-  Folder,
-  FileText,
-  Image,
-  Video,
-  MoreVertical,
-} from 'lucide-react';
+import {FileIcon,Download,Share,Star,Folder,FileText,Image,Video,MoreVertical,} from 'lucide-react';
 
-/**
- * FileGrid component displays files in a grid layout with right-click context menu
- * Props:
- *  - files: array of file objects
- *  - onShare(file): callback to open share dialog for file
- *  - onViewDetails(file): callback to open details dialog
- *  - onViewActivity(file): callback to open activity log dialog
- *  - onDownload(file): callback to download file
- *  - onDelete(file): callback to delete file
- */
 export function FileGrid({
   files,
   onShare,
@@ -47,14 +27,12 @@ export function FileGrid({
 
   const getIcon = (type) => iconMap[type] || <FileIcon className="h-8 w-8 text-gray-500" />;
 
-  // Show custom context menu on right click
   const handleContextMenu = (e, file) => {
     e.preventDefault();
     setMenuPosition({ x: e.pageX, y: e.pageY });
     setMenuFile(file);
   };
 
-  // Close menu when clicking outside
   const handleClickOutside = (e) => {
     if (menuRef.current && !menuRef.current.contains(e.target)) {
       setMenuFile(null);
@@ -73,7 +51,7 @@ export function FileGrid({
           <div
             key={file.id}
             onContextMenu={(e) => handleContextMenu(e, file)}
-            className="relative group bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow cursor-pointer"
+            className="relative group bg-white rounded-lg border border-gray-300 p-4 hover:shadow-lg transition-shadow cursor-pointer"
           >
             <div className="flex items-center justify-between mb-3">
               {getIcon(file.type)}
@@ -98,7 +76,7 @@ export function FileGrid({
         ))}
       </div>
 
-      {/* Custom Right-Click Context Menu */}
+      {/* Menu */}
       {menuFile && (
         <div
           ref={menuRef}
