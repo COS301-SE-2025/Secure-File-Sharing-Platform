@@ -56,12 +56,12 @@ export function FileList({
             <th className="text-left p-2">Actions</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-300 dark:divide-gray-700 ">
+        <tbody className="divide-y divide-gray-300 dark:divide-gray-300 dark:bg-gray-200 dark:text-gray-900">
           {files.map((file) => (
             <tr
               key={file.id}
               onContextMenu={(e) => handleContextMenu(e, file)}
-              className="hover:bg-gray-200 cursor-pointer"
+              className="hover:bg-gray-200 cursor-pointer dark:hover:bg-blue-100"
             >
               <td className="p-2 flex items-center gap-2" onClick={() => onViewDetails(file)}>
                 {getIcon(file.type)}
@@ -87,7 +87,7 @@ export function FileList({
       {menuFile && (
         <div
           ref={menuRef}
-          className="absolute z-50 bg-white border rounded-md shadow-lg w-48 text-sm"
+          className="absolute z-50 bg-white border rounded-md shadow-lg w-48 text-sm dark:bg-gray-200 dark:text-gray-900"
           style={{ top: menuPosition.y, left: menuPosition.x }}
         >
           <button
@@ -95,7 +95,7 @@ export function FileList({
               onShare(menuFile);
               setMenuFile(null);
             }}
-            className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2"
+            className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 dark:hover:bg-blue-200"
           >
             <Share className="h-4 w-4" /> Share
           </button>
@@ -105,7 +105,7 @@ export function FileList({
               onDownload(menuFile);
               setMenuFile(null);
             }}
-            className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2"
+            className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 dark:hover:bg-blue-200"
           >
             <Download className="h-4 w-4" /> Download
           </button>
@@ -117,7 +117,7 @@ export function FileList({
               onViewDetails(menuFile);
               setMenuFile(null);
             }}
-            className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2"
+            className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 dark:hover:bg-blue-200"
           >
             <FileIcon className="h-4 w-4" /> View Details
           </button>
@@ -127,7 +127,7 @@ export function FileList({
               onViewActivity(menuFile);
               setMenuFile(null);
             }}
-            className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2"
+            className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 dark:hover:bg-blue-200"
           >
             <MoreVertical className="h-4 w-4" /> Activity Logs
           </button>
@@ -139,7 +139,7 @@ export function FileList({
               onDelete(menuFile);
               setMenuFile(null);
             }}
-            className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 flex items-center gap-2"
+            className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 flex items-center gap-2 dark:hover:bg-red-200 dark:text-red-600"
           >
             Delete
           </button>

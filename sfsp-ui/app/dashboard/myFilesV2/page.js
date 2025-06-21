@@ -135,7 +135,7 @@ export default function MyFiles() {
     };
 
     return (
-        <div className=" bg-gray-50 p-6">
+        <div className=" bg-gray-50 p-6 dark:bg-gray-900">
             <div className=" ">
                 {/* Header */}
                 <div className="flex justify-between items-center mb-8">
@@ -146,11 +146,11 @@ export default function MyFiles() {
 
                     <div className="flex items-center gap-4">
                         {/* View Toggle */}
-                        <div className="flex items-center bg-white rounded-lg border p-1">
+                        <div className="flex items-center bg-white rounded-lg border p-1 dark:bg-gray-200">
                             <button
                                 className={`px-3 py-1 rounded ${viewMode === "grid"
                                     ? "bg-blue-500 text-white"
-                                    : "text-gray-600 hover:bg-gray-100"
+                                    : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
                                     }`}
                                 onClick={() => setViewMode("grid")}
                             >
@@ -159,7 +159,7 @@ export default function MyFiles() {
                             <button
                                 className={`px-3 py-1 rounded ${viewMode === "list"
                                     ? "bg-blue-500 text-white"
-                                    : "text-gray-600 hover:bg-gray-100"
+                                    : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
                                     }`}
                                 onClick={() => setViewMode("list")}
                             >
@@ -170,7 +170,7 @@ export default function MyFiles() {
                         {/* Create Folder & Upload buttons */}
                         <button
                             onClick={() => setIsCreateFolderOpen(true)}
-                            className="flex items-center gap-2 px-3 py-1 rounded border border-gray-300 hover:bg-gray-100"
+                            className="flex items-center gap-2 px-3 py-1 rounded border border-gray-300 hover:bg-gray-100 dark:bg-gray-200 dark:text-gray-900"
                         >
                             <FolderPlus className="h-4 w-4" />
                             <span>Create Folder</span>

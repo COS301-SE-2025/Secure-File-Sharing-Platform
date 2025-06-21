@@ -39,7 +39,7 @@ export function ShareDialog({ open, onOpenChange, file }) {
   if (!open || !file) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 dark:text-gray-900">
       <div className="bg-white p-6 rounded-lg w-full max-w-md space-y-6">
         <h2 className="text-lg font-semibold">{`Share "${file.name}"`}</h2>
 

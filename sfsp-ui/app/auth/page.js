@@ -100,6 +100,12 @@ export default function AuthPage() {
             return;
         }
 
+        if (!password) {
+            setMessage("Password is required.");
+            setIsLoading(false);
+            return;
+        }
+
         try {
             const {
                 encryptedIdentityKey,
@@ -151,7 +157,7 @@ export default function AuthPage() {
 
 
     async function GenerateX3DHKeys(password) {
-        await sodium.ready();
+        await sodium.ready;
 
         const ik = sodium.crypto_sign_keypair();
         const spk = sodium.crypto_box_keypair();
@@ -162,6 +168,7 @@ export default function AuthPage() {
         const opks = Array.from({ length: 10 }, () => sodium.crypto_box_keypair());
 
         const salt = sodium.randombytes_buf(sodium.crypto_pwhash_SALTBYTES);
+        console.log(salt);
         const derivedKey = sodium.crypto_pwhash(
             32,
             password,

@@ -10,7 +10,7 @@ export function ActivityLogsDialog({ open, onOpenChange, file }) {
 
   const Dialog = ({ children }) => (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg w-full max-w-lg">
+      <div className="bg-white dark:bg-gray-300 rounded-lg shadow-lg w-full max-w-lg dark:text-gray-900">
         {children}
       </div>
     </div>
@@ -23,13 +23,13 @@ export function ActivityLogsDialog({ open, onOpenChange, file }) {
   );
 
   const DialogTitle = ({ children }) => (
-    <h2 className="text-lg font-semibold text-gray-800 dark:text-white flex items-center gap-2">
+    <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-900 flex items-center gap-2">
       {children}
     </h2>
   );
 
   const ScrollArea = ({ children }) => (
-    <div className="h-96 overflow-y-auto pr-2">{children}</div>
+    <div className="h-96 overflow-y-auto pr-2 ">{children}</div>
   );
 
   const mockActivities = [

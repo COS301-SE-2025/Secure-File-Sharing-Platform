@@ -7,8 +7,8 @@ export function FileDetailsDialog({ open, onOpenChange, file }) {
   if (!file || !open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-lg max-w-md w-full p-6 space-y-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 dark:text-gray-900">
+      <div className="bg-white rounded-lg max-w-md w-full p-6 space-y-4 dark:bg-gray-200">
         {/* Header */}
         <div className="flex justify-between items-center">
           <h2 className="text-lg font-semibold">File Details</h2>

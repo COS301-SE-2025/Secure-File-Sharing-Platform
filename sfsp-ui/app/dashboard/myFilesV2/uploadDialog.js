@@ -88,7 +88,6 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }) {
         setUploadProgress(0);
         onOpenChange(false);
 
-        // ✅ Notify parent to refresh
         onUploadSuccess?.();
     };
 
@@ -104,8 +103,8 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }) {
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-            <div className="bg-white p-6 rounded-lg w-full max-w-lg space-y-4">
-                <h2 className="text-lg font-semibold">Upload Files</h2>
+            <div className="bg-white p-6 rounded-lg w-full max-w-lg space-y-4 dark:bg-gray-200">
+                <h2 className="text-lg font-semibold dark:text-gray-900">Upload Files</h2>
 
                 <div
                     className={`border-2 border-dashed p-8 text-center rounded-lg cursor-pointer ${dragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}`}
@@ -116,7 +115,7 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }) {
                     onClick={() => fileInputRef.current?.click()}
                 >
                     <Upload className="h-10 w-10 text-gray-400 mx-auto mb-4" />
-                    <p className="text-sm mb-1">Drop files here or click to browse</p>
+                    <p className="text-sm mb-1 dark:text-gray-900">Drop files here or click to browse</p>
                     <p className="text-xs text-gray-500 mb-4">Supports bulk upload</p>
                     <input
                         ref={fileInputRef}
@@ -161,7 +160,7 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }) {
                 <div className="flex justify-end gap-2">
                     <button
                         onClick={() => onOpenChange(false)}
-                        className="border px-4 py-2 rounded text-sm"
+                        className="border px-4 py-2 rounded text-sm dark:border-gray-900 dark:text-gray-900"
                         disabled={uploading}
                     >
                         Cancel
