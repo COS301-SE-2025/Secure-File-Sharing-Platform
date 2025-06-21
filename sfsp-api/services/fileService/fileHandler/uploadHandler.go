@@ -1,63 +1,45 @@
 package fileHandler
 
 import (
-	"context"
+	//"context"
+	//"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
-	//"strings"
-	"time"
-	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
-    "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto"
-	"go.mongodb.org/mongo-driver/mongo"
-    //"go.mongodb.org/mongo-driver/mongo/options"
 	"os"
-    "log"
+	"time"
+
+	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto"
+	//"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/database"
+	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
+
+	"github.com/lib/pq"
+	"database/sql"
 )
 
-// type MongoClientInterface interface {
-//     Database(name string, opts ...*options.DatabaseOptions) MongoDatabaseInterface
-// }
-
-// var MongoClient MongoClientInterface
-
-var MongoClient *mongo.Client
-
-func SetMongoClient(client *mongo.Client) {
-    MongoClient = client
-}
 type UploadRequest struct {
-	FileName      string   `json:"fileName"`
-	FileType      string   `json:"fileType"`
-	UserID        string   `json:"userId"`
-	Nonce        string   `json:"nonce"`
-	Description   string   `json:"fileDescription"`
-	Tags          []string `json:"fileTags"`
-	Path          string   `json:"path"`
-	FileContent   string   `json:"fileContent"`
+	FileName    string   `json:"fileName"`
+	FileType    string   `json:"fileType"`
+	UserID      string   `json:"userId"`
+	Nonce       string   `json:"nonce"`
+	Description string   `json:"fileDescription"`
+	Tags        []string `json:"fileTags"`
+	Path        string   `json:"path"`
+	FileContent string   `json:"fileContent"`
 }
 
-type Metadata struct {
-	FileName        string    `bson:"fileName"`
-	FileSize        int64     `bson:"fileSize"`
-	FileType        string    `bson:"fileType"`
-	UserID          string    `bson:"userId"`
-	Nonce		    string    `bson:"nonce"`
-	UploadTimestamp time.Time `bson:"uploadTimestamp"`
-	Description     string    `bson:"description"`
-	Tags            []string  `bson:"tags"`
-	Path            string    `bson:"path"`
-}
+var DB *sql.DB
 
-var GetCollection = func() *mongo.Collection {
-    return MongoClient.Database("sfsp").Collection("files")
+func SetPostgreClient(db *sql.DB) {
+	// This function is used to set the PostgreSQL client in the fileHandler package
+	DB = db
 }
 
 func UploadHandler(w http.ResponseWriter, r *http.Request) {
 	var req UploadRequest
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
 		return
 	}
@@ -67,61 +49,75 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Decode file content
 	fileBytes, err := base64.StdEncoding.DecodeString(req.FileContent)
 	if err != nil {
 		http.Error(w, "Invalid base64 file content", http.StatusBadRequest)
 		return
 	}
 
-	// Encrypt file
 	aesKey := os.Getenv("AES_KEY")
 	if len(aesKey) != 32 {
 		http.Error(w, "Invalid AES key", http.StatusInternalServerError)
 		return
 	}
 
-	//No encryption is done here, but you can implement it if needed
-    cipher, err := crypto.EncryptBytes(fileBytes, aesKey)
-    if err != nil {
-        http.Error(w, fmt.Sprintf("Encryption failed: %v", err), http.StatusInternalServerError)
-        log.Println("Encryption error:", err)
-        return
-    }
-
-	// Upload to OwnCloud
-	remotePath := req.Path
-	if remotePath == "" {
-		remotePath = "files"
-	}
-
-	err = owncloud.UploadFile(remotePath, req.FileName, cipher)
+	encryptedFile, err := crypto.EncryptBytes(fileBytes, aesKey)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Upload failed: %v", err), http.StatusInternalServerError)
-        log.Println("Upload error:", err)
+		log.Println("Encryption error:", err)
+		http.Error(w, "Encryption failed", http.StatusInternalServerError)
 		return
 	}
 
-	// Save metadata
-	collection := MongoClient.Database("sfsp").Collection("files")
-	metadata := Metadata{
-		FileName:        req.FileName,
-		FileSize:        int64(len(fileBytes)),
-		FileType:        req.FileType,
-		UserID:          req.UserID,
-		Nonce:           req.Nonce,
-		UploadTimestamp: time.Now(),
-		Description:     req.Description,
-		Tags:            req.Tags,
-		Path:            remotePath,
-	}
+	// Step 1: Save metadata and get the generated file ID
+	var fileID string
+	err = DB.QueryRow(`
+		INSERT INTO files (
+			owner_id, file_name, file_type, file_size, cid, nonce, description, tags, created_at
+		)
+		VALUES ($1, $2, $3, $4, '', $5, $6, $7, $8)
+		RETURNING id
+	`,
+		req.UserID,
+		req.FileName,
+		req.FileType,
+		len(fileBytes),
+		req.Nonce,
+		req.Description,
+		pq.Array(req.Tags),
+		time.Now(),
+	).Scan(&fileID)
 
-	_, err = collection.InsertOne(context.TODO(), metadata)
 	if err != nil {
+		log.Println("PostgreSQL insert error:", err)
 		http.Error(w, "Metadata storage failed", http.StatusInternalServerError)
 		return
 	}
 
-	w.WriteHeader(http.StatusCreated)
-	fmt.Fprintf(w, "File uploaded and metadata stored")
+	// Step 2: Upload file using fileID as filename
+	uploadPath := req.Path
+	if uploadPath == "" {
+		uploadPath = "files"
+	}
+
+	err = owncloud.UploadFile(uploadPath, fileID, encryptedFile)
+	if err != nil {
+		log.Println("OwnCloud upload failed:", err)
+		http.Error(w, "File upload failed", http.StatusInternalServerError)
+		return
+	}
+
+	// Step 3: Update cid in database
+	fullCID := fmt.Sprintf("%s/%s", uploadPath, fileID)
+	_, err = DB.Exec(`UPDATE files SET cid = $1 WHERE id = $2`, fullCID, fileID)
+	if err != nil {
+		log.Println("PostgreSQL update cid failed:", err)
+		// Not fatal to the upload, so continue
+	}
+
+	// Respond with success and fileID
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "File uploaded and metadata stored",
+		"fileId":  fileID,
+	})
 }

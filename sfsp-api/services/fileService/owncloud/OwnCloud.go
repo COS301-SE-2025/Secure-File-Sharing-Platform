@@ -33,8 +33,8 @@ var UploadFile = func(path, filename string, data []byte) error {
 	return client.Write(fullPath, data, 0644)
 }
 
-var DownloadFile = func(path, filename string) ([]byte, error) {
-	fullPath := fmt.Sprintf("%s/%s", path, filename)
+var DownloadFile = func(fileId string) ([]byte, error) {
+	fullPath := fmt.Sprintf("%s/%s", "files", fileId)
 	data, err := client.Read(fullPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to download file: %w", err)
