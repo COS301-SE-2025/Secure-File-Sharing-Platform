@@ -103,7 +103,7 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }) {
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-            <div className="bg-white p-6 rounded-lg w-full max-w-lg space-y-4 dark:bg-gray-200">
+            <div className="bg-white p-6 rounded-lg w-full max-w-lg space-y-4 dark:bg-gray-200 dark:text-gray-900">
                 <h2 className="text-lg font-semibold dark:text-gray-900">Upload Files</h2>
 
                 <div
