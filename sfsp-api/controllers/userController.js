@@ -214,6 +214,36 @@ class UserController {
         }
     }
 
+    async logout(req, res) {
+        try {
+            const authHeader = req.headers.authorization;
+            if (!authHeader || !authHeader.startsWith('Bearer ')) {
+                return res.status(401).json({
+                    success: false,
+                    message: 'Authorization token missing or invalid.'
+                });
+            }
+            const token = authHeader.split(' ')[1];
+            const result = await userService.logout(token);
+            if (!result) {
+                return res.status(401).json({
+                    success: false,
+                    message: 'Invalid or expired token.'
+                });
+            }
+            return res.status(200).json({
+                success: true,
+                message: 'Logout successful.'
+            });
+        } catch (error) {
+            console.error('Error during logout:', error);
+            return res.status(500).json({
+                success: false,
+                message: 'Internal server error.'
+            });
+        }
+    }
+
     async verifyPassword(req, res) {
         try {
             const { currentPassword } = req.body;
