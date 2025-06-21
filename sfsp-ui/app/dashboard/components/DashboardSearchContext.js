@@ -1,3 +1,5 @@
+//app/dashboard/components/DashboardSearchContext.js
+
 'use client';
 import { createContext, useContext, useState } from 'react';
 
