@@ -13,7 +13,7 @@
 
 ## User Registration
 
-**Endpoint**: `POST http://localhost:5000/api/users/register`
+**Endpoint**: `POST http://localhost:5000/api/users/register` \
 **Authentication**: Not required
 
 ### Request Body
@@ -47,7 +47,7 @@
 
 ## User Login
 
-**Endpoint**: `POST http://localhost:5000/api/users/login`
+**Endpoint**: `POST http://localhost:5000/api/users/login` \
 **Authentication**: Not required
 
 ### Request Body
@@ -80,7 +80,7 @@
 
 ## Get User Profile
 
-**Endpoint**: `GET http://localhost:5000/api/users/profile`
+**Endpoint**: `GET http://localhost:5000/api/users/profile` \
 **Authentication**: Required
 **Header**:
 
@@ -105,7 +105,7 @@ Authorization: Bearer <JWT_TOKEN>
 
 ## Refresh Token
 
-**Endpoint**: `POST http://localhost:5000/api/users/token_refresh`
+**Endpoint**: `POST http://localhost:5000/api/users/token_refresh` \
 **Authentication**: Required
 **Header**:
 
@@ -135,7 +135,7 @@ Authorization: Bearer <JWT_TOKEN>
 
 ## Delete User
 
-**Endpoint**: `DELETE http://localhost:5000/api/users/profile`
+**Endpoint**: `DELETE http://localhost:5000/api/users/profile` \
 **Authentication**: Required
 **Header**:
 
@@ -164,7 +164,7 @@ Authorization: Bearer <JWT_TOKEN>
 
 ## Logout
 
-**Endpoint**: `POST http://localhost:5000/api/users/logout`
+**Endpoint**: `POST http://localhost:5000/api/users/logout` \
 **Authentication**: Required
 **Header**:
 
