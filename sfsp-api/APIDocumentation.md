@@ -7,6 +7,7 @@
 * [Get User Profile](#get-user-profile)
 * [Refresh Token](#refresh-token)
 * [Delete User](#delete-user)
+* [Logout](#logout)
 
 ---
 
@@ -156,6 +157,54 @@ Authorization: Bearer <JWT_TOKEN>
 {
   "success": true,
   "message": "User profile deleted successfully."
+}
+```
+
+---
+
+## Logout
+
+**Endpoint**: `POST http://localhost:5000/api/users/logout`
+**Authentication**: Required
+**Header**:
+
+```
+Authorization: Bearer <JWT_TOKEN>
+```
+
+### Response (Success)
+
+```json
+{
+  "success": true,
+  "message": "Logout successful."
+}
+```
+
+### Response (Missing or Invalid Token)
+
+```json
+{
+  "success": false,
+  "message": "Authorization token missing or invalid."
+}
+```
+
+### Response (Invalid or Expired Token)
+
+```json
+{
+  "success": false,
+  "message": "Invalid or expired token."
+}
+```
+
+### Response (Server Error)
+
+```json
+{
+  "success": false,
+  "message": "Internal server error."
 }
 ```
 
