@@ -28,7 +28,8 @@ class UserService {
     }
 
     async register(userData){
-        const {username, email, password} = userData;
+        const { username, email, password, ik_private_key, spk_private_key, opks_private
+                ,ik_public_key, spk_public_key, opks_public, salt, nonce, signedPreKeySignature} = userData;
 
         try{
             const {data: existinguser} = await supabase
@@ -45,12 +46,19 @@ class UserService {
             const hashedPassword = await bcrypt.hash(password, salt);
             const resetPasswordPIN = this.generatePIN();
 
+            //Philemone the private keys to the keys storage
+
             const {data: newUser, error} = await supabase
                 .from('users')
                 .insert([{
                     username,
                     email,
                     password: hashedPassword,
+                    ik_public_key,
+                    spk_public_key,
+                    opks_public,
+                    nonce,
+                    salt,
                     resetPasswordPIN
                 }])
                 .select('*')

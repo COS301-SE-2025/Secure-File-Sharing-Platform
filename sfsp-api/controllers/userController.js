@@ -5,16 +5,25 @@ const userService = require('../services/userService');
 class UserController {
     async register(req, res) {
         try {
-            const { username, email, password } = req.body;
+            const { username, email, password,ik_private_key,
+          spk_private_key,
+          opks_private,ik_public_key,
+          spk_public_key,
+          opks_public,
+          nonce,
+          signedPreKeySignature,
+          salt, } = req.body;
 
-            if (!username || !email || !password) {
+            if (!username || !email || !password || !ik_private_key || !spk_private_key || ! opks_private || !ik_public_key
+                || !spk_public_key || !opks_public || !nonce || !signedPreKeySignature || !salt) {
                 return res.status(400).json({
                     success: false,
                     message: 'Username, email, and password are required.'
                 });
             }
 
-            const result = await userService.register({ username, email, password });
+            const result = await userService.register({ username, email, password, ik_private_key, spk_private_key, opks_private
+                ,ik_public_key, spk_public_key, opks_public, salt, nonce, signedPreKeySignature});
             return res.status(201).json({
                 success: true,
                 message: 'User registered successfully.',

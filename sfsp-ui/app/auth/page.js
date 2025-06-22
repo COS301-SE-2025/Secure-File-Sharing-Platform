@@ -4,9 +4,11 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { getSodium } from '@/app/lib/sodium';
+import { getSodium } from "@/app/lib/sodium";
+import { v4 as uuidv4 } from "uuid";
 //import * as sodium from 'libsodium-wrappers-sumo';
 import { generateLinearEasing } from "framer-motion";
+import { useEncryptionStore, storeUserKeysSecurely } from "../SecureKeyStorage";
 
 //await sodium.ready;
 //sodium.init && sodium.init();
@@ -42,27 +44,107 @@ export default function AuthPage() {
     setMessage(null);
 
     try {
+      const sodium = await getSodium();
       const res = await fetch("http://localhost:5000/api/users/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(loginData),
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+        }),
       });
 
       const result = await res.json();
+
       if (!res.ok || !result.success) {
         throw new Error(result.message || "Invalid login credentials");
       }
 
+      //New E2EE stuff
+      const {
+        salt,
+        nonce,
+        //private keys
+        ik_private_key,
+        spk_private_key,
+        opks_private,
+        //public keys
+        ik_public_key,
+        spk_public_key,
+        signedPreKeySignature,
+        opks_public,
+
+        token,
+        user,
+      } = result.data;
+
+      //we don't need to securely store the user ID but I will store it in the Zustand store for easy access
+      useEncryptionStore.getState().setUserId(user.id);
+
+      //derived key from password and salt
+      const derivedKey = sodium.crypto_pwhash(
+        32, // key length
+        formData.password,
+        sodium.from_base64(salt),
+        sodium.crypto_pwhash_OPSLIMIT_MODERATE,
+        sodium.crypto_pwhash_MEMLIMIT_MODERATE,
+        sodium.crypto_pwhash_ALG_DEFAULT
+      );
+
+      //Try decrypting the private keys
+      const decryptedIkPrivateKey = sodium.crypto_secretbox_open_easy(
+        sodium.from_base64(ik_private_key),
+        sodium.from_base64(nonce),
+        derivedKey
+      );
+
+      if (!decryptedIkPrivateKey) {
+        throw new Error("Failed to decrypt identity key private key");
+      }
+
+      //Store the decrypted private keys in localStorage or secure storage
+      //if you guys know of a better way to store these securely, please let me know or just change this portion of the code
+      const userKeys = {
+        identity_private_key: decryptedIkPrivateKey,
+        signedpk_private_key: sodium.from_base64(spk_private_key),
+        oneTimepks_private: opks_private.map((opk) => ({
+          opk_id: opk.opk_id,
+          private_key: sodium.from_base64(opk.private_key),
+        })),
+        identity_public_key: sodium.from_base64(ik_public_key),
+        signedpk_public_key: sodium.from_base64(spk_public_key),
+        oneTimepks_public: opks_public.map((opk) => ({
+          opk_id: opk.opk_id,
+          publicKey: sodium.from_base64(opk.publicKey),
+        })),
+        signedPreKeySignature: sodium.from_base64(signedPreKeySignature),
+        salt: sodium.from_base64(salt),
+        nonce: sodium.from_base64(nonce),
+      };
+
+      //store the user keys and derived key securely
+      useEncryptionStore.getState().setEncryptionKey(derivedKey);
+      await storeUserKeysSecurely(userKeys, derivedKey);
+
+      console.log("User keys stored successfully:", userKeys);
+      // localStorage.setItem('token', result.token);
       const bearerToken = result.data?.token;
-      if (!bearerToken) throw new Error("No token returned from server");
+
+      if (!bearerToken) {
+        throw new Error("No token returned from server");
+      }
 
       const rawToken = bearerToken.replace(/^Bearer\s/, "");
       localStorage.setItem("token", rawToken);
       setMessage("Login successful!");
-
-      setTimeout(() => router.push("/dashboard"), 1000);
+      setTimeout(() => {
+        router.push("/dashboard");
+      }, 1000);
     } catch (err) {
-      setMessage(err.message || "An unexpected error occurred.");
+      console.error("Login error:", err);
+      setMessage(
+        err.message || "An unexpected error occurred. Please try again."
+      );
     } finally {
       setIsLoading(false);
     }
@@ -112,13 +194,16 @@ export default function AuthPage() {
 
     try {
       const {
-        encryptedIdentityKey,
-        identityKeyPublic,
+        //private-side
+        ik_private_key,
+        spk_private_key,
+        opks_private,
+        //public-side
+        ik_public_key,
+        spk_public_key,
+        opks_public,
         nonce,
-        signedPreKeyPublic,
-        signedPreKeyPrivate,
         signedPreKeySignature,
-        oneTimePreKeys,
         salt,
       } = await GenerateX3DHKeys(password);
 
@@ -127,15 +212,19 @@ export default function AuthPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           username: name,
+          username: name,
           email,
           password,
-          encryptedIdentityKey,
-          identityKeyPublic,
+          //private-side
+          ik_private_key,
+          spk_private_key,
+          opks_private,
+          //public-side
+          ik_public_key,
+          spk_public_key,
+          opks_public,
           nonce,
-          signedPreKeyPublic,
-          signedPreKeyPrivate,
           signedPreKeySignature,
-          oneTimePreKeys,
           salt,
         }),
       });
@@ -162,22 +251,22 @@ export default function AuthPage() {
   async function GenerateX3DHKeys(password) {
     const sodium = await getSodium();
 
-    const SALTBYTES = sodium.crypto_pwhash_SALTBYTES;
-    const NONCEBYTES = sodium.crypto_secretbox_NONCEBYTES;
-
-    if (!SALTBYTES || !NONCEBYTES) {
-      throw new Error("Libsodium not fully initialized: constants undefined.");
-    }
-
+    // Identity and Signed PreKey
     const ik = sodium.crypto_sign_keypair();
     const spk = sodium.crypto_box_keypair();
     const spkSignature = sodium.crypto_sign_detached(
       spk.publicKey,
       ik.privateKey
     );
-    const opks = Array.from({ length: 10 }, () => sodium.crypto_box_keypair());
 
-    const salt = sodium.randombytes_buf(SALTBYTES);
+    // One-Time PreKeys (OPKs)
+    const opks = Array.from({ length: 10 }, () => ({
+      id: uuidv4(),
+      keypair: sodium.crypto_box_keypair(),
+    }));
+
+    // Derive encryption key from password
+    const salt = sodium.randombytes_buf(sodium.crypto_pwhash_SALTBYTES);
     const derivedKey = sodium.crypto_pwhash(
       32,
       password,
@@ -187,24 +276,43 @@ export default function AuthPage() {
       sodium.crypto_pwhash_ALG_DEFAULT
     );
 
-    const nonce = sodium.randombytes_buf(NONCEBYTES);
+    // Encrypt Identity Private Key
+    const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
     const encryptedIK = sodium.crypto_secretbox_easy(
       ik.privateKey,
       nonce,
       derivedKey
     );
 
+    //test if the keys are as expected
+    console.log("ENCRYPTED IK PRIVATE is: ", encryptedIK);
+    console.log("spk private is: ", spk.privateKey);
+    console.log("nonce is: ", nonce);
+    console.log("Salt is: ", salt);
+    console.log("ik public is: ", ik.publicKey);
+    console.log("spk public is: ", spk.publicKey);
+    console.log("signedPreKeySignature is:", spkSignature);
+
     return {
-      encryptedIdentityKey: sodium.to_base64(encryptedIK),
-      identityKeyPublic: sodium.to_base64(ik.publicKey),
-      nonce: sodium.to_base64(nonce),
-      signedPreKeyPublic: sodium.to_base64(spk.publicKey),
-      signedPreKeyPrivate: sodium.to_base64(spk.privateKey),
+      // Public-side keys
+      ik_public_key: sodium.to_base64(ik.publicKey),
+      spk_public_key: sodium.to_base64(spk.publicKey),
       signedPreKeySignature: sodium.to_base64(spkSignature),
-      oneTimePreKeys: opks.map((keypair) => ({
-        publicKey: sodium.to_base64(keypair.publicKey),
-        privateKey: sodium.to_base64(keypair.privateKey),
+      opks_public: opks.map((opk) => ({
+        opk_id: opk.id,
+        publicKey: sodium.to_base64(opk.keypair.publicKey),
       })),
+
+      // Encrypted/Private-side
+      ik_private_key: sodium.to_base64(encryptedIK),
+      spk_private_key: sodium.to_base64(spk.privateKey),
+      opks_private: opks.map((opk) => ({
+        opk_id: opk.id,
+        private_key: sodium.to_base64(opk.keypair.privateKey),
+      })),
+
+      // Crypto parameters
+      nonce: sodium.to_base64(nonce),
       salt: sodium.to_base64(salt),
     };
   }
