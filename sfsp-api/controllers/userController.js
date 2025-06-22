@@ -1,7 +1,7 @@
 const bcrypt = require('bcrypt');
 const { supabase } = require('../config/database');
 const userService = require('../services/userService');
-const axios = require('axios');
+const VaultController = require('./vaultController');
 
 class UserController {
     async register(req, res) {
@@ -33,17 +33,17 @@ class UserController {
 
             const result = await userService.register({ username, email, password, ik_public, spk_public, opks_public, nonce, signedPreKeySignature, salt });
             if (result && result.user && result.user.id) {
-                const vaultres = await axios.post('http://localhost:8080/store-key', {
+                const vaultres = await VaultController.storeKeyBundle({
                     encrypted_id: result.user.id,
                     ik_private_key,
                     spk_private_key,
                     opks_private
                 });
 
-                if (!vaultres.status == 201 && !vaultres.data.status == 'success') {
+                if (!vaultres || vaultres.error) {
                     return res.status(500).json({
                         success: false,
-                        message: vaultres.data.error
+                        message: vaultres.error || 'Failed to store private keys in vault.'
                     });
                 }
             }
@@ -74,6 +74,12 @@ class UserController {
             }
 
             const result = await userService.login({ email, password });
+
+            if (result && result.user && result.user.id) {
+                const keyBundle = await VaultController.retrieveKeyBundle(result.user.id);
+                result.keyBundle = keyBundle;
+            }
+
             res.status(200).json({
                 success: true,
                 message: 'Login successful',
