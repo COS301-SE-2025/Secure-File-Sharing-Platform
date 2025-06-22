@@ -1,6 +1,7 @@
 import Image from "next/image";
 import HomeRotator from "./home_features";
 import Footer from "./Footer/footer";
+import Link from 'next/link';
 
 export default function Home() {
   return (
@@ -16,9 +17,9 @@ export default function Home() {
           {/* Dark mode logo */}
           <Image src="/img/shield-emp-white.png" alt="SecureShare Logo Dark" width={28} height={28} className="hidden dark:block"
           />
-          <a href="/">
+          <Link href="/">
             <span className="text-xl font-bold tracking-tight">SecureShare</span>
-          </a>
+          </Link>
         </div>
         <ul className="flex gap-6 text-sm sm:text-base">
           <li><a href="#main" className="hover:underline">Home</a></li>
@@ -28,8 +29,7 @@ export default function Home() {
 
         {/* Log In*/}
         <a
-          // href="/Support"
-          href="/login"
+          href="/auth"
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-full text-sm font-medium transition-colors"
         >
           Log In
@@ -49,7 +49,7 @@ export default function Home() {
           </p>
           <div className="flex gap-4">
             <a
-              href="/login"
+              href="/auth"
               className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-full font-medium"
             >
               Log In

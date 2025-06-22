@@ -2,31 +2,31 @@ const footerLinks = [
   {
     title: "Secure Share",
     links: [
-      "Website",
-      "Features"
+      { name: "Website", href: "#" },
+      { name: "Features", href: "#" },
     ],
   },
   {
     title: "Features",
     links: [
-      "Send files",
-      "Send videos",
-      "Cloud storage",
-      "Secure file transfer"
+      { name: "Send files", href: "#" },
+      { name: "Send videos", href: "#" },
+      { name: "Cloud storage", href: "#" },
+      { name: "Secure file transfer", href: "#" },
     ],
   },
   {
     title: "Support",
     links: [
-      "Help center",
-      "Contact us",
-      "FAQ"
+      { name: "Help center", href: "/Support/helpCenter" },
+      { name: "Contact us", href: "/Support/contactPage" },
+      { name: "FAQ", href: "/Support/FAQs" },
     ],
   },
   
   {
     title: "Company",
-    links: ["About us"],
+    links: [{ name: "About us", href: "#" }],
   },
 ];
 
@@ -39,10 +39,10 @@ export default function Footer() {
             <h3 className="font-semibold mb-3">{group.title}</h3>
             <ul className="space-y-2">
               {group.links.map((link) => (
-                <li key={link}>
+                <li key={link.name}>
                     {/* {link} */}
-                  <a href="#" className="hover:underline">
-                    {link}
+                  <a href={link.href} className="hover:underline">
+                    {link.name}
                   </a>
                 </li>
               ))}
