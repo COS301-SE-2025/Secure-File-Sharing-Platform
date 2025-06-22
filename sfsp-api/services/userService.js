@@ -2,37 +2,14 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
-const {supabase} = require('../config/database');
-const { getUserKeys } = require('../controllers/userController');
+const { supabase } = require('../config/database');
 
 class UserService {
+    async register(userData) {
+        const { username, email, password, ik_public, spk_public, opks_public, nonce, signedPrekeySignature, salt } = userData;
 
-    //change this to fetch 1 opk(randomly or from top to bottom, and mark it as used)
-    //this should return the opk public key and the opk id separately
-    async getUserKeys(userId) {
         try {
-            const {data: userKeys, error} = await supabase
-                .from('users')
-                .select('ik_public','spk_public','opks_public','signedPreKeySignature')
-                .eq('id', userId)
-                .single();
-
-            if (error) {
-                throw new Error('Failed to fetch user keys: ' + error.message);
-            }
-
-            return userKeys;
-        } catch (error) {
-            throw new Error('Failed to fetch user keys: ' + error.message);
-        }
-    }
-
-    async register(userData){
-        const { username, email, password, ik_private_key, spk_private_key, opks_private
-                ,ik_public_key, spk_public_key, opks_public, salt, nonce, signedPreKeySignature} = userData;
-
-        try{
-            const {data: existinguser} = await supabase
+            const { data: existinguser } = await supabase
                 .from('users')
                 .select('*')
                 .eq('email', email)
@@ -42,24 +19,23 @@ class UserService {
                 throw new Error('User already exists with this email.');
             }
 
-            const salt = await bcrypt.genSalt(10);
-            const hashedPassword = await bcrypt.hash(password, salt);
+            const newsalt = await bcrypt.genSalt(10);
+            const hashedPassword = await bcrypt.hash(password, newsalt);
             const resetPasswordPIN = this.generatePIN();
 
-            //Philemone the private keys to the keys storage
-
-            const {data: newUser, error} = await supabase
+            const { data: newUser, error } = await supabase
                 .from('users')
                 .insert([{
                     username,
                     email,
                     password: hashedPassword,
-                    ik_public_key,
-                    spk_public_key,
+                    resetPasswordPIN,
+                    ik_public,
+                    spk_public,
                     opks_public,
                     nonce,
-                    salt,
-                    resetPasswordPIN
+                    signedPrekeySignature,
+                    salt
                 }])
                 .select('*')
                 .single();
@@ -77,16 +53,16 @@ class UserService {
                 },
                 token
             };
-        }catch (error) {
+        } catch (error) {
             throw new Error('Registration failed: ' + error.message);
         }
-            
+
     }
 
     async login(userData) {
-        const {email, password} = userData;
+        const { email, password } = userData;
         try {
-            const {data: user, error} = await supabase
+            const { data: user, error } = await supabase
                 .from('users')
                 .select('*')
                 .eq('email', email)
@@ -106,7 +82,13 @@ class UserService {
                 user: {
                     id: user.id,
                     username: user.username,
-                    email: user.email
+                    email: user.email,
+                    ik_public: user.ik_public,
+                    spk_public: user.spk_public,
+                    opks_public: user.opks_public,
+                    nonce: user.nonce,
+                    signedPrekeySignature: user.signedPrekeySignature,
+                    salt: user.salt
                 },
                 token
             };
@@ -118,7 +100,7 @@ class UserService {
     async getProfile(userId) {
         try {
 
-            const {data: user, error} = await supabase
+            const { data: user, error } = await supabase
                 .from('users')
                 .select('*')
                 .eq('id', userId)
@@ -140,7 +122,7 @@ class UserService {
 
     async refreshToken(userId) {
         try {
-            const {data: user, error} = await supabase
+            const { data: user, error } = await supabase
                 .from('users')
                 .select('*')
                 .eq('id', userId)
@@ -159,7 +141,7 @@ class UserService {
 
     async deleteProfile(email) {
         try {
-            const {data: user, error} = await supabase
+            const { data: user, error } = await supabase
                 .from('users')
                 .select('*')
                 .eq('email', email)
@@ -169,7 +151,7 @@ class UserService {
                 throw new Error('User profile not found.');
             }
 
-            const {error: deleteError} = await supabase
+            const { error: deleteError } = await supabase
                 .from('users')
                 .delete()
                 .eq('email', email);
@@ -178,7 +160,7 @@ class UserService {
                 throw new Error('Failed to delete profile: ' + deleteError.message);
             }
 
-            return {message: 'Profile deleted successfully.'};
+            return { message: 'Profile deleted successfully.' };
         } catch (error) {
             throw new Error('Profile deletion failed: ' + error.message);
         }
@@ -216,7 +198,7 @@ class UserService {
         return resetPIN;
     }
 
-    generateToken(userId){
+    generateToken(userId) {
         return jwt.sign({ userId }, process.env.JWT_SECRET, {
             expiresIn: '1h'
         });
@@ -233,35 +215,35 @@ class UserService {
     async sendPasswordResetPIN(userId) {
         try {
             const resetPIN = this.generatePIN();
-            
+
             const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-            
+
             const { error: updateError } = await supabase
                 .from('users')
-                .update({ 
+                .update({
                     resetPasswordPIN: resetPIN,
                     resetPINExpiry: expiresAt
                 })
                 .eq('id', userId);
-                
+
             if (updateError) {
                 throw new Error('Failed to generate reset PIN');
             }
-            
+
             const { data: user, error: fetchError } = await supabase
                 .from('users')
                 .select('email, username')
                 .eq('id', userId)
                 .single();
-                
+
             if (fetchError || !user) {
                 throw new Error('User not found');
             }
-            
+
             await this.sendResetPINEmail(user.email, user.username, resetPIN);
-            
+
             return { success: true, message: 'Reset PIN sent to your email' };
-            
+
         } catch (error) {
             throw new Error('Failed to send reset PIN: ' + error.message);
         }
@@ -274,50 +256,50 @@ class UserService {
                 .select('resetPasswordPIN, resetPINExpiry')
                 .eq('id', userId)
                 .single();
-                
+
             if (fetchError || !user) {
                 throw new Error('User not found');
             }
-            
+
             if (!user.resetPasswordPIN) {
                 throw new Error('No reset PIN found. Please request a new one.');
             }
-            
+
             const now = new Date();
             const expiryTime = new Date(user.resetPINExpiry);
-            
+
             if (now > expiryTime) {
                 await supabase
                     .from('users')
-                    .update({ 
+                    .update({
                         resetPasswordPIN: null,
                         resetPINExpiry: null
                     })
                     .eq('id', userId);
-                    
+
                 throw new Error('Reset PIN has expired. Please request a new one.');
             }
-            
+
             if (String(user.resetPasswordPIN) !== String(pin)) {
                 throw new Error('Invalid PIN. Please check your email and try again.');
             }
             const hashedPassword = await bcrypt.hash(newPassword, 10);
-            
+
             const { error: updateError } = await supabase
                 .from('users')
-                .update({ 
+                .update({
                     password: hashedPassword,
                     resetPasswordPIN: null,
                     resetPINExpiry: null
                 })
                 .eq('id', userId);
-                
+
             if (updateError) {
                 throw new Error('Failed to update password');
             }
-            
+
             return { success: true, message: 'Password updated successfully' };
-            
+
         } catch (error) {
             throw new Error('Failed to change password: ' + error.message);
         }
@@ -402,10 +384,10 @@ class UserService {
             };
 
             const info = await transporter.sendMail(mailOptions);
-            
+
             console.log('Password reset PIN email sent:', info.messageId);
             return { success: true, messageId: info.messageId };
-            
+
         } catch (error) {
             console.error('Error sending password reset PIN email:', error);
             throw new Error('Failed to send password reset email');

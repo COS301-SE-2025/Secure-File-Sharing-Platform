@@ -1,18 +1,14 @@
 const bcrypt = require('bcrypt');
 const { supabase } = require('../config/database');
 const userService = require('../services/userService');
+const VaultController = require('./vaultController');
 
 class UserController {
     async register(req, res) {
         try {
-            const { username, email, password,ik_private_key,
-          spk_private_key,
-          opks_private,ik_public_key,
-          spk_public_key,
-          opks_public,
-          nonce,
-          signedPreKeySignature,
-          salt, } = req.body;
+            const { username, email, password } = req.body;
+            const { ik_public, spk_public, opks_public, nonce, signedPrekeySignature, salt } = req.body;
+            const { ik_private_key, spk_private_key, opks_private } = req.body;
 
             if (!username || !email || !password || !ik_private_key || !spk_private_key || ! opks_private || !ik_public_key
                 || !spk_public_key || !opks_public || !nonce || !signedPreKeySignature || !salt) {
@@ -22,8 +18,37 @@ class UserController {
                 });
             }
 
-            const result = await userService.register({ username, email, password, ik_private_key, spk_private_key, opks_private
-                ,ik_public_key, spk_public_key, opks_public, salt, nonce, signedPreKeySignature});
+            if (!ik_public || !spk_public || !opks_public || !nonce || !signedPrekeySignature || !salt) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Public keys are required.'
+                });
+            }
+
+            if (!ik_private_key || !spk_private_key || !opks_private) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Private keys are required.'
+                });
+            }
+
+            const result = await userService.register({ username, email, password, ik_public, spk_public, opks_public, nonce, signedPrekeySignature, salt });
+            if (result && result.user && result.user.id) {
+                const vaultres = await VaultController.storeKeyBundle({
+                    encrypted_id: result.user.id,
+                    ik_private_key,
+                    spk_private_key,
+                    opks_private
+                });
+
+                if (!vaultres || vaultres.error) {
+                    return res.status(500).json({
+                        success: false,
+                        message: vaultres.error || 'Failed to store private keys in vault.'
+                    });
+                }
+            }
+
             return res.status(201).json({
                 success: true,
                 message: 'User registered successfully.',
@@ -50,6 +75,12 @@ class UserController {
             }
 
             const result = await userService.login({ email, password });
+
+            if (result && result.user && result.user.id) {
+                const keyBundle = await VaultController.retrieveKeyBundle(result.user.id);
+                result.keyBundle = keyBundle;
+            }
+
             res.status(200).json({
                 success: true,
                 message: 'Login successful',
@@ -316,31 +347,6 @@ class UserController {
             res.status(500).json({
                 success: false,
                 message: error.message || 'Failed to change password'
-            });
-            }
-        }
-
-    async getUserKeys(req, res) {
-        try {
-            const userId = req.user.id;
-
-            const userKeys = await userService.getUserKeys(userId);
-            if (!userKeys) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'User keys not found.'
-                });
-            }
-
-            return res.status(200).json({
-                success: true,
-                data: userKeys
-            });
-        } catch (error) {
-            console.error('Error fetching user keys:', error);
-            return res.status(500).json({
-                success: false,
-                message: 'Internal server error.'
             });
         }
     }
