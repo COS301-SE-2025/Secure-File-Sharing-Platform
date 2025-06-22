@@ -436,3 +436,118 @@ func GetSentFilesHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(sentFiles)
 }
 
+func DeleteFileMetadata(fileID string) error {
+	tx, err := DB.Begin()
+	if err != nil {
+		log.Println("Failed to begin transaction:", err)
+		return err
+	}
+	defer tx.Rollback() // safe rollback on error
+
+	// Delete from received_files (optional, might cascade)
+	_, err = tx.Exec(`DELETE FROM received_files WHERE file_id = $1`, fileID)
+	if err != nil {
+		log.Println("Error deleting from received_files:", err)
+		return err
+	}
+
+	// Delete from sent_files (optional, might cascade)
+	_, err = tx.Exec(`DELETE FROM sent_files WHERE file_id = $1`, fileID)
+	if err != nil {
+		log.Println("Error deleting from sent_files:", err)
+		return err
+	}
+
+	// Delete from files table
+	_, err = tx.Exec(`DELETE FROM files WHERE id = $1`, fileID)
+	if err != nil {
+		log.Println("Error deleting from files:", err)
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		log.Println("Transaction commit failed:", err)
+		return err
+	}
+
+	log.Println("✅ File metadata deleted successfully for file ID:", fileID)
+	return nil
+}
+
+func AddTagsToFileHandler(w http.ResponseWriter, r *http.Request) {
+	type TagAddRequest struct {
+		FileID string   `json:"fileId"`
+		Tags   []string `json:"tags"`
+	}
+
+	var req TagAddRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+		return
+	}
+
+	if req.FileID == "" || len(req.Tags) == 0 {
+		http.Error(w, "Missing fileId or tags", http.StatusBadRequest)
+		return
+	}
+
+	_, err := DB.Exec(`
+		UPDATE files
+		SET tags = (
+			SELECT ARRAY(
+				SELECT DISTINCT unnest(tags || $1::text[])
+			)
+		)
+		WHERE id = $2
+	`, pq.Array(req.Tags), req.FileID)
+
+	if err != nil {
+		log.Println("PostgreSQL add tags error:", err)
+		http.Error(w, "Failed to add tags", http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Tags added successfully",
+	})
+}
+
+func RemoveTagsFromFileHandler(w http.ResponseWriter, r *http.Request) {
+	type TagRemoveRequest struct {
+		FileID string   `json:"fileId"`
+		Tags   []string `json:"tags"`
+	}
+
+	var req TagRemoveRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+		return
+	}
+
+	if req.FileID == "" || len(req.Tags) == 0 {
+		http.Error(w, "Missing fileId or tags", http.StatusBadRequest)
+		return
+	}
+
+	_, err := DB.Exec(`
+		UPDATE files
+		SET tags = (
+			SELECT ARRAY(
+				SELECT tag FROM unnest(tags) AS tag
+				WHERE tag <> ALL($1::text[])
+			)
+		)
+		WHERE id = $2
+	`, pq.Array(req.Tags), req.FileID)
+
+	if err != nil {
+		log.Println("PostgreSQL remove tags error:", err)
+		http.Error(w, "Failed to remove tags", http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Tags removed successfully",
+	})
+}
+

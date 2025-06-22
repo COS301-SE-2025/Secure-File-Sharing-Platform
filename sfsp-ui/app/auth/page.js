@@ -199,11 +199,11 @@ export default function AuthPage() {
         spk_private_key,
         opks_private,
         //public-side
-        ik_public_key,
-        spk_public_key,
+        ik_public,
+        spk_public,
         opks_public,
         nonce,
-        signedPreKeySignature,
+        signedPrekeySignature,
         salt,
       } = await GenerateX3DHKeys(password);
 
@@ -212,7 +212,6 @@ export default function AuthPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           username: name,
-          username: name,
           email,
           password,
           //private-side
@@ -220,11 +219,11 @@ export default function AuthPage() {
           spk_private_key,
           opks_private,
           //public-side
-          ik_public_key,
-          spk_public_key,
+          ik_public,
+          spk_public,
           opks_public,
           nonce,
-          signedPreKeySignature,
+          signedPrekeySignature,
           salt,
         }),
       });
@@ -295,9 +294,9 @@ export default function AuthPage() {
 
     return {
       // Public-side keys
-      ik_public_key: sodium.to_base64(ik.publicKey),
-      spk_public_key: sodium.to_base64(spk.publicKey),
-      signedPreKeySignature: sodium.to_base64(spkSignature),
+      ik_public: sodium.to_base64(ik.publicKey),
+      spk_public: sodium.to_base64(spk.publicKey),
+      signedPrekeySignature: sodium.to_base64(spkSignature),
       opks_public: opks.map((opk) => ({
         opk_id: opk.id,
         publicKey: sodium.to_base64(opk.keypair.publicKey),

@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import { getSodium } from '@/app/lib/sodium';
+import { getSodium } from "@/app/lib/sodium";
 
 //The is where we will be creting the shared key encrypting the file and encrypting the AES key
 import { useEncryptionStore, getUserKeysSecurely } from "./SecureKeyStorage";
 
-export async function SendFile(file, recipientUserId, filePath) {
+export async function SendFile(file, recipientUserId, filePath, fileid) {
   //get the user ID and encryption key from the Zustand store
   const sodium = await getSodium();
   const { userId, encryptionKey } = useEncryptionStore.getState();
@@ -61,13 +61,18 @@ export async function SendFile(file, recipientUserId, filePath) {
 
   //Encrypt the file using the AES key
   const fileBuffer = new Uint8Array(await file.arrayBuffer());
-  const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
-  const encryptedFile = sodium.crypto_secretbox(fileBuffer, nonce, aesKey);
+  const fileNonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
+  const keyNonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
+  const encryptedFile = sodium.crypto_secretbox_easy(
+    fileBuffer,
+    fileNonce,
+    aesKey
+  );
 
   //encrypt the AES key using the shared key
   const encryptedAesKey = sodium.crypto_secretbox_easy(
     aesKey,
-    nonce,
+    keyNonce,
     sharedKey
   );
 
@@ -78,15 +83,16 @@ export async function SendFile(file, recipientUserId, filePath) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-	  fileName: file.name,
-	  filePath: filePath, //the path where the file will be stored, this should be modified to be in the sending folder in the api
+      fileid: fileid,
+      filePath: filePath, //the path where the file will be stored, this should be modified to be in the sending folder in the api
       userId, //the id is sent so that we can download and fetch the file later from the the users files
-      encryptedFile: sodium.to_base64(encryptedFile),// this will be sent to the users server sending folder
-      nonce: sodium.to_base64(nonce),
+      encryptedFile: sodium.to_base64(encryptedFile), // this will be sent to the users server sending folder
+      fileNonce: sodium.to_base64(fileNonce),
+      keyNonce: sodium.to_base64(keyNonce),
       encryptedAesKey: sodium.to_base64(encryptedAesKey),
       ikPublicKey: sodium.to_base64(userKeys.ik_public_key), //for decrypting the file later
       ekPublicKey: sodium.to_base64(EK.publicKey), //for decrypting the file later
-	  opk_id: recipientKeys.opk_id, //the OPK ID of the recipient
+      opk_id: recipientKeys.opk_id, //the OPK ID of the recipient
     }),
   });
   if (!response.ok) {
@@ -95,28 +101,30 @@ export async function SendFile(file, recipientUserId, filePath) {
 }
 
 export async function GetFilesRecievedFromOtherUsers() {
-	  const { userId } = useEncryptionStore.getState();
-  const response = await fetch("http://localhost:5000/api/files/received", {// all from where we store the files received from other users, mongo or else where
-	method: "POST",
-	headers: { "Content-Type": "application/json" },
-	body: JSON.stringify({ userId }),
+  const { userId } = useEncryptionStore.getState();
+  const response = await fetch("http://localhost:5000/api/files/received", {
+    // all from where we store the files received from other users, mongo or else where
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId }),
   });
 
   if (!response.ok) {
-	throw new Error("Failed to retrieve files");
+    throw new Error("Failed to retrieve files");
   }
 
   const files = await response.json();
-  return files.map(file => ({
-	...file,
-	fileName: file.filename, // ensure the file name is accessible
-	filePath: file.path, // ensure the file path is accessible
-	senderID: file.senderId, // ensure the sender ID is accessible
-	nonce: file.nonce, // ensure the nonce is accessible
-	encryptedAesKey: file.encryptedAesKey, // ensure the encrypted AES key is accessible
-	ikPublicKey: file.ikPublicKey, // ensure the IK public key is accessible
-	ekPublicKey: file.ekPublicKey, // ensure the EK public key is accessible
-	opk_id : file.opk_id, // ensure the OPK ID is accessible
+  return files.map((file) => ({
+    ...file,
+    fileName: file.filename, // ensure the file name is accessible
+    filePath: file.path, // ensure the file path is accessible
+    senderID: file.senderId, // ensure the sender ID is accessible
+    fileNonce: file.fileNonce, // ensure the nonce is accessible
+    keyNonce: file.keyNonce,
+    encryptedAesKey: file.encryptedAesKey, // ensure the encrypted AES key is accessible
+    ikPublicKey: file.ikPublicKey, // ensure the IK public key is accessible
+    ekPublicKey: file.ekPublicKey, // ensure the EK public key is accessible
+    opk_id: file.opk_id, // ensure the OPK ID is accessible
   }));
 }
 
@@ -124,7 +132,8 @@ export async function ReceiveFile(files) {
   const { userId, encryptionKey } = useEncryptionStore.getState();
   const sodium = await getSodium();
 
-  const response = await fetch("http://localhost:5000/api/files/download", { //reuse the download endpoint to get the encrypted file
+  const response = await fetch("http://localhost:5000/api/files/download", {
+    //reuse the download endpoint to get the encrypted file
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -138,6 +147,13 @@ export async function ReceiveFile(files) {
   }
 
   const userKeys = await getUserKeysSecurely(encryptionKey);
+
+  const ikPublicKey = files.ikPublicKey;
+  const ekPublicKey = files.ekPublicKey;
+  const encryptedAesKey = files.encryptedAesKey;
+  const encryptedFile = new Uint8Array(await response.arrayBuffer());
+  const fileNonce = files.fileNonce;
+  const keyNonce = files.keyNonce;
 
   // Recompute shared key
   const DH1 = sodium.crypto_scalarmult(
@@ -164,13 +180,13 @@ export async function ReceiveFile(files) {
 
   const aesKey = sodium.crypto_secretbox_open_easy(
     sodium.from_base64(encryptedAesKey),
-    sodium.from_base64(nonce),
+    sodium.from_base64(keyNonce),
     sharedKey
   );
 
   const decryptedFile = sodium.crypto_secretbox_open_easy(
     sodium.from_base64(encryptedFile),
-    sodium.from_base64(nonce),
+    sodium.from_base64(fileNonce),
     aesKey
   );
 

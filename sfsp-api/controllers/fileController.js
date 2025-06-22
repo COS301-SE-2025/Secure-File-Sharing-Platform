@@ -124,11 +124,25 @@ exports.getNumberOfFiles = async (req, res) => {
   }
 };
 
+exports.deleteFile = async (req, res) => {
+  const fileId = req.body.fileId
 
-exports.deleteFile = (req, res) => {
+  if(!fileId){
+    return res.status(400).send("FileId not received");
+  }
 
-}
+  try {
+    const response = await axios.post(
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/deleteFile`,
+      { fileId },
+      { headers: { "Content-Type": "application/json" } }
+    );
 
-exports.getFileList = (req, res) => {
-
-}
+    if (response.status !== 200) {
+      return res.status(response.status).send('Error deleting file');
+    }
+  } catch (err) {
+    console.error("Error retrieving file count:", err.message);
+    res.status(500).send('Error retrieving file count');
+  }
+};

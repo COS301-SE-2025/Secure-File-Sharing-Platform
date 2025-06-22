@@ -11,6 +11,7 @@ type WebDavClient interface {
     MkdirAll(path string, perm os.FileMode) error
     Write(name string, data []byte, perm os.FileMode) error
     Read(name string) ([]byte, error)
+	Remove(path string) error
 }
 
 var client WebDavClient
@@ -40,4 +41,13 @@ var DownloadFile = func(fileId string) ([]byte, error) {
 		return nil, fmt.Errorf("failed to download file: %w", err)
 	}
 	return data, nil
+}
+
+func DeleteFile(fileId string) error {
+	fullPath := fmt.Sprintf("files/%s", fileId)
+	err := client.Remove(fullPath)
+	if err != nil {
+		return fmt.Errorf("failed to delete the file: %w", err)
+	}
+	return nil
 }
