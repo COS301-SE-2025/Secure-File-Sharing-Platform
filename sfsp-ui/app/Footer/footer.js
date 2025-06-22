@@ -26,7 +26,7 @@ const footerLinks = [
   
   {
     title: "Company",
-    links: [{ name: "About us", href: "#" }],
+    links: [{ name: "About us", href: "/Company" }],
   },
 ];
 
