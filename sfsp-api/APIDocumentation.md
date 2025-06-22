@@ -7,12 +7,13 @@
 * [Get User Profile](#get-user-profile)
 * [Refresh Token](#refresh-token)
 * [Delete User](#delete-user)
+* [Logout](#logout)
 
 ---
 
 ## User Registration
 
-**Endpoint**: `POST http://localhost:5000/api/users/register`
+**Endpoint**: `POST http://localhost:5000/api/users/register` \
 **Authentication**: Not required
 
 ### Request Body
@@ -46,7 +47,7 @@
 
 ## User Login
 
-**Endpoint**: `POST http://localhost:5000/api/users/login`
+**Endpoint**: `POST http://localhost:5000/api/users/login` \
 **Authentication**: Not required
 
 ### Request Body
@@ -79,7 +80,7 @@
 
 ## Get User Profile
 
-**Endpoint**: `GET http://localhost:5000/api/users/profile`
+**Endpoint**: `GET http://localhost:5000/api/users/profile` \
 **Authentication**: Required
 **Header**:
 
@@ -104,7 +105,7 @@ Authorization: Bearer <JWT_TOKEN>
 
 ## Refresh Token
 
-**Endpoint**: `POST http://localhost:5000/api/users/token_refresh`
+**Endpoint**: `POST http://localhost:5000/api/users/token_refresh` \
 **Authentication**: Required
 **Header**:
 
@@ -134,7 +135,7 @@ Authorization: Bearer <JWT_TOKEN>
 
 ## Delete User
 
-**Endpoint**: `DELETE http://localhost:5000/api/users/profile`
+**Endpoint**: `DELETE http://localhost:5000/api/users/profile` \
 **Authentication**: Required
 **Header**:
 
@@ -156,6 +157,54 @@ Authorization: Bearer <JWT_TOKEN>
 {
   "success": true,
   "message": "User profile deleted successfully."
+}
+```
+
+---
+
+## Logout
+
+**Endpoint**: `POST http://localhost:5000/api/users/logout` \
+**Authentication**: Required
+**Header**:
+
+```
+Authorization: Bearer <JWT_TOKEN>
+```
+
+### Response (Success)
+
+```json
+{
+  "success": true,
+  "message": "Logout successful."
+}
+```
+
+### Response (Missing or Invalid Token)
+
+```json
+{
+  "success": false,
+  "message": "Authorization token missing or invalid."
+}
+```
+
+### Response (Invalid or Expired Token)
+
+```json
+{
+  "success": false,
+  "message": "Invalid or expired token."
+}
+```
+
+### Response (Server Error)
+
+```json
+{
+  "success": false,
+  "message": "Internal server error."
 }
 ```
 

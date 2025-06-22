@@ -9,15 +9,24 @@ import (
 	"os"
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto"
+	//"database/sql"
+	//_ "github.com/lib/pq" // PostgreSQL driver
 )
 
+// var DB *sql.DB
+
+// func SetPostgreClient(db *sql.DB) {
+// 	// This function is used to set the PostgreSQL client in the fileHandler package
+// 	DB = db
+// }
+
 type DownloadRequest struct {
-	Path     string `json:"path"`
-	FileName string `json:"filename"`
+	UserID string `json:"userId"`
+	FileID string `json:"fileId"`
 }
 
 type DownloadResponse struct {
-	FileName    string `json:"fileName"`
+	FileName   string `json:"fileName"`
 	FileContent string `json:"fileContent"`
 }
 
@@ -29,14 +38,14 @@ func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Path == "" || req.FileName == "" {
-		log.Println("Path is: "+ req.Path + " and filename is: " + req.FileName)
-		http.Error(w, "Missing path or filename", http.StatusBadRequest)
+	if req.UserID == "" || req.FileID == "" {
+		log.Println("UserID is: "+ req.UserID + " and FileID is: " + req.FileID)
+		http.Error(w, "Missing UserID or FileID", http.StatusBadRequest)
 		return
 	}
 
 	// Get file bytes from OwnCloud
-	data, err := owncloud.DownloadFile(req.Path, req.FileName)
+	data, err := owncloud.DownloadFile(req.FileID)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Download failed: %v", err), http.StatusInternalServerError)
 		return
@@ -58,8 +67,16 @@ func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 	// Encode file to base64
 	base64Data := base64.StdEncoding.EncodeToString(plain)
 
+	//get the file name from the postgreSQL database
+	var fileName string
+	err = DB.QueryRow("SELECT file_name FROM files WHERE id = $1", req.FileID).Scan(&fileName)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to retrieve file name: %v", err), http.StatusInternalServerError)
+		return
+	}
+
 	res := DownloadResponse{
-		FileName:    req.FileName,
+		FileName:   fileName,
 		FileContent: base64Data,
 	}
 

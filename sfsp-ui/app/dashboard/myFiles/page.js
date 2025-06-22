@@ -12,6 +12,11 @@ import {
   Share2,
 } from "lucide-react";
 import Share from "../components/sharePU";
+import {
+  useEncryptionStore,
+  getUserId,
+} from "@/app/SecureKeyStorage";
+import sodium from "libsodium-wrappers";
 
 export function getFileType(mimeType) {
   if (!mimeType) return "unknown";
@@ -57,7 +62,7 @@ export default function MyFilesPage() {
     fetch("http://localhost:5000/api/files/metadata", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: "123" }), // Replace with dynamic user ID
+      body: JSON.stringify({ userId: useEncryptionStore.getState().userId }), //should get the userId that we stored
     })
       .then((res) => res.json())
       .then((data) => {
@@ -87,15 +92,32 @@ export default function MyFilesPage() {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    //remember the encryption key is what we get when we login and store in indexed DB, it is the derived key in login file
+    const { encryptionKey, userId } = useEncryptionStore.getState();
+    if (!encryptionKey || !userId) {
+      alert("Missing user ID or encryption key.");
+      return;
+    }
+
+    await sodium.ready;
+
+    const fileBuffer = new Uint8Array(await file.arrayBuffer());
+    const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
+    const ciphertext = sodium.crypto_secretbox(
+      fileBuffer,
+      nonce,
+      encryptionKey
+    );
+
     const formData = {
+      userId,
       fileName: file.name,
       fileType: file.type,
-      userId: "123", // Replace with dynamic user ID
-      encryptionKey: "mysecretkey",
-      fileDescription: "Uploaded from UI",
-      fileTags: ["ui", "test"],
-      path: "files/demo",
-      fileContent: await toBase64(file),
+      fileDescription: "User personal upload",
+      fileTags: ["personal"],
+      path: `files/${userId}`, // optional user namespace
+      fileContent: sodium.to_base64(ciphertext),
+      nonce: sodium.to_base64(nonce),
     };
 
     try {
@@ -114,35 +136,45 @@ export default function MyFilesPage() {
   };
 
   const handleDownload = async (file) => {
+    const { encryptionKey } = useEncryptionStore.getState();
+    if (!encryptionKey) {
+      alert("Missing encryption key");
+      return;
+    }
+
+    await sodium.ready;
+
     try {
-      const response = await fetch("http://localhost:5000/api/files/download", {
+      const res = await fetch("http://localhost:5000/api/files/download", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          path: "files/demo",
+          path: `files/${getUserId()}`, // same path as upload
           filename: file.name,
         }),
       });
 
-      if (!response.ok) throw new Error("Download failed");
+      if (!res.ok) throw new Error("Download failed");
 
-      const { fileName, fileContent } = await response.json();
-      const blob = new Blob([
-        Uint8Array.from(atob(fileContent), (c) => c.charCodeAt(0)),
-      ]);
+      const { fileName, fileContent, nonce } = await res.json();
+
+      const decrypted = sodium.crypto_secretbox_open_easy(
+        sodium.from_base64(fileContent),
+        sodium.from_base64(nonce),
+        encryptionKey
+      );
+
+      const blob = new Blob([decrypted]);
       const url = window.URL.createObjectURL(blob);
 
       const a = document.createElement("a");
       a.href = url;
       a.download = fileName;
       a.click();
-
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error("Download error:", err);
-      alert("Failed to download file.");
+      alert("Download failed");
     }
   };
 
@@ -260,7 +292,6 @@ export default function MyFilesPage() {
     </div>
   );
 }
-
 
 // "use client";
 
@@ -500,7 +531,7 @@ export default function MyFilesPage() {
 
 //             {activeMenuIndex === idx && (
 //               <div className="absolute top-10 right-3 w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-md z-10">
-                
+
 //                 {/* Share button */}
 //                 <button
 //                   onClick={() => {
