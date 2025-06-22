@@ -1,4 +1,4 @@
-// cypress/component/uploadDialog.cy.js
+// cypress/component/uploadDialog
 
 import React from 'react';
 import { UploadDialog } from '../../app/dashboard/myFilesV2/uploadDialog';
