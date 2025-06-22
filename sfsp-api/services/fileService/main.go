@@ -58,6 +58,9 @@ func main() {
 
     http.HandleFunc("/upload", fileHandler.UploadHandler)
 	http.HandleFunc("/download", fileHandler.DownloadHandler)
+    http.HandleFunc("/addAccesslog", fileHandler.AddAccesslogHandler)
+    http.HandleFunc("/removeAccesslog", fileHandler.RemoveAccesslogHandler)
+    http.HandleFunc("/getAccesslog", fileHandler.GetAccesslogHandler)
     http.HandleFunc("/metadata", metadata.GetUserFilesHandler)
     http.HandleFunc("/getFileMetadata", metadata.GetFileMetadataHandler)
     http.HandleFunc("/getNumberOfFiles", metadata.GetUserFileCountHandler)
