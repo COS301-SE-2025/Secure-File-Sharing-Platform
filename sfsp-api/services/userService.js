@@ -6,7 +6,7 @@ const { supabase } = require('../config/database');
 
 class UserService {
     async register(userData) {
-        const { username, email, password, ik_public, spk_public, opks_public, nonce, signedPreKeySignature, salt } = userData;
+        const { username, email, password, ik_public, spk_public, opks_public, nonce, signedPrekeySignature, salt } = userData;
 
         try {
             const { data: existinguser } = await supabase
@@ -34,7 +34,7 @@ class UserService {
                     spk_public,
                     opks_public,
                     nonce,
-                    signedPreKeySignature,
+                    signedPrekeySignature,
                     salt
                 }])
                 .select('*')
@@ -87,7 +87,7 @@ class UserService {
                     spk_public: user.spk_public,
                     opks_public: user.opks_public,
                     nonce: user.nonce,
-                    signedPreKeySignature: user.signedPreKeySignature,
+                    signedPrekeySignature: user.signedPrekeySignature,
                     salt: user.salt
                 },
                 token
