@@ -82,7 +82,13 @@ class UserService {
                 user: {
                     id: user.id,
                     username: user.username,
-                    email: user.email
+                    email: user.email,
+                    ik_public: user.ik_public,
+                    spk_public: user.spk_public,
+                    opks_public: user.opks_public,
+                    nonce: user.nonce,
+                    signedPreKeySignature: user.signedPreKeySignature,
+                    salt: user.salt
                 },
                 token
             };
