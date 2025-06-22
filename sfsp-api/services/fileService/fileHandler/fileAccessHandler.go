@@ -7,7 +7,6 @@ import (
 	"net/http"
 )
 
-// AddAccesslogHandler handles adding an access log entry
 func AddAccesslogHandler(w http.ResponseWriter, r *http.Request) {
 	type reqBody struct {
 		FileID string `json:"file_id"`
@@ -33,7 +32,6 @@ func AddAccesslogHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Access log added successfully"))
 }
 
-// RemoveAccesslogHandler handles removing an access log entry by log id
 func RemoveAccesslogHandler(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
 	if id == "" {
@@ -49,7 +47,6 @@ func RemoveAccesslogHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Access log removed successfully"))
 }
 
-// GetAccesslogHandler handles retrieving access logs for a file or all files
 func GetAccesslogHandler(w http.ResponseWriter, r *http.Request) {
 	fileID := r.URL.Query().Get("file_id")
 	var rows *sql.Rows
