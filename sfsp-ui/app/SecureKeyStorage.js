@@ -1,5 +1,7 @@
+'use client';
+
 import { set, del, get} from 'idb-keyval';
-import sodium from 'libsodium-wrappers';
+import { getSodium } from '@/app/lib/sodium';
 import {create} from 'zustand';
 
 
@@ -10,14 +12,17 @@ export const useEncryptionStore = create((set) => ({
   setEncryptionKey: (key) => set({ encryptionKey: key }),
 
   userId: null,
-  setUserId: (id) => set({ userId: id })
+  setUserId: (id) => set({ userId: id }),
+
+  userKeys: null,
+  setUserKeys: (keys) => set({ userKeys: keys }),
 }));
 
 //use the function to store the user keys securely in IndexedDB
 //You can use this function to store the user keys after successful signup or login
 export const storeUserKeysSecurely = async (userKeys, encryptionKey) => {
   try {
-	await sodium.ready;
+	const sodium = await getSodium();
 	const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
 	const plaintext = sodium.to_base64(new TextEncoder().encode(JSON.stringify(userKeys)));
 
@@ -50,7 +55,7 @@ export const deleteUserKeysSecurely = async () => {
 
 export const getUserKeysSecurely = async (encryptionKey) => {
   try {
-	await sodium.ready;
+	const sodium = await getSodium();
 	const encrypted = await get('userKeys');
 	if (!encrypted) return null;
 
@@ -66,8 +71,3 @@ export const getUserKeysSecurely = async (encryptionKey) => {
 	return null;
   }
 };
-
-
-
-
-

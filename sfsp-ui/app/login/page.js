@@ -4,8 +4,8 @@ import Image from "next/image";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import sodium from "libsodium-wrappers";
-import { a } from "framer-motion/dist/types.d-B_QPEvFK";
+import { getSodium } from '@/app/lib/sodium';
+//import { a } from "framer-motion/dist/types.d-B_QPEvFK";
 
 //importing the SecureKeyStorage functions
 import { storeUserKeysSecurely, deleteUserKeysSecurely, getUserKeysSecurely, useEncryptionStore } from "@/app/SecureKeyStorage";
@@ -29,7 +29,7 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      await sodium.ready;
+      const sodium = await getSodium();
       const res = await fetch("http://localhost:5000/api/users/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

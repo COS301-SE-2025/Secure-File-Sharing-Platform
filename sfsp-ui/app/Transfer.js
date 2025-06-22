@@ -1,10 +1,13 @@
-import sodium from "libsodium-wrappers";
+'use client';
+
+import { getSodium } from '@/app/lib/sodium';
 
 //The is where we will be creting the shared key encrypting the file and encrypting the AES key
 import { useEncryptionStore, getUserKeysSecurely } from "./SecureKeyStorage";
 
 export async function SendFile(file, recipientUserId, filePath) {
   //get the user ID and encryption key from the Zustand store
+  const sodium = await getSodium();
   const { userId, encryptionKey } = useEncryptionStore.getState();
 
   //derive a shared key using the user's public keys
@@ -119,7 +122,7 @@ export async function GetFilesRecievedFromOtherUsers() {
 
 export async function ReceiveFile(files) {
   const { userId, encryptionKey } = useEncryptionStore.getState();
-  await sodium.ready;
+  const sodium = await getSodium();
 
   const response = await fetch("http://localhost:5000/api/files/download", { //reuse the download endpoint to get the encrypted file
     method: "POST",
