@@ -51,7 +51,7 @@ func main() {
     // Set the PostgreSQL client in the fileHandler package
     fileHandler.SetPostgreClient(db)
     metadata.SetPostgreClient(db)
-    log.Println("✅ PostgreSQL client set in fileHandler and metadata")
+    //log.Println("✅ PostgreSQL client set in fileHandler and metadata")
 
 	//initialize ownCloud client
 	owncloud.InitOwnCloud(os.Getenv("OWNCLOUD_URL"), os.Getenv("OWNCLOUD_USERNAME"), os.Getenv("OWNCLOUD_PASSWORD"))
