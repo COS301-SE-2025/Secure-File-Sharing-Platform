@@ -15,7 +15,7 @@ Securely store, retrieve, and delete encrypted key bundles using a Vault-backed 
 
 ## Health Check
 
-**Endpoint:** `GET http://localhost:8080/health`
+**Endpoint:** `GET http://localhost:8443/health`
 **Authentication:** Not required
 
 ### Response
@@ -34,7 +34,7 @@ Securely store, retrieve, and delete encrypted key bundles using a Vault-backed 
 
 ## Store Key Bundle
 
-**Endpoint:** `POST http://localhost:8080/store-key`
+**Endpoint:** `POST http://localhost:8443/store-key`
 **Content-Type:** `application/json`
 **Authentication:** Not required
 
@@ -72,7 +72,7 @@ Securely store, retrieve, and delete encrypted key bundles using a Vault-backed 
 
 ## Retrieve Key Bundle
 
-**Endpoint:** `GET http://localhost:8080/retrieve-key`
+**Endpoint:** `GET http://localhost:8443/retrieve-key`
 **Content-Type:** `application/json`
 **Authentication:** Not required
 
@@ -111,7 +111,7 @@ Securely store, retrieve, and delete encrypted key bundles using a Vault-backed 
 
 ## Delete Key Bundle
 
-**Endpoint:** `DELETE http://localhost:8080/delete-key`
+**Endpoint:** `DELETE http://localhost:8443/delete-key`
 **Content-Type:** `application/json`
 **Authentication:** Not required
 

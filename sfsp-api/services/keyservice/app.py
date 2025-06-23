@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 if __name__ == '__main__':
     import os
-    port = int(os.getenv('FLASK_PORT', 8080))
+    port = int(os.getenv('FLASK_PORT', 8443))
     debug = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
     print(f"Starting Flask application on port {port}")
     print(f"Debug mode: {debug}")
