@@ -1,39 +1,72 @@
 //app/dashboard/myfilesV2/shareDialog.js
 
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { X, Copy, Mail, Link, Plus, UserPlus, Globe, Lock } from 'lucide-react';
+import React, { useState } from "react";
+import { X, Copy, Mail, Link, Plus, UserPlus, Globe, Lock } from "lucide-react";
+import {
+  SendFile,
+  ReceiveFile,
+  GetFilesRecievedFromOtherUsers,
+} from "@/app/Transfer";
 
 export function ShareDialog({ open, onOpenChange, file }) {
   const [shareWith, setShareWith] = useState([]);
-  const [newEmail, setNewEmail] = useState('');
-  const [linkAccess, setLinkAccess] = useState('restricted');
+  const [newEmail, setNewEmail] = useState("");
+  const [linkAccess, setLinkAccess] = useState("restricted");
   const [allowComments, setAllowComments] = useState(true);
   const [allowDownload, setAllowDownload] = useState(true);
 
   const addRecipient = () => {
-    if (newEmail && shareWith.every(r => r.email !== newEmail)) {
-      setShareWith([...shareWith, { email: newEmail, permission: 'view' }]);
-      setNewEmail('');
+    if (newEmail && shareWith.every((r) => r.email !== newEmail)) {
+      setShareWith([...shareWith, { email: newEmail, permission: "view" }]);
+      setNewEmail("");
+      
+      //get file, recipientUserId, filePath, fileid
+      console.log("File is", file);
+      //we have file id
+      //we have file path
+      //we have the file
+      //just need the id
     }
   };
 
   const updatePermission = (email, permission) => {
-    setShareWith(shareWith.map(r => r.email === email ? { ...r, permission } : r));
+    setShareWith(
+      shareWith.map((r) => (r.email === email ? { ...r, permission } : r))
+    );
   };
 
   const removeRecipient = (email) => {
-    setShareWith(shareWith.filter(r => r.email !== email));
+    setShareWith(shareWith.filter((r) => r.email !== email));
   };
 
   const copyLink = () => {
-    navigator.clipboard.writeText('https://example.com/shared/' + file?.id);
+    navigator.clipboard.writeText("https://example.com/shared/" + file?.id);
   };
 
-  const sendInvite = () => {
-    console.log('Sending invites to:', shareWith);
-    onOpenChange(false);
+  const sendInvite = async () => {
+    try {
+      for (const recipient of shareWith) {
+        //get file id
+        const response = await fetch(`http://localhost:5000/api/users/getUserId/${newEmail}`);
+        if(!response.ok){
+          console.warn(`User id is not found`);
+          continue;
+        }
+
+        await SendFile(
+          file,
+          response.recipientId,
+          `/sending/${response.recipientId}`,
+          file.id
+        );
+      }
+
+      onOpenChange(false);
+    } catch (err) {
+      console.error("Failed to send file to recipients:", err);
+    }
   };
 
   if (!open || !file) return null;
@@ -50,8 +83,8 @@ export function ShareDialog({ open, onOpenChange, file }) {
               className="border px-3 py-2 rounded w-full text-sm"
               placeholder="Enter email addresses"
               value={newEmail}
-              onChange={e => setNewEmail(e.target.value)}
-              onKeyPress={e => e.key === 'Enter' && addRecipient()}
+              onChange={(e) => setNewEmail(e.target.value)}
+              onKeyPress={(e) => e.key === "Enter" && addRecipient()}
             />
             <button onClick={addRecipient} className="bg-gray-100 p-2 rounded">
               <Plus className="h-4 w-4" />
@@ -62,19 +95,25 @@ export function ShareDialog({ open, onOpenChange, file }) {
         {shareWith.length > 0 && (
           <div className="space-y-2">
             {shareWith.map((r) => (
-              <div key={r.email} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+              <div
+                key={r.email}
+                className="flex justify-between items-center p-2 bg-gray-50 rounded"
+              >
                 <span className="text-sm">{r.email}</span>
                 <div className="flex items-center gap-2">
                   <select
                     value={r.permission}
-                    onChange={e => updatePermission(r.email, e.target.value)}
+                    onChange={(e) => updatePermission(r.email, e.target.value)}
                     className="text-sm px-2 py-1 border rounded"
                   >
                     <option value="view">View</option>
                     <option value="comment">Comment</option>
                     <option value="edit">Edit</option>
                   </select>
-                  <button onClick={() => removeRecipient(r.email)} className="p-1">
+                  <button
+                    onClick={() => removeRecipient(r.email)}
+                    className="p-1"
+                  >
                     <X className="h-4 w-4" />
                   </button>
                 </div>
@@ -89,10 +128,14 @@ export function ShareDialog({ open, onOpenChange, file }) {
           <div className="flex items-center justify-between mb-3">
             <label className="text-sm font-medium">Share with link</label>
             <div className="flex items-center gap-2">
-              {linkAccess === 'restricted' ? <Lock className="h-4 w-4" /> : <Globe className="h-4 w-4" />}
+              {linkAccess === "restricted" ? (
+                <Lock className="h-4 w-4" />
+              ) : (
+                <Globe className="h-4 w-4" />
+              )}
               <select
                 value={linkAccess}
-                onChange={e => setLinkAccess(e.target.value)}
+                onChange={(e) => setLinkAccess(e.target.value)}
                 className="text-sm px-2 py-1 border rounded"
               >
                 <option value="restricted">Restricted</option>
@@ -112,28 +155,38 @@ export function ShareDialog({ open, onOpenChange, file }) {
         <div className="space-y-3">
           <label className="text-sm font-medium">Permissions</label>
           <div className="flex justify-between">
-            <label htmlFor="comments" className="text-sm">Allow comments</label>
+            <label htmlFor="comments" className="text-sm">
+              Allow comments
+            </label>
             <input
               type="checkbox"
               checked={allowComments}
-              onChange={e => setAllowComments(e.target.checked)}
+              onChange={(e) => setAllowComments(e.target.checked)}
             />
           </div>
           <div className="flex justify-between">
-            <label htmlFor="download" className="text-sm">Allow download</label>
+            <label htmlFor="download" className="text-sm">
+              Allow download
+            </label>
             <input
               type="checkbox"
               checked={allowDownload}
-              onChange={e => setAllowDownload(e.target.checked)}
+              onChange={(e) => setAllowDownload(e.target.checked)}
             />
           </div>
         </div>
 
         <div className="flex justify-end gap-2 pt-4">
-          <button onClick={() => onOpenChange(false)} className="border px-4 py-2 rounded text-sm">
+          <button
+            onClick={() => onOpenChange(false)}
+            className="border px-4 py-2 rounded text-sm"
+          >
             Cancel
           </button>
-          <button onClick={sendInvite} className="bg-blue-600 text-white px-4 py-2 rounded text-sm flex items-center gap-1">
+          <button
+            onClick={sendInvite}
+            className="bg-blue-600 text-white px-4 py-2 rounded text-sm flex items-center gap-1"
+          >
             <Mail className="h-4 w-4" />
             Send
           </button>

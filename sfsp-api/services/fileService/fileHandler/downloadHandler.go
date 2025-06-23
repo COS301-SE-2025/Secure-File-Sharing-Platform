@@ -9,34 +9,55 @@ import (
 	"os"
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto"
+	//"database/sql"
+	//_ "github.com/lib/pq" // PostgreSQL driver
 )
 
+// var DB *sql.DB
+
+// func SetPostgreClient(db *sql.DB) {
+// 	// This function is used to set the PostgreSQL client in the fileHandler package
+// 	DB = db
+// }
+
 type DownloadRequest struct {
-	Path     string `json:"path"`
-	FileName string `json:"filename"`
+	UserID string `json:"userId"`
+	FileName string `json:"fileName"`
 }
 
 type DownloadResponse struct {
 	FileName    string `json:"fileName"`
 	FileContent string `json:"fileContent"`
+	Nonce       string `json:"nonce"`
 }
 
 func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 	var req DownloadRequest
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
 		return
 	}
 
-	if req.Path == "" || req.FileName == "" {
-		log.Println("Path is: "+ req.Path + " and filename is: " + req.FileName)
-		http.Error(w, "Missing path or filename", http.StatusBadRequest)
+	if req.UserID == "" || req.FileName == "" {
+		http.Error(w, "Missing userId or fileName", http.StatusBadRequest)
 		return
 	}
 
-	// Get file bytes from OwnCloud
-	data, err := owncloud.DownloadFile(req.Path, req.FileName)
+	fmt.Println("User id is: ", req.UserID)
+	fmt.Println("File name is: ", req.FileName)
+	var fileID, nonce string
+	err := DB.QueryRow(`
+		SELECT id, nonce FROM files
+		WHERE owner_id = $1 AND file_name = $2
+	`, req.UserID, req.FileName).Scan(&fileID, &nonce)
+
+	if err != nil {
+		log.Println("Failed to retrieve file metadata:", err)
+		http.Error(w, "File not found", http.StatusNotFound)
+		return
+	}
+
+	data, err := owncloud.DownloadFile(fileID)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Download failed: %v", err), http.StatusInternalServerError)
 		return
@@ -48,19 +69,18 @@ func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Decrypt file content if encryption key is provided
 	plain, err := crypto.DecryptBytes(data, aesKey)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Decryption failed: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	// Encode file to base64
 	base64Data := base64.StdEncoding.EncodeToString(plain)
 
 	res := DownloadResponse{
 		FileName:    req.FileName,
 		FileContent: base64Data,
+		Nonce:       nonce,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
