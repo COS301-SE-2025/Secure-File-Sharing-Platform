@@ -28,10 +28,20 @@ func InitOwnCloud(url, username, password string) {
 
 var UploadFile = func(path, filename string, data []byte) error {
 	fullPath := path + "/" + filename
+	log.Println("Uploading to WebDAV path:", fullPath)
+
 	if err := client.MkdirAll(path, 0755); err != nil {
+		log.Println("MkdirAll failed:", err)
+		fmt.Println("Failed to make directory")
 		return err
 	}
-	return client.Write(fullPath, data, 0644)
+
+	err := client.Write(fullPath, data, 0644)
+	if err != nil {
+		log.Println("Write failed:", err)
+		fmt.Println("Write failed")
+	}
+	return err
 }
 
 var DownloadFile = func(fileId string) ([]byte, error) {

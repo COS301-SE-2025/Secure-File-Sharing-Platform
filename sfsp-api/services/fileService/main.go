@@ -59,11 +59,12 @@ func main() {
     http.HandleFunc("/upload", fileHandler.UploadHandler)
 	http.HandleFunc("/download", fileHandler.DownloadHandler)
     http.HandleFunc("/metadata", metadata.GetUserFilesHandler)
-    http.HandleFunc("/getFileMetadata", metadata.GetFileMetadataHandler)
+    http.HandleFunc("/getFileMetadata", metadata.ListFileMetadataHandler)
     http.HandleFunc("/getNumberOfFiles", metadata.GetUserFileCountHandler)
     http.HandleFunc("/addPendingFiles", metadata.AddReceivedFileHandler)
     http.HandleFunc("/getPendingFiles", metadata.GetPendingFilesHandler)
     http.HandleFunc("/deleteFile", fileHandler.DeleteFileHandler)
+    http.HandleFunc("/sendFile", fileHandler.SendFileHandler)
 
     //test from here
     http.HandleFunc("/addSentFiles", metadata.AddSentFileHandler) //I will combine this with the addPendingFiles endpoint later

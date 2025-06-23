@@ -16,5 +16,6 @@ router.post('/verify-password', authMiddleware, userController.verifyPassword);
 router.post('/send-reset-pin', authMiddleware, userController.sendResetPIN);
 router.post('/change-password', authMiddleware, userController.changePassword);
 router.get('/:userId/public-keys', authMiddleware, userController.getPublicKeys);
+router.get('/:email/userId', authMiddleware, userController.getUserIdFromEmail);
 
 module.exports = router;

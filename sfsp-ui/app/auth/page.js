@@ -8,7 +8,7 @@ import { getSodium } from "@/app/lib/sodium";
 import { v4 as uuidv4 } from "uuid";
 //import * as sodium from 'libsodium-wrappers-sumo';
 import { generateLinearEasing } from "framer-motion";
-import { useEncryptionStore, storeUserKeysSecurely } from "../SecureKeyStorage";
+import { useEncryptionStore, storeUserKeysSecurely, storeDerivedKeyEncrypted } from "../SecureKeyStorage";
 
 //await sodium.ready;
 //sodium.init && sodium.init();
@@ -78,6 +78,15 @@ export default function AuthPage() {
         user,
       } = result.data;
 
+      console.log("Salt is: ", salt);
+      console.log("Nonce is: ", nonce);
+      console.log("ik_private is: ", ik_private_key);
+      console.log("spk_private is: ", spk_private_key);
+      console.log("ik_public is: ", ik_public_key);
+      console.log("spk_public is: ", spk_public);
+      console.log("signedPreKeySignature", signedPreKeySignature);
+      console.log("user", user.id);
+
       //we don't need to securely store the user ID but I will store it in the Zustand store for easy access
       useEncryptionStore.getState().setUserId(user.id);
 
@@ -122,9 +131,15 @@ export default function AuthPage() {
         nonce: sodium.from_base64(nonce),
       };
 
-      //store the user keys and derived key securely
-      useEncryptionStore.getState().setEncryptionKey(derivedKey);
-      await storeUserKeysSecurely(userKeys, derivedKey);
+      await storeDerivedKeyEncrypted(derivedKey); // stores with unlockToken
+      sessionStorage.setItem("unlockToken", "session-unlock");
+      await storeUserKeysSecurely(userKeys, derivedKey); // your existing function
+
+      useEncryptionStore.setState({
+        encryptionKey: derivedKey,
+        userId: user.id,
+        userKeys: userKeys,
+      });
 
       console.log("User keys stored successfully:", userKeys);
       // localStorage.setItem('token', result.token);
@@ -133,6 +148,8 @@ export default function AuthPage() {
       if (!bearerToken) {
         throw new Error("No token returned from server");
       }
+
+      //const unlockToken = sessionStorage.getItem("unlockToken");
 
       const rawToken = bearerToken.replace(/^Bearer\s/, "");
       localStorage.setItem("token", rawToken);
@@ -153,21 +170,17 @@ export default function AuthPage() {
   const handleSignupSubmit = async (e) => {
     e.preventDefault();
     const { name, email, password, confirmPassword } = signupData;
-
     setIsLoading(true);
     setMessage(null);
 
+    // Basic validations
     if (!name || !email || !password || !confirmPassword) {
       setMessage("All fields are required.");
       setIsLoading(false);
       return;
     }
 
-    const validateEmail = (email) => {
-      const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      return regex.test(email);
-    };
-
+    const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
     if (!validateEmail(email)) {
       setMessage("Please enter a valid email address.");
       setIsLoading(false);
@@ -186,19 +199,14 @@ export default function AuthPage() {
       return;
     }
 
-    if (!password) {
-      setMessage("Password is required.");
-      setIsLoading(false);
-      return;
-    }
-
     try {
+      const sodium = await getSodium();
+
+      // Generate X3DH key bundle
       const {
-        //private-side
         ik_private_key,
         spk_private_key,
         opks_private,
-        //public-side
         ik_public,
         spk_public,
         opks_public,
@@ -207,6 +215,7 @@ export default function AuthPage() {
         salt,
       } = await GenerateX3DHKeys(password);
 
+      // Send keys + user info to backend
       const res = await fetch("http://localhost:5000/api/users/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -214,11 +223,9 @@ export default function AuthPage() {
           username: name,
           email,
           password,
-          //private-side
           ik_private_key,
           spk_private_key,
           opks_private,
-          //public-side
           ik_public,
           spk_public,
           opks_public,
@@ -234,9 +241,62 @@ export default function AuthPage() {
         throw new Error(result.message || "Registration failed");
       }
 
+      // Get token and user info
       const token = result.data.token?.replace(/^Bearer\s+/, "");
+      const user = result.data.user;
       localStorage.setItem("token", token);
 
+      // Derive encryption key from password + salt
+      const derivedKey = sodium.crypto_pwhash(
+        32,
+        password,
+        sodium.from_base64(salt),
+        sodium.crypto_pwhash_OPSLIMIT_MODERATE,
+        sodium.crypto_pwhash_MEMLIMIT_MODERATE,
+        sodium.crypto_pwhash_ALG_DEFAULT
+      );
+
+      // Decrypt identity key private key
+      const decryptedIkPrivateKey = sodium.crypto_secretbox_open_easy(
+        sodium.from_base64(ik_private_key),
+        sodium.from_base64(nonce),
+        derivedKey
+      );
+
+      if (!decryptedIkPrivateKey) {
+        throw new Error("Failed to decrypt identity key private key");
+      }
+
+      // Store keys in secure format
+      const userKeys = {
+        identity_private_key: decryptedIkPrivateKey,
+        signedpk_private_key: sodium.from_base64(spk_private_key),
+        oneTimepks_private: opks_private.map((opk) => ({
+          opk_id: opk.opk_id,
+          private_key: sodium.from_base64(opk.private_key),
+        })),
+        identity_public_key: sodium.from_base64(ik_public),
+        signedpk_public_key: sodium.from_base64(spk_public),
+        oneTimepks_public: opks_public.map((opk) => ({
+          opk_id: opk.opk_id,
+          publicKey: sodium.from_base64(opk.publicKey),
+        })),
+        signedPreKeySignature: sodium.from_base64(signedPrekeySignature),
+        salt: sodium.from_base64(salt),
+        nonce: sodium.from_base64(nonce),
+      };
+      //const unlockToken = sessionStorage.getItem("unlockToken");
+
+      // Save to Zustand and secure IndexedDB
+      await storeDerivedKeyEncrypted(derivedKey); // stores with unlockToken
+      sessionStorage.setItem("unlockToken", "session-unlock");
+      await storeUserKeysSecurely(userKeys, derivedKey); // your existing function
+
+      useEncryptionStore.setState({
+        encryptionKey: derivedKey,
+        userId: user.id,
+        userKeys: userKeys,
+      });
       setMessage("User successfully registered!");
       router.push("/dashboard");
     } catch (err) {

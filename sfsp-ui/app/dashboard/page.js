@@ -3,11 +3,17 @@
 import { useEffect, useState } from 'react';
 import { FileText, Users, Clock, ShieldCheck } from 'lucide-react';
 import axios from 'axios';
+import {
+  useEncryptionStore,
+  getUserId,
+} from "@/app/SecureKeyStorage";
+import { getSodium } from "@/app/lib/sodium";
 
 export default function DashboardHomePage() {
   const [fileCount, setFileCount] = useState(0);
 
-  const userId = '123';//again use the actual user ID from the auth system
+  const userId = useEncryptionStore.getState().userId;//again use the actual user ID from the auth system
+  console.log("UserId is:", userId);
 
   useEffect(() => {
     const fetchFileCount = async () => {
@@ -15,7 +21,9 @@ export default function DashboardHomePage() {
         const response = await axios.post('http://localhost:5000/api/files/getNumberOFFiles', {
           userId,
         });
-        setFileCount(response.data.fileCount.numberOfFiles);
+        console.log("Response:", response.data);
+        setFileCount(response.data.fileCount.userFileCount);
+        console.log("Number of files is:", response.data.fileCount.userFileCount);
       } catch (error) {
         console.error("Failed to fetch file count:", error.message);
       }

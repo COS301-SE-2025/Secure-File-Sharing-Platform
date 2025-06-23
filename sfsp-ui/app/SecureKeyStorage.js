@@ -1,73 +1,207 @@
 'use client';
 
-import { set, del, get} from 'idb-keyval';
+import { set, get, del } from 'idb-keyval';
 import { getSodium } from '@/app/lib/sodium';
-import {create} from 'zustand';
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+
+export const useEncryptionStore = create(
+  persist(
+    (set) => ({
+      encryptionKey: null,
+      setEncryptionKey: (key) => set({ encryptionKey: key }),
+
+      userId: null,
+      setUserId: (id) => set({ userId: id }),
+
+      userKeys: null,
+      setUserKeys: (keys) => set({ userKeys: keys }),
+    }),
+    {
+      name: 'encryption-store',
+      partialize: (state) => ({ userId: state.userId }), // only persist this
+    }
+  )
+);
 
 
+// ========== Secure Storage Functions ==========
 
-//store the derived key in a Zustand store
-export const useEncryptionStore = create((set) => ({
-  encryptionKey: null,
-  setEncryptionKey: (key) => set({ encryptionKey: key }),
-
-  userId: null,
-  setUserId: (id) => set({ userId: id }),
-
-  userKeys: null,
-  setUserKeys: (keys) => set({ userKeys: keys }),
-}));
-
-//use the function to store the user keys securely in IndexedDB
-//You can use this function to store the user keys after successful signup or login
+// Encrypt and store user keys securely in IndexedDB
 export const storeUserKeysSecurely = async (userKeys, encryptionKey) => {
   try {
-	const sodium = await getSodium();
-	const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
-	const plaintext = sodium.to_base64(new TextEncoder().encode(JSON.stringify(userKeys)));
+    const sodium = await getSodium();
+    const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
 
-	const cipherText = sodium.crypto_secretbox(
-	  sodium.from_base64(plaintext),
-	  nonce,
-	  encryptionKey
-	);
+    const plaintext = new TextEncoder().encode(JSON.stringify(userKeys));
+    const cipherText = sodium.crypto_secretbox_easy(plaintext, nonce, encryptionKey);
 
-	await set('userKeys', {
-	  cipherText: sodium.to_base64(cipherText),
-	  nonce: sodium.to_base64(nonce)
-	});
-	console.log('User keys stored securely');
+    await set('userKeys', {
+      cipherText: sodium.to_base64(cipherText),
+      nonce: sodium.to_base64(nonce),
+    });
+
+    if (userKeys.userId) {
+      await set('userId', userKeys.userId); // optionally persisted separately
+    }
+
+    console.log('User keys stored securely');
   } catch (error) {
-	console.error('Error storing user keys:', error);
+    console.error('Error storing user keys:', error);
   }
 };
 
-//use this function when the user logs out or when they exit the tab
-export const deleteUserKeysSecurely = async () => {
-  try {
-	// Delete the user keys from IndexedDB
-	await del('userKeys');
-	console.log('User keys deleted securely');
-  } catch (error) {
-	console.error('Error deleting user keys:', error);
-  }
-}
-
+// Retrieve and decrypt user keys from IndexedDB
 export const getUserKeysSecurely = async (encryptionKey) => {
   try {
-	const sodium = await getSodium();
-	const encrypted = await get('userKeys');
-	if (!encrypted) return null;
+    const sodium = await getSodium();
+    const encrypted = await get('userKeys');
+    if (!encrypted) return null;
 
-	const decrypted = sodium.crypto_secretbox_open_easy(
-	  sodium.from_base64(encrypted.cipherText),
-	  sodium.from_base64(encrypted.nonce),
-	  encryptionKey
-	);
+    const decrypted = sodium.crypto_secretbox_open_easy(
+      sodium.from_base64(encrypted.cipherText),
+      sodium.from_base64(encrypted.nonce),
+      encryptionKey
+    );
 
-	return JSON.parse(new TextDecoder().decode(decrypted));
+    return JSON.parse(new TextDecoder().decode(decrypted));
   } catch (error) {
-	console.error('Error decrypting or retrieving user keys:', error);
-	return null;
+    console.error('Error decrypting or retrieving user keys:', error);
+    return null;
   }
+};
+
+// Clear all secure key data
+export const deleteUserKeysSecurely = async () => {
+  try {
+    await del('userKeys');
+    await del('userId');
+    console.log('User keys deleted securely');
+  } catch (error) {
+    console.error('Error deleting user keys:', error);
+  }
+};
+
+// ========== App Startup: Load Keys Into Zustand ==========
+
+export const loadKeysToStore = async (password) => {
+  const sodium = await getSodium();
+
+  const encrypted = await get('userKeys');
+  if (!encrypted) return false;
+
+  const decryptedPreview = await get('userId'); // assumes you persisted it
+  if (!decryptedPreview) return false;
+
+  // For demo: load salt from decryptedPreview or from userKeys if included
+  const decryptedKeys = await getUserKeysSecurelyFromPassword(password); // use helper below
+
+  if (!decryptedKeys || !decryptedKeys.userId) return false;
+
+  const derivedKey = sodium.crypto_pwhash(
+    32,
+    password,
+    decryptedKeys.salt,
+    sodium.crypto_pwhash_OPSLIMIT_MODERATE,
+    sodium.crypto_pwhash_MEMLIMIT_MODERATE,
+    sodium.crypto_pwhash_ALG_DEFAULT
+  );
+
+  useEncryptionStore.setState({
+    encryptionKey: derivedKey,
+    userId: decryptedKeys.userId,
+    userKeys: decryptedKeys,
+  });
+
+  return true;
+};
+
+// Helper to get user keys + salt with password (you might need salt stored separately)
+export const getUserKeysSecurelyFromPassword = async (password) => {
+  try {
+    const sodium = await getSodium();
+    const encrypted = await get('userKeys');
+    if (!encrypted) return null;
+
+    const userId = await get('userId'); // optional
+    if (!userId) return null;
+
+    // You need to have saved salt as part of userKeys before encryption
+    const decrypted = sodium.crypto_secretbox_open_easy(
+      sodium.from_base64(encrypted.cipherText),
+      sodium.from_base64(encrypted.nonce),
+      sodium.crypto_pwhash(
+        32,
+        password,
+        sodium.from_base64((JSON.parse(new TextDecoder().decode(
+          sodium.crypto_secretbox_open_easy(
+            sodium.from_base64(encrypted.cipherText),
+            sodium.from_base64(encrypted.nonce),
+            sodium.crypto_pwhash(
+              32,
+              password,
+              sodium.from_base64("...salt..."), // Replace with your salt storage
+              sodium.crypto_pwhash_OPSLIMIT_MODERATE,
+              sodium.crypto_pwhash_MEMLIMIT_MODERATE,
+              sodium.crypto_pwhash_ALG_DEFAULT
+            )
+          )
+        ))).salt), // assumes salt is inside userKeys
+        sodium.crypto_pwhash_OPSLIMIT_MODERATE,
+        sodium.crypto_pwhash_MEMLIMIT_MODERATE,
+        sodium.crypto_pwhash_ALG_DEFAULT
+      )
+    );
+
+    return JSON.parse(new TextDecoder().decode(decrypted));
+  } catch (error) {
+    console.error('Error decrypting keys with password:', error);
+    return null;
+  }
+};
+
+export const storeDerivedKeyEncrypted = async (derivedKey, unlockToken = 'session-unlock') => {
+  const sodium = await getSodium();
+  const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
+  const unlockKey = sodium.crypto_generichash(32, new TextEncoder().encode(unlockToken));
+
+  const encrypted = sodium.crypto_secretbox_easy(derivedKey, nonce, unlockKey);
+
+  await set('encryptedDerivedKey', {
+    cipherText: sodium.to_base64(encrypted),
+    nonce: sodium.to_base64(nonce),
+  });
+
+  // 🔐 store token in sessionStorage
+  sessionStorage.setItem('unlockToken', unlockToken);
+};
+
+export const restoreSession = async () => {
+  const unlockToken = sessionStorage.getItem('unlockToken');
+  if (!unlockToken) return false;
+
+  const sodium = await getSodium();
+  const encrypted = await get('encryptedDerivedKey');
+  if (!encrypted) return false;
+
+  const unlockKey = sodium.crypto_generichash(32, new TextEncoder().encode(unlockToken));
+
+  const derivedKey = sodium.crypto_secretbox_open_easy(
+    sodium.from_base64(encrypted.cipherText),
+    sodium.from_base64(encrypted.nonce),
+    unlockKey
+  );
+
+  if (!derivedKey) return false;
+
+  const userKeys = await getUserKeysSecurely(derivedKey);
+  if (!userKeys || !userKeys.userId) return false;
+
+  useEncryptionStore.setState({
+    encryptionKey: derivedKey,
+    userId: userKeys.userId,
+    userKeys: userKeys,
+  });
+
+  return true;
 };

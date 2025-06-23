@@ -22,30 +22,42 @@ import (
 
 type DownloadRequest struct {
 	UserID string `json:"userId"`
-	FileID string `json:"fileId"`
+	FileName string `json:"fileName"`
 }
 
 type DownloadResponse struct {
-	FileName   string `json:"fileName"`
+	FileName    string `json:"fileName"`
 	FileContent string `json:"fileContent"`
+	Nonce       string `json:"nonce"`
 }
 
 func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 	var req DownloadRequest
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
 		return
 	}
 
-	if req.UserID == "" || req.FileID == "" {
-		log.Println("UserID is: "+ req.UserID + " and FileID is: " + req.FileID)
-		http.Error(w, "Missing UserID or FileID", http.StatusBadRequest)
+	if req.UserID == "" || req.FileName == "" {
+		http.Error(w, "Missing userId or fileName", http.StatusBadRequest)
 		return
 	}
 
-	// Get file bytes from OwnCloud
-	data, err := owncloud.DownloadFile(req.FileID)
+	fmt.Println("User id is: ", req.UserID)
+	fmt.Println("File name is: ", req.FileName)
+	var fileID, nonce string
+	err := DB.QueryRow(`
+		SELECT id, nonce FROM files
+		WHERE owner_id = $1 AND file_name = $2
+	`, req.UserID, req.FileName).Scan(&fileID, &nonce)
+
+	if err != nil {
+		log.Println("Failed to retrieve file metadata:", err)
+		http.Error(w, "File not found", http.StatusNotFound)
+		return
+	}
+
+	data, err := owncloud.DownloadFile(fileID)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Download failed: %v", err), http.StatusInternalServerError)
 		return
@@ -57,27 +69,18 @@ func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Decrypt file content if encryption key is provided
 	plain, err := crypto.DecryptBytes(data, aesKey)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Decryption failed: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	// Encode file to base64
 	base64Data := base64.StdEncoding.EncodeToString(plain)
 
-	//get the file name from the postgreSQL database
-	var fileName string
-	err = DB.QueryRow("SELECT file_name FROM files WHERE id = $1", req.FileID).Scan(&fileName)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to retrieve file name: %v", err), http.StatusInternalServerError)
-		return
-	}
-
 	res := DownloadResponse{
-		FileName:   fileName,
+		FileName:    req.FileName,
 		FileContent: base64Data,
+		Nonce:       nonce,
 	}
 
 	w.Header().Set("Content-Type", "application/json")

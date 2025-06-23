@@ -86,6 +86,7 @@ export async function SendFile(file, recipientUserId, filePath, fileid) {
       fileid: fileid,
       filePath: filePath, //the path where the file will be stored, this should be modified to be in the sending folder in the api
       userId, //the id is sent so that we can download and fetch the file later from the the users files
+      recipientUserId,
       encryptedFile: sodium.to_base64(encryptedFile), // this will be sent to the users server sending folder
       fileNonce: sodium.to_base64(fileNonce),
       keyNonce: sodium.to_base64(keyNonce),

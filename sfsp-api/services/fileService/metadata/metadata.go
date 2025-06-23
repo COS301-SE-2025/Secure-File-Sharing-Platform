@@ -81,55 +81,73 @@ func GetUserFilesHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(files)
 }
 
-func GetFileMetadataHandler(w http.ResponseWriter, r *http.Request) {
-	type FileMetadataRequest struct {
-		FileID string `json:"fileId"`
+func ListFileMetadataHandler(w http.ResponseWriter, r *http.Request) {
+	type MetadataRequest struct {
+		UserID string `json:"userId"`
 	}
 
-	var req FileMetadataRequest
+	var req MetadataRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
 		return
 	}
 
-	if req.FileID == "" {
-		http.Error(w, "Missing fileId", http.StatusBadRequest)
+	if req.UserID == "" {
+		http.Error(w, "Missing userId", http.StatusBadRequest)
 		return
 	}
 
-	var (
-		fileName, fileType, description string
-		fileSize                        int64
-		tags                            []string
-		createdAt                       time.Time
-	)
-
-	err := DB.QueryRow(`
-		SELECT file_name, file_type, file_size, description, tags, created_at
+	rows, err := DB.Query(`
+		SELECT id, file_name, file_type, file_size, description, tags, created_at
 		FROM files
-		WHERE id = $1
-	`, req.FileID).Scan(&fileName, &fileType, &fileSize, &description, pq.Array(&tags), &createdAt)
-
+		WHERE owner_id = $1
+	`, req.UserID)
 	if err != nil {
-		log.Println("PostgreSQL select error:", err)
-		http.Error(w, "Metadata not found", http.StatusNotFound)
+		log.Println("PostgreSQL query error:", err)
+		http.Error(w, "Failed to fetch metadata", http.StatusInternalServerError)
 		return
 	}
+	defer rows.Close()
 
-	// Build the response
-	response := map[string]interface{}{
-		"fileId":      req.FileID,
-		"fileName":    fileName,
-		"fileType":    fileType,
-		"fileSize":    fileSize,
-		"description": description,
-		"tags":        tags,
-		"createdAt":   createdAt,
+	type FileMetadata struct {
+		FileID      string    `json:"fileId"`
+		FileName    string    `json:"fileName"`
+		FileType    string    `json:"fileType"`
+		FileSize    int64     `json:"fileSize"`
+		Description string    `json:"description"`
+		Tags        []string  `json:"tags"`
+		CreatedAt   time.Time `json:"createdAt"`
+	}
+
+	var files []FileMetadata
+
+	for rows.Next() {
+		var file FileMetadata
+		if err := rows.Scan(
+			&file.FileID,
+			&file.FileName,
+			&file.FileType,
+			&file.FileSize,
+			&file.Description,
+			pq.Array(&file.Tags),
+			&file.CreatedAt,
+		); err != nil {
+			log.Println("Row scan error:", err)
+			continue
+		}
+		files = append(files, file)
+	}
+
+	if err = rows.Err(); err != nil {
+		log.Println("Row iteration error:", err)
+		http.Error(w, "Error reading file data", http.StatusInternalServerError)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	json.NewEncoder(w).Encode(files) // ✅ returns a proper array
 }
+
 
 func GetUserFileCountHandler(w http.ResponseWriter, r *http.Request) {
 	var req MetadataQueryRequest
@@ -551,3 +569,29 @@ func RemoveTagsFromFileHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func GetRecipientIDFromOPK(opkID string) (string, error) {
+	var userID string
+	err := DB.QueryRow(`SELECT user_id FROM one_time_pre_keys WHERE id = $1`, opkID).Scan(&userID)
+	if err != nil {
+		return "", err
+	}
+	return userID, nil
+}
+
+func InsertReceivedFile(db *sql.DB, recipientId, senderId, fileId, metadataJson string, expiresAt time.Time) error {
+	_, err := db.Exec(`
+		INSERT INTO received_files (
+			recipient_id, sender_id, file_id, received_at, expires_at, metadata
+		) VALUES ($1, $2, $3, NOW(), $4, $5)
+	`, recipientId, senderId, fileId, expiresAt, metadataJson)
+	return err
+}
+
+func InsertSentFile(db *sql.DB, senderId, recipientId, fileId, encryptedFileKey, x3dhEphemeralPubKey string) error {
+	_, err := db.Exec(`
+		INSERT INTO sent_files (
+			sender_id, recipient_id, file_id, encrypted_file_key, x3dh_ephemeral_pubkey, sent_at
+		) VALUES ($1, $2, $3, $4, $5, NOW())
+	`, senderId, recipientId, fileId, encryptedFileKey, x3dhEphemeralPubKey)
+	return err
+}

@@ -70,6 +70,30 @@ class UserService {
     }
   }
 
+  async getUserIdFromEmail(email){
+    try {
+      const { data, error } = await supabase
+        .from("users")
+        .select("id")
+        .eq(email)
+        .single();
+
+      if (error || !data) {
+        throw new Error(
+          "This user ID was not found "
+        );
+      }
+
+      const {id} = data;
+
+      return {
+        id
+      };
+    } catch (error) {
+      throw new Error("Fetching User ID failed: " + error.message);
+    }
+  }
+
   async getPublicKeys(userId) {
     try {
       const { data, error } = await supabase
