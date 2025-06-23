@@ -80,7 +80,7 @@ export default function MyFiles() {
       const data = await res.json();
       console.log("Fetched files from API:", data);
       const formatted = data.map((f) => ({
-        id: (f.fileId || "") + Math.random(),
+        id: (f.fileId || ""),
         name: f.fileName || "Unnamed file",
         size: formatFileSize(f.fileSize || 0),
         type: getFileType(f.fileType || ""),
@@ -109,6 +109,7 @@ export default function MyFiles() {
       alert("Missing encryption key");
       return;
     }
+    
 
     const sodium = await getSodium();
     const userId = useEncryptionStore.getState().userId;

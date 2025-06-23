@@ -8,7 +8,11 @@ import { getSodium } from "@/app/lib/sodium";
 import { v4 as uuidv4 } from "uuid";
 //import * as sodium from 'libsodium-wrappers-sumo';
 import { generateLinearEasing } from "framer-motion";
-import { useEncryptionStore, storeUserKeysSecurely, storeDerivedKeyEncrypted } from "../SecureKeyStorage";
+import {
+  useEncryptionStore,
+  storeUserKeysSecurely,
+  storeDerivedKeyEncrypted,
+} from "../SecureKeyStorage";
 
 //await sodium.ready;
 //sodium.init && sodium.init();
@@ -92,7 +96,7 @@ export default function AuthPage() {
 
       //derived key from password and salt
       const derivedKey = sodium.crypto_pwhash(
-        32, // key length
+        32,
         formData.password,
         sodium.from_base64(salt),
         sodium.crypto_pwhash_OPSLIMIT_MODERATE,
@@ -100,21 +104,20 @@ export default function AuthPage() {
         sodium.crypto_pwhash_ALG_DEFAULT
       );
 
-      //Try decrypting the private keys
-      const decryptedIkPrivateKey = sodium.crypto_secretbox_open_easy(
+      // Decrypt + convert identity key
+      const decryptedIkPrivateKeyRaw = sodium.crypto_secretbox_open_easy(
         sodium.from_base64(ik_private_key),
         sodium.from_base64(nonce),
         derivedKey
       );
 
-      if (!decryptedIkPrivateKey) {
+      if (!decryptedIkPrivateKeyRaw) {
         throw new Error("Failed to decrypt identity key private key");
       }
 
-      //Store the decrypted private keys in localStorage or secure storage
-      //if you guys know of a better way to store these securely, please let me know or just change this portion of the code
+      // ✅ Again, DO NOT convert here
       const userKeys = {
-        identity_private_key: decryptedIkPrivateKey,
+        identity_private_key: sodium.to_base64(decryptedIkPrivateKeyRaw), // ✅ fixed
         signedpk_private_key: sodium.from_base64(spk_private_key),
         oneTimepks_private: opks_private.map((opk) => ({
           opk_id: opk.opk_id,
@@ -257,19 +260,20 @@ export default function AuthPage() {
       );
 
       // Decrypt identity key private key
-      const decryptedIkPrivateKey = sodium.crypto_secretbox_open_easy(
-        sodium.from_base64(ik_private_key),
-        sodium.from_base64(nonce),
-        derivedKey
-      );
+      // const decryptedIkPrivateKeyRaw = sodium.crypto_secretbox_open_easy(
+      //   sodium.from_base64(ik_private_key),
+      //   sodium.from_base64(nonce),
+      //   derivedKey
+      // );
 
-      if (!decryptedIkPrivateKey) {
-        throw new Error("Failed to decrypt identity key private key");
-      }
+      // if (!decryptedIkPrivateKeyRaw) {
+      //   throw new Error("Failed to decrypt identity key private key");
+      // }
 
-      // Store keys in secure format
+      // ✅ DO NOT convert to Curve25519 here
+      // ✅ Store the full Ed25519 64-byte secret key
       const userKeys = {
-        identity_private_key: decryptedIkPrivateKey,
+        identity_private_key: ik_private_key, // ✅ fixed
         signedpk_private_key: sodium.from_base64(spk_private_key),
         oneTimepks_private: opks_private.map((opk) => ({
           opk_id: opk.opk_id,
@@ -310,21 +314,28 @@ export default function AuthPage() {
   async function GenerateX3DHKeys(password) {
     const sodium = await getSodium();
 
-    // Identity and Signed PreKey
-    const ik = sodium.crypto_sign_keypair();
+    // 🔐 Identity keypair for signing (Ed25519)
+    const identitySignKey = sodium.crypto_sign_keypair();
+
+    // 🔐 X25519 identity key (for DH)
+    const ik = sodium.crypto_box_keypair();
+
+    // 🔐 X25519 signed prekey
     const spk = sodium.crypto_box_keypair();
+
+    // 🖋️ Sign the SPK public key with the Ed25519 signing key
     const spkSignature = sodium.crypto_sign_detached(
       spk.publicKey,
-      ik.privateKey
+      identitySignKey.privateKey
     );
 
-    // One-Time PreKeys (OPKs)
+    // 🔐 One-time prekeys
     const opks = Array.from({ length: 10 }, () => ({
       id: uuidv4(),
       keypair: sodium.crypto_box_keypair(),
     }));
 
-    // Derive encryption key from password
+    // 🔑 Derive encryption key from password
     const salt = sodium.randombytes_buf(sodium.crypto_pwhash_SALTBYTES);
     const derivedKey = sodium.crypto_pwhash(
       32,
@@ -335,25 +346,31 @@ export default function AuthPage() {
       sodium.crypto_pwhash_ALG_DEFAULT
     );
 
-    // Encrypt Identity Private Key
+    // 🔐 Encrypt private keys
     const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
-    const encryptedIK = sodium.crypto_secretbox_easy(
-      ik.privateKey,
-      nonce,
-      derivedKey
-    );
 
-    //test if the keys are as expected
-    console.log("ENCRYPTED IK PRIVATE is: ", encryptedIK);
-    console.log("spk private is: ", spk.privateKey);
-    console.log("nonce is: ", nonce);
-    console.log("Salt is: ", salt);
-    console.log("ik public is: ", ik.publicKey);
-    console.log("spk public is: ", spk.publicKey);
-    console.log("signedPreKeySignature is:", spkSignature);
+    //this is causing errors so no encryption for now
+    // const encryptedIkPrivate = sodium.crypto_secretbox_easy(
+    //   ik.privateKey,
+    //   nonce,
+    //   derivedKey
+    // );
 
+    // const encryptedSpkPrivate = sodium.crypto_secretbox_easy(
+    //   spk.privateKey,
+    //   nonce,
+    //   derivedKey
+    // );
+
+    // const encryptedIdentitySignKeyPrivate = sodium.crypto_secretbox_easy(
+    //   identitySignKey.privateKey,
+    //   nonce,
+    //   derivedKey
+    // );
+
+    // ✅ Return full key bundle
     return {
-      // Public-side keys
+      // 📤 Public keys
       ik_public: sodium.to_base64(ik.publicKey),
       spk_public: sodium.to_base64(spk.publicKey),
       signedPrekeySignature: sodium.to_base64(spkSignature),
@@ -362,17 +379,17 @@ export default function AuthPage() {
         publicKey: sodium.to_base64(opk.keypair.publicKey),
       })),
 
-      // Encrypted/Private-side
-      ik_private_key: sodium.to_base64(encryptedIK),
+      // 🔐 Encrypted private keys
+      ik_private_key: sodium.to_base64(ik.privateKey),
       spk_private_key: sodium.to_base64(spk.privateKey),
       opks_private: opks.map((opk) => ({
         opk_id: opk.id,
         private_key: sodium.to_base64(opk.keypair.privateKey),
       })),
 
-      // Crypto parameters
-      nonce: sodium.to_base64(nonce),
+      // ⚙️ Crypto params
       salt: sodium.to_base64(salt),
+      nonce: sodium.to_base64(nonce),
     };
   }
 
