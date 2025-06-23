@@ -18,7 +18,7 @@ exports.downloadFile = async (req, res) => {
 
     const { fileName, fileContent, nonce } = response.data;
 
-    res.json({ fileName, fileContent, nonce }); // ✅ Send as JSON
+    res.json({ fileName, fileContent, nonce });
   } catch (err) {
     console.error("Download error:", err.message);
     res.status(500).send("Download failed");
@@ -35,7 +35,7 @@ exports.getMetaData = async (req, res) => {
   try {
     const response = await axios.post(
       `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/metadata`,
-      { userId }, // ✅ Send as JSON body
+      { userId },
       { headers: { "Content-Type": "application/json" } }
     );
 
@@ -62,7 +62,7 @@ exports.uploadFile = async (req, res) => {
       fileDescription,
       fileTags,
       path: uploadPath,
-      fileContent, // base64 encoded string
+      fileContent,
     } = req.body;
 
     if (!fileName) {
@@ -92,7 +92,7 @@ exports.uploadFile = async (req, res) => {
       fileDescription,
       fileTags,
       path: uploadPath || "files",
-      fileContent, // still base64
+      fileContent,
     };
 
     const response = await axios.post(
@@ -122,9 +122,7 @@ exports.getNumberOfFiles = async (req, res) => {
 
   try {
     const response = await axios.post(
-      `${
-        process.env.FILE_SERVICE_URL || "http://localhost:8081"
-      }/getNumberOfFiles`,
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/getNumberOfFiles`,
       { userId },
       { headers: { "Content-Type": "application/json" } }
     );
@@ -158,9 +156,10 @@ exports.deleteFile = async (req, res) => {
     if (response.status !== 200) {
       return res.status(response.status).send("Error deleting file");
     }
+    res.status(200).send("File deleted successfully");
   } catch (err) {
-    console.error("Error retrieving file count:", err.message);
-    res.status(500).send("Error retrieving file count");
+    console.error("Error deleting file:", err.message);
+    res.status(500).send("Error deleting file");
   }
 };
 
@@ -208,10 +207,58 @@ exports.sendFile = async (req, res) => {
     if (response.status !== 200) {
       return res.status(response.status).send("Error sending file");
     }
-
     return res.status(200).json({ message: "File sent successfully" });
   } catch (err) {
     console.error("Error sending file:", err.message);
     res.status(500).send("Failed to send file");
+  }
+};
+
+exports.addAccesslog = async (req, res) => {
+  const { file_id, user_id, action } = req.body;
+  if (!file_id || !user_id || !action) {
+    return res.status(400).send("Missing required fields: file_id, user_id, or action");
+  }
+  try {
+    const response = await axios.post(
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/addAccesslog`,
+      { file_id, user_id, action },
+      { headers: { "Content-Type": "application/json" } }
+    );
+    res.status(response.status).send(response.data);
+  } catch (err) {
+    console.error("Add access log error:", err.message);
+    res.status(500).send("Failed to add access log");
+  }
+};
+
+exports.removeAccesslog = async (req, res) => {
+  const { id } = req.query;
+  if (!id) {
+    return res.status(400).send("Missing log id");
+  }
+  try {
+    const response = await axios.delete(
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/removeAccesslog`,
+      { params: { id } }
+    );
+    res.status(response.status).send(response.data);
+  } catch (err) {
+    console.error("Remove access log error:", err.message);
+    res.status(500).send("Failed to remove access log");
+  }
+};
+
+exports.getAccesslog = async (req, res) => {
+  const { file_id } = req.query;
+  try {
+    const response = await axios.get(
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/getAccesslog`,
+      { params: file_id ? { file_id } : {} }
+    );
+    res.status(response.status).json(response.data);
+  } catch (err) {
+    console.error("Get access log error:", err.message);
+    res.status(500).send("Failed to get access log");
   }
 };
