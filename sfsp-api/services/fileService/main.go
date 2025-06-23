@@ -26,23 +26,61 @@ func main() {
 
     log.Println("Starting File Service...")
     log.Println("Environment variables loaded successfully")
-    log.Println("mongoURI:", os.Getenv("MONGO_URI"))
+    //log.Println("mongoURI:", os.Getenv("MONGO_URI"))
     log.Println("ownCloud URL:", os.Getenv("OWNCLOUD_URL"))
 
 
-    mongoURI := os.Getenv("MONGO_URI")
-    client, het := database.InitMongo(mongoURI)
-    if het != nil {
-        log.Fatalf("Failed to connect to MongoDB: %v", het)
+    // mongoURI := os.Getenv("MONGO_URI")
+    // client, het := database.InitMongo(mongoURI)
+    // if het != nil {
+    //     log.Fatalf("Failed to connect to MongoDB: %v", het)
+    // }
+	//fileHandler.SetMongoClient(client)
+
+    db, err := database.InitPostgre()
+    if err != nil {
+        log.Fatalf("Failed to connect to PostgreSQL: %v", err)
     }
-	fileHandler.SetMongoClient(client)
+
+    if db != nil {
+        log.Println("✅ PostgreSQL connected successfully")
+    } else {
+        log.Println("❌ PostgreSQL connection failed")
+    }
+
+    // Set the PostgreSQL client in the fileHandler package
+    fileHandler.SetPostgreClient(db)
+    metadata.SetPostgreClient(db)
+    //log.Println("✅ PostgreSQL client set in fileHandler and metadata")
 
 	//initialize ownCloud client
 	owncloud.InitOwnCloud(os.Getenv("OWNCLOUD_URL"), os.Getenv("OWNCLOUD_USERNAME"), os.Getenv("OWNCLOUD_PASSWORD"))
 
     http.HandleFunc("/upload", fileHandler.UploadHandler)
 	http.HandleFunc("/download", fileHandler.DownloadHandler)
-    http.HandleFunc("/metadata", metadata.GetMetadataHandler)
-    http.HandleFunc("/getNumberOfFiles", metadata.GetNumberOfFiles)
+    // access log endpoints
+    http.HandleFunc("/addAccesslog", fileHandler.AddAccesslogHandler)
+    http.HandleFunc("/removeAccesslog", fileHandler.RemoveAccesslogHandler)
+    http.HandleFunc("/getAccesslog", fileHandler.GetAccesslogHandler)
+    // notification endpoints
+    /* http.HandleFunc("/addNotification", fileHandler.AddNotificationHandler)
+    http.HandleFunc("/removeNotification", fileHandler.RemoveNotificationHandler)
+    http.HandleFunc("/getNotifications", fileHandler.GetNotificationsHandler) */
+    // metadata endpoints
+    http.HandleFunc("/metadata", metadata.GetUserFilesHandler)
+    http.HandleFunc("/getFileMetadata", metadata.ListFileMetadataHandler)
+    http.HandleFunc("/getNumberOfFiles", metadata.GetUserFileCountHandler)
+    http.HandleFunc("/addPendingFiles", metadata.AddReceivedFileHandler)
+    http.HandleFunc("/getPendingFiles", metadata.GetPendingFilesHandler)
+    http.HandleFunc("/deleteFile", fileHandler.DeleteFileHandler)
+    http.HandleFunc("/sendFile", fileHandler.SendFileHandler)
+
+    //test from here
+    http.HandleFunc("/addSentFiles", metadata.AddSentFileHandler) //I will combine this with the addPendingFiles endpoint later
+    http.HandleFunc("/AcceptReceivedFile", metadata.AcceptReceivedFileHandler)//I will make this automatically either upload the file to owncloud or download it to the user's device
+    http.HandleFunc("/RejectReceivedFile", metadata.RejectReceivedFileHandler)
+    http.HandleFunc("/getSentFiles", metadata.GetSentFilesHandler)
+    http.HandleFunc("/addTags", metadata.AddTagsToFileHandler)
+    http.HandleFunc("/removeTags", metadata.RemoveTagsFromFileHandler)
 	log.Fatal(http.ListenAndServe(":8081", nil))
 }

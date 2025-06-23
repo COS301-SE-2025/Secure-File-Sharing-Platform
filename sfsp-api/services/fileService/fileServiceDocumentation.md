@@ -5,6 +5,7 @@
 * [download document](#download-document)
 * [Upload document](#Upload-Document)
 * [Get Meta data to display](#Get-Meta-Data-to-display)
+* [File Access Logs](#File-Access-Logs)
 
 ---
 
@@ -100,4 +101,67 @@ client needs to decode bas64, decrypt the file using the private key, then they 
     ],
     "Path": "files/demo"
 }
+```
+
+---
+
+## File Access Logs
+
+### Add Access Log
+
+**Endpoint**: `POST http://localhost:5000/files/addAccesslog`
+**Authentication**: Not required
+
+#### Request Body
+```json
+{
+  "file_id": "<file-uuid>",
+  "user_id": "<user-uuid>",
+  "action": "viewed" // or "downloaded", "deleted", etc.
+}
+```
+
+#### Response
+- **201 Created**
+```
+Access log added successfully
+```
+
+---
+
+### Get Access Logs
+
+**Endpoint**: `GET http://localhost:5000/files/getAccesslog`
+**Authentication**: Not required
+
+#### Query Parameters
+- `file_id` (optional): Filter logs for a specific file
+
+#### Example
+`GET http://localhost:5000/files/getAccesslog?file_id=<file-uuid>`
+
+#### Response
+```json
+[
+  {
+    "id": "<log-uuid>",
+    "file_id": "<file-uuid>",
+    "user_id": "<user-uuid>",
+    "action": "viewed",
+    "timestamp": "2025-06-23T12:00:00Z"
+  },
+  // ...more logs
+]
+```
+
+---
+
+### Remove Access Log
+
+**Endpoint**: `DELETE http://localhost:5000/files/removeAccesslog?id=<log-uuid>`
+**Authentication**: Not required
+
+#### Response
+```
+Access log removed successfully
 ```
