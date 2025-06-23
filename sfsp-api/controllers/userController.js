@@ -1,6 +1,5 @@
 const bcrypt = require('bcrypt');
 const { supabase } = require('../config/database');
-const { supabase } = require('../config/database');
 const userService = require('../services/userService');
 const VaultController = require('./vaultController');
 
@@ -65,7 +64,6 @@ class UserController {
 
     async login(req, res) {
         try {
-            const { email, password } = req.body;
             const { email, password } = req.body;
 
             if (!email || !password) {
@@ -170,7 +168,6 @@ class UserController {
                 return res.status(400).json({
                     success: false,
                     message: 'Email is required.'
-                    message: 'Email is required.'
                 });
             }
 
@@ -253,36 +250,6 @@ class UserController {
         }
     }
 
-    async logout(req, res) {
-        try {
-            const authHeader = req.headers.authorization;
-            if (!authHeader || !authHeader.startsWith('Bearer ')) {
-                return res.status(401).json({
-                    success: false,
-                    message: 'Authorization token missing or invalid.'
-                });
-            }
-            const token = authHeader.split(' ')[1];
-            const result = await userService.logout(token);
-            if (!result) {
-                return res.status(401).json({
-                    success: false,
-                    message: 'Invalid or expired token.'
-                });
-            }
-            return res.status(200).json({
-                success: true,
-                message: 'Logout successful.'
-            });
-        } catch (error) {
-            console.error('Error during logout:', error);
-            return res.status(500).json({
-                success: false,
-                message: 'Internal server error.'
-            });
-        }
-    }
-
     async verifyPassword(req, res) {
         try {
             const { currentPassword } = req.body;
@@ -321,48 +288,7 @@ class UserController {
                 success: true,
                 message: 'Password verified successfully'
             });
-            const { currentPassword } = req.body;
-            const userId = req.user.id;
-
-            if (!currentPassword) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Current password is required'
-                });
-            }
-
-            const { data: user, error } = await supabase
-                .from('users')
-                .select('password')
-                .eq('id', userId)
-                .single();
-
-            if (error || !user) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'User not found'
-                });
-            }
-
-            const isValid = await bcrypt.compare(currentPassword, user.password);
-
-            if (!isValid) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Current password is incorrect'
-                });
-            }
-
-            res.json({
-                success: true,
-                message: 'Password verified successfully'
-            });
         } catch (error) {
-            console.error('Error verifying password:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Internal server error'
-            });
             console.error('Error verifying password:', error);
             res.status(500).json({
                 success: false,
@@ -381,20 +307,7 @@ class UserController {
                 success: true,
                 message: result.message
             });
-            const userId = req.user.id;
-
-            const result = await userService.sendPasswordResetPIN(userId);
-
-            res.json({
-                success: true,
-                message: result.message
-            });
         } catch (error) {
-            console.error('Error sending reset PIN:', error);
-            res.status(500).json({
-                success: false,
-                message: error.message || 'Failed to send reset PIN'
-            });
             console.error('Error sending reset PIN:', error);
             res.status(500).json({
                 success: false,
@@ -404,55 +317,38 @@ class UserController {
     }
 
     async changePassword(req, res) {
-    async changePassword(req, res) {
-            try {
-                const { pin, newPassword } = req.body;
-                const userId = req.user.id;
+        try {
+            const { pin, newPassword } = req.body;
+            const userId = req.user.id;
 
-
-                if (!pin || !newPassword) {
-                    return res.status(400).json({
-                        success: false,
-                        message: 'PIN and new password are required'
+            if (!pin || !newPassword) {
                 return res.status(400).json({
-                            success: false,
-                            message: 'PIN and new password are required'
-                        });
-                    }
-
+                    success: false,
+                    message: 'PIN and new password are required'
+                });
+            }
 
             if (newPassword.length < 8) {
-                        return res.status(400).json({
-                            success: false,
-                            message: 'Password must be at least 8 characters long'
                 return res.status(400).json({
-                                success: false,
-                                message: 'Password must be at least 8 characters long'
-                            });
-                        }
-
+                    success: false,
+                    message: 'Password must be at least 8 characters long'
+                });
+            }
 
             const result = await userService.verifyPINAndChangePassword(userId, pin, newPassword);
 
-
-                        res.json({
-                            success: true,
-                            message: result.message
-                        });
-                    } catch (error) {
-                    } catch (error) {
-                        console.error('Error changing password:', error);
-                        res.status(500).json({
-                            success: false,
-                            message: error.message || 'Failed to change password'
+            res.json({
+                success: true,
+                message: result.message
+            });
+        } catch (error) {
+            console.error('Error changing password:', error);
             res.status(500).json({
-                                success: false,
-                                message: error.message || 'Failed to change password'
-                            });
-                        }
+                success: false,
+                message: error.message || 'Failed to change password'
+            });
+        }
     }
-                }
-            }
 }
 
-        module.exports = new UserController();
+module.exports = new UserController();
