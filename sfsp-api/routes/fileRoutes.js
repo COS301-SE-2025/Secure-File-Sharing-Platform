@@ -6,5 +6,8 @@ router.post('/download', fileController.downloadFile);
 router.post("/metadata", fileController.getMetaData)
 router.post('/upload', fileController.uploadFile);
 router.post('/getNumberOFFiles', fileController.getNumberOfFiles);
+router.post('/addAccesslog', fileController.addAccesslog);
+router.delete('/removeAccesslog', fileController.removeAccesslog);
+router.get('/getAccesslog', fileController.getAccesslog);
 
 module.exports = router;
