@@ -57,9 +57,12 @@ func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, err := owncloud.DownloadFile(fileID)
+	fmt.Println("File ID is: ",fileID)
+
+	data, err := owncloud.DownloadFile(fileID, req.UserID)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Download failed: %v", err), http.StatusInternalServerError)
+		fmt.Println("Download Failed")
 		return
 	}
 
@@ -76,6 +79,8 @@ func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	base64Data := base64.StdEncoding.EncodeToString(plain)
+
+	//fmt.Println("FileContent is: ",base64Data)
 
 	res := DownloadResponse{
 		FileName:    req.FileName,
