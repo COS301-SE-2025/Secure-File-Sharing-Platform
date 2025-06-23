@@ -21,9 +21,10 @@ export function ShareDialog({ open, onOpenChange, file }) {
     if (newEmail && shareWith.every((r) => r.email !== newEmail)) {
       setShareWith([...shareWith, { email: newEmail, permission: "view" }]);
       setNewEmail("");
-      
+
       //get file, recipientUserId, filePath, fileid
       console.log("File is", file);
+      console.log("Recipient email is: ", newEmail);
       //we have file id
       //we have file path
       //we have the file
@@ -48,19 +49,23 @@ export function ShareDialog({ open, onOpenChange, file }) {
   const sendInvite = async () => {
     try {
       for (const recipient of shareWith) {
-        //get file id
-        const response = await fetch(`http://localhost:5000/api/users/getUserId/${newEmail}`);
-        if(!response.ok){
-          console.warn(`User id is not found`);
+        const email = recipient.email;
+
+        // Fetch recipient user ID by email
+        const response = await fetch(
+          `http://localhost:5000/api/users/getUserId/${email}`
+        );
+        if (!response.ok) {
+          console.warn(`User ID not found for email: ${email}`);
           continue;
         }
 
-        await SendFile(
-          file,
-          response.recipientId,
-          `/sending/${response.recipientId}`,
-          file.id
-        );
+        const json = await response.json(); // You must parse the JSON to access recipientId
+        const recipientId = json.data.id;
+        console.log("Recipient Id is: ", recipientId);
+
+        console.log("FileId", file.id);
+        await SendFile(file, recipientId, file.id);
       }
 
       onOpenChange(false);

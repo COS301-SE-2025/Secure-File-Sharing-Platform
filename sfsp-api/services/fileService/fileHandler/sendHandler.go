@@ -84,4 +84,5 @@ func SendFileHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{
 		"message": "File sent successfully",
 	})
+	fmt.Println("File sent successfully")
 }

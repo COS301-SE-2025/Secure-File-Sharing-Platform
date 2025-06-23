@@ -9,7 +9,7 @@ import (
 	//"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
 	//"go.mongodb.org/mongo-driver/bson"
 	"log"
-	//"fmt"
+	"fmt"
 	"time"
 	"database/sql"
 	"github.com/lib/pq"
@@ -579,13 +579,36 @@ func GetRecipientIDFromOPK(opkID string) (string, error) {
 }
 
 func InsertReceivedFile(db *sql.DB, recipientId, senderId, fileId, metadataJson string, expiresAt time.Time) error {
-	_, err := db.Exec(`
+	// Step 1: Ensure the recipient exists
+	var exists bool
+	err := db.QueryRow(`
+		SELECT EXISTS (
+			SELECT 1 FROM users WHERE id = $1
+		)
+	`, recipientId).Scan(&exists)
+
+	if err != nil {
+		return fmt.Errorf("failed to check recipient existence: %w", err)
+	}
+
+	if !exists {
+		return fmt.Errorf("recipient user with id %s does not exist", recipientId)
+	}
+
+	// Step 2: Insert the received file
+	_, err = db.Exec(`
 		INSERT INTO received_files (
 			recipient_id, sender_id, file_id, received_at, expires_at, metadata
 		) VALUES ($1, $2, $3, NOW(), $4, $5)
 	`, recipientId, senderId, fileId, expiresAt, metadataJson)
-	return err
+
+	if err != nil {
+		return fmt.Errorf("failed to insert received file: %w", err)
+	}
+
+	return nil
 }
+
 
 func InsertSentFile(db *sql.DB, senderId, recipientId, fileId, encryptedFileKey, x3dhEphemeralPubKey string) error {
 	_, err := db.Exec(`

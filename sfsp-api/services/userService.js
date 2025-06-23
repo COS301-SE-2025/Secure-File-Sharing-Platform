@@ -70,25 +70,21 @@ class UserService {
     }
   }
 
-  async getUserIdFromEmail(email){
+  async getUserIdFromEmail(email) {
     try {
       const { data, error } = await supabase
         .from("users")
         .select("id")
-        .eq(email)
+        .eq("email", email)
         .single();
 
       if (error || !data) {
-        throw new Error(
-          "This user ID was not found "
-        );
+        throw new Error("This user ID was not found");
       }
 
-      const {id} = data;
+      const { id } = data;
 
-      return {
-        id
-      };
+      return { id };
     } catch (error) {
       throw new Error("Fetching User ID failed: " + error.message);
     }
@@ -103,19 +99,35 @@ class UserService {
         .single();
 
       if (error || !data) {
-        throw new Error(
-          "This user is not found or there was a problem fetching keys"
-        );
+        throw new Error("User not found or problem fetching keys");
       }
 
       const { ik_public, spk_public, opks_public, signedPrekeySignature } =
         data;
 
+      let selectedOpk = null;
+
+      if (opks_public) {
+        // ✅ Safely parse JSON string into array
+        let opkArray;
+        try {
+          opkArray = JSON.parse(opks_public);
+        } catch (e) {
+          throw new Error("OPKs format is invalid JSON");
+        }
+
+        // ✅ Select a random OPK
+        if (Array.isArray(opkArray) && opkArray.length > 0) {
+          const index = Math.floor(Math.random() * opkArray.length);
+          selectedOpk = opkArray[index];
+        }
+      }
+
       return {
         ik_public,
         spk_public,
-        opks_public,
         signedPrekeySignature,
+        opk: selectedOpk, // ✅ only this single key will be sent
       };
     } catch (error) {
       throw new Error("Fetching User Public keys failed: " + error.message);

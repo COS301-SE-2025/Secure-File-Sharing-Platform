@@ -79,18 +79,17 @@ export default function MyFiles() {
       });
       const data = await res.json();
       console.log("Fetched files from API:", data);
-
       const formatted = data.map((f) => ({
-        id: (f.FileName || "") + Math.random(),
-        name: f.FileName || "Unnamed file",
-        size: formatFileSize(f.FileSize || 0),
-        type: getFileType(f.FileType || ""),
-        modified: f.UploadTimestamp
-          ? new Date(f.UploadTimestamp).toLocaleDateString()
+        id: (f.fileId || ""),
+        name: f.fileName || "Unnamed file",
+        size: formatFileSize(f.fileSize || 0),
+        type: getFileType(f.fileType || ""),
+        modified: f.createdAt
+          ? new Date(f.createdAt).toLocaleDateString()
           : "",
         shared: false,
         starred: false,
-        path: f.Path || "",
+        //path: f.Path || "",
       }));
 
       setFiles(formatted);
@@ -110,6 +109,7 @@ export default function MyFiles() {
       alert("Missing encryption key");
       return;
     }
+    
 
     const sodium = await getSodium();
     const userId = useEncryptionStore.getState().userId;
@@ -128,11 +128,14 @@ export default function MyFiles() {
 
       const { fileName, fileContent, nonce } = await res.json();
 
+      console.log("Encrypted key is: ", encryptionKey);
       const decrypted = sodium.crypto_secretbox_open_easy(
-        sodium.from_base64(fileContent),
-        sodium.from_base64(nonce),
+        sodium.from_base64(fileContent, sodium.base64_variants.ORIGINAL),
+        sodium.from_base64(nonce, sodium.base64_variants.ORIGINAL),
         encryptionKey
       );
+
+      console.log("Decrypted is: ", decrypted);
 
       const blob = new Blob([decrypted]);
       const url = window.URL.createObjectURL(blob);

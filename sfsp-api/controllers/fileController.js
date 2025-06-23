@@ -122,7 +122,9 @@ exports.getNumberOfFiles = async (req, res) => {
 
   try {
     const response = await axios.post(
-      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/getNumberOfFiles`,
+      `${
+        process.env.FILE_SERVICE_URL || "http://localhost:8081"
+      }/getNumberOfFiles`,
       { userId },
       { headers: { "Content-Type": "application/json" } }
     );
@@ -169,22 +171,31 @@ exports.sendFile = async (req, res) => {
     userId,
     recipientUserId,
     encryptedFile,
-    fileNonce,
-    keyNonce,
     encryptedAesKey,
-    ikPublicKey,
     ekPublicKey,
-    opk_id,
+    metadata,
   } = req.body;
 
-  if (!fileid) return res.status(400).send("File id is missing");
-  if (!userId || !recipientUserId) return res.status(400).send("User id is missing or recipientUser Id is missing");
+  // Basic validation
+  if (!fileid) return res.status(400).send("File ID is missing");
+  if (!userId || !recipientUserId)
+    return res.status(400).send("User ID or Recipient User ID is missing");
   if (!encryptedFile || !encryptedAesKey)
     return res.status(400).send("Encrypted file or AES key is missing");
-  if (!fileNonce || !keyNonce)
-    return res.status(400).send("File nonce or key nonce is missing");
-  if (!ikPublicKey || !ekPublicKey || !opk_id)
-    return res.status(400).send("IK, EK, or OPK ID is missing");
+
+  // Validate metadata fields
+  if (
+    !metadata ||
+    !metadata.fileNonce ||
+    !metadata.keyNonce ||
+    !metadata.ikPublicKey ||
+    !metadata.ekPublicKey ||
+    !metadata.opk_id
+  ) {
+    return res
+      .status(400)
+      .send("Metadata is incomplete or missing required keys");
+  }
 
   try {
     const response = await axios.post(
@@ -194,12 +205,9 @@ exports.sendFile = async (req, res) => {
         userId,
         recipientUserId,
         encryptedFile,
-        fileNonce,
-        keyNonce,
         encryptedAesKey,
-        ikPublicKey,
         ekPublicKey,
-        opk_id,
+        metadata, // send entire metadata map to Go
       },
       { headers: { "Content-Type": "application/json" } }
     );
@@ -207,17 +215,20 @@ exports.sendFile = async (req, res) => {
     if (response.status !== 200) {
       return res.status(response.status).send("Error sending file");
     }
+
     return res.status(200).json({ message: "File sent successfully" });
   } catch (err) {
     console.error("Error sending file:", err.message);
-    res.status(500).send("Failed to send file");
+    return res.status(500).send("Failed to send file");
   }
 };
 
 exports.addAccesslog = async (req, res) => {
   const { file_id, user_id, action } = req.body;
   if (!file_id || !user_id || !action) {
-    return res.status(400).send("Missing required fields: file_id, user_id, or action");
+    return res
+      .status(400)
+      .send("Missing required fields: file_id, user_id, or action");
   }
   try {
     const response = await axios.post(
@@ -239,7 +250,9 @@ exports.removeAccesslog = async (req, res) => {
   }
   try {
     const response = await axios.delete(
-      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/removeAccesslog`,
+      `${
+        process.env.FILE_SERVICE_URL || "http://localhost:8081"
+      }/removeAccesslog`,
       { params: { id } }
     );
     res.status(response.status).send(response.data);

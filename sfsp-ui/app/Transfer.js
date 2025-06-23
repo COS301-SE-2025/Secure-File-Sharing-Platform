@@ -5,100 +5,146 @@ import { getSodium } from "@/app/lib/sodium";
 //The is where we will be creting the shared key encrypting the file and encrypting the AES key
 import { useEncryptionStore, getUserKeysSecurely } from "./SecureKeyStorage";
 
-export async function SendFile(file, recipientUserId, filePath, fileid) {
-  //get the user ID and encryption key from the Zustand store
+function concatUint8Arrays(arrays) {
+  const totalLength = arrays.reduce((sum, arr) => sum + arr.length, 0);
+  const result = new Uint8Array(totalLength);
+  let offset = 0;
+
+  for (const arr of arrays) {
+    result.set(arr, offset);
+    offset += arr.length;
+  }
+
+  return result;
+}
+
+function normalizeUserKeys(userKeys) {
+  return {
+    ...userKeys,
+    identity_private_key: new Uint8Array(
+      Object.values(userKeys.identity_private_key)
+    ),
+    signedpk_private_key: new Uint8Array(
+      Object.values(userKeys.signedpk_private_key)
+    ),
+    identity_public_key: new Uint8Array(
+      Object.values(userKeys.identity_public_key)
+    ),
+    signedpk_public_key: new Uint8Array(
+      Object.values(userKeys.signedpk_public_key)
+    ),
+    oneTimepks_private: userKeys.oneTimepks_private.map((opk) => ({
+      opk_id: opk.opk_id,
+      private_key: new Uint8Array(Object.values(opk.private_key)),
+    })),
+    oneTimepks_public: userKeys.oneTimepks_public.map((opk) => ({
+      opk_id: opk.opk_id,
+      publicKey: new Uint8Array(Object.values(opk.publicKey)),
+    })),
+  };
+}
+
+export async function SendFile(fileMetadata, recipientUserId, fileid) {
   const sodium = await getSodium();
   const { userId, encryptionKey } = useEncryptionStore.getState();
 
-  //derive a shared key using the user's public keys
-  //we will first get the user's public keys from the Zustand store
-  const userKeys = await getUserKeysSecurely(encryptionKey);
+  // 1️⃣ Get user keys securely
+  const userKeysRaw = await getUserKeysSecurely(encryptionKey);
+  const userKeys = normalizeUserKeys(userKeysRaw);
 
-  //now we need the recipient's public keys, which we will get from the recipients userID
-  const recipientKeys = await fetch(
-    `http://localhost:5000/api/users/${recipientUserId}/public-keys`
-  );
+  // 2️⃣ Download encrypted file
+  const response = await fetch("http://localhost:5000/api/files/download", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      userId,
+      filename: fileMetadata.name,
+    }),
+  });
 
-  //now we need to check if the recipient's keys are valid
-  if (!recipientKeys.ok) {
-    throw new Error("Recipient keys not found or invalid");
-  }
+  if (!response.ok) throw new Error("Failed to retrieve file content");
+  const fileBuffer = new Uint8Array(await response.arrayBuffer());
 
-  //we need to check if the IK for the recipient is valid
-  const valid = sodium.crypto_sign_verify_detached(
-    sodium.from_base64(recipientKeys.signedPreKeySignature),
-    sodium.from_base64(recipientKeys.spk_public_key),
-    sodium.from_base64(recipientKeys.ik_public_key)
-  );
-  if (!valid) throw new Error("Invalid SPK signature");
+  // 3️⃣ Get recipient's public keys
+  const bundleRes = await fetch(`http://localhost:5000/api/users/public-keys/${recipientUserId}`);
+  if (!bundleRes.ok) throw new Error("Recipient key bundle not found");
 
-  //now we can create the EK for the user
-  const EK = sodium.crypto_sign_keypair();
+  const { data: recipientKeys } = await bundleRes.json();
 
-  //now we can create the shared key using the user's IK and the recipient's IK
+  // 4️⃣ Validate SPK signature
+  // const isValid = sodium.crypto_sign_verify_detached(
+  //   sodium.from_base64(recipientKeys.signedPrekeySignature),
+  //   sodium.from_base64(recipientKeys.spk_public),
+  //   sodium.from_base64(recipientKeys.ed_signing_public)
+  // );
+  // if (!isValid) throw new Error("Recipient SPK signature invalid");
+
+  // 5️⃣ Convert sender's IK to Curve25519
+  const ikPrivKey = sodium.from_base64(userKeysRaw.identity_private_key);
+
+  // 6️⃣ Generate ephemeral key
+  const EK = sodium.crypto_box_keypair();
+
+  // 7️⃣ Derive 4 DH values
   const DH1 = sodium.crypto_scalarmult(
-    sodium.from_base64(userKeys.ik_private_key),
-    sodium.from_base64(recipientKeys.spk_public_key)
+    ikPrivKey,
+    sodium.from_base64(recipientKeys.spk_public)
   );
   const DH2 = sodium.crypto_scalarmult(
     EK.privateKey,
-    sodium.from_base64(recipientKeys.ik_public_key)
+    sodium.from_base64(recipientKeys.ik_public)
   );
   const DH3 = sodium.crypto_scalarmult(
     EK.privateKey,
-    sodium.from_base64(recipientKeys.spk_public_key)
+    sodium.from_base64(recipientKeys.spk_public)
   );
   const DH4 = sodium.crypto_scalarmult(
     EK.privateKey,
-    sodium.from_base64(recipientKeys.opk_public_key)
+    sodium.from_base64(recipientKeys.opk.publicKey)
   );
 
-  const dhConcat = sodium.concat([DH1, DH2, DH3, DH4]);
-  const sharedKey = sodium.crypto_generichash(32, dhConcat);
+  const combinedDH = new Uint8Array(DH1.length + DH2.length + DH3.length + DH4.length);
+  combinedDH.set(DH1, 0);
+  combinedDH.set(DH2, DH1.length);
+  combinedDH.set(DH3, DH1.length + DH2.length);
+  combinedDH.set(DH4, DH1.length + DH2.length + DH3.length);
 
-  //Generate the AES key from the shared key
-  const aesKey = sodium.crypto_aead_xchacha20poly1305_ietf_keygen();
+  const sharedKey = sodium.crypto_generichash(32, combinedDH);
 
-  //Encrypt the file using the AES key
-  const fileBuffer = new Uint8Array(await file.arrayBuffer());
+  // 8️⃣ Encrypt file with AES-like key
+  const aesKey = sodium.crypto_secretbox_keygen();
   const fileNonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
+  const encryptedFile = sodium.crypto_secretbox_easy(fileBuffer, fileNonce, aesKey);
+
+  // 9️⃣ Encrypt AES key with shared key
   const keyNonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
-  const encryptedFile = sodium.crypto_secretbox_easy(
-    fileBuffer,
-    fileNonce,
-    aesKey
-  );
+  const encryptedAesKey = sodium.crypto_secretbox_easy(aesKey, keyNonce, sharedKey);
 
-  //encrypt the AES key using the shared key
-  const encryptedAesKey = sodium.crypto_secretbox_easy(
-    aesKey,
-    keyNonce,
-    sharedKey
-  );
+  // 🔟 Prepare metadata
+  const metadata = {
+    fileNonce: sodium.to_base64(fileNonce),
+    keyNonce: sodium.to_base64(keyNonce),
+    ikPublicKey: sodium.to_base64(userKeys.identity_public_key),
+    ekPublicKey: sodium.to_base64(EK.publicKey),
+    opk_id: recipientKeys.opk.opk_id,
+  };
 
-  //now we send the encrypted file, the nonce, the encrypted AES key, the IK public, the EK public, and the user ID to the server
-  const response = await fetch("http://localhost:5000/api/files/send", {
+  // 🔁 Send all to backend
+  const res = await fetch("http://localhost:5000/api/files/send", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      fileid: fileid,
-      filePath: filePath, //the path where the file will be stored, this should be modified to be in the sending folder in the api
-      userId, //the id is sent so that we can download and fetch the file later from the the users files
+      fileid,
+      userId,
       recipientUserId,
-      encryptedFile: sodium.to_base64(encryptedFile), // this will be sent to the users server sending folder
-      fileNonce: sodium.to_base64(fileNonce),
-      keyNonce: sodium.to_base64(keyNonce),
-      encryptedAesKey: sodium.to_base64(encryptedAesKey),
-      ikPublicKey: sodium.to_base64(userKeys.ik_public_key), //for decrypting the file later
-      ekPublicKey: sodium.to_base64(EK.publicKey), //for decrypting the file later
-      opk_id: recipientKeys.opk_id, //the OPK ID of the recipient
+      encryptedFile: sodium.to_base64(encryptedFile, sodium.base64_variants.ORIGINAL),
+      encryptedAesKey: sodium.to_base64(encryptedAesKey, sodium.base64_variants.ORIGINAL),
+      ekPublicKey: sodium.to_base64(EK.publicKey, sodium.base64_variants.ORIGINAL),
+      metadata,
     }),
   });
-  if (!response.ok) {
-    throw new Error("Failed to send file");
-  }
+
+  if (!res.ok) throw new Error("Failed to send file");
 }
 
 export async function GetFilesRecievedFromOtherUsers() {
@@ -134,12 +180,11 @@ export async function ReceiveFile(files) {
   const sodium = await getSodium();
 
   const response = await fetch("http://localhost:5000/api/files/download", {
-    //reuse the download endpoint to get the encrypted file
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      path: files.filePath, //the path where the file is stored
-      filename: files.fileName, //the name of the file to download
+      path: files.filePath,
+      filename: files.fileName,
     }),
   });
 
@@ -156,40 +201,60 @@ export async function ReceiveFile(files) {
   const fileNonce = files.fileNonce;
   const keyNonce = files.keyNonce;
 
-  // Recompute shared key
+  // ✅ Convert Ed25519 private key to Curve25519 for IK
+  const ikPrivKey = sodium.crypto_sign_ed25519_sk_to_curve25519(
+    sodium.from_base64(userKeys.identity_private_key)
+  );
+
+  // ✅ Find the correct OPK private key
+  const opkMatch = userKeys.oneTimepks_private.find(
+    (opk) => opk.opk_id === files.opk_id
+  );
+
+  if (!opkMatch) throw new Error("Matching OPK not found");
+
+  const opkPrivKey = opkMatch.private_key;
+
+  // ✅ Derive shared secret using DH1–DH4
   const DH1 = sodium.crypto_scalarmult(
-    sodium.from_base64(userKeys.spk_private_key),
+    sodium.from_base64(userKeys.signedpk_private_key),
     sodium.from_base64(ikPublicKey)
   );
   const DH2 = sodium.crypto_scalarmult(
-    sodium.from_base64(userKeys.ik_private_key),
+    ikPrivKey,
     sodium.from_base64(ekPublicKey)
   );
   const DH3 = sodium.crypto_scalarmult(
-    sodium.from_base64(userKeys.spk_private_key),
+    sodium.from_base64(userKeys.signedpk_private_key),
     sodium.from_base64(ekPublicKey)
   );
   const DH4 = sodium.crypto_scalarmult(
-    sodium.from_base64(userKeys.oneTimepks_private), // ensure it's the correct OPK
+    opkPrivKey,
     sodium.from_base64(ekPublicKey)
   );
 
   const sharedKey = sodium.crypto_generichash(
     32,
-    sodium.concat([DH1, DH2, DH3, DH4])
+    sodium.crypto_generichash(32, concatUint8Arrays([DH1, DH2, DH3, DH4]))
   );
 
+  // ✅ Decrypt AES key
   const aesKey = sodium.crypto_secretbox_open_easy(
     sodium.from_base64(encryptedAesKey),
     sodium.from_base64(keyNonce),
     sharedKey
   );
 
+  if (!aesKey) throw new Error("Failed to decrypt AES key");
+
+  // ✅ Decrypt the file
   const decryptedFile = sodium.crypto_secretbox_open_easy(
-    sodium.from_base64(encryptedFile),
+    encryptedFile,
     sodium.from_base64(fileNonce),
     aesKey
   );
+
+  if (!decryptedFile) throw new Error("Failed to decrypt file");
 
   return new Blob([decryptedFile]);
 }
