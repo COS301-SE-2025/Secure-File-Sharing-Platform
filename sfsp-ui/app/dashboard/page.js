@@ -7,7 +7,7 @@ import {
   useEncryptionStore,
   getUserId,
 } from "@/app/SecureKeyStorage";
-import { getSodium } from "@/app/lib/sodium";
+//import { getSodium } from "@/app/lib/sodium";
 
 export default function DashboardHomePage() {
   const [fileCount, setFileCount] = useState(0);
