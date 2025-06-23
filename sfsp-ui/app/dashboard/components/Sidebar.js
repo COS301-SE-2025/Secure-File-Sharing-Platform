@@ -109,7 +109,7 @@ export default function Sidebar() {
           <Grid3X3 size={20} />
           <span>Dashboard</span>
         </a>
-        <a href="/dashboard/myFiles" className={linkClasses('/dashboard/myFiles')}>
+        <a href="/dashboard/myFilesV2" className={linkClasses('/dashboard/myFilesV2')}>
           <FileText size={20} />
           <span>My Files</span>
         </a>

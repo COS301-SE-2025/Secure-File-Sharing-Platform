@@ -16,7 +16,7 @@ import {
   useEncryptionStore,
   getUserId,
 } from "@/app/SecureKeyStorage";
-import sodium from "libsodium-wrappers";
+import { getSodium } from "@/app/lib/sodium";
 
 export function getFileType(mimeType) {
   if (!mimeType) return "unknown";
@@ -99,7 +99,7 @@ export default function MyFilesPage() {
       return;
     }
 
-    await sodium.ready;
+    const sodium = await getSodium();
 
     const fileBuffer = new Uint8Array(await file.arrayBuffer());
     const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
@@ -142,7 +142,7 @@ export default function MyFilesPage() {
       return;
     }
 
-    await sodium.ready;
+    const sodium = await getSodium();
 
     try {
       const res = await fetch("http://localhost:5000/api/files/download", {

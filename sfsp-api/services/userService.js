@@ -1,323 +1,386 @@
 /* global process */
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
-const { supabase } = require('../config/database');
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+const nodemailer = require("nodemailer");
+const { supabase } = require("../config/database");
 
 class UserService {
-    async register(userData) {
-        const { username, email, password, ik_public, spk_public, opks_public, nonce, signedPrekeySignature, salt } = userData;
+  async register(userData) {
+    const {
+      username,
+      email,
+      password,
+      ik_public,
+      spk_public,
+      opks_public,
+      nonce,
+      signedPrekeySignature,
+      salt,
+    } = userData;
 
-        try {
-            const { data: existinguser } = await supabase
-                .from('users')
-                .select('*')
-                .eq('email', email)
-                .single();
+    try {
+      const { data: existinguser } = await supabase
+        .from("users")
+        .select("*")
+        .eq("email", email)
+        .single();
 
-            if (existinguser) {
-                throw new Error('User already exists with this email.');
-            }
+      if (existinguser) {
+        throw new Error("User already exists with this email.");
+      }
 
-            const newsalt = await bcrypt.genSalt(10);
-            const hashedPassword = await bcrypt.hash(password, newsalt);
-            const resetPasswordPIN = this.generatePIN();
+      const newsalt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(password, newsalt);
+      const resetPasswordPIN = this.generatePIN();
 
-            const { data: newUser, error } = await supabase
-                .from('users')
-                .insert([{
-                    username,
-                    email,
-                    password: hashedPassword,
-                    resetPasswordPIN,
-                    ik_public,
-                    spk_public,
-                    opks_public,
-                    nonce,
-                    signedPrekeySignature,
-                    salt
-                }])
-                .select('*')
-                .single();
+      const { data: newUser, error } = await supabase
+        .from("users")
+        .insert([
+          {
+            username,
+            email,
+            password: hashedPassword,
+            resetPasswordPIN,
+            ik_public,
+            spk_public,
+            opks_public,
+            nonce,
+            signedPrekeySignature,
+            salt,
+          },
+        ])
+        .select("*")
+        .single();
 
-            if (error) {
-                throw new Error('Failed to create user: ' + error.message);
-            }
-            const token = this.generateToken(newUser.id);
+      if (error) {
+        throw new Error("Failed to create user: " + error.message);
+      }
+      const token = this.generateToken(newUser.id);
 
-            return {
-                user: {
-                    id: newUser.id,
-                    username: newUser.username,
-                    email: newUser.email
-                },
-                token
-            };
-        } catch (error) {
-            throw new Error('Registration failed: ' + error.message);
-        }
+      return {
+        user: {
+          id: newUser.id,
+          username: newUser.username,
+          email: newUser.email,
+        },
+        token,
+      };
+    } catch (error) {
+      throw new Error("Registration failed: " + error.message);
+    }
+  }
 
+  async getUserIdFromEmail(email){
+    try {
+      const { data, error } = await supabase
+        .from("users")
+        .select("id")
+        .eq(email)
+        .single();
+
+      if (error || !data) {
+        throw new Error(
+          "This user ID was not found "
+        );
+      }
+
+      const {id} = data;
+
+      return {
+        id
+      };
+    } catch (error) {
+      throw new Error("Fetching User ID failed: " + error.message);
+    }
+  }
+
+  async getPublicKeys(userId) {
+    try {
+      const { data, error } = await supabase
+        .from("users")
+        .select("ik_public, spk_public, opks_public, signedPrekeySignature")
+        .eq("id", userId)
+        .single();
+
+      if (error || !data) {
+        throw new Error(
+          "This user is not found or there was a problem fetching keys"
+        );
+      }
+
+      const { ik_public, spk_public, opks_public, signedPrekeySignature } =
+        data;
+
+      return {
+        ik_public,
+        spk_public,
+        opks_public,
+        signedPrekeySignature,
+      };
+    } catch (error) {
+      throw new Error("Fetching User Public keys failed: " + error.message);
+    }
+  }
+
+  async login(userData) {
+    const { email, password } = userData;
+    try {
+      const { data: user, error } = await supabase
+        .from("users")
+        .select("*")
+        .eq("email", email)
+        .single();
+
+      if (error || !user) {
+        throw new Error("User not found with this email.");
+      }
+
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      if (!isPasswordValid) {
+        throw new Error("Invalid password.");
+      }
+
+      const token = this.generateToken(user.id);
+      return {
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          ik_public: user.ik_public,
+          spk_public: user.spk_public,
+          opks_public: user.opks_public,
+          nonce: user.nonce,
+          signedPrekeySignature: user.signedPrekeySignature,
+          salt: user.salt,
+        },
+        token,
+      };
+    } catch (error) {
+      throw new Error("Login failed: " + error.message);
+    }
+  }
+
+  async getProfile(userId) {
+    try {
+      const { data: user, error } = await supabase
+        .from("users")
+        .select("*")
+        .eq("id", userId)
+        .single();
+
+      if (error || !user) {
+        throw new Error("User profile not found.");
+      }
+
+      return {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+      };
+    } catch (error) {
+      throw new Error("Failed to fetch user profile: " + error.message);
+    }
+  }
+
+  async refreshToken(userId) {
+    try {
+      const { data: user, error } = await supabase
+        .from("users")
+        .select("*")
+        .eq("id", userId)
+        .single();
+
+      if (error || !user) {
+        throw new Error("User not found.");
+      }
+
+      const token = this.generateToken(user.id);
+      return token;
+    } catch (error) {
+      throw new Error("Failed to refresh token: " + error.message);
+    }
+  }
+
+  async deleteProfile(email) {
+    try {
+      const { data: user, error } = await supabase
+        .from("users")
+        .select("*")
+        .eq("email", email)
+        .single();
+
+      if (error || !user) {
+        throw new Error("User profile not found.");
+      }
+
+      const { error: deleteError } = await supabase
+        .from("users")
+        .delete()
+        .eq("email", email);
+
+      if (deleteError) {
+        throw new Error("Failed to delete profile: " + deleteError.message);
+      }
+
+      return { message: "Profile deleted successfully." };
+    } catch (error) {
+      throw new Error("Profile deletion failed: " + error.message);
+    }
+  }
+
+  async updateProfile(userId, updates) {
+    const { username } = updates;
+    console.log("Attempting to update user with ID:", userId);
+
+    const { data, error } = await supabase
+      .from("users")
+      .update({ username })
+      .eq("id", userId)
+      .select("*")
+      .single();
+
+    if (error || !data) {
+      console.error("Supabase update error:", error);
+      throw new Error("Error updating user profile.");
     }
 
-    async login(userData) {
-        const { email, password } = userData;
-        try {
-            const { data: user, error } = await supabase
-                .from('users')
-                .select('*')
-                .eq('email', email)
-                .single();
+    return {
+      id: data.id,
+      username: data.username,
+      email: data.email,
+    };
+  }
 
-            if (error || !user) {
-                throw new Error('User not found with this email.');
-            }
-
-            const isPasswordValid = await bcrypt.compare(password, user.password);
-            if (!isPasswordValid) {
-                throw new Error('Invalid password.');
-            }
-
-            const token = this.generateToken(user.id);
-            return {
-                user: {
-                    id: user.id,
-                    username: user.username,
-                    email: user.email,
-                    ik_public: user.ik_public,
-                    spk_public: user.spk_public,
-                    opks_public: user.opks_public,
-                    nonce: user.nonce,
-                    signedPrekeySignature: user.signedPrekeySignature,
-                    salt: user.salt
-                },
-                token
-            };
-        } catch (error) {
-            throw new Error('Login failed: ' + error.message);
-        }
+  generatePIN() {
+    const characters =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()";
+    let resetPIN = "";
+    for (let i = 0; i < 5; i++) {
+      resetPIN += characters.charAt(
+        Math.floor(Math.random() * characters.length)
+      );
     }
+    return resetPIN;
+  }
 
-    async getProfile(userId) {
-        try {
+  generateToken(userId) {
+    return jwt.sign({ userId }, process.env.JWT_SECRET, {
+      expiresIn: "1h",
+    });
+  }
 
-            const { data: user, error } = await supabase
-                .from('users')
-                .select('*')
-                .eq('id', userId)
-                .single();
-
-            if (error || !user) {
-                throw new Error('User profile not found.');
-            }
-
-            return {
-                id: user.id,
-                username: user.username,
-                email: user.email
-            };
-        } catch (error) {
-            throw new Error('Failed to fetch user profile: ' + error.message);
-        }
+  verifyToken(token) {
+    try {
+      return jwt.verify(token, process.env.JWT_SECRET);
+    } catch (error) {
+      throw new Error("Invalid token", error.message);
     }
+  }
 
-    async refreshToken(userId) {
-        try {
-            const { data: user, error } = await supabase
-                .from('users')
-                .select('*')
-                .eq('id', userId)
-                .single();
+  async sendPasswordResetPIN(userId) {
+    try {
+      const resetPIN = this.generatePIN();
 
-            if (error || !user) {
-                throw new Error('User not found.');
-            }
+      const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
 
-            const token = this.generateToken(user.id);
-            return token;
-        } catch (error) {
-            throw new Error('Failed to refresh token: ' + error.message);
-        }
+      const { error: updateError } = await supabase
+        .from("users")
+        .update({
+          resetPasswordPIN: resetPIN,
+          resetPINExpiry: expiresAt,
+        })
+        .eq("id", userId);
+
+      if (updateError) {
+        throw new Error("Failed to generate reset PIN");
+      }
+
+      const { data: user, error: fetchError } = await supabase
+        .from("users")
+        .select("email, username")
+        .eq("id", userId)
+        .single();
+
+      if (fetchError || !user) {
+        throw new Error("User not found");
+      }
+
+      await this.sendResetPINEmail(user.email, user.username, resetPIN);
+
+      return { success: true, message: "Reset PIN sent to your email" };
+    } catch (error) {
+      throw new Error("Failed to send reset PIN: " + error.message);
     }
+  }
 
-    async deleteProfile(email) {
-        try {
-            const { data: user, error } = await supabase
-                .from('users')
-                .select('*')
-                .eq('email', email)
-                .single();
+  async verifyPINAndChangePassword(userId, pin, newPassword) {
+    try {
+      const { data: user, error: fetchError } = await supabase
+        .from("users")
+        .select("resetPasswordPIN, resetPINExpiry")
+        .eq("id", userId)
+        .single();
 
-            if (error || !user) {
-                throw new Error('User profile not found.');
-            }
+      if (fetchError || !user) {
+        throw new Error("User not found");
+      }
 
-            const { error: deleteError } = await supabase
-                .from('users')
-                .delete()
-                .eq('email', email);
+      if (!user.resetPasswordPIN) {
+        throw new Error("No reset PIN found. Please request a new one.");
+      }
 
-            if (deleteError) {
-                throw new Error('Failed to delete profile: ' + deleteError.message);
-            }
+      const now = new Date();
+      const expiryTime = new Date(user.resetPINExpiry);
 
-            return { message: 'Profile deleted successfully.' };
-        } catch (error) {
-            throw new Error('Profile deletion failed: ' + error.message);
-        }
+      if (now > expiryTime) {
+        await supabase
+          .from("users")
+          .update({
+            resetPasswordPIN: null,
+            resetPINExpiry: null,
+          })
+          .eq("id", userId);
+
+        throw new Error("Reset PIN has expired. Please request a new one.");
+      }
+
+      if (String(user.resetPasswordPIN) !== String(pin)) {
+        throw new Error("Invalid PIN. Please check your email and try again.");
+      }
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      const { error: updateError } = await supabase
+        .from("users")
+        .update({
+          password: hashedPassword,
+          resetPasswordPIN: null,
+          resetPINExpiry: null,
+        })
+        .eq("id", userId);
+
+      if (updateError) {
+        throw new Error("Failed to update password");
+      }
+
+      return { success: true, message: "Password updated successfully" };
+    } catch (error) {
+      throw new Error("Failed to change password: " + error.message);
     }
+  }
 
-    async updateProfile(userId, updates) {
-        const { username } = updates;
-        console.log('Attempting to update user with ID:', userId);
+  async sendResetPINEmail(email, username, pin) {
+    try {
+      const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: process.env.SMTP_PORT || 587,
+        secure: false,
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+      });
 
-        const { data, error } = await supabase
-            .from('users')
-            .update({ username })
-            .eq('id', userId)
-            .select('*')
-            .single();
-
-        if (error || !data) {
-            console.error('Supabase update error:', error);
-            throw new Error('Error updating user profile.');
-        }
-
-        return {
-            id: data.id,
-            username: data.username,
-            email: data.email
-        };
-    }
-
-    generatePIN() {
-        const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()";
-        let resetPIN = "";
-        for (let i = 0; i < 5; i++) {
-            resetPIN += characters.charAt(Math.floor(Math.random() * characters.length));
-        }
-        return resetPIN;
-    }
-
-    generateToken(userId) {
-        return jwt.sign({ userId }, process.env.JWT_SECRET, {
-            expiresIn: '1h'
-        });
-    }
-
-    verifyToken(token) {
-        try {
-            return jwt.verify(token, process.env.JWT_SECRET);
-        } catch (error) {
-            throw new Error('Invalid token', error.message);
-        }
-    }
-
-    async sendPasswordResetPIN(userId) {
-        try {
-            const resetPIN = this.generatePIN();
-
-            const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-
-            const { error: updateError } = await supabase
-                .from('users')
-                .update({
-                    resetPasswordPIN: resetPIN,
-                    resetPINExpiry: expiresAt
-                })
-                .eq('id', userId);
-
-            if (updateError) {
-                throw new Error('Failed to generate reset PIN');
-            }
-
-            const { data: user, error: fetchError } = await supabase
-                .from('users')
-                .select('email, username')
-                .eq('id', userId)
-                .single();
-
-            if (fetchError || !user) {
-                throw new Error('User not found');
-            }
-
-            await this.sendResetPINEmail(user.email, user.username, resetPIN);
-
-            return { success: true, message: 'Reset PIN sent to your email' };
-
-        } catch (error) {
-            throw new Error('Failed to send reset PIN: ' + error.message);
-        }
-    }
-
-    async verifyPINAndChangePassword(userId, pin, newPassword) {
-        try {
-            const { data: user, error: fetchError } = await supabase
-                .from('users')
-                .select('resetPasswordPIN, resetPINExpiry')
-                .eq('id', userId)
-                .single();
-
-            if (fetchError || !user) {
-                throw new Error('User not found');
-            }
-
-            if (!user.resetPasswordPIN) {
-                throw new Error('No reset PIN found. Please request a new one.');
-            }
-
-            const now = new Date();
-            const expiryTime = new Date(user.resetPINExpiry);
-
-            if (now > expiryTime) {
-                await supabase
-                    .from('users')
-                    .update({
-                        resetPasswordPIN: null,
-                        resetPINExpiry: null
-                    })
-                    .eq('id', userId);
-
-                throw new Error('Reset PIN has expired. Please request a new one.');
-            }
-
-            if (String(user.resetPasswordPIN) !== String(pin)) {
-                throw new Error('Invalid PIN. Please check your email and try again.');
-            }
-            const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-            const { error: updateError } = await supabase
-                .from('users')
-                .update({
-                    password: hashedPassword,
-                    resetPasswordPIN: null,
-                    resetPINExpiry: null
-                })
-                .eq('id', userId);
-
-            if (updateError) {
-                throw new Error('Failed to update password');
-            }
-
-            return { success: true, message: 'Password updated successfully' };
-
-        } catch (error) {
-            throw new Error('Failed to change password: ' + error.message);
-        }
-    }
-
-    async sendResetPINEmail(email, username, pin) {
-        try {
-            const transporter = nodemailer.createTransport({
-                host: process.env.SMTP_HOST,
-                port: process.env.SMTP_PORT || 587,
-                secure: false,
-                auth: {
-                    user: process.env.SMTP_USER,
-                    pass: process.env.SMTP_PASS
-                }
-            });
-
-            const htmlContent = `
+      const htmlContent = `
             <!DOCTYPE html>
             <html>
             <head>
@@ -357,7 +420,7 @@ class UserService {
             </body>
             </html>
             `;
-            const textContent = `
+      const textContent = `
             Hi ${username},
 
             You requested to change your password. Use this PIN to verify your identity:
@@ -372,30 +435,26 @@ class UserService {
             This is an automated message, please do not reply to this email.
                     `;
 
-            const mailOptions = {
-                from: {
-                    name: process.env.FROM_NAME || 'Your App Name',
-                    address: process.env.FROM_EMAIL || process.env.SMTP_USER
-                },
-                to: email,
-                subject: 'Password Reset PIN - Action Required',
-                text: textContent,
-                html: htmlContent
-            };
+      const mailOptions = {
+        from: {
+          name: process.env.FROM_NAME || "Your App Name",
+          address: process.env.FROM_EMAIL || process.env.SMTP_USER,
+        },
+        to: email,
+        subject: "Password Reset PIN - Action Required",
+        text: textContent,
+        html: htmlContent,
+      };
 
-            const info = await transporter.sendMail(mailOptions);
+      const info = await transporter.sendMail(mailOptions);
 
-            console.log('Password reset PIN email sent:', info.messageId);
-            return { success: true, messageId: info.messageId };
-
-        } catch (error) {
-            console.error('Error sending password reset PIN email:', error);
-            throw new Error('Failed to send password reset email');
-        }
+      console.log("Password reset PIN email sent:", info.messageId);
+      return { success: true, messageId: info.messageId };
+    } catch (error) {
+      console.error("Error sending password reset PIN email:", error);
+      throw new Error("Failed to send password reset email");
     }
+  }
 }
 
 module.exports = new UserService();
-
-
-

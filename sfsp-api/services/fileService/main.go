@@ -51,7 +51,7 @@ func main() {
     // Set the PostgreSQL client in the fileHandler package
     fileHandler.SetPostgreClient(db)
     metadata.SetPostgreClient(db)
-    log.Println("✅ PostgreSQL client set in fileHandler and metadata")
+    //log.Println("✅ PostgreSQL client set in fileHandler and metadata")
 
 	//initialize ownCloud client
 	owncloud.InitOwnCloud(os.Getenv("OWNCLOUD_URL"), os.Getenv("OWNCLOUD_USERNAME"), os.Getenv("OWNCLOUD_PASSWORD"))
@@ -68,15 +68,19 @@ func main() {
     http.HandleFunc("/getNotifications", fileHandler.GetNotificationsHandler) */
     // metadata endpoints
     http.HandleFunc("/metadata", metadata.GetUserFilesHandler)
-    http.HandleFunc("/getFileMetadata", metadata.GetFileMetadataHandler)
+    http.HandleFunc("/getFileMetadata", metadata.ListFileMetadataHandler)
     http.HandleFunc("/getNumberOfFiles", metadata.GetUserFileCountHandler)
     http.HandleFunc("/addPendingFiles", metadata.AddReceivedFileHandler)
     http.HandleFunc("/getPendingFiles", metadata.GetPendingFilesHandler)
+    http.HandleFunc("/deleteFile", fileHandler.DeleteFileHandler)
+    http.HandleFunc("/sendFile", fileHandler.SendFileHandler)
 
     //test from here
     http.HandleFunc("/addSentFiles", metadata.AddSentFileHandler) //I will combine this with the addPendingFiles endpoint later
     http.HandleFunc("/AcceptReceivedFile", metadata.AcceptReceivedFileHandler)//I will make this automatically either upload the file to owncloud or download it to the user's device
     http.HandleFunc("/RejectReceivedFile", metadata.RejectReceivedFileHandler)
     http.HandleFunc("/getSentFiles", metadata.GetSentFilesHandler)
+    http.HandleFunc("/addTags", metadata.AddTagsToFileHandler)
+    http.HandleFunc("/removeTags", metadata.RemoveTagsFromFileHandler)
 	log.Fatal(http.ListenAndServe(":8081", nil))
 }

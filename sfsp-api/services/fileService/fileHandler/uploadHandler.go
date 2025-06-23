@@ -41,17 +41,20 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 	var req UploadRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+		fmt.Println("Invalid JSON payload")
 		return
 	}
 
 	if req.FileName == "" || req.FileContent == "" {
 		http.Error(w, "Missing required fields", http.StatusBadRequest)
+		fmt.Println("Missing filename or file contents")
 		return
 	}
 
 	fileBytes, err := base64.StdEncoding.DecodeString(req.FileContent)
 	if err != nil {
 		http.Error(w, "Invalid base64 file content", http.StatusBadRequest)
+		fmt.Println("Invalid base 64 file content")
 		return
 	}
 
@@ -65,8 +68,25 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println("Encryption error:", err)
 		http.Error(w, "Encryption failed", http.StatusInternalServerError)
+		fmt.Println("Encryption failed")
 		return
 	}
+
+	// Check if user exists; if not, insert
+    _, err = DB.Exec(`
+	  INSERT INTO users (id)
+	  SELECT $1
+	  WHERE NOT EXISTS (
+      SELECT 1 FROM users WHERE id = $1
+	 )
+    `, req.UserID)
+
+    if err != nil {
+	   log.Println("Failed to ensure user exists:", err)
+	   http.Error(w, "User verification failed", http.StatusInternalServerError)
+	   fmt.Println("User verification failed")
+	   return
+    }
 
 	// Step 1: Save metadata and get the generated file ID
 	var fileID string
@@ -90,6 +110,7 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println("PostgreSQL insert error:", err)
 		http.Error(w, "Metadata storage failed", http.StatusInternalServerError)
+		fmt.Println("Metadata storage failed")
 		return
 	}
 
@@ -103,6 +124,7 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println("OwnCloud upload failed:", err)
 		http.Error(w, "File upload failed", http.StatusInternalServerError)
+		fmt.Println("File upload failed")
 		return
 	}
 
