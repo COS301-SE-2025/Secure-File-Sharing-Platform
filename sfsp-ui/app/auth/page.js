@@ -79,15 +79,6 @@ export default function AuthPage() {
       const { ik_private_key, opks_private, spk_private_key } = result.data.keyBundle;
       const { token } = result.data;
 
-      console.log("Salt is: ", salt);
-      console.log("Nonce is: ", nonce);
-      console.log("ik_private is: ", ik_private_key);
-      console.log("spk_private is: ", spk_private_key);
-      console.log("ik_public is: ", ik_public);
-      console.log("spk_public is: ", spk_public);
-      console.log("signedPreKeySignature", signedPrekeySignature);
-      console.log("user", id);
-
       //we don't need to securely store the user ID but I will store it in the Zustand store for easy access
       useEncryptionStore.getState().setUserId(id);
 
@@ -112,9 +103,16 @@ export default function AuthPage() {
         throw new Error("Failed to decrypt identity key private key");
       }
 
-      //Store the decrypted private keys in localStorage or secure storage
-      //if you guys know of a better way to store these securely, please let me know or just change this portion of the code
-      console.log(opks_public)
+      let opks_public_temp;
+      if (typeof opks_public === "string") {
+        try {
+          opks_public_temp = JSON.parse(opks_public.replace(/\\+/g, ""));
+        } catch (e) {
+          opks_public_temp = opks_public.replace(/\\+/g, "").slice(1, -1).split(",");
+        }
+      } else {
+        opks_public_temp = opks_public;
+      }
       const userKeys = {
         identity_private_key: decryptedIkPrivateKey,
         signedpk_private_key: sodium.from_base64(spk_private_key),
@@ -124,7 +122,7 @@ export default function AuthPage() {
         })),
         identity_public_key: sodium.from_base64(ik_public),
         signedpk_public_key: sodium.from_base64(spk_public),
-        oneTimepks_public: opks_public.map((opk) => ({
+        oneTimepks_public: opks_public_temp.map((opk) => ({
           opk_id: opk.opk_id,
           publicKey: sodium.from_base64(opk.publicKey),
         })),
@@ -139,13 +137,13 @@ export default function AuthPage() {
 
       useEncryptionStore.setState({
         encryptionKey: derivedKey,
-        userId: user.id,
+        userId: id,
         userKeys: userKeys,
       });
 
       console.log("User keys stored successfully:", userKeys);
       // localStorage.setItem('token', result.token);
-      const bearerToken = result.data?.token;
+      const bearerToken = token;
 
       if (!bearerToken) {
         throw new Error("No token returned from server");
