@@ -58,9 +58,15 @@ func main() {
 
     http.HandleFunc("/upload", fileHandler.UploadHandler)
 	http.HandleFunc("/download", fileHandler.DownloadHandler)
+    // access log endpoints
     http.HandleFunc("/addAccesslog", fileHandler.AddAccesslogHandler)
     http.HandleFunc("/removeAccesslog", fileHandler.RemoveAccesslogHandler)
     http.HandleFunc("/getAccesslog", fileHandler.GetAccesslogHandler)
+    // notification endpoints
+    /* http.HandleFunc("/addNotification", fileHandler.AddNotificationHandler)
+    http.HandleFunc("/removeNotification", fileHandler.RemoveNotificationHandler)
+    http.HandleFunc("/getNotifications", fileHandler.GetNotificationsHandler) */
+    // metadata endpoints
     http.HandleFunc("/metadata", metadata.GetUserFilesHandler)
     http.HandleFunc("/getFileMetadata", metadata.GetFileMetadataHandler)
     http.HandleFunc("/getNumberOfFiles", metadata.GetUserFileCountHandler)
