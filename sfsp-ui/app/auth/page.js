@@ -43,19 +43,22 @@ export default function AuthPage() {
     setIsLoading(true);
     setMessage(null);
 
+    console.log(loginData.email);
+    console.log(loginData.password);
+
     try {
       const sodium = await getSodium();
       const res = await fetch("http://localhost:5000/api/users/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
+          email: loginData.email,
+          password: loginData.password,
         }),
       });
 
       const result = await res.json();
-
+      console.log(result);
       if (!res.ok || !result.success) {
         throw new Error(result.message || "Invalid login credentials");
       }
@@ -236,7 +239,7 @@ export default function AuthPage() {
       });
 
       const result = await res.json();
-
+      console.log(result);
       if (!res.ok || !result.success) {
         throw new Error(result.message || "Registration failed");
       }
