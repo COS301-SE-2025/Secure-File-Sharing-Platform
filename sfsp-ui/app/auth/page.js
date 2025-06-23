@@ -65,38 +65,36 @@ export default function AuthPage() {
 
       //New E2EE stuff
       const {
+        id,
         salt,
         nonce,
         //private keys
-        ik_private_key,
-        spk_private_key,
-        opks_private,
         //public keys
-        ik_public_key,
-        spk_public_key,
-        signedPreKeySignature,
+        ik_public,
+        spk_public,
+        signedPrekeySignature,
         opks_public,
+      } = result.data.user;
 
-        token,
-        user,
-      } = result.data;
+      const { ik_private_key, opks_private, spk_private_key } = result.data.keyBundle;
+      const { token } = result.data;
 
       console.log("Salt is: ", salt);
       console.log("Nonce is: ", nonce);
       console.log("ik_private is: ", ik_private_key);
       console.log("spk_private is: ", spk_private_key);
-      console.log("ik_public is: ", ik_public_key);
+      console.log("ik_public is: ", ik_public);
       console.log("spk_public is: ", spk_public);
-      console.log("signedPreKeySignature", signedPreKeySignature);
-      console.log("user", user.id);
+      console.log("signedPreKeySignature", signedPrekeySignature);
+      console.log("user", id);
 
       //we don't need to securely store the user ID but I will store it in the Zustand store for easy access
-      useEncryptionStore.getState().setUserId(user.id);
+      useEncryptionStore.getState().setUserId(id);
 
       //derived key from password and salt
       const derivedKey = sodium.crypto_pwhash(
         32, // key length
-        formData.password,
+        loginData.password,
         sodium.from_base64(salt),
         sodium.crypto_pwhash_OPSLIMIT_MODERATE,
         sodium.crypto_pwhash_MEMLIMIT_MODERATE,
@@ -116,6 +114,7 @@ export default function AuthPage() {
 
       //Store the decrypted private keys in localStorage or secure storage
       //if you guys know of a better way to store these securely, please let me know or just change this portion of the code
+      console.log(opks_public)
       const userKeys = {
         identity_private_key: decryptedIkPrivateKey,
         signedpk_private_key: sodium.from_base64(spk_private_key),
@@ -123,13 +122,13 @@ export default function AuthPage() {
           opk_id: opk.opk_id,
           private_key: sodium.from_base64(opk.private_key),
         })),
-        identity_public_key: sodium.from_base64(ik_public_key),
-        signedpk_public_key: sodium.from_base64(spk_public_key),
+        identity_public_key: sodium.from_base64(ik_public),
+        signedpk_public_key: sodium.from_base64(spk_public),
         oneTimepks_public: opks_public.map((opk) => ({
           opk_id: opk.opk_id,
           publicKey: sodium.from_base64(opk.publicKey),
         })),
-        signedPreKeySignature: sodium.from_base64(signedPreKeySignature),
+        signedPrekeySignature: sodium.from_base64(signedPrekeySignature),
         salt: sodium.from_base64(salt),
         nonce: sodium.from_base64(nonce),
       };
@@ -430,11 +429,10 @@ export default function AuthPage() {
                 setTab("login");
                 setMessage(null);
               }}
-              className={`cursor-pointer text-center pb-2 font-medium transition-all ${
-                tab === "login"
-                  ? "text-blue-600 font-bold text-lg border-b-2 border-blue-600"
-                  : "text-gray-500 hover:text-blue-600"
-              }`}
+              className={`cursor-pointer text-center pb-2 font-medium transition-all ${tab === "login"
+                ? "text-blue-600 font-bold text-lg border-b-2 border-blue-600"
+                : "text-gray-500 hover:text-blue-600"
+                }`}
             >
               Log In
             </div>
@@ -443,11 +441,10 @@ export default function AuthPage() {
                 setTab("signup");
                 setMessage(null);
               }}
-              className={`cursor-pointer text-center pb-2 font-medium transition-all ${
-                tab === "signup"
-                  ? "text-blue-600 font-bold text-lg border-b-2 border-blue-600"
-                  : "text-gray-500 hover:text-blue-600"
-              }`}
+              className={`cursor-pointer text-center pb-2 font-medium transition-all ${tab === "signup"
+                ? "text-blue-600 font-bold text-lg border-b-2 border-blue-600"
+                : "text-gray-500 hover:text-blue-600"
+                }`}
             >
               Sign Up
             </div>
@@ -456,11 +453,10 @@ export default function AuthPage() {
           {/* Messages */}
           {message && (
             <div
-              className={`p-3 rounded-md text-sm mb-4 ${
-                message.includes("successful")
-                  ? "bg-green-100 text-green-700"
-                  : "bg-red-100 text-red-700"
-              }`}
+              className={`p-3 rounded-md text-sm mb-4 ${message.includes("successful")
+                ? "bg-green-100 text-green-700"
+                : "bg-red-100 text-red-700"
+                }`}
             >
               {message}
             </div>
@@ -741,7 +737,7 @@ export default function AuthPage() {
           )}
         </div>
       </div>
-    </div>
+    </div >
   );
 }
 
