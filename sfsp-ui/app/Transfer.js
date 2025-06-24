@@ -80,7 +80,7 @@ export async function SendFile(fileMetadata, recipientUserId, fileid) {
   // if (!isValid) throw new Error("Recipient SPK signature invalid");
 
   // 5️⃣ Convert sender's IK to Curve25519
-  const ikPrivKey = sodium.from_base64(userKeysRaw.identity_private_key);
+  const ikPrivKey = sodium.from_base64(userKeys.identity_private_key);
 
   // 6️⃣ Generate ephemeral key
   const EK = sodium.crypto_box_keypair();
