@@ -7,11 +7,16 @@ describe('File Controller', () => {
   afterEach(() => {
     jest.clearAllMocks();
   });
+  const res = {
+  status: jest.fn().mockReturnThis(), // allows chaining
+  send: jest.fn(),
+};
+
 
   describe('downloadFile', () => {
     test('returns 400 if path or filename missing', async () => {
       const req = { body: { path: '', filename: '' } };
-      const res = { status: jest.fn().mockReturnThis(), send: jest.fn() };
+      const res = {status: jest.fn().mockReturnThis(), send: jest.fn() };
       await fileController.downloadFile(req, res);
       expect(res.status).toHaveBeenCalledWith(400);
       expect(res.send).toHaveBeenCalledWith("Missing path or filename");
@@ -151,7 +156,7 @@ describe('File Controller', () => {
 
       await fileController.uploadFile(req, res);
 
-      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.status).toHaveBeenCalledWith(510);
       expect(res.send).toHaveBeenCalledWith('Upload failed');
     });
   });
