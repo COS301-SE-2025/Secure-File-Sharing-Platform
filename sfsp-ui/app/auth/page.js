@@ -177,36 +177,22 @@ export default function AuthPage() {
     setIsLoading(true);
     setMessage(null);
 
-    // Basic validations
+    // Validation
     if (!name || !email || !password || !confirmPassword) {
-      setMessage("All fields are required.");
-      setIsLoading(false);
-      return;
+      return setError("All fields are required.");
     }
-
-    const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    if (!validateEmail(email)) {
-      setMessage("Please enter a valid email address.");
-      setIsLoading(false);
-      return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return setError("Please enter a valid email address.");
     }
-
     if (password.length < 6) {
-      setMessage("Password must be at least 6 characters long.");
-      setIsLoading(false);
-      return;
+      return setError("Password must be at least 6 characters.");
     }
-
     if (password !== confirmPassword) {
-      setMessage("Passwords don't match.");
-      setIsLoading(false);
-      return;
+      return setError("Passwords do not match.");
     }
 
     try {
       const sodium = await getSodium();
-
-      // Generate X3DH key bundle
       const {
         ik_private_key,
         spk_private_key,
@@ -219,7 +205,6 @@ export default function AuthPage() {
         salt,
       } = await GenerateX3DHKeys(password);
 
-      // Send keys + user info to backend
       const res = await fetch("http://localhost:5000/api/users/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -240,17 +225,12 @@ export default function AuthPage() {
       });
 
       const result = await res.json();
-      console.log(result);
       if (!res.ok || !result.success) {
         throw new Error(result.message || "Registration failed");
       }
 
-      // Get token and user info
-      const token = result.data.token?.replace(/^Bearer\s+/, "");
-      const user = result.data.user;
-      localStorage.setItem("token", token);
+      const { token, user } = result.data;
 
-      // Derive encryption key from password + salt
       const derivedKey = sodium.crypto_pwhash(
         32,
         password,
@@ -260,21 +240,18 @@ export default function AuthPage() {
         sodium.crypto_pwhash_ALG_DEFAULT
       );
 
-      // Decrypt identity key private key
-      // const decryptedIkPrivateKeyRaw = sodium.crypto_secretbox_open_easy(
-      //   sodium.from_base64(ik_private_key),
-      //   sodium.from_base64(nonce),
-      //   derivedKey
-      // );
+      // Decrypt identity key for storage
+      const decryptedIkPrivateKey = sodium.crypto_secretbox_open_easy(
+        sodium.from_base64(ik_private_key),
+        sodium.from_base64(nonce),
+        derivedKey
+      );
+      if (!decryptedIkPrivateKey) {
+        throw new Error("Failed to decrypt identity key private key");
+      }
 
-      // if (!decryptedIkPrivateKeyRaw) {
-      //   throw new Error("Failed to decrypt identity key private key");
-      // }
-
-      // ✅ DO NOT convert to Curve25519 here
-      // ✅ Store the full Ed25519 64-byte secret key
       const userKeys = {
-        identity_private_key: ik_private_key, // ✅ fixed
+        identity_private_key: sodium.to_base64(decryptedIkPrivateKey),
         signedpk_private_key: sodium.from_base64(spk_private_key),
         oneTimepks_private: opks_private.map((opk) => ({
           opk_id: opk.opk_id,
@@ -286,57 +263,59 @@ export default function AuthPage() {
           opk_id: opk.opk_id,
           publicKey: sodium.from_base64(opk.publicKey),
         })),
-        signedPreKeySignature: sodium.from_base64(signedPrekeySignature),
+        signedPrekeySignature: sodium.from_base64(signedPrekeySignature),
         salt: sodium.from_base64(salt),
         nonce: sodium.from_base64(nonce),
       };
-      //const unlockToken = sessionStorage.getItem("unlockToken");
 
-      // Save to Zustand and secure IndexedDB
-      await storeDerivedKeyEncrypted(derivedKey); // stores with unlockToken
+      await storeDerivedKeyEncrypted(derivedKey);
       sessionStorage.setItem("unlockToken", "session-unlock");
-      await storeUserKeysSecurely(userKeys, derivedKey); // your existing function
+      await storeUserKeysSecurely(userKeys, derivedKey);
 
       useEncryptionStore.setState({
         encryptionKey: derivedKey,
         userId: user.id,
         userKeys: userKeys,
       });
+
+      localStorage.setItem("token", token.replace(/^Bearer\s/, ""));
       setMessage("User successfully registered!");
       router.push("/dashboard");
     } catch (err) {
-      console.error(err);
+      console.error("Signup error:", err);
       setMessage(err.message || "Something went wrong. Please try again.");
     } finally {
       setIsLoading(false);
     }
   };
 
+  function setError(msg) {
+    setMessage(msg);
+    setIsLoading(false);
+  }
+
   async function GenerateX3DHKeys(password) {
     const sodium = await getSodium();
 
-    // 🔐 Identity keypair for signing (Ed25519)
-    const identitySignKey = sodium.crypto_sign_keypair();
+    // Identity keypair (Ed25519)
+    const ik = sodium.crypto_sign_keypair();
 
-    // 🔐 X25519 identity key (for DH)
-    const ik = sodium.crypto_box_keypair();
-
-    // 🔐 X25519 signed prekey
+    // Signed PreKey (X25519)
     const spk = sodium.crypto_box_keypair();
 
-    // 🖋️ Sign the SPK public key with the Ed25519 signing key
+    // Sign the SPK public key using the Ed25519 identity key
     const spkSignature = sodium.crypto_sign_detached(
       spk.publicKey,
-      identitySignKey.privateKey
+      ik.privateKey
     );
 
-    // 🔐 One-time prekeys
+    // One-Time PreKeys (X25519)
     const opks = Array.from({ length: 10 }, () => ({
-      id: uuidv4(),
+      opk_id: crypto.randomUUID(),
       keypair: sodium.crypto_box_keypair(),
     }));
 
-    // 🔑 Derive encryption key from password
+    // Derive encryption key from password
     const salt = sodium.randombytes_buf(sodium.crypto_pwhash_SALTBYTES);
     const derivedKey = sodium.crypto_pwhash(
       32,
@@ -347,48 +326,33 @@ export default function AuthPage() {
       sodium.crypto_pwhash_ALG_DEFAULT
     );
 
-    // 🔐 Encrypt private keys
+    // Encrypt identity private key
     const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
+    const encryptedIK = sodium.crypto_secretbox_easy(
+      ik.privateKey,
+      nonce,
+      derivedKey
+    );
 
-    //this is causing errors so no encryption for now
-    // const encryptedIkPrivate = sodium.crypto_secretbox_easy(
-    //   ik.privateKey,
-    //   nonce,
-    //   derivedKey
-    // );
-
-    // const encryptedSpkPrivate = sodium.crypto_secretbox_easy(
-    //   spk.privateKey,
-    //   nonce,
-    //   derivedKey
-    // );
-
-    // const encryptedIdentitySignKeyPrivate = sodium.crypto_secretbox_easy(
-    //   identitySignKey.privateKey,
-    //   nonce,
-    //   derivedKey
-    // );
-
-    // ✅ Return full key bundle
     return {
-      // 📤 Public keys
+      // Public
       ik_public: sodium.to_base64(ik.publicKey),
       spk_public: sodium.to_base64(spk.publicKey),
       signedPrekeySignature: sodium.to_base64(spkSignature),
       opks_public: opks.map((opk) => ({
-        opk_id: opk.id,
+        opk_id: opk.opk_id,
         publicKey: sodium.to_base64(opk.keypair.publicKey),
       })),
 
-      // 🔐 Encrypted private keys
-      ik_private_key: sodium.to_base64(ik.privateKey),
-      spk_private_key: sodium.to_base64(spk.privateKey),
+      // Private (encrypted where appropriate)
+      ik_private_key: sodium.to_base64(encryptedIK), // 🔐 encrypted
+      spk_private_key: sodium.to_base64(spk.privateKey), // not encrypted
       opks_private: opks.map((opk) => ({
-        opk_id: opk.id,
+        opk_id: opk.opk_id,
         private_key: sodium.to_base64(opk.keypair.privateKey),
       })),
 
-      // ⚙️ Crypto params
+      // Crypto parameters
       salt: sodium.to_base64(salt),
       nonce: sodium.to_base64(nonce),
     };
@@ -445,10 +409,11 @@ export default function AuthPage() {
                 setTab("login");
                 setMessage(null);
               }}
-              className={`cursor-pointer text-center pb-2 font-medium transition-all ${tab === "login"
-                ? "text-blue-600 font-bold text-lg border-b-2 border-blue-600"
-                : "text-gray-500 hover:text-blue-600"
-                }`}
+              className={`cursor-pointer text-center pb-2 font-medium transition-all ${
+                tab === "login"
+                  ? "text-blue-600 font-bold text-lg border-b-2 border-blue-600"
+                  : "text-gray-500 hover:text-blue-600"
+              }`}
             >
               Log In
             </div>
@@ -457,10 +422,11 @@ export default function AuthPage() {
                 setTab("signup");
                 setMessage(null);
               }}
-              className={`cursor-pointer text-center pb-2 font-medium transition-all ${tab === "signup"
-                ? "text-blue-600 font-bold text-lg border-b-2 border-blue-600"
-                : "text-gray-500 hover:text-blue-600"
-                }`}
+              className={`cursor-pointer text-center pb-2 font-medium transition-all ${
+                tab === "signup"
+                  ? "text-blue-600 font-bold text-lg border-b-2 border-blue-600"
+                  : "text-gray-500 hover:text-blue-600"
+              }`}
             >
               Sign Up
             </div>
@@ -469,10 +435,11 @@ export default function AuthPage() {
           {/* Messages */}
           {message && (
             <div
-              className={`p-3 rounded-md text-sm mb-4 ${message.includes("successful")
-                ? "bg-green-100 text-green-700"
-                : "bg-red-100 text-red-700"
-                }`}
+              className={`p-3 rounded-md text-sm mb-4 ${
+                message.includes("successful")
+                  ? "bg-green-100 text-green-700"
+                  : "bg-red-100 text-red-700"
+              }`}
             >
               {message}
             </div>
@@ -753,7 +720,7 @@ export default function AuthPage() {
           )}
         </div>
       </div>
-    </div >
+    </div>
   );
 }
 
