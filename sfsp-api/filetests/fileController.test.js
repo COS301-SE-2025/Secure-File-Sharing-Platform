@@ -197,4 +197,89 @@ describe('File Controller', () => {
       expect(res.send).toHaveBeenCalledWith('Error retrieving file count');
     });
   });
+  describe('softDeleteFile', () => {
+  test('returns 400 if fileId missing', async () => {
+    const req = { body: {} };
+    const res = { status: jest.fn().mockReturnThis(), send: jest.fn() };
+    await fileController.softDeleteFile(req, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.send).toHaveBeenCalledWith('Missing fileId');
+  });
+
+  test('returns success message on valid fileId', async () => {
+    const req = { body: { fileId: '123e4567-e89b-12d3-a456-426614174000' } };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+
+    axios.post.mockResolvedValue({
+      status: 200,
+      data: { message: 'File soft deleted successfully' },
+    });
+
+    await fileController.softDeleteFile(req, res);
+
+    expect(axios.post).toHaveBeenCalledWith(
+      expect.stringContaining('/softDeleteFile'),
+      { fileId: req.body.fileId },
+      { headers: { 'Content-Type': 'application/json' } }
+    );
+    expect(res.json).toHaveBeenCalledWith({ message: 'File soft deleted successfully' });
+  });
+
+  test('returns 500 on failure', async () => {
+    const req = { body: { fileId: '123e4567-e89b-12d3-a456-426614174000' } };
+    const res = { status: jest.fn().mockReturnThis(), send: jest.fn() };
+
+    axios.post.mockRejectedValue(new Error('Failed'));
+
+    await fileController.softDeleteFile(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.send).toHaveBeenCalledWith('Failed to soft delete file');
+  });
+});
+
+describe('softDeleteFile', () => {
+  test('returns success message on valid fileId', async () => {
+    const req = { body: { fileId: '123e4567-e89b-12d3-a456-426614174000' } };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn(), send: jest.fn() };
+
+    axios.post.mockResolvedValue({
+      status: 200,
+      data: { message: 'File soft deleted' }
+    });
+
+    await fileController.softDeleteFile(req, res);
+
+    expect(axios.post).toHaveBeenCalledWith(
+      expect.stringContaining('/softDeleteFile'),
+      { fileId: req.body.fileId },
+      { headers: { 'Content-Type': 'application/json' } }
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ message: 'File soft deleted' });
+  });
+});
+
+describe('restoreFile', () => {
+  test('returns success message on valid fileId', async () => {
+    const req = { body: { fileId: '123e4567-e89b-12d3-a456-426614174000' } };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn(), send: jest.fn() };
+
+    axios.post.mockResolvedValue({
+      status: 200,
+      data: { message: 'File restored' }
+    });
+
+    await fileController.restoreFile(req, res);
+
+    expect(axios.post).toHaveBeenCalledWith(
+      expect.stringContaining('/restoreFile'),
+      { fileId: req.body.fileId },
+      { headers: { 'Content-Type': 'application/json' } }
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ message: 'File restored' });
+  });
+});
+
 });
