@@ -55,7 +55,6 @@ export function FileGrid({
         body: JSON.stringify({ fileId: file.id, tags }),
       });
 
-      
       if (!res.ok) {
         throw new Error("Failed to tag file as deleted");
       }
@@ -72,7 +71,7 @@ export function FileGrid({
       setMenuFile(null);
     }
   };
-
+  
   return (
     <>
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">

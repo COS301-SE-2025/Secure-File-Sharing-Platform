@@ -82,9 +82,13 @@ export default function MyFiles() {
       console.log("Fetched files from API:", data);
 
       const formatted = data
-        .filter(f => {
-          const tags = f.Tags || [];
-          return !tags.includes("deleted") && !tags.some(tag => tag.startsWith("deleted_time:"));
+        .filter((f) => {
+          const tags = f.tags ? f.tags.replace(/[{}]/g, '').split(',') : [];
+
+          return (
+            !tags.includes("deleted") &&
+            !tags.some((tag) => tag.trim().startsWith("deleted_time:"))
+          );
         })
         .map((f) => ({
           id: f.fileId || "",
@@ -96,7 +100,6 @@ export default function MyFiles() {
             : "",
           shared: false,
           starred: false,
-          // path: f.Path || "",
         }));
 
       setFiles(formatted);
@@ -188,8 +191,8 @@ export default function MyFiles() {
             <div className="flex items-center bg-white rounded-lg border p-1 dark:bg-gray-200">
               <button
                 className={`px-3 py-1 rounded ${viewMode === "grid"
-                    ? "bg-blue-500 text-white"
-                    : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
+                  ? "bg-blue-500 text-white"
+                  : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
                   }`}
                 onClick={() => setViewMode("grid")}
               >
@@ -197,8 +200,8 @@ export default function MyFiles() {
               </button>
               <button
                 className={`px-3 py-1 rounded ${viewMode === "list"
-                    ? "bg-blue-500 text-white"
-                    : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
+                  ? "bg-blue-500 text-white"
+                  : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
                   }`}
                 onClick={() => setViewMode("list")}
               >

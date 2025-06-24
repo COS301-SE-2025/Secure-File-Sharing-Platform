@@ -80,8 +80,7 @@ export default function AuthPage() {
         opks_public,
       } = result.data.user;
 
-      const { ik_private_key, opks_private, spk_private_key } =
-        result.data.keyBundle;
+      const { ik_private_key, opks_private, spk_private_key } = result.data.keyBundle;
       const { token } = result.data;
 
       //we don't need to securely store the user ID but I will store it in the Zustand store for easy access
@@ -113,10 +112,7 @@ export default function AuthPage() {
         try {
           opks_public_temp = JSON.parse(opks_public.replace(/\\+/g, ""));
         } catch (e) {
-          opks_public_temp = opks_public
-            .replace(/\\+/g, "")
-            .slice(1, -1)
-            .split(",");
+          opks_public_temp = opks_public.replace(/\\+/g, "").slice(1, -1).split(",");
         }
       } else {
         opks_public_temp = opks_public;
@@ -209,8 +205,7 @@ export default function AuthPage() {
         salt,
       } = await GenerateX3DHKeys(password);
 
-      const res = await fetch("http://localhost:5000/api/users/register",
-      {
+      const res = await fetch("http://localhost:5000/api/users/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -288,25 +283,6 @@ export default function AuthPage() {
         userKeys: userKeys,
       });
 
-      // Add the user to the table
-      console.log("User id is: ", user.id);
-      const response = await fetch("http://localhost:5000/api/files/addUser", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user.id }),
-      });
-
-      let result1;
-      try {
-        result1 = await response.json();
-      } catch (err) {
-        throw new Error("Server returned invalid JSON");
-      }
-
-      if (!response.ok || result1.success === false) {
-        throw new Error(result1.message || "Registration failed");
-      }
-
       localStorage.setItem("token", token.replace(/^Bearer\s/, ""));
       setMessage("User successfully registered!");
       router.push("/dashboard");
@@ -326,7 +302,7 @@ export default function AuthPage() {
   async function GenerateX3DHKeys(password) {
     const sodium = await getSodium();
 
-    // Identity keypair and signedkey pair (Ed25519)
+    // Identity keypair and signedkey pair (Ed25519) 
     const ik = sodium.crypto_sign_keypair();
     const spk = sodium.crypto_sign_keypair();
 
@@ -350,7 +326,7 @@ export default function AuthPage() {
 
     // Derive encryption key from password
     const salt = sodium.randombytes_buf(sodium.crypto_pwhash_SALTBYTES);
-    console.log("Salt is: ", salt);
+    console.log("Salt is: ", salt)
     const derivedKey = sodium.crypto_pwhash(
       32,
       password,

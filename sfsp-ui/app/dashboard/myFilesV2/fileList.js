@@ -91,7 +91,7 @@ export function FileList({
               onContextMenu={(e) => handleContextMenu(e, file)}
               className="hover:bg-gray-200 cursor-pointer dark:hover:bg-blue-100"
             >
-              <td className="p-2 flex items-center gap-2" onClick={() => onViewDetails(file)}>
+              <td className="p-2 flex items-center gap-2">
                 {getIcon(file.type)}
                 <span className="font-medium">{file.name}</span>
                 {file.starred && <Star className="h-4 w-4 text-yellow-500 fill-current" />}
