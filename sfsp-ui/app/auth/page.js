@@ -239,6 +239,8 @@ export default function AuthPage() {
         sodium.crypto_pwhash_MEMLIMIT_MODERATE,
         sodium.crypto_pwhash_ALG_DEFAULT
       );
+      console.log("Start signup");
+      console.log("Derived key is: ", derivedKey);
 
       // Decrypt identity key for storage
       const decryptedIkPrivateKey = sodium.crypto_secretbox_open_easy(
@@ -249,6 +251,9 @@ export default function AuthPage() {
       if (!decryptedIkPrivateKey) {
         throw new Error("Failed to decrypt identity key private key");
       }
+
+      console.log("Decrypted ik private is: ", decryptedIkPrivateKey);
+      console.log("End if sign up");
 
       const userKeys = {
         identity_private_key: sodium.to_base64(decryptedIkPrivateKey),
@@ -297,13 +302,17 @@ export default function AuthPage() {
   async function GenerateX3DHKeys(password) {
     const sodium = await getSodium();
 
-    // Identity keypair (Ed25519)
+    // Identity keypair and signedkey pair (Ed25519) 
     const ik = sodium.crypto_sign_keypair();
+    const spk = sodium.crypto_sign_keypair();
 
-    // Signed PreKey (X25519)
-    const spk = sodium.crypto_box_keypair();
+    console.log("Start key generation");
+    console.log("IK private", ik.privateKey);
+    console.log("IK public", ik.publicKey);
+    console.log("SPK private", spk.privateKey);
+    console.log("SPK public", spk.publicKey);
 
-    // Sign the SPK public key using the Ed25519 identity key
+    // Sign the SPK public key using the Ed25519 identity key should be 64 bits, all of the above
     const spkSignature = sodium.crypto_sign_detached(
       spk.publicKey,
       ik.privateKey
@@ -317,6 +326,7 @@ export default function AuthPage() {
 
     // Derive encryption key from password
     const salt = sodium.randombytes_buf(sodium.crypto_pwhash_SALTBYTES);
+    console.log("Salt is: ", salt)
     const derivedKey = sodium.crypto_pwhash(
       32,
       password,
@@ -326,13 +336,23 @@ export default function AuthPage() {
       sodium.crypto_pwhash_ALG_DEFAULT
     );
 
+    console.log("Derivedkey is: ", derivedKey);
+
     // Encrypt identity private key
     const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
+    console.log("Nonce is:", nonce);
     const encryptedIK = sodium.crypto_secretbox_easy(
       ik.privateKey,
       nonce,
       derivedKey
     );
+
+    console.log("encrypted ik is: ", encryptedIK);
+
+    console.log("SPK pub (raw):", spk.publicKey);
+    console.log("IK pub (Ed25519):", ik.publicKey);
+    console.log("SPK Signature:", spkSignature);
+    console.log("End key generation");
 
     return {
       // Public
