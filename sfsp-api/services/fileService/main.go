@@ -75,6 +75,7 @@ func main() {
     http.HandleFunc("/deleteFile", fileHandler.DeleteFileHandler)
     http.HandleFunc("/sendFile", fileHandler.SendFileHandler)
     http.HandleFunc("/addTags", metadata.AddTagsHandler)
+    http.HandleFunc("/addUser", metadata.AddUserHandler)
 
     //test from here
     http.HandleFunc("/addSentFiles", metadata.AddSentFileHandler) //I will combine this with the addPendingFiles endpoint later
