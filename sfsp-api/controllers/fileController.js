@@ -316,3 +316,23 @@ exports.addUserToTable = async (req, res) => {
     res.status(500).send("Failed to add Users to the Table");
   }
 }
+
+exports.removeFileTags = async (req, res) => {
+  const { fileId, tags } = req.body;
+  if (!fileId || !tags) {
+    return res
+      .status(400)
+      .send("Missing required fields: fileId or tags");
+  }
+  try {
+    const response = await axios.post(
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/removeTags`,
+      { fileId, tags },
+      { headers: { "Content-Type": "application/json" } }
+    );
+    res.status(response.status).send(response.data);
+  } catch (err) {
+    console.error("remove Tags error:", err.message);
+    res.status(500).send("Failed to remove tags to the file");
+  }
+}

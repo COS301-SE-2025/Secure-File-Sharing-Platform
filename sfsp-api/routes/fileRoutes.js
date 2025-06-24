@@ -12,5 +12,6 @@ router.get('/getAccesslog', fileController.getAccesslog);
 router.post('/send', fileController.sendFile);
 router.post('/addTags', fileController.addTags);
 router.post("/addUser", fileController.addUserToTable);
+router.post("/removeTags",fileController.removeFileTags);
 
 module.exports = router;

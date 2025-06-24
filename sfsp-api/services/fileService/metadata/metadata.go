@@ -520,11 +520,9 @@ func RemoveTagsFromFileHandler(w http.ResponseWriter, r *http.Request) {
 
 	_, err := DB.Exec(`
 		UPDATE files
-		SET tags = (
-			SELECT ARRAY(
-				SELECT tag FROM unnest(tags) AS tag
-				WHERE tag <> ALL($1::text[])
-			)
+		SET tags = ARRAY(
+			SELECT UNNEST(tags)
+			EXCEPT SELECT UNNEST($1::text[])
 		)
 		WHERE id = $2
 	`, pq.Array(req.Tags), req.FileID)
