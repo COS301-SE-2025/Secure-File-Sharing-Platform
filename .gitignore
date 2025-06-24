@@ -1,1 +1,5 @@
 .vscode
+/compose.yml
+/postgres
+/.env
+/.env.local

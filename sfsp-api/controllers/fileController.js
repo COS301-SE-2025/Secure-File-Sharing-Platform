@@ -275,3 +275,7 @@ exports.getAccesslog = async (req, res) => {
     res.status(500).send("Failed to get access log");
   }
 };
+
+exports.addTags = async (req, res) => {
+  
+}

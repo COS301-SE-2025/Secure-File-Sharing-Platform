@@ -33,7 +33,25 @@ export const storeUserKeysSecurely = async (userKeys, encryptionKey) => {
     const sodium = await getSodium();
     const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
 
-    const plaintext = new TextEncoder().encode(JSON.stringify(userKeys));
+    // ✅ Encode Uint8Arrays to base64
+    const serializedKeys = {
+      ...userKeys,
+      identity_private_key: sodium.to_base64(userKeys.identity_private_key),
+      identity_public_key: sodium.to_base64(userKeys.identity_public_key),
+      signedpk_private_key: sodium.to_base64(userKeys.signedpk_private_key),
+      signedpk_public_key: sodium.to_base64(userKeys.signedpk_public_key),
+      signedPrekeySignature: sodium.to_base64(userKeys.signedPrekeySignature),
+      oneTimepks_private: userKeys.oneTimepks_private.map(opk => ({
+        opk_id: opk.opk_id,
+        private_key: sodium.to_base64(opk.private_key),
+      })),
+      oneTimepks_public: userKeys.oneTimepks_public.map(opk => ({
+        opk_id: opk.opk_id,
+        publicKey: sodium.to_base64(opk.publicKey),
+      })),
+    };
+
+    const plaintext = new TextEncoder().encode(JSON.stringify(serializedKeys));
     const cipherText = sodium.crypto_secretbox_easy(plaintext, nonce, encryptionKey);
 
     await set('userKeys', {
@@ -42,14 +60,15 @@ export const storeUserKeysSecurely = async (userKeys, encryptionKey) => {
     });
 
     if (userKeys.userId) {
-      await set('userId', userKeys.userId); // optionally persisted separately
+      await set('userId', userKeys.userId);
     }
 
-    console.log('User keys stored securely');
+    console.log('✅ User keys stored securely');
   } catch (error) {
-    console.error('Error storing user keys:', error);
+    console.error('❌ Error storing user keys:', error);
   }
 };
+
 
 // Retrieve and decrypt user keys from IndexedDB
 export const getUserKeysSecurely = async (encryptionKey) => {

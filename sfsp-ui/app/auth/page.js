@@ -178,7 +178,12 @@ export default function AuthPage() {
     setMessage(null);
 
     // Validation
+    // Validation
     if (!name || !email || !password || !confirmPassword) {
+      return setError("All fields are required.");
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return setError("Please enter a valid email address.");
       return setError("All fields are required.");
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -186,8 +191,10 @@ export default function AuthPage() {
     }
     if (password.length < 6) {
       return setError("Password must be at least 6 characters.");
+      return setError("Password must be at least 6 characters.");
     }
     if (password !== confirmPassword) {
+      return setError("Passwords do not match.");
       return setError("Passwords do not match.");
     }
 
@@ -230,6 +237,7 @@ export default function AuthPage() {
       }
 
       const { token, user } = result.data;
+      const { token, user } = result.data;
 
       const derivedKey = sodium.crypto_pwhash(
         32,
@@ -239,7 +247,18 @@ export default function AuthPage() {
         sodium.crypto_pwhash_MEMLIMIT_MODERATE,
         sodium.crypto_pwhash_ALG_DEFAULT
       );
+      console.log("Start signup");
+      console.log("Derived key is: ", derivedKey);
 
+      // Decrypt identity key for storage
+      const decryptedIkPrivateKey = sodium.crypto_secretbox_open_easy(
+        sodium.from_base64(ik_private_key),
+        sodium.from_base64(nonce),
+        derivedKey
+      );
+      if (!decryptedIkPrivateKey) {
+        throw new Error("Failed to decrypt identity key private key");
+      }
       // Decrypt identity key for storage
       const decryptedIkPrivateKey = sodium.crypto_secretbox_open_easy(
         sodium.from_base64(ik_private_key),
@@ -251,6 +270,7 @@ export default function AuthPage() {
       }
 
       const userKeys = {
+        identity_private_key: sodium.to_base64(decryptedIkPrivateKey),
         identity_private_key: sodium.to_base64(decryptedIkPrivateKey),
         signedpk_private_key: sodium.from_base64(spk_private_key),
         oneTimepks_private: opks_private.map((opk) => ({
@@ -264,12 +284,15 @@ export default function AuthPage() {
           publicKey: sodium.from_base64(opk.publicKey),
         })),
         signedPrekeySignature: sodium.from_base64(signedPrekeySignature),
+        signedPrekeySignature: sodium.from_base64(signedPrekeySignature),
         salt: sodium.from_base64(salt),
         nonce: sodium.from_base64(nonce),
       };
 
       await storeDerivedKeyEncrypted(derivedKey);
+      await storeDerivedKeyEncrypted(derivedKey);
       sessionStorage.setItem("unlockToken", "session-unlock");
+      await storeUserKeysSecurely(userKeys, derivedKey);
       await storeUserKeysSecurely(userKeys, derivedKey);
 
       useEncryptionStore.setState({
@@ -279,15 +302,23 @@ export default function AuthPage() {
       });
 
       localStorage.setItem("token", token.replace(/^Bearer\s/, ""));
+
+      localStorage.setItem("token", token.replace(/^Bearer\s/, ""));
       setMessage("User successfully registered!");
       router.push("/dashboard");
     } catch (err) {
+      console.error("Signup error:", err);
       console.error("Signup error:", err);
       setMessage(err.message || "Something went wrong. Please try again.");
     } finally {
       setIsLoading(false);
     }
   };
+
+  function setError(msg) {
+    setMessage(msg);
+    setIsLoading(false);
+  }
 
   function setError(msg) {
     setMessage(msg);
@@ -307,16 +338,21 @@ export default function AuthPage() {
     const spkSignature = sodium.crypto_sign_detached(
       spk.publicKey,
       ik.privateKey
+      ik.privateKey
     );
 
     // One-Time PreKeys (X25519)
+    // One-Time PreKeys (X25519)
     const opks = Array.from({ length: 10 }, () => ({
+      opk_id: crypto.randomUUID(),
       opk_id: crypto.randomUUID(),
       keypair: sodium.crypto_box_keypair(),
     }));
 
     // Derive encryption key from password
+    // Derive encryption key from password
     const salt = sodium.randombytes_buf(sodium.crypto_pwhash_SALTBYTES);
+    console.log("Salt is: ", salt)
     const derivedKey = sodium.crypto_pwhash(
       32,
       password,
@@ -336,10 +372,12 @@ export default function AuthPage() {
 
     return {
       // Public
+      // Public
       ik_public: sodium.to_base64(ik.publicKey),
       spk_public: sodium.to_base64(spk.publicKey),
       signedPrekeySignature: sodium.to_base64(spkSignature),
       opks_public: opks.map((opk) => ({
+        opk_id: opk.opk_id,
         opk_id: opk.opk_id,
         publicKey: sodium.to_base64(opk.keypair.publicKey),
       })),
@@ -347,11 +385,16 @@ export default function AuthPage() {
       // Private (encrypted where appropriate)
       ik_private_key: sodium.to_base64(encryptedIK), // 🔐 encrypted
       spk_private_key: sodium.to_base64(spk.privateKey), // not encrypted
+      // Private (encrypted where appropriate)
+      ik_private_key: sodium.to_base64(encryptedIK), // 🔐 encrypted
+      spk_private_key: sodium.to_base64(spk.privateKey), // not encrypted
       opks_private: opks.map((opk) => ({
+        opk_id: opk.opk_id,
         opk_id: opk.opk_id,
         private_key: sodium.to_base64(opk.keypair.privateKey),
       })),
 
+      // Crypto parameters
       // Crypto parameters
       salt: sodium.to_base64(salt),
       nonce: sodium.to_base64(nonce),
@@ -414,6 +457,11 @@ export default function AuthPage() {
                   ? "text-blue-600 font-bold text-lg border-b-2 border-blue-600"
                   : "text-gray-500 hover:text-blue-600"
               }`}
+              className={`cursor-pointer text-center pb-2 font-medium transition-all ${
+                tab === "login"
+                  ? "text-blue-600 font-bold text-lg border-b-2 border-blue-600"
+                  : "text-gray-500 hover:text-blue-600"
+              }`}
             >
               Log In
             </div>
@@ -427,6 +475,11 @@ export default function AuthPage() {
                   ? "text-blue-600 font-bold text-lg border-b-2 border-blue-600"
                   : "text-gray-500 hover:text-blue-600"
               }`}
+              className={`cursor-pointer text-center pb-2 font-medium transition-all ${
+                tab === "signup"
+                  ? "text-blue-600 font-bold text-lg border-b-2 border-blue-600"
+                  : "text-gray-500 hover:text-blue-600"
+              }`}
             >
               Sign Up
             </div>
@@ -435,6 +488,11 @@ export default function AuthPage() {
           {/* Messages */}
           {message && (
             <div
+              className={`p-3 rounded-md text-sm mb-4 ${
+                message.includes("successful")
+                  ? "bg-green-100 text-green-700"
+                  : "bg-red-100 text-red-700"
+              }`}
               className={`p-3 rounded-md text-sm mb-4 ${
                 message.includes("successful")
                   ? "bg-green-100 text-green-700"
@@ -720,6 +778,7 @@ export default function AuthPage() {
           )}
         </div>
       </div>
+    </div>
     </div>
   );
 }
