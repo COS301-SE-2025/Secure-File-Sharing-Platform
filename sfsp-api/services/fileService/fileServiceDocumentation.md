@@ -117,7 +117,8 @@ client needs to decode bas64, decrypt the file using the private key, then they 
 {
   "file_id": "<file-uuid>",
   "user_id": "<user-uuid>",
-  "action": "viewed" // or "downloaded", "deleted", etc.
+  "action": "viewed", // or "downloaded", "deleted", etc.
+  "message": "User <email> has <action> the files <file_name>"
 }
 ```
 
