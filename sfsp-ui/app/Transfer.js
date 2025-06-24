@@ -149,6 +149,7 @@ export async function SendFile(fileMetadata, recipientUserId, fileid) {
   if (!res.ok) throw new Error("Failed to send file");
 }
 
+
 export async function ReceiveFile(files) {
   const { userId, encryptionKey } = useEncryptionStore.getState();
   const sodium = await getSodium();
