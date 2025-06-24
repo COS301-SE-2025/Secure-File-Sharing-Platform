@@ -47,90 +47,90 @@ export default function AuthPage() {
     setIsLoading(true);
     setMessage(null);
 
+    console.log(loginData.email);
+    console.log(loginData.password);
+
     try {
       const sodium = await getSodium();
       const res = await fetch("http://localhost:5000/api/users/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
+          email: loginData.email,
+          password: loginData.password,
         }),
       });
 
       const result = await res.json();
-
+      console.log(result);
       if (!res.ok || !result.success) {
         throw new Error(result.message || "Invalid login credentials");
       }
 
       //New E2EE stuff
       const {
+        id,
         salt,
         nonce,
         //private keys
-        ik_private_key,
-        spk_private_key,
-        opks_private,
         //public keys
-        ik_public_key,
-        spk_public_key,
-        signedPreKeySignature,
+        ik_public,
+        spk_public,
+        signedPrekeySignature,
         opks_public,
+      } = result.data.user;
 
-        token,
-        user,
-      } = result.data;
-
-      console.log("Salt is: ", salt);
-      console.log("Nonce is: ", nonce);
-      console.log("ik_private is: ", ik_private_key);
-      console.log("spk_private is: ", spk_private_key);
-      console.log("ik_public is: ", ik_public_key);
-      console.log("spk_public is: ", spk_public);
-      console.log("signedPreKeySignature", signedPreKeySignature);
-      console.log("user", user.id);
+      const { ik_private_key, opks_private, spk_private_key } = result.data.keyBundle;
+      const { token } = result.data;
 
       //we don't need to securely store the user ID but I will store it in the Zustand store for easy access
-      useEncryptionStore.getState().setUserId(user.id);
+      useEncryptionStore.getState().setUserId(id);
 
       //derived key from password and salt
       const derivedKey = sodium.crypto_pwhash(
         32, // key length
-        formData.password,
+        loginData.password,
         sodium.from_base64(salt),
         sodium.crypto_pwhash_OPSLIMIT_MODERATE,
         sodium.crypto_pwhash_MEMLIMIT_MODERATE,
         sodium.crypto_pwhash_ALG_DEFAULT
       );
 
-      //Try decrypting the private keys
-      const decryptedIkPrivateKey = sodium.crypto_secretbox_open_easy(
+      // Decrypt + convert identity key
+      const decryptedIkPrivateKeyRaw = sodium.crypto_secretbox_open_easy(
         sodium.from_base64(ik_private_key),
         sodium.from_base64(nonce),
         derivedKey
       );
 
-      if (!decryptedIkPrivateKey) {
+      if (!decryptedIkPrivateKeyRaw) {
         throw new Error("Failed to decrypt identity key private key");
       }
 
-      //Store the decrypted private keys in localStorage or secure storage
-      //if you guys know of a better way to store these securely, please let me know or just change this portion of the code
+      let opks_public_temp;
+      if (typeof opks_public === "string") {
+        try {
+          opks_public_temp = JSON.parse(opks_public.replace(/\\+/g, ""));
+        } catch (e) {
+          opks_public_temp = opks_public.replace(/\\+/g, "").slice(1, -1).split(",");
+        }
+      } else {
+        opks_public_temp = opks_public;
+      }
       const userKeys = {
-        identity_private_key: decryptedIkPrivateKey,
+        identity_private_key: sodium.to_base64(decryptedIkPrivateKeyRaw), // ✅ fixed
         signedpk_private_key: sodium.from_base64(spk_private_key),
         oneTimepks_private: opks_private.map((opk) => ({
           opk_id: opk.opk_id,
           private_key: sodium.from_base64(opk.private_key),
         })),
-        identity_public_key: sodium.from_base64(ik_public_key),
-        signedpk_public_key: sodium.from_base64(spk_public_key),
-        oneTimepks_public: opks_public.map((opk) => ({
+        identity_public_key: sodium.from_base64(ik_public),
+        signedpk_public_key: sodium.from_base64(spk_public),
+        oneTimepks_public: opks_public_temp.map((opk) => ({
           opk_id: opk.opk_id,
           publicKey: sodium.from_base64(opk.publicKey),
         })),
-        signedPreKeySignature: sodium.from_base64(signedPreKeySignature),
+        signedPrekeySignature: sodium.from_base64(signedPrekeySignature),
         salt: sodium.from_base64(salt),
         nonce: sodium.from_base64(nonce),
       };
@@ -141,13 +141,13 @@ export default function AuthPage() {
 
       useEncryptionStore.setState({
         encryptionKey: derivedKey,
-        userId: user.id,
+        userId: id,
         userKeys: userKeys,
       });
 
       console.log("User keys stored successfully:", userKeys);
       // localStorage.setItem('token', result.token);
-      const bearerToken = result.data?.token;
+      const bearerToken = token;
 
       if (!bearerToken) {
         throw new Error("No token returned from server");
