@@ -4,14 +4,16 @@ import (
 	//"context"
 	"encoding/json"
 	"net/http"
+
 	//"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler"
 	//"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/database"
 	//"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
 	//"go.mongodb.org/mongo-driver/bson"
-	"log"
-	"fmt"
-	"time"
 	"database/sql"
+	"fmt"
+	"log"
+	"time"
+
 	"github.com/lib/pq"
 )
 
@@ -58,8 +60,8 @@ func GetUserFilesHandler(w http.ResponseWriter, r *http.Request) {
 		var file map[string]interface{} = make(map[string]interface{})
 		var (
 			id, fileName, fileType, description, tags string
-			fileSize                              int64
-			createdAt                             time.Time
+			fileSize                                  int64
+			createdAt                                 time.Time
 		)
 		err := rows.Scan(&id, &fileName, &fileType, &fileSize, &description, &tags, &createdAt)
 		if err != nil {
@@ -148,7 +150,6 @@ func ListFileMetadataHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(files) // ✅ returns a proper array
 }
 
-
 func GetUserFileCountHandler(w http.ResponseWriter, r *http.Request) {
 	var req MetadataQueryRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -183,7 +184,6 @@ type AddReceivedFileRequest struct {
 	IdentityKeyPublic   string                 `json:"identityKeyPublic"`
 	Metadata            map[string]interface{} `json:"metadata"` // optional
 }
-
 
 func AddReceivedFileHandler(w http.ResponseWriter, r *http.Request) {
 	var req AddReceivedFileRequest
@@ -230,12 +230,11 @@ func AddReceivedFileHandler(w http.ResponseWriter, r *http.Request) {
 func GetPendingFilesHandler(w http.ResponseWriter, r *http.Request) {
 	var req MetadataQueryRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
-    if err != nil {
-	log.Println("JSON decode error:", err)
-	http.Error(w, "Invalid JSON payload, uswweiw", http.StatusBadRequest)
-	return
-    }
-
+	if err != nil {
+		log.Println("JSON decode error:", err)
+		http.Error(w, "Invalid JSON payload, uswweiw", http.StatusBadRequest)
+		return
+	}
 
 	if req.UserID == "" {
 		http.Error(w, "Missing userId", http.StatusBadRequest)
@@ -259,7 +258,7 @@ func GetPendingFilesHandler(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var file map[string]interface{} = make(map[string]interface{})
 		var (
-			id, senderID, fileID string
+			id, senderID, fileID  string
 			receivedAt, expiresAt time.Time
 		)
 		err := rows.Scan(&id, &senderID, &fileID, &receivedAt, &expiresAt)
@@ -267,7 +266,7 @@ func GetPendingFilesHandler(w http.ResponseWriter, r *http.Request) {
 			log.Println("Row scan error:", err)
 			continue
 		}
-		
+
 		file["id"] = id
 		file["senderId"] = senderID
 		file["fileId"] = fileID
@@ -441,10 +440,10 @@ func GetSentFilesHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		sentFile := map[string]interface{}{
-			"id":        id,
-			"recipientId":          recipientID,
-			"fileId":               fileID,
-			"sentAt":               sentAt,
+			"id":          id,
+			"recipientId": recipientID,
+			"fileId":      fileID,
+			"sentAt":      sentAt,
 		}
 
 		sentFiles = append(sentFiles, sentFile)
@@ -609,12 +608,120 @@ func InsertReceivedFile(db *sql.DB, recipientId, senderId, fileId, metadataJson 
 	return nil
 }
 
-
 func InsertSentFile(db *sql.DB, senderId, recipientId, fileId, encryptedFileKey, x3dhEphemeralPubKey string) error {
 	_, err := db.Exec(`
 		INSERT INTO sent_files (
 			sender_id, recipient_id, file_id, encrypted_file_key, x3dh_ephemeral_pubkey, sent_at
 		) VALUES ($1, $2, $3, $4, $5, NOW())
 	`, senderId, recipientId, fileId, encryptedFileKey, x3dhEphemeralPubKey)
+	return err
+}
+func SoftDeleteFile(w http.ResponseWriter, r *http.Request) {
+	type Request struct {
+		FileID string `json:"fileId"`
+	}
+
+	var req Request
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+		return
+	}
+
+	if req.FileID == "" {
+		http.Error(w, "Missing fileId", http.StatusBadRequest)
+		return
+	}
+
+	_, err := DB.Exec(`
+		UPDATE files
+		SET tags = (
+			SELECT ARRAY(
+				SELECT DISTINCT unnest(tags || $1::text[])
+			)
+		)
+		WHERE id = $2
+	`, pq.Array([]string{"deleted"}), req.FileID)
+
+	if err != nil {
+		log.Println("Soft delete (add 'deleted' tag) error:", err)
+		http.Error(w, "Failed to soft delete file", http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "File soft-deleted (tagged as 'deleted')",
+	})
+}
+
+func RestoreFile(w http.ResponseWriter, r *http.Request) {
+	type Request struct {
+		FileID string `json:"fileId"`
+	}
+
+	var req Request
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+		return
+	}
+
+	if req.FileID == "" {
+		http.Error(w, "Missing fileId", http.StatusBadRequest)
+		return
+	}
+
+	_, err := DB.Exec(`
+		UPDATE files
+		SET tags = (
+			SELECT ARRAY(
+				SELECT tag FROM unnest(tags) AS tag
+				WHERE tag <> ALL($1::text[])
+			)
+		)
+		WHERE id = $2
+	`, pq.Array([]string{"deleted"}), req.FileID)
+
+	if err != nil {
+		log.Println("Restore (remove 'deleted' tag) error:", err)
+		http.Error(w, "Failed to restore file", http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "File restored (tag 'deleted' removed)",
+	})
+}
+
+// AddTagToFile adds a single tag like "deleted" to a file's tags array
+func AddTagToFile(fileID string, tag string) error {
+	_, err := DB.Exec(`
+		UPDATE files
+		SET tags = (
+			SELECT ARRAY(
+				SELECT DISTINCT unnest(tags || $1::text[])
+			)
+		)
+		WHERE id = $2
+	`, pq.Array([]string{tag}), fileID)
+	if err != nil {
+		log.Printf("Error adding tag %q to file %s: %v", tag, fileID, err)
+	}
+	return err
+}
+
+// RemoveTagFromFile removes a single tag like "deleted" from a file's tags array
+func RemoveTagFromFile(fileID string, tag string) error {
+	_, err := DB.Exec(`
+		UPDATE files
+		SET tags = (
+			SELECT ARRAY(
+				SELECT tag FROM unnest(tags) AS tag
+				WHERE tag <> $1
+			)
+		)
+		WHERE id = $2
+	`, tag, fileID)
+	if err != nil {
+		log.Printf("Error removing tag %q from file %s: %v", tag, fileID, err)
+	}
 	return err
 }
