@@ -99,7 +99,7 @@ class UserController {
     }
   }
 
-  async getUserIdFromEmail(req,res) {
+  async getUserIdFromEmail(req, res) {
     try {
       const { email } = req.params;
       if (!email) {

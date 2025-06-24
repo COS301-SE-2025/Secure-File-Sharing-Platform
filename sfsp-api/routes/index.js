@@ -11,7 +11,7 @@ router.use('/files', fileRoutes);
 router.use('/contact', contactRoutes);
 router.use('/vault', vaultRoutes);
 
-router.get('/health', (res) => {
+router.get('/health', (req, res) => {
     res.status(200).json({
         success: true,
         message: 'API is running'

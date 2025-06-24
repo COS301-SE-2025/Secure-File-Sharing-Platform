@@ -96,3 +96,13 @@ recipient_id: "bob-uuid", //this file was sent by bob and recieved by alice
   "message": "File shared with recipient"
 }
 ```
+add tags
+
+request
+{
+  "fileId": "0a40aa68-46d8-464a-a9cd-58ec1b45ba46",
+  "tags": ["urgent", "legal", "confidential"]
+}
+
+response
+{"message":"Tags added successfully"}

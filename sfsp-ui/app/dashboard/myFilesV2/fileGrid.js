@@ -3,7 +3,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import {FileIcon,Download,Share,Star,Folder,FileText,Image,Video,MoreVertical,} from 'lucide-react';
+import { FileIcon, Download, Share, Star, Folder, FileText, Image, Video, MoreVertical, } from 'lucide-react';
 
 export function FileGrid({
   files,
@@ -21,7 +21,7 @@ export function FileGrid({
     folder: <Folder className="h-8 w-8 text-blue-500" />,
     pdf: <FileText className="h-8 w-8 text-red-500" />,
     document: <FileText className="h-8 w-8 text-red-500" />,
-    image: <Image className="h-8 w-8 text-green-500" alt=""/>,
+    image: <Image className="h-8 w-8 text-green-500" alt="" />,
     video: <Video className="h-8 w-8 text-purple-500" />,
   };
 
@@ -44,6 +44,34 @@ export function FileGrid({
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
 
+  const handleDelete = async (file) => {
+    const timestamp = new Date().toISOString();
+    const tags = ["deleted", `deleted_time:${timestamp}`];
+
+    try {
+      const res = await fetch("http://localhost:5000/api/files/addTags", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileId: file.id, tags }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to tag file as deleted");
+      }
+
+      console.log(`File ${file.name} marked as deleted`);
+
+      if (onDelete) {
+        onDelete(file); 
+      }
+    } catch (err) {
+      console.error("Delete failed:", err);
+      alert("Failed to delete file");
+    } finally {
+      setMenuFile(null);
+    }
+  };
+  
   return (
     <>
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
@@ -128,10 +156,7 @@ export function FileGrid({
           <hr />
 
           <button
-            onClick={() => {
-              onDelete(menuFile);
-              setMenuFile(null);
-            }}
+            onClick={() => handleDelete(menuFile)}
             className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 flex items-center gap-2 dark:hover:bg-red-200 dark:text-red-600"
           >
             Delete

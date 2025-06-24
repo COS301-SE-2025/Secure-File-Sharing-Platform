@@ -12,7 +12,7 @@ import { CreateFolderDialog } from "./createFolderDialog";
 import { FileGrid } from "./fileGrid";
 import { FileList } from "./fileList";
 import { useDashboardSearch } from "../components/DashboardSearchContext";
-import { useEncryptionStore} from "@/app/SecureKeyStorage";
+import { useEncryptionStore } from "@/app/SecureKeyStorage";
 import { getSodium } from "@/app/lib/sodium";
 
 function getFileType(mimeType) {
@@ -77,23 +77,33 @@ export default function MyFiles() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId }),
       });
+
       const data = await res.json();
       console.log("Fetched files from API:", data);
-      const formatted = data.map((f) => ({
-        id: (f.fileId || ""),
-        name: f.fileName || "Unnamed file",
-        size: formatFileSize(f.fileSize || 0),
-        type: getFileType(f.fileType || ""),
-        modified: f.createdAt
-          ? new Date(f.createdAt).toLocaleDateString()
-          : "",
-        shared: false,
-        starred: false,
-        //path: f.Path || "",
-      }));
+
+      const formatted = data
+        .filter((f) => {
+          const tags = f.tags ? f.tags.replace(/[{}]/g, '').split(',') : [];
+
+          return (
+            !tags.includes("deleted") &&
+            !tags.some((tag) => tag.trim().startsWith("deleted_time:"))
+          );
+        })
+        .map((f) => ({
+          id: f.fileId || "",
+          name: f.fileName || "Unnamed file",
+          size: formatFileSize(f.fileSize || 0),
+          type: getFileType(f.fileType || ""),
+          modified: f.createdAt
+            ? new Date(f.createdAt).toLocaleDateString()
+            : "",
+          shared: false,
+          starred: false,
+        }));
 
       setFiles(formatted);
-      console.log("Formatted files:", formatted);
+      console.log("Formatted (filtered) files:", formatted);
     } catch (err) {
       console.error("Failed to fetch files:", err);
     }
@@ -109,7 +119,7 @@ export default function MyFiles() {
       alert("Missing encryption key");
       return;
     }
-    
+
 
     const sodium = await getSodium();
     const userId = useEncryptionStore.getState().userId;
@@ -119,7 +129,7 @@ export default function MyFiles() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId : userId,
+          userId: userId,
           filename: file.name,
         }),
       });
@@ -180,21 +190,19 @@ export default function MyFiles() {
             {/* View Toggle */}
             <div className="flex items-center bg-white rounded-lg border p-1 dark:bg-gray-200">
               <button
-                className={`px-3 py-1 rounded ${
-                  viewMode === "grid"
-                    ? "bg-blue-500 text-white"
-                    : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
-                }`}
+                className={`px-3 py-1 rounded ${viewMode === "grid"
+                  ? "bg-blue-500 text-white"
+                  : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
+                  }`}
                 onClick={() => setViewMode("grid")}
               >
                 <Grid className="h-4 w-4" />
               </button>
               <button
-                className={`px-3 py-1 rounded ${
-                  viewMode === "list"
-                    ? "bg-blue-500 text-white"
-                    : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
-                }`}
+                className={`px-3 py-1 rounded ${viewMode === "list"
+                  ? "bg-blue-500 text-white"
+                  : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
+                  }`}
                 onClick={() => setViewMode("list")}
               >
                 <List className="h-4 w-4" />
@@ -228,6 +236,7 @@ export default function MyFiles() {
             onViewDetails={openDetailsDialog}
             onViewActivity={openActivityDialog}
             onDownload={handleDownload}
+            onDelete={fetchFiles}
           />
         ) : (
           <FileList
@@ -236,6 +245,7 @@ export default function MyFiles() {
             onViewDetails={openDetailsDialog}
             onViewActivity={openActivityDialog}
             onDownload={handleDownload}
+            onDelete={fetchFiles}
           />
         )}
 

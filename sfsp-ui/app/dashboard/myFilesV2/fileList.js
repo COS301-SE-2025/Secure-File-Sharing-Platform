@@ -3,7 +3,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import {FileIcon,Download,Share,Folder,FileText, Image,Video,Star,MoreVertical,} from 'lucide-react';
+import { FileIcon, Download, Share, Folder, FileText, Image, Video, Star, MoreVertical, } from 'lucide-react';
 
 export function FileList({
   files,
@@ -45,6 +45,34 @@ export function FileList({
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
 
+  const handleDelete = async (file) => {
+    const timestamp = new Date().toISOString();
+    const tags = ["deleted", `deleted_time:${timestamp}`];
+
+    try {
+      const res = await fetch("http://localhost:5000/api/files/addTags", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileId: file.id, tags }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to tag file as deleted");
+      }
+
+      console.log(`File ${file.name} marked as deleted`);
+
+      if (onDelete) {
+        onDelete(file); 
+      }
+    } catch (err) {
+      console.error("Delete failed:", err);
+      alert("Failed to delete file");
+    } finally {
+      setMenuFile(null);
+    }
+  };
+
   return (
     <>
       <table className="w-full bg-white rounded-lg ">
@@ -63,7 +91,7 @@ export function FileList({
               onContextMenu={(e) => handleContextMenu(e, file)}
               className="hover:bg-gray-200 cursor-pointer dark:hover:bg-blue-100"
             >
-              <td className="p-2 flex items-center gap-2" onClick={() => onViewDetails(file)}>
+              <td className="p-2 flex items-center gap-2">
                 {getIcon(file.type)}
                 <span className="font-medium">{file.name}</span>
                 {file.starred && <Star className="h-4 w-4 text-yellow-500 fill-current" />}
@@ -135,10 +163,7 @@ export function FileList({
           <hr />
 
           <button
-            onClick={() => {
-              onDelete(menuFile);
-              setMenuFile(null);
-            }}
+            onClick={() => handleDelete(menuFile)}
             className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 flex items-center gap-2 dark:hover:bg-red-200 dark:text-red-600"
           >
             Delete
