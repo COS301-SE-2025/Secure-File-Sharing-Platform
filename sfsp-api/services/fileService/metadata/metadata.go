@@ -520,11 +520,9 @@ func RemoveTagsFromFileHandler(w http.ResponseWriter, r *http.Request) {
 
 	_, err := DB.Exec(`
 		UPDATE files
-		SET tags = (
-			SELECT ARRAY(
-				SELECT tag FROM unnest(tags) AS tag
-				WHERE tag <> ALL($1::text[])
-			)
+		SET tags = ARRAY(
+			SELECT UNNEST(tags)
+			EXCEPT SELECT UNNEST($1::text[])
 		)
 		WHERE id = $2
 	`, pq.Array(req.Tags), req.FileID)
@@ -624,3 +622,34 @@ func AddTagsHandler(w http.ResponseWriter, r *http.Request) {
 		"message": "Tags added successfully",
 	})
 }
+
+func AddUserHandler(w http.ResponseWriter, r *http.Request) {
+	var req MetadataQueryRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Println("Failed to parse JSON:", err)
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	if req.UserID == "" {
+		http.Error(w, "Missing userId", http.StatusBadRequest)
+		return
+	}
+
+	_, err := DB.Exec(`
+		INSERT INTO users (id)
+		VALUES ($1)
+		ON CONFLICT (id) DO NOTHING
+	`, req.UserID)
+	if err != nil {
+		log.Println("Failed to insert user:", err)
+		http.Error(w, "Failed to add user", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "User added successfully",
+	})
+}
+

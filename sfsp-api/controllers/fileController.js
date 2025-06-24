@@ -258,5 +258,62 @@ exports.getAccesslog = async (req, res) => {
 };
 
 exports.addTags = async (req, res) => {
-  
+  const { fileId, tags } = req.body;
+  if (!fileId || !tags) {
+    return res
+      .status(400)
+      .send("Missing required fields: fileId or tags");
+  }
+  try {
+    const response = await axios.post(
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/addTags`,
+      { fileId, tags },
+      { headers: { "Content-Type": "application/json" } }
+    );
+    res.status(response.status).send(response.data);
+  } catch (err) {
+    console.error("Add Tags error:", err.message);
+    res.status(500).send("Failed to add tags to the file");
+  }
+}
+
+exports.addUserToTable = async (req, res) => {
+  const { userId } = req.body;
+
+  if(!userId){
+    return res
+      .status(400)
+      .send("Missing UserId");
+  }
+  try {
+    const response = await axios.post(
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/addUser`,
+      { userId },
+      { headers: { "Content-Type": "application/json" } }
+    );
+    res.status(response.status).send(response.data);
+  } catch (err) {
+    console.error("Add Users error:", err.message);
+    res.status(500).send("Failed to add Users to the Table");
+  }
+}
+
+exports.removeFileTags = async (req, res) => {
+  const { fileId, tags } = req.body;
+  if (!fileId || !tags) {
+    return res
+      .status(400)
+      .send("Missing required fields: fileId or tags");
+  }
+  try {
+    const response = await axios.post(
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/removeTags`,
+      { fileId, tags },
+      { headers: { "Content-Type": "application/json" } }
+    );
+    res.status(response.status).send(response.data);
+  } catch (err) {
+    console.error("remove Tags error:", err.message);
+    res.status(500).send("Failed to remove tags to the file");
+  }
 }
