@@ -243,11 +243,12 @@ exports.addAccesslog = async (req, res) => {
 };
 
 exports.getAccesslog = async (req, res) => {
-  const { file_id } = req.query;
+  const { file_id } = req.body;
   try {
-    const response = await axios.get(
+    const response = await axios.post(
       `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/getAccesslog`,
-      { params: file_id ? { file_id } : {} }
+      file_id ? { file_id } : {},
+      { headers: { "Content-Type": "application/json" } }
     );
     res.status(response.status).json(response.data);
   } catch (err) {

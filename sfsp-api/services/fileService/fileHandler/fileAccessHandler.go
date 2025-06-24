@@ -30,7 +30,8 @@ func AddAccesslogHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte("Access log added successfully"))
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"message": "Access log added successfully"})
 }
 
 func GetAccesslogHandler(w http.ResponseWriter, r *http.Request) {
@@ -38,9 +39,9 @@ func GetAccesslogHandler(w http.ResponseWriter, r *http.Request) {
 	var rows *sql.Rows
 	var err error
 	if fileID != "" {
-		rows, err = DB.Query(`SELECT id, file_id, user_id, action, timestamp FROM access_logs WHERE file_id = $1 ORDER BY timestamp DESC`, fileID)
+		rows, err = DB.Query(`SELECT id, file_id, user_id, action, message, timestamp FROM access_logs WHERE file_id = $1 ORDER BY timestamp DESC`, fileID)
 	} else {
-		rows, err = DB.Query(`SELECT id, file_id, user_id, action, timestamp FROM access_logs ORDER BY timestamp DESC`)
+		rows, err = DB.Query(`SELECT id, file_id, user_id, action, message, timestamp FROM access_logs ORDER BY timestamp DESC`)
 	}
 	if err != nil {
 		log.Println("Failed to query access logs:", err)
@@ -48,19 +49,20 @@ func GetAccesslogHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer rows.Close()
-	logs := []map[string]interface{}{}
+	logs := []map[string]any{}
 	for rows.Next() {
-		var id, fileID, userID, action string
+		var id, fileID, userID, action, message string
 		var timestamp string
-		if err := rows.Scan(&id, &fileID, &userID, &action, &timestamp); err != nil {
+		if err := rows.Scan(&id, &fileID, &userID, &action, &message, &timestamp); err != nil {
 			log.Println("Failed to scan access log row:", err)
 			continue
 		}
-		logs = append(logs, map[string]interface{}{
+		logs = append(logs, map[string]any{
 			"id":        id,
 			"file_id":   fileID,
 			"user_id":   userID,
 			"action":    action,
+			"message":   message,
 			"timestamp": timestamp,
 		})
 	}
