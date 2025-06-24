@@ -48,7 +48,7 @@ export function ActionButtons() {
       )}
 
       {/* + New Dropdown */}
-      <div className="relative inline-block text-left mr-10" ref={dropdownRef}>
+      {/* <div className="relative inline-block text-left mr-10" ref={dropdownRef}>
         <button
           onClick={() => setOpen((prev) => !prev)}
           className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 w-full text-left"
@@ -67,7 +67,7 @@ export function ActionButtons() {
             <button className="w-full text-left px-4 py-2 hover:bg-blue-300 dark:hover:bg-gray-700">New Folder</button>
           </div>
         </div>
-      </div>
+      </div> */}
     </div>
   );
 }
