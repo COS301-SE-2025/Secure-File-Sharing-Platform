@@ -277,5 +277,21 @@ exports.getAccesslog = async (req, res) => {
 };
 
 exports.addTags = async (req, res) => {
-  
+  const { fileId, tags } = req.body;
+  if (!fileId || !tags) {
+    return res
+      .status(400)
+      .send("Missing required fields: fileId or tags");
+  }
+  try {
+    const response = await axios.post(
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/addTags`,
+      { fileId, tags },
+      { headers: { "Content-Type": "application/json" } }
+    );
+    res.status(response.status).send(response.data);
+  } catch (err) {
+    console.error("Add Tags error:", err.message);
+    res.status(500).send("Failed to add tags to the file");
+  }
 }
