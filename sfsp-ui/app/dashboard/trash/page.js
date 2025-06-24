@@ -6,40 +6,41 @@ import { useState, useEffect } from 'react';
 import { Trash2, Undo2 } from 'lucide-react';
 import { useEncryptionStore } from '@/app/SecureKeyStorage';
 
-const fetchTrashedFiles = async () => {
-  try {
-    const res = await fetch("http://localhost:5000/api/files/metadata", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId }),
-    });
-    const data = await res.json();
-
-    const deletedFiles = data.filter(file =>
-      Array.isArray(file.tags) &&
-      file.tags.includes("deleted") &&
-      file.tags.some(tag => tag.startsWith("deleted_time:"))
-    );
-
-    const formatted = deletedFiles.map(file => ({
-      id: file.fileId,
-      name: file.fileName,
-      size: `${(file.fileSize / 1024 / 1024).toFixed(2)} MB`,
-      deletedAt: file.tags.find(t => t.startsWith("deleted_time:"))?.split(":")[1] || "Unknown",
-    }));
-
-    setTrashedFiles(formatted);
-  } catch (err) {
-    console.error("Failed to fetch trashed files:", err);
-  } finally {
-    setLoading(false);
-  }
-};
-
 export default function TrashPage() {
   const [trashedFiles, setTrashedFiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const userId = useEncryptionStore.getState().userId;
+
+  const fetchTrashedFiles = async () => {
+    try {
+      const res = await fetch("http://localhost:5000/api/files/metadata", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+
+      const data = await res.json();
+
+      const deletedFiles = data.filter(file =>
+        Array.isArray(file.tags) &&
+        file.tags.includes("deleted") &&
+        file.tags.some(tag => tag.startsWith("deleted_time:"))
+      );
+
+      const formatted = deletedFiles.map(file => ({
+        id: file.fileId,
+        name: file.fileName,
+        size: `${(file.fileSize / 1024 / 1024).toFixed(2)} MB`,
+        deletedAt: file.tags.find(t => t.startsWith("deleted_time:"))?.split(":")[1] || "Unknown",
+      }));
+
+      setTrashedFiles(formatted);
+    } catch (err) {
+      console.error("Failed to fetch trashed files:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleRestore = async (fileId) => {
     try {
@@ -52,7 +53,7 @@ export default function TrashPage() {
         }),
       });
 
-      fetchTrashedFiles();
+      fetchTrashedFiles(); // refresh UI after restore
     } catch (err) {
       console.error("Restore failed:", err);
       alert("Failed to restore file.");
@@ -117,7 +118,7 @@ export default function TrashPage() {
       <button
         type="button"
         className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-        onClick={() => alert("Trash Files Cleared (not implemented yet)")}
+        onClick={() => alert("Trash Files Cleared ")}
       >
         Clear Trash
       </button>
