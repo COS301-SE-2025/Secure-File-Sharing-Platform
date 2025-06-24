@@ -13,4 +13,8 @@ router.post('/addTags', fileController.addTags);
 router.post("/addUser", fileController.addUserToTable);
 router.post("/removeTags",fileController.removeFileTags);
 
+router.post('/softDeleteFile', fileController.softDeleteFile);
+router.post('/restoreFile', fileController.restoreFile);
+
+
 module.exports = router;
