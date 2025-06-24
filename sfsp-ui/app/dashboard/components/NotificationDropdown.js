@@ -62,8 +62,8 @@ export default function NotificationDropdown() {
       </button>
 
       {dropdownOpen && (
-        <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-lg z-50 overflow-hidden border">
-          <div className="p-3 border-b font-semibold text-gray-700 dark:text-gray-200 flex justify-between items-center">
+        <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-200 rounded-lg shadow-lg z-50 overflow-hidden border">
+          <div className="p-3 border-b font-semibold text-gray-700 dark:text-gray-900 flex justify-between items-center">
             Notifications
             {unreadCount > 0 && (
               <span className="bg-gray-200 dark:bg-gray-600 text-xs rounded-full px-2 py-0.5">
@@ -72,7 +72,7 @@ export default function NotificationDropdown() {
             )}
           </div>
 
-          {/* Scrollable Area */}
+          {/* Scroll*/}
           <div className="max-h-96 overflow-y-auto">
             {notifications.length === 0 ? (
               <div className="p-4 text-center text-sm text-gray-500">No notifications</div>
