@@ -11,4 +11,8 @@ router.delete('/removeAccesslog', fileController.removeAccesslog);
 router.get('/getAccesslog', fileController.getAccesslog);
 router.post('/send', fileController.sendFile);
 
+router.post('/softDeleteFile', fileController.softDeleteFile);
+router.post('/restoreFile', fileController.restoreFile);
+
+
 module.exports = router;

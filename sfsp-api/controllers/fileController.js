@@ -275,3 +275,45 @@ exports.getAccesslog = async (req, res) => {
     res.status(500).send("Failed to get access log");
   }
 };
+
+
+// In fileController.js (or wherever softDeleteFile and restoreFile are defined)
+
+exports.softDeleteFile = async (req, res) => {
+  const { fileId } = req.body;
+  if (!fileId) {
+    return res.status(400).send("Missing fileId");
+  }
+
+  try {
+    const response = await axios.post(
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/softDeleteFile`,
+      { fileId },
+      { headers: { "Content-Type": "application/json" } }
+    );
+    res.status(response.status).json(response.data);
+  } 
+  catch (err) {
+    console.error("Soft delete error:", err.message);
+    res.status(500).send("Failed to soft delete file");  // <-- match test expectation
+}
+};
+
+exports.restoreFile = async (req, res) => {
+  const { fileId } = req.body;
+  if (!fileId) {
+    return res.status(400).send("Missing fileId");
+  }
+
+  try {
+    const response = await axios.post(
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/restoreFile`,
+      { fileId },
+      { headers: { "Content-Type": "application/json" } }
+    );
+    res.status(response.status).json(response.data);
+  } catch (err) {
+    console.error("Restore error:", err.message);
+    res.status(500).send("Restore failed");
+  }
+};
