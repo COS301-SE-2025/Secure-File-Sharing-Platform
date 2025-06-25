@@ -11,6 +11,7 @@ router.post('/send', fileController.sendFile);
 router.post('/addTags', fileController.addTags);
 router.post("/addUser", fileController.addUserToTable);
 router.post("/removeTags",fileController.removeFileTags);
+router.post("/deleteFile",fileController.deleteFile);
 
 router.post('/softDeleteFile', fileController.softDeleteFile);
 router.post('/restoreFile', fileController.restoreFile);
