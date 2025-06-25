@@ -3,7 +3,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const routes = require('./routes')
-const ratelimit = require('express-rate-limit');
+// const ratelimit = require('express-rate-limit');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -22,16 +22,16 @@ app.use(express.urlencoded({
     limit: '2gb'
 }));
 
-const limiter = ratelimit({
-    windowMs: 15 * 60 * 1000,
-    max: 100,
-    message: {
-        success: false,
-        message: 'Too many requests from this IP, please try again later.'
-    }
-});
+// const limiter = ratelimit({
+//     windowMs: 15 * 60 * 1000,
+//     max: 100,
+//     message: {
+//         success: false,
+//         message: 'Too many requests from this IP, please try again later.'
+//     }
+// });
 
-app.use('/api', limiter);
+// app.use('/api', limiter);
 
 app.use('/api', routes);
 

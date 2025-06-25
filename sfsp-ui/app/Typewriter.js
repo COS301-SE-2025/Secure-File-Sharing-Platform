@@ -22,7 +22,7 @@ export default function Typewriter({ text, speed = 100, loop = false, cursor = t
         }, 2000);
         return () => clearTimeout(pauseTimeout);
         }
-    }, [index, text, speed, loop]);
+    }, [index, text, speed, loop,isTyping]);
 
     return (
         <span className="inline-flex items-center relative">

@@ -581,7 +581,7 @@ export default function AccountSettings() {
             {passwordStep === 'newPassword' && (
               <div className="space-y-4">
                 <p className="text-sm text-slate-400 mb-4">
-                  Now enter your new password. Make sure it's strong and secure.
+                  Now enter your new password. Make sure it&apos;s strong and secure.
                 </p>
                 
                 <div>

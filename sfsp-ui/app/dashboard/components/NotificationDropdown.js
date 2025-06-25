@@ -17,19 +17,71 @@ export default function NotificationDropdown() {
   }, [dropdownOpen]);
 
   const fetchNotifications = async () => {
-    
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    try {
+      const profileRes = await fetch("http://localhost:5000/api/users/profile", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const profileResult = await profileRes.json();
+      if (!profileRes.ok) throw new Error(profileResult.message || "Failed to fetch profile");
+
+      try {
+        const res = await axios.post('http://localhost:5000/api/notifications/get', {
+          userId: profileResult.data.id, // optionally use state/context for userId
+        });
+        if (res.data.success) {
+          setNotifications(res.data.notifications);
+        }
+      } catch (error) {
+        console.error('Failed to fetch notifications:', error);
+      }
+
+    } catch (err) {
+      console.error("Failed to fetch user profile:", err.message);
+    }
   };
 
   const markAsRead = async (id) => {
-    
+    try {
+      const res = await axios.post('http://localhost:5000/api/notifications/markAsRead', { id });
+      if (res.data.success) {
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+        );
+      }
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error);
+    }
   };
 
   const respondToShareRequest = async (id, status) => {
-    
+    try {
+      const res = await axios.post('http://localhost:5000/api/notifications/respond', {
+        id,
+        status,
+      });
+      if (res.data.success) {
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === id ? { ...n, status, read: true } : n))
+        );
+      }
+    } catch (error) {
+      console.error('Failed to respond to notification:', error);
+    }
   };
 
   const clearNotification = async (id) => {
-    
+    try {
+      const res = await axios.post('http://localhost:5000/api/notifications/clear', { id });
+      if (res.data.success) {
+        setNotifications((prev) => prev.filter((n) => n.id !== id));
+      }
+    } catch (error) {
+      console.error('Failed to clear notification:', error);
+    }
   };
 
   const unreadCount = notifications.filter((n) => !n.read).length;
@@ -66,7 +118,7 @@ export default function NotificationDropdown() {
           <div className="p-3 border-b font-semibold text-gray-700 dark:text-gray-900 flex justify-between items-center">
             Notifications
             {unreadCount > 0 && (
-              <span className="bg-gray-200 dark:bg-gray-600 text-xs rounded-full px-2 py-0.5">
+              <span className="bg-gray-200 dark:bg-gray-200 text-xs rounded-full px-2 py-0.5">
                 {unreadCount} new
               </span>
             )}
@@ -80,16 +132,15 @@ export default function NotificationDropdown() {
               notifications.map((notification) => (
                 <div
                   key={notification.id}
-                  className={`p-3 border-b last:border-b-0 cursor-pointer ${
-                    !notification.read ? 'bg-blue-50' : ''
-                  }`}
+                  className={`p-3 border-b last:border-b-0 cursor-pointer ${!notification.read ? 'bg-blue-50' : ''
+                    }`}
                   onClick={() => !notification.read && markAsRead(notification.id)}
                 >
                   <div className="flex items-start gap-3">
                     <FileText className="h-4 w-4 mt-1 text-blue-500" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">{notification.from}</p>
-                      <p className="text-sm text-gray-600 mb-2">{notification.message}</p>
+                      <p className="text-sm font-medium text-blue-600">{notification.message?.split(' ')[0]}</p>
+                      <p className="text-sm text-gray-600 mb-2">{notification.message?.split(' ').slice(1).join(' ')}</p>
                       <p className="text-xs text-gray-400">{formatTimestamp(notification.timestamp)}</p>
 
                       {/* accept/decline */}
@@ -109,7 +160,7 @@ export default function NotificationDropdown() {
                               e.stopPropagation();
                               respondToShareRequest(notification.id, 'declined');
                             }}
-                            className="flex items-center px-3 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                            className="flex items-center px-3 py-1 text-xs border border-gray-300 dark:text-gray-900 dark:border-gray-600 rounded hover:bg-gray-100 dark:hover:bg-gray-400"
                           >
                             <X className="h-3 w-3 mr-1" /> Decline
                           </button>
@@ -119,11 +170,10 @@ export default function NotificationDropdown() {
                       {/* sender's response */}
                       {notification.type === 'file_share_response' && (
                         <span
-                          className={`inline-block mt-2 px-2 py-0.5 text-xs rounded-full ${
-                            notification.status === 'accepted'
-                              ? 'bg-green-200 text-green-800'
-                              : 'bg-red-200 text-red-800'
-                          }`}
+                          className={`inline-block mt-2 px-2 py-0.5 text-xs rounded-full ${notification.status === 'accepted'
+                            ? 'bg-green-200 text-green-800'
+                            : 'bg-red-200 text-red-800'
+                            }`}
                         >
                           {notification.status === 'accepted' ? 'Accepted' : 'Declined'}
                         </span>
