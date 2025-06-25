@@ -142,16 +142,20 @@ exports.getNumberOfFiles = async (req, res) => {
 };
 
 exports.deleteFile = async (req, res) => {
-  const fileId = req.body.fileId;
+  const {fileId, userId} = req.body;
 
   if (!fileId) {
     return res.status(400).send("FileId not received");
   }
 
+  if(!userId){
+    return res.status(400).send("UserId not found");
+  }
+
   try {
     const response = await axios.post(
       `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/deleteFile`,
-      { fileId },
+      { fileId, userId },
       { headers: { "Content-Type": "application/json" } }
     );
 
@@ -336,3 +340,4 @@ exports.removeFileTags = async (req, res) => {
     res.status(500).send("Failed to remove tags to the file");
   }
 }
+

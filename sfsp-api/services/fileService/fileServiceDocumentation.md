@@ -261,4 +261,23 @@ Access log removed successfully
 
 ---
 
-Let me know if you'd like this exported as a Markdown file or integrated into Swagger/OpenAPI format.
+## Delete file
+
+**Endpoint**: `POST http://localhost:5000/files/deleteFile`
+**Authentication**: Not required
+
+#### Request Body
+
+```json
+{
+  "file_id": "<file-uuid>",
+}
+```
+
+#### Response
+
+```json
+Access log added successfully
+```
+
+---
