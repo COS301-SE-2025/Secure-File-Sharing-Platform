@@ -153,7 +153,6 @@ export default function MyFiles() {
       const token = localStorage.getItem("token");
       if (!token) return;
 
-      let email = "";
       try {
         const profileRes = await fetch("http://localhost:5000/api/users/profile", {
           headers: { Authorization: `Bearer ${token}` },
@@ -162,21 +161,21 @@ export default function MyFiles() {
         const profileResult = await profileRes.json();
         if (!profileRes.ok) throw new Error(profileResult.message || "Failed to fetch profile");
 
-        email = profileResult.data.email;
+        console.log(file);
+        await fetch("http://localhost:5000/api/files/addAccesslog", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            file_id: file.id,
+            user_id: profileResult.data.id,
+            action: "downloaded",
+            message: `User ${profileResult.data.email} has downloaded the file.`,
+          }),
+        });
+
       } catch (err) {
         console.error("Failed to fetch user profile:", err.message);
       }
-
-      await fetch("http://localhost:5000/api/files/addAccesslog", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          file_id: file.id,
-          user_id:  profileResult.data.id,
-          action: "downloaded",
-          message: `User ${email || "unknown"} has downloaded the file ${file.name}`,
-        }),
-      });
 
     } catch (err) {
       console.error("Download error:", err);
