@@ -61,9 +61,36 @@ export function FileGrid({
 
       console.log(`File ${file.name} marked as deleted`);
 
-      if (onDelete) {
-        onDelete(file); 
+      const token = localStorage.getItem("token");
+      if (!token) return;
+
+      try {
+        const profileRes = await fetch("http://localhost:5000/api/users/profile", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        const profileResult = await profileRes.json();
+        if (!profileRes.ok) throw new Error(profileResult.message || "Failed to fetch profile");
+
+        await fetch("http://localhost:5000/api/files/addAccesslog", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            file_id: file.id,
+            user_id: profileResult.data.id,
+            action: "deleted",
+            message: `User ${profileResult.data.email} deleted the file.`,
+          }),
+        });
+
+      } catch (err) {
+        console.error("Failed to fetch user profile:", err.message);
       }
+
+      if (onDelete) {
+        onDelete(file);
+      }
+
     } catch (err) {
       console.error("Delete failed:", err);
       alert("Failed to delete file");
@@ -71,7 +98,7 @@ export function FileGrid({
       setMenuFile(null);
     }
   };
-  
+
   return (
     <>
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">

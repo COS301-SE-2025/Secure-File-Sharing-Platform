@@ -62,8 +62,34 @@ export function FileList({
 
       console.log(`File ${file.name} marked as deleted`);
 
+      const token = localStorage.getItem("token");
+      if (!token) return;
+
+      try {
+        const profileRes = await fetch("http://localhost:5000/api/users/profile", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        const profileResult = await profileRes.json();
+        if (!profileRes.ok) throw new Error(profileResult.message || "Failed to fetch profile");
+
+        await fetch("http://localhost:5000/api/files/addAccesslog", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            file_id: file.id,
+            user_id: profileResult.data.id,
+            action: "deleted",
+            message: `User ${profileResult.data.email} deleted the file.`,
+          }),
+        });
+
+      } catch (err) {
+        console.error("Failed to fetch user profile:", err.message);
+      }
+
       if (onDelete) {
-        onDelete(file); 
+        onDelete(file);
       }
     } catch (err) {
       console.error("Delete failed:", err);

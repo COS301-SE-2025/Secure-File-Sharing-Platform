@@ -90,6 +90,32 @@ export default function TrashPage() {
         body: JSON.stringify({ fileId, tags: tagsToRemove }),
       });
 
+      const token = localStorage.getItem("token");
+      if (!token) return;
+
+      try {
+        const profileRes = await fetch("http://localhost:5000/api/users/profile", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        const profileResult = await profileRes.json();
+        if (!profileRes.ok) throw new Error(profileResult.message || "Failed to fetch profile");
+
+        await fetch("http://localhost:5000/api/files/addAccesslog", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            file_id: fileId,
+            user_id: profileResult.data.id,
+            action: "restored",
+            message: `User ${profileResult.data.email} restored the file.`,
+          }),
+        });
+
+      } catch (err) {
+        console.error("Failed to fetch user profile:", err.message);
+      }
+
       fetchTrashedFiles();
     } catch (err) {
       console.error("Restore failed:", err);
@@ -100,7 +126,7 @@ export default function TrashPage() {
 
   useEffect(() => {
     fetchTrashedFiles();
-  },[]);
+  }, []);
 
   return (
     <div className="flex-1 p-6 bg-gray-50 dark:bg-gray-900">

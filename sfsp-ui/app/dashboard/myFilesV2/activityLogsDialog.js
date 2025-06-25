@@ -3,7 +3,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Clock, Download, Share, Edit, Eye, Trash2 } from 'lucide-react';
+import { Clock, Download, Share, Edit, Eye, Trash2,Undo2 } from 'lucide-react';
 
 export function ActivityLogsDialog({ open, onOpenChange, file }) {
   const [activities, setActivities] = useState([]);
@@ -16,6 +16,7 @@ export function ActivityLogsDialog({ open, onOpenChange, file }) {
     viewed: Eye,
     deleted: Trash2,
     created: Clock,
+    restored:Undo2,
   };
 
   useEffect(() => {
