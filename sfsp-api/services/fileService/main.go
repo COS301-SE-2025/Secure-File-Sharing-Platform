@@ -1,62 +1,62 @@
 package main
 
 import (
-    //"context"
-    "log"
-    "net/http"
-    //"time"
+	//"context"
+	"log"
+	"net/http"
 
-    "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/database"
+	//"time"
+
+	"os"
+
+	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/database"
+	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler"
+	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/metadata"
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
-    "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler"
-    "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/metadata"
-    "os"
-    "github.com/joho/godotenv"
-
-    //"go.mongodb.org/mongo-driver/mongo"
-    //"go.mongodb.org/mongo-driver/mongo/options"
+	"github.com/joho/godotenv"
+	//"go.mongodb.org/mongo-driver/mongo"
+	//"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 func main() {
 
-    err := godotenv.Load()
-    if err != nil {
-        log.Fatal("Error loading .env file")
-    }
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
 
-    log.Println("Starting File Service...")
-    log.Println("Environment variables loaded successfully")
-    //log.Println("mongoURI:", os.Getenv("MONGO_URI"))
-    log.Println("ownCloud URL:", os.Getenv("OWNCLOUD_URL"))
+	log.Println("Starting File Service...")
+	log.Println("Environment variables loaded successfully")
+	//log.Println("mongoURI:", os.Getenv("MONGO_URI"))
+	log.Println("ownCloud URL:", os.Getenv("OWNCLOUD_URL"))
 
-
-    // mongoURI := os.Getenv("MONGO_URI")
-    // client, het := database.InitMongo(mongoURI)
-    // if het != nil {
-    //     log.Fatalf("Failed to connect to MongoDB: %v", het)
-    // }
+	// mongoURI := os.Getenv("MONGO_URI")
+	// client, het := database.InitMongo(mongoURI)
+	// if het != nil {
+	//     log.Fatalf("Failed to connect to MongoDB: %v", het)
+	// }
 	//fileHandler.SetMongoClient(client)
 
-    db, err := database.InitPostgre()
-    if err != nil {
-        log.Fatalf("Failed to connect to PostgreSQL: %v", err)
-    }
+	db, err := database.InitPostgre()
+	if err != nil {
+		log.Fatalf("Failed to connect to PostgreSQL: %v", err)
+	}
 
-    if db != nil {
-        log.Println("✅ PostgreSQL connected successfully")
-    } else {
-        log.Println("❌ PostgreSQL connection failed")
-    }
+	if db != nil {
+		log.Println("✅ PostgreSQL connected successfully")
+	} else {
+		log.Println("❌ PostgreSQL connection failed")
+	}
 
-    // Set the PostgreSQL client in the fileHandler package
-    fileHandler.SetPostgreClient(db)
-    metadata.SetPostgreClient(db)
-    //log.Println("✅ PostgreSQL client set in fileHandler and metadata")
+	// Set the PostgreSQL client in the fileHandler package
+	fileHandler.SetPostgreClient(db)
+	metadata.SetPostgreClient(db)
+	//log.Println("✅ PostgreSQL client set in fileHandler and metadata")
 
 	//initialize ownCloud client
 	owncloud.InitOwnCloud(os.Getenv("OWNCLOUD_URL"), os.Getenv("OWNCLOUD_USERNAME"), os.Getenv("OWNCLOUD_PASSWORD"))
 
-    http.HandleFunc("/upload", fileHandler.UploadHandler)
+	http.HandleFunc("/upload", fileHandler.UploadHandler)
 	http.HandleFunc("/download", fileHandler.DownloadHandler)
 
     // access log endpoints
@@ -83,5 +83,6 @@ func main() {
     //test from here
     http.HandleFunc("/addSentFiles", metadata.AddSentFileHandler) //I will combine this with the addPendingFiles endpoint later
     http.HandleFunc("/getSentFiles", metadata.GetSentFilesHandler)
+
 	log.Fatal(http.ListenAndServe(":8081", nil))
 }

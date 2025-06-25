@@ -1,5 +1,3 @@
-
-
 # File Services Documentation
 
 ## Table of Contents
