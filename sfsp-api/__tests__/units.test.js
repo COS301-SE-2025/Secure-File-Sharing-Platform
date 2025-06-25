@@ -35,7 +35,8 @@ describe('UserController Unit Tests', () => {
 
         res = {
             status: jest.fn().mockReturnThis(),
-            json: jest.fn().mockReturnThis()
+            send: jest.fn(),
+            json: jest.fn()
         };
 
         jest.spyOn(console, 'error').mockImplementation(() => {});

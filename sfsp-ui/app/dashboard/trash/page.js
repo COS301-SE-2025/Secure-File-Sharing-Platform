@@ -150,10 +150,11 @@ useEffect(() => {
   fetchTrashedFiles();
 }, []);
 
+
 return (
-  <div className="flex-1 p-6 bg-gray-50 dark:bg-gray-900">
-    <div className="mb-6">
-      <h1 className="text-2xl font-semibold text-blue-500">Trash</h1>
+<div className="flex-1 p-6 bg-gray-50 dark:bg-gray-900">
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold text-blue-500">Trash</h1>
       <p className="text-gray-600 dark:text-gray-400">Recently deleted files</p>
     </div>
 
