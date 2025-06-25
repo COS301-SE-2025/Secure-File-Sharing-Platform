@@ -31,7 +31,7 @@ func SendFileHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Decode base64 file content
-	fileBytes, err := base64.StdEncoding.DecodeString(req.EncryptedFile)
+	fileBytes, err := base64.RawURLEncoding.DecodeString(req.EncryptedFile)
 	if err != nil {
 		log.Println("Failed to decode encrypted file:", err)
 		http.Error(w, "Invalid encrypted file format", http.StatusBadRequest)

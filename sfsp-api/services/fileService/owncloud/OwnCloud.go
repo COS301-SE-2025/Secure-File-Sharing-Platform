@@ -57,8 +57,10 @@ var DownloadFile = func(fileId, UserID string) ([]byte, error) {
 	return data, nil
 }
 
-func DeleteFile(fileId string) error {
-	fullPath := fmt.Sprintf("files/%s", fileId)
+var DeleteFile = func(fileId, UserID string) error {
+	path := "files/"+UserID
+	fmt.Println("Paht is: ", path)
+	fullPath := fmt.Sprintf("%s/%s", path, fileId)
 	err := client.Remove(fullPath)
 	if err != nil {
 		return fmt.Errorf("failed to delete the file: %w", err)

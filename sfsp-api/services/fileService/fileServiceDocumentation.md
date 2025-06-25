@@ -1,4 +1,6 @@
-# File Services API Documentation
+
+
+# File Services Documentation
 
 ## Table of Contents
 
@@ -10,7 +12,20 @@
 
 ---
 
-## 1. Download Document
+## Table of Contents
+
+* [Download Document](#download-document)
+* [Upload Document](#upload-document)
+* [Get All File Metadata for User](#get-all-file-metadata-for-user)
+* [Get Specific File Metadata](#get-specific-file-metadata)
+* [Add File Tags](#add-file-tags)
+* [Share File With Another User](#share-file-with-another-user)
+* [File Access Logs](#file-access-logs)
+
+---
+
+## Download Document
+
 
 * **Endpoint**: `POST http://localhost:5000/files/download`
 * **Method**: `POST`
@@ -19,12 +34,13 @@
 
   * `Content-Type: application/json`
 
+
 ### Request Body
 
 ```json
 {
-  "path": "files/demo",
-  "filename": "test.pdf"
+  "userId": "550e8400-e29b-41d4-a716-446655440000",
+  "fileId": "b334b3cc-d7fd-445f-9aeb-7f865f88896b"
 }
 ```
 
@@ -32,16 +48,18 @@
 
 ```json
 {
-  "fileName": "example.pdf",
-  "fileContent": "U29tZSBlbmNyeXB0ZWQgZGF0YQ=="
+  "fileName": "Algorithmic trading.pdf",
+  "fileContent": "c29tZSBlbmNvZGVkIGNvbnRlbnQ="
 }
 ```
 
-> Note: The client must **Base64 decode** and **decrypt** the content using their private key to access the actual file.
+
+> **Note**: Client must decode base64 and decrypt the file using their private key before use.
 
 ---
 
-## 2. Upload Document
+## Upload Document
+
 
 * **Endpoint**: `POST http://localhost:5000/files/upload`
 * **Method**: `POST`
@@ -54,34 +72,31 @@
 
 ```json
 {
-  "fileName": "Trig-for-Computer-Graphics2.pdf",
+  "fileName": "Algorithmic trading.pdf",
   "fileType": "application/pdf",
-  "userId": "123",
-  "encryptionKey": "public key",
-  "fileDescription": "Demo PDF for testing",
-  "fileTags": ["test", "demo"],
-  "path": "files/demo",
-  "fileContent": "VGhpcyBpcyBhIHRlc3QgZmlsZSBjb250ZW50Lg=="
+
+  "userId": "550e8400-e29b-41d4-a716-446655440000",
+  "nonce": "random-nonce",
+  "fileDescription": "This is a test file",
+  "fileTags": ["Demo"],
+  "path": "files",
+  "fileContent": "qwifuhqoifbq3i4bfoiuweabfkljswerbivaebvqwK"
+
 }
 ```
 
 ### Response
 
-```json
-{
-  "message": " File uploaded",
-  "server": "File uploaded and metadata stored"
+
+  "fileId": "b334b3cc-d7fd-445f-9aeb-7f865f88896b",
+  "message": "File uploaded and metadata stored"
 }
 ```
 
 ---
 
-## 3. Get Metadata
+## Get All File Metadata for User
 
-* **Endpoint**: `GET http://localhost:5000/file/metadata`
-* **Method**: `GET`
-* **Authentication**: Not Required
-* **Headers**:
 
   * `Content-Type: application/json`
 
@@ -89,7 +104,39 @@
 
 ```json
 {
-  "userId": "123"
+
+  "userId": "550e8400-e29b-41d4-a716-446655440000"
+}
+```
+
+### Response
+
+```json
+[
+  {
+    "fileId": "b334b3cc-d7fd-445f-9aeb-7f865f88896b",
+    "fileName": "Algorithmic trading.pdf",
+    "fileType": "application/pdf",
+    "fileDescription": "This is a test file",
+    "fileTags": ["Demo"],
+    "uploadDate": "2023-10-01T12:00:00Z"
+  }
+]
+```
+
+---
+
+## Get Specific File Metadata
+
+**Endpoint**: `POST http://localhost:5000/file/metadata/file`
+**Authentication**: Not Required
+
+### Request
+
+```json
+{
+  "userId": "550e8400-e29b-41d4-a716-446655440000",
+  "fileId": "b334b3cc-d7fd-445f-9aeb-7f865f88896b"
 }
 ```
 
@@ -97,15 +144,72 @@
 
 ```json
 {
-  "FileName": "Trig-for-Computer-Graphics.pdf",
-  "FileSize": 1312720,
-  "FileType": "application/pdf",
-  "UserID": "123",
-  "EncryptionKey": "mysecretkey",
-  "UploadTimestamp": "2025-05-25T20:51:24.239Z",
-  "Description": "Sample test file",
-  "Tags": ["demo", "test", "go"],
-  "Path": "files/demo"
+  "fileId": "b334b3cc-d7fd-445f-9aeb-7f865f88896b",
+  "fileName": "Algorithmic trading.pdf",
+  "fileType": "application/pdf",
+  "fileDescription": "This is a test file",
+  "fileTags": ["Demo"],
+  "uploadDate": "2023-10-01T12:00:00Z"
+}
+```
+
+---
+
+## Add File Tags
+
+**Endpoint**: `POST http://localhost:5000/files/addTags`
+**Authentication**: Not Required
+
+### Request
+
+```json
+{
+  "fileId": "0a40aa68-46d8-464a-a9cd-58ec1b45ba46",
+  "tags": ["urgent", "legal", "confidential"]
+}
+```
+
+### Response
+
+```json
+{
+  "message": "Tags added successfully"
+}
+```
+
+---
+
+## Share File With Another User
+
+**Endpoint**: `POST http://localhost:5000/files/share`
+**Authentication**: Not Required
+
+### Request
+
+```json
+{
+  "senderId": "b4d6c1e9-1a9a-4e28-bc5d-2c3fa2cfe59a",
+  "recipientId": "e3c29cb2-47d2-4d75-a88b-fdc920144f0e",
+  "fileId": "7f98cc80-34c2-42b3-9f58-f6c7a385a244",
+  "metadata": {
+    "fileName": "contract.pdf",
+    "EK_public": "iwubfq3bhfrqwuobfvoqwrbf",
+    "Ik_public": "efbqwurbfou3wrbfwkur",
+    "Encrypted_file_key": "liuefboqiuwbrqreoicbqlr",
+    "description": "Shared NDA document",
+    "tags": ["legal", "confidential"]
+  }
+}
+```
+
+> `accepted` is `false` by default. The recipient must exist in the `users` table, and ownership must be verified before insert.
+
+### Response
+
+```json
+{
+  "message": "File shared with recipient"
+
 }
 ```
 
@@ -146,7 +250,6 @@
 ### b. Get Access Logs
 
 * **Endpoint**: `GET http://localhost:5000/files/getAccesslog`
-* **Method**: `GET`
 * **Authentication**: Not Required
 * **Headers**:
 
@@ -177,6 +280,7 @@
 ```
 
 ---
+
 
 ## 5. Notifications
 
@@ -217,6 +321,7 @@
   ],
   "success": true
 }
+
 ```
 
 ---

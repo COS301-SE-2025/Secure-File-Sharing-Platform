@@ -13,6 +13,7 @@ import (
 
 type deleteRequest struct{
 	FileId string `json:"fileId"`
+	UserID string `json:"userId"`
 }
 
 func DeleteFileHandler(w http.ResponseWriter, r *http.Request){
@@ -29,7 +30,13 @@ func DeleteFileHandler(w http.ResponseWriter, r *http.Request){
 		return
 	}
 
-	err = owncloud.DeleteFile(req.FileId)
+	if req.UserID == "" {
+		log.Println("No UserId provided")
+		http.Error(w, "Missing UserID", http.StatusBadRequest)
+		return
+	}
+
+	err = owncloud.DeleteFile(req.FileId, req.UserID)
 	if err != nil {
 		log.Println("OwnCloud deletefailed failed:", err)
 		http.Error(w, "File delete failed", http.StatusInternalServerError)
