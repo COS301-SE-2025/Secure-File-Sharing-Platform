@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { Search, ChevronLeft, ChevronRight, MessageCircle, ArrowRight, Star, Clock, Zap } from 'lucide-react';
 
 export default function FAQsPage() {
@@ -186,9 +187,8 @@ export default function FAQsPage() {
                   filteredFAQs.map((faq, index) => (
                     <div
                       key={index}
-                      className={`absolute inset-0 transition-all duration-500 ease-in-out ${
-                        index === currentSlide ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-full'
-                      }`}
+                      className={`absolute inset-0 transition-all duration-500 ease-in-out ${index === currentSlide ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-full'
+                        }`}
                     >
                       <div className="p-6">
                         <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-3">
@@ -224,11 +224,10 @@ export default function FAQsPage() {
                 <button
                   onClick={prevSlide}
                   disabled={currentSlide === 0}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium ${
-                    currentSlide === 0
+                  className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium ${currentSlide === 0
                       ? 'text-gray-400 cursor-not-allowed'
                       : 'text-blue-600 hover:text-blue-800 hover:bg-blue-50 dark:hover:bg-gray-700'
-                  }`}
+                    }`}
                 >
                   <ChevronLeft size={20} />
                   Previous
@@ -240,11 +239,10 @@ export default function FAQsPage() {
                     <button
                       key={index}
                       onClick={() => goToSlide(index)}
-                      className={`w-3 h-3 rounded-full transition-colors ${
-                        currentSlide === index
+                      className={`w-3 h-3 rounded-full transition-colors ${currentSlide === index
                           ? 'bg-blue-600'
                           : 'bg-gray-300 dark:bg-gray-600 hover:bg-blue-400'
-                      }`}
+                        }`}
                       aria-label={`Go to slide ${index + 1}`}
                     />
                   ))}
@@ -253,11 +251,10 @@ export default function FAQsPage() {
                 <button
                   onClick={nextSlide}
                   disabled={currentSlide === filteredFAQs.length - 1}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium ${
-                    currentSlide === filteredFAQs.length - 1
+                  className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium ${currentSlide === filteredFAQs.length - 1
                       ? 'text-gray-400 cursor-not-allowed'
                       : 'text-blue-600 hover:text-blue-800 hover:bg-blue-50 dark:hover:bg-gray-700'
-                  }`}
+                    }`}
                 >
                   Next
                   <ChevronRight size={20} />
@@ -271,9 +268,11 @@ export default function FAQsPage() {
         <div className="flex-1 flex flex-col items-center gap-8">
           <div className="relative">
             <div className="absolute inset-0 bg-blue-100 dark:bg-blue-900/20 rounded-lg blur-lg opacity-50"></div>
-            <img
+            <Image
               src="/img/FAQs.png"
               alt="Frequently Asked Questions"
+              width={1000}     
+              height={700}
               className="relative max-w-full h-auto w-full max-w-lg rounded-lg shadow-lg"
             />
           </div>

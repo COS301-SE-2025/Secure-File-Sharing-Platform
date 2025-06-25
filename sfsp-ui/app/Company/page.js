@@ -186,9 +186,9 @@ return (
                         </div>
                         <p className="text-xl text-gray-600 dark:text-gray-300 leading-relaxed">
                             We are a privacy-first team driven by the mission to redefine secure file sharing. 
-                            In a world where data breaches are far too common, we've built a platform where{' '}
+                            In a world where data breaches are far too common, we&apos;ve built a platform where{' '}
                             <span className="font-bold text-blue-600 dark:text-blue-400">
-                            privacy is not a feature—it's the foundation
+                            privacy is not a feature—it&apos;s the foundation
                             </span>. 
                             Our system ensures that your files are seen only by you and the people you choose. 
                             No third-party access. Ever.

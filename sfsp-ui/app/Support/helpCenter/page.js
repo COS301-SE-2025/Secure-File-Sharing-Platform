@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { Search,FileText,Shield,Users,Settings,BookOpen,ChevronLeft,ChevronRight,MessageCircle,HelpCircle,ArrowRight,ChevronDown,ChevronUp,Star,Clock,Zap } from 'lucide-react';
 
     const HelpCenter = () => {
@@ -136,7 +137,7 @@ import { Search,FileText,Shield,Users,Settings,BookOpen,ChevronLeft,ChevronRight
                     Help Center
                 </h1>
                 <p className="text-lg text-gray-600 dark:text-slate-300 leading-relaxed">
-                    Welcome to the Help Center. Here you'll find answers, guides, and
+                    Welcome to the Help Center. Here you&apos;ll find answers, guides, and
                     support for using the Secure File Sharing Platform effectively.
                 </p>
                 </div>
@@ -197,9 +198,11 @@ import { Search,FileText,Shield,Users,Settings,BookOpen,ChevronLeft,ChevronRight
             <div className="flex-1 flex flex-col items-center gap-8">
                 <div className="relative">
                 <div className="absolute inset-0 bg-blue-100 dark:bg-blue-900/20 rounded-lg blur-lg opacity-50"></div>
-                <img
+                <Image
                     src="/img/helpCenter.png"
                     alt="Help Center Support"
+                    width={800}     // replace with real size
+                    height={400}
                     className="relative max-w-full h-auto w-full max-w-lg rounded-lg shadow-lg"
                 />
                 </div>
@@ -414,7 +417,7 @@ import { Search,FileText,Shield,Users,Settings,BookOpen,ChevronLeft,ChevronRight
                 </div>
                 
                 <p className="text-gray-600 dark:text-slate-300 mb-6 leading-relaxed">
-                Can't find what you're looking for? Get in touch with our
+                Can&apos;t find what you&apos;re looking for? Get in touch with our
                 support team for personalized assistance and expert guidance.
                 </p>
                 

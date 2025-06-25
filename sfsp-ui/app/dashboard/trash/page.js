@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect,useCallback } from 'react';
 import { Trash2, Undo2 } from 'lucide-react';
 import { useEncryptionStore } from '@/app/SecureKeyStorage';
 
@@ -15,7 +15,7 @@ export default function TrashPage() {
   const [loading, setLoading] = useState(true);
   const userId = useEncryptionStore.getState().userId;
 
-  const fetchTrashedFiles = async () => {
+  const fetchTrashedFiles = useCallback(async () => {
     try {
       const res = await fetch('http://localhost:5000/api/files/metadata', {
         method: 'POST',
@@ -54,7 +54,7 @@ export default function TrashPage() {
     } finally {
       setLoading(false);
     }
-  };
+  },[userId]);
 
   const handleRestore = async (fileId) => {
     try {
@@ -162,7 +162,7 @@ export default function TrashPage() {
         }
       }
 
-      fetchTrashedFiles(); // Refresh after deletion
+      fetchTrashedFiles(); 
     } catch (err) {
       console.error("Failed to clear trash:", err);
       alert("An error occurred while clearing the trash.");
@@ -172,7 +172,7 @@ export default function TrashPage() {
 
   useEffect(() => {
     fetchTrashedFiles();
-  }, []);
+  }, [fetchTrashedFiles]);
 
   return (
     <div className="flex-1 p-6 bg-gray-50 dark:bg-gray-900">
