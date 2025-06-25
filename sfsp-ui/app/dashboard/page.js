@@ -13,7 +13,7 @@ export default function DashboardHomePage() {
   const [fileCount, setFileCount] = useState(0);
 
   const userId = useEncryptionStore.getState().userId;//again use the actual user ID from the auth system
-  console.log("UserId is:", userId);
+  // console.log("UserId is:", userId);
 
   useEffect(() => {
     const fetchFileCount = async () => {
@@ -30,7 +30,7 @@ export default function DashboardHomePage() {
     };
 
     fetchFileCount();
-  }, []);
+  }, [userId]);
 
   const stats = [
     {

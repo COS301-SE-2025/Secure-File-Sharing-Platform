@@ -62,7 +62,7 @@ export default function KeyHydrator() {
     };
 
     hydrate();
-  }, []); // run only once on mount
+  }, [setEncryptionKey, setUserId, setUserKeys]); // run only once on mount
 
   return null;
 }

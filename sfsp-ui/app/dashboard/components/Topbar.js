@@ -24,7 +24,7 @@ export default function Topbar() {
   }, []);
 
   return (
-      <div data-testid="action-buttons" className="flex items-center justify-between  p-6 bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white">
+    <div data-testid="action-buttons" className="flex items-center justify-between p-4 border-b border-gray-300 dark:border-gray-700 bg-gray-200 dark:bg-gray-800">
       <div className="flex items-center gap-2 w-full max-w-md bg-gray-100 dark:bg-gray-700 px-3 py-2 rounded-md border mx-auto">
         <Search size={18} className="text-gray-500" />
         <input
