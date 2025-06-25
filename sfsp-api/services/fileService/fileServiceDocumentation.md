@@ -1,21 +1,23 @@
-# File Services Documentation
+# File Services API Documentation
 
 ## Table of Contents
 
-* [download document](#download-document)
-* [Upload document](#Upload-Document)
-* [Get Meta data to display](#Get-Meta-Data-to-display)
-* [File Access Logs](#File-Access-Logs)
+1. [Download Document](#1-download-document)
+2. [Upload Document](#2-upload-document)
+3. [Get Metadata](#3-get-metadata)
+4. [File Access Logs](#4-file-access-logs)
+5. [Notifications](#5-notifications)
 
 ---
 
-## download document
+## 1. Download Document
 
-**Endpoint**: `POST http://localhost:5000/files/download`
-**Authentication**: Not required
+* **Endpoint**: `POST http://localhost:5000/files/download`
+* **Method**: `POST`
+* **Authentication**: Not Required
+* **Headers**:
 
-### Header
-Content-Type: application/json
+  * `Content-Type: application/json`
 
 ### Request Body
 
@@ -35,14 +37,18 @@ Content-Type: application/json
 }
 ```
 
-client needs to decode bas64, decrypt the file using the private key, then they can view or download or whatever as they will have the actual file
+> Note: The client must **Base64 decode** and **decrypt** the content using their private key to access the actual file.
 
 ---
 
-## Upload document
+## 2. Upload Document
 
-**Endpoint**: `POST http://localhost:5000/files/upload`
-**Authentication**: Not required
+* **Endpoint**: `POST http://localhost:5000/files/upload`
+* **Method**: `POST`
+* **Authentication**: Not Required
+* **Headers**:
+
+  * `Content-Type: application/json`
 
 ### Request Body
 
@@ -55,7 +61,7 @@ client needs to decode bas64, decrypt the file using the private key, then they 
   "fileDescription": "Demo PDF for testing",
   "fileTags": ["test", "demo"],
   "path": "files/demo",
-  "fileContent": "VGhpcyBpcyBhIHRlc3QgZmlsZSBjb250ZW50Lg=="  // base64 of: "This is a test file content."
+  "fileContent": "VGhpcyBpcyBhIHRlc3QgZmlsZSBjb250ZW50Lg=="
 }
 ```
 
@@ -63,23 +69,27 @@ client needs to decode bas64, decrypt the file using the private key, then they 
 
 ```json
 {
-    "message": " File uploaded",
-    "server": "File uploaded and metadata stored"
+  "message": " File uploaded",
+  "server": "File uploaded and metadata stored"
 }
 ```
 
 ---
 
-## Get Meta data to display
+## 3. Get Metadata
 
-**Endpoint**: `GET http://localhost:5000/file/metadata`
-**Authentication**: Not Required
+* **Endpoint**: `GET http://localhost:5000/file/metadata`
+* **Method**: `GET`
+* **Authentication**: Not Required
+* **Headers**:
 
-### Request
+  * `Content-Type: application/json`
+
+### Request Body
 
 ```json
 {
-	"userId": "123"
+  "userId": "123"
 }
 ```
 
@@ -87,58 +97,63 @@ client needs to decode bas64, decrypt the file using the private key, then they 
 
 ```json
 {
-    "FileName": "Trig-for-Computer-Graphics.pdf",
-    "FileSize": 1312720,
-    "FileType": "application/pdf",
-    "UserID": "123",
-    "EncryptionKey": "mysecretkey",
-    "UploadTimestamp": "2025-05-25T20:51:24.239Z",
-    "Description": "Sample test file",
-    "Tags": [
-        "demo",
-        "test",
-        "go"
-    ],
-    "Path": "files/demo"
+  "FileName": "Trig-for-Computer-Graphics.pdf",
+  "FileSize": 1312720,
+  "FileType": "application/pdf",
+  "UserID": "123",
+  "EncryptionKey": "mysecretkey",
+  "UploadTimestamp": "2025-05-25T20:51:24.239Z",
+  "Description": "Sample test file",
+  "Tags": ["demo", "test", "go"],
+  "Path": "files/demo"
 }
 ```
 
 ---
 
-## File Access Logs
+## 4. File Access Logs
 
-### Add Access Log
+### a. Add Access Log
 
-**Endpoint**: `POST http://localhost:5000/api/files/addAccesslog`
-**Authentication**: Not required
+* **Endpoint**: `POST http://localhost:5000/api/files/addAccesslog`
+* **Method**: `POST`
+* **Authentication**: Not Required
+* **Headers**:
+
+  * `Content-Type: application/json`
 
 #### Request Body
+
 ```json
 {
   "file_id": "1e064cfa-3fa9-4476-9338-4b37533f3faa",
   "user_id": "11111111-1111-1111-1111-111111111111",
-  "action": "viewed", // or "downloaded", "deleted", etc.
+  "action": "viewed",
   "message": "User <email> has <action> the files <file_name>"
 }
 ```
 
-#### Response
-- **201 Created**
+#### Response `201 Created`
+
 ```json
-{"message":"Access log added successfully"}
+{
+  "message": "Access log added successfully"
+}
 ```
 
 ---
 
-### Get Access Logs
+### b. Get Access Logs
 
-**Endpoint**: `GET http://localhost:5000/files/getAccesslog`
-**Authentication**: Not required
+* **Endpoint**: `GET http://localhost:5000/files/getAccesslog`
+* **Method**: `GET`
+* **Authentication**: Not Required
+* **Headers**:
 
-#### Example
-`GET http://localhost:5000/files/getAccesslog`
+  * `Content-Type: application/json`
 
-**Request Body:**
+#### Request Body
+
 ```json
 {
   "file_id": "1e064cfa-3fa9-4476-9338-4b37533f3faa"
@@ -146,63 +161,168 @@ client needs to decode bas64, decrypt the file using the private key, then they 
 ```
 
 #### Response
+
 ```json
 [
   {
     "id": "cbe648ba-60d2-4b31-b9d5-00e927898d3d",
-    "file_id": "1e064cfa-3fa9-4476-9338-4b37533f3faa",
-    "user_id": "11111111-1111-1111-1111-111111111111",
+    "file_id": "...",
+    "user_id": "...",
     "action": "deleted",
     "message": "User <email> has <action> the files <file_name>",
     "timestamp": "2025-06-24T17:28:41.316972Z"
   },
-  {
-    "id": "f3c91f76-591b-4360-9c10-f7e054e53d43",
-    "file_id": "1e064cfa-3fa9-4476-9338-4b37533f3faa",
-    "user_id": "11111111-1111-1111-1111-111111111111",
-    "action": "downloaded",
-    "message": "User <email> has <action> the files <file_name>",
-    "timestamp": "2025-06-24T17:25:54.885033Z"
-  },
-  {
-    "id": "63ae03ec-9524-43ac-9cf1-6774043e35c8",
-    "file_id": "1e064cfa-3fa9-4476-9338-4b37533f3faa",
-    "user_id": "11111111-1111-1111-1111-111111111111",
-    "action": "downloaded",
-    "message": "User <email> has <action> the files <file_name>",
-    "timestamp": "2025-06-24T17:25:53.774007Z"
-  },
-  {
-    "id": "8c1a3f7f-1cfe-4efb-97ce-da2f900eda46",
-    "file_id": "1e064cfa-3fa9-4476-9338-4b37533f3faa",
-    "user_id": "11111111-1111-1111-1111-111111111111",
-    "action": "downloaded",
-    "message": "User <email> has <action> the files <file_name>",
-    "timestamp": "2025-06-24T17:25:45.306758Z"
-  },
-  {
-    "id": "9121154f-1a2a-47bd-85c9-223b286ecc10",
-    "file_id": "1e064cfa-3fa9-4476-9338-4b37533f3faa",
-    "user_id": "11111111-1111-1111-1111-111111111111",
-    "action": "downloaded",
-    "message": "User <email> has <action> the files <file_name>",
-    "timestamp": "2025-06-24T17:24:47.039274Z"
-  },
-  {
-    "id": "9adfceb8-c948-48e5-9d02-9a01ad6a16ec",
-    "file_id": "1e064cfa-3fa9-4476-9338-4b37533f3faa",
-    "user_id": "11111111-1111-1111-1111-111111111111",
-    "action": "downloaded",
-    "message": "User <email> has <action> the files <file_name>",
-    "timestamp": "2025-06-24T17:23:43.257152Z"
-  },
-  {
-    "id": "9d56a814-5539-4b0b-bc50-fa0bf7a20218",
-    "file_id": "1e064cfa-3fa9-4476-9338-4b37533f3faa",
-    "user_id": "11111111-1111-1111-1111-111111111111",
-    "action": "viewed",
-    "message": "User <email> has <action> the files <file_name>",
-    "timestamp": "2025-06-24T17:16:45.917518Z"
-  }
+  ...
 ]
 ```
+
+---
+
+## 5. Notifications
+
+### a. Get Notifications
+
+* **Endpoint**: `POST http://localhost:5000/api/notifications/get`
+* **Method**: `POST`
+* **Authentication**: Not Required
+* **Headers**:
+
+  * `Content-Type: application/json`
+
+#### Request Body
+
+```json
+{
+  "userId": "06f2660c-faed-4396-80f3-a687e94e1987"
+}
+```
+
+#### Response
+
+```json
+{
+  "notifications": [
+    {
+      "id": "dfe388a7-8aa9-49ef-a0a9-871dcefce8c5",
+      "type": "file_share",
+      "from": "...",
+      "to": "...",
+      "file_name": "resume.pdf",
+      "file_id": "...",
+      "message": "Please review my resume",
+      "timestamp": "2025-06-25T11:56:21.091249Z",
+      "status": "pending",
+      "read": false
+    }
+  ],
+  "success": true
+}
+```
+
+---
+
+### b. Mark Notification as Read
+
+* **Endpoint**: `POST http://localhost:5000/api/notifications/markAsRead`
+* **Method**: `POST`
+* **Authentication**: Not Required
+
+#### Request Body
+
+```json
+{
+  "id": "dfe388a7-8aa9-49ef-a0a9-871dcefce8c5"
+}
+```
+
+#### Response
+
+```json
+{
+  "message": "Notification marked as read",
+  "success": true
+}
+```
+
+---
+
+### c. Respond to Notification
+
+* **Endpoint**: `POST http://localhost:5000/api/notifications/respond`
+* **Method**: `POST`
+* **Authentication**: Not Required
+
+#### Request Body
+
+```json
+{
+  "id": "dfe388a7-8aa9-49ef-a0a9-871dcefce8c5",
+  "status": "declined"
+}
+```
+
+#### Response
+
+```json
+{
+  "message": "Notification status updated",
+  "success": true
+}
+```
+
+---
+
+### d. Clear Notification
+
+* **Endpoint**: `POST http://localhost:5000/api/notifications/clear`
+* **Method**: `POST`
+* **Authentication**: Not Required
+
+#### Request Body
+
+```json
+{
+  "id": "46988b24-e8dd-4b6f-bfff-8f1b8f382f56"
+}
+```
+
+#### Response
+
+```json
+{
+  "message": "Notification deleted",
+  "success": true
+}
+```
+
+---
+
+### e. Add Notification
+
+* **Endpoint**: `POST http://localhost:5000/api/notifications/add`
+* **Method**: `POST`
+* **Authentication**: Not Required
+
+#### Request Body
+
+```json
+{
+  "type": "file request",
+  "fromEmail": "tmakhene21@gmail.com",
+  "toEmail": "Goon@gmail.com",
+  "file_name": "design.png",
+  "file_id": "2dd40203-3db5-4fd7-97f6-c3a7b2b9c631",
+  "message": "Can I get a copy of your logo design?"
+}
+```
+
+#### Response
+
+```json
+{
+  "id": "2c27e743-0b55-476c-8e10-07e9c39cf066",
+  "message": "Notification added",
+  "success": true
+}
+```
+
