@@ -181,11 +181,11 @@ func RespondToShareRequestHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Status != "accepted" && req.Status != "declined" {
+	if req.Status != "accepted" && req.Status != "declined" && req.Status != "pending" {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
-			"error":   "Invalid status. Must be 'accepted' or 'declined'",
+			"error":   "Invalid status. Must be 'accepted' or 'declined' or 'pending'",
 		})
 		return
 	}
@@ -199,6 +199,7 @@ func RespondToShareRequestHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// ✅ Update notification status
 	result, err := DB.Exec("UPDATE notifications SET status = $1, read = TRUE WHERE id = $2", req.Status, req.ID)
 	if err != nil {
 		log.Printf("Error updating notification status: %v", err)
@@ -220,6 +221,43 @@ func RespondToShareRequestHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	//fetch the file id from the god damn notifications table
+	if req.Status == "accepted" {
+		var fileID, filePath, metadata string
+		err := DB.QueryRow(`
+			SELECT rf.file_id, rf.metadata, rf.sender_id
+			FROM received_files rf
+			JOIN files f ON rf.file_id = f.id
+			WHERE rf.notification_id = $1
+		`, req.ID).Scan(&fileID, &metadata, &senderId)
+
+		if err != nil {
+			log.Printf("Error fetching file: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": false,
+				"error":   "Failed to retrieve file data",
+			})
+			return
+		}
+
+		//get the file name, file type and etc.. from the files table
+
+		// ✅ Respond with file metadata
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success":  true,
+			"message":  "Notification status updated",
+			"fileData": map[string]interface{}{
+				"file_id":  fileID,
+				"sender_id": senderId,
+				"metadata": metadata,
+			},
+		})
+		return
+	}
+
+	// ✅ Default success response for "declined"
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
