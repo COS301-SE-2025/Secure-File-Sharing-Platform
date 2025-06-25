@@ -33,7 +33,7 @@ class UserController {
       ) {
         return res.status(400).json({
           success: false,
-          message: "All required fields must be provided including keys.",
+          message: "Username, email, and password are required.",
         });
       }
 

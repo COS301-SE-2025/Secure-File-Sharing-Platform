@@ -15,7 +15,7 @@ describe('File Controller', () => {
 
   describe('downloadFile', () => {
     test('returns 400 if path or filename missing', async () => {
-      const req = { body: { path: '', filename: '' } };
+      const req = { body: { userId: '', filename: '' } }
       const res = {status: jest.fn().mockReturnThis(), send: jest.fn() };
       await fileController.downloadFile(req, res);
       expect(res.status).toHaveBeenCalledWith(400);
@@ -23,24 +23,34 @@ describe('File Controller', () => {
     });
 
     test('returns file data on success', async () => {
-      const req = { body: { path: 'path1', filename: 'file1' } };
-      const res = { json: jest.fn() };
-      axios.post.mockResolvedValue({
-        data: { fileName: 'file1', fileContent: 'data123' },
-      });
+  const req = { body: { userId: 'user1', filename: 'file1' } }; // ✅ use correct fields
+  const res = {
+    status: jest.fn().mockReturnThis(),
+    send: jest.fn(),
+    json: jest.fn()
+  };
 
-      await fileController.downloadFile(req, res);
+  axios.post.mockResolvedValue({
+    data: { fileName: 'file1', fileContent: 'data123', nonce: 'abc123' },
+  });
 
-      expect(axios.post).toHaveBeenCalledWith(
-        expect.stringContaining('/download'),
-        { path: 'path1', filename: 'file1' },
-        { headers: { "Content-Type": "application/json" } }
-      );
-      expect(res.json).toHaveBeenCalledWith({ fileName: 'file1', fileContent: 'data123' });
-    });
+  await fileController.downloadFile(req, res);
+
+  expect(axios.post).toHaveBeenCalledWith(
+    expect.stringContaining('/download'),
+    { userId: 'user1', filename: 'file1' },
+    { headers: { "Content-Type": "application/json" } }
+  );
+
+  expect(res.json).toHaveBeenCalledWith({
+    fileName: 'file1',
+    fileContent: 'data123',
+    nonce: 'abc123'
+  });
+});
 
     test('returns 500 on download failure', async () => {
-      const req = { body: { path: 'path1', filename: 'file1' } };
+      const req = { body: { userId: 'user1', filename: 'file1' } }
       const res = { status: jest.fn().mockReturnThis(), send: jest.fn() };
       axios.post.mockRejectedValue(new Error('Failed'));
 
@@ -103,62 +113,77 @@ describe('File Controller', () => {
       expect(res.send).toHaveBeenCalledWith('Missing file name or file content');
     });
 
-    test('returns 201 and server response on success', async () => {
-      const req = {
-        body: {
-          fileName: 'file1',
-          fileContent: 'base64data',
-          fileType: 'application/pdf',
-          userId: 'user1',
-          encryptionKey: 'key',
-          fileDescription: 'desc',
-          fileTags: ['tag1'],
-          path: 'files',
-        }
-      };
-      const res = { status: jest.fn().mockReturnThis(), json: jest.fn(), send: jest.fn() };
+   test('returns 201 and server response on success', async () => {
+    const req = {
+      body: {
+        fileName: 'file1',
+        fileContent: 'base64data',
+        fileType: 'application/pdf',
+        userId: 'user1',
+        nonce: 'abc123', // FIXED: nonce is required by controller
+        fileDescription: 'desc',
+        fileTags: ['tag1'],
+        path: 'files',
+      }
+    };
 
-      axios.post.mockResolvedValue({ data: { success: true } });
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+      send: jest.fn()
+    };
 
-      await fileController.uploadFile(req, res);
+    axios.post.mockResolvedValue({ data: { success: true } });
 
-      expect(axios.post).toHaveBeenCalledWith(
-        expect.stringContaining('/upload'),
-        expect.objectContaining({
-          fileName: 'file1',
-          fileContent: 'base64data',
-          fileType: 'application/pdf',
-          userId: 'user1',
-          encryptionKey: 'key',
-          fileDescription: 'desc',
-          fileTags: ['tag1'],
-          path: 'files',
-        }),
-        { headers: { "Content-Type": 'application/pdf' } }
-      );
-      expect(res.status).toHaveBeenCalledWith(201);
-      expect(res.json).toHaveBeenCalledWith({
-        message: "File uploaded",
-        server: { success: true },
-      });
+    await fileController.uploadFile(req, res);
+
+    expect(axios.post).toHaveBeenCalledWith(
+      expect.stringContaining('/upload'),
+      expect.objectContaining({
+        fileName: 'file1',
+        fileContent: 'base64data',
+        fileType: 'application/pdf',
+        userId: 'user1',
+        nonce: 'abc123',
+        fileDescription: 'desc',
+        fileTags: ['tag1'],
+        path: 'files',
+      }),
+      { headers: { "Content-Type": 'application/pdf' } }
+    );
+
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(res.json).toHaveBeenCalledWith({
+      message: "File uploaded",
+      server: { success: true },
     });
+  });
+test('returns 500 on upload failure', async () => {
+  const req = {
+    body: {
+      fileName: 'file1',
+      fileType: 'application/pdf',
+      userId: 'user1',
+      nonce: 'abc123',
+      fileContent: 'base64data',
+      fileTags: ['tag1'],
+      fileDescription: 'desc',
+      path: 'files',
+    },
+  };
 
-    test('returns 500 on upload failure', async () => {
-      const req = {
-        body: {
-          fileName: 'file1',
-          fileContent: 'base64data',
-          fileType: 'application/pdf',
-        }
-      };
-      const res = { status: jest.fn().mockReturnThis(), send: jest.fn() };
-      axios.post.mockRejectedValue(new Error('Upload error'));
+  const res = {
+    status: jest.fn().mockReturnThis(),
+    send: jest.fn(),
+  };
 
-      await fileController.uploadFile(req, res);
+    axios.post.mockRejectedValue(new Error('Something bad happened'));
 
-      expect(res.status).toHaveBeenCalledWith(510);
-      expect(res.send).toHaveBeenCalledWith('Upload failed');
-    });
+    await fileController.uploadFile(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.send).toHaveBeenCalledWith('Upload failed');
+  });
   });
 
   describe('getNumberOfFiles', () => {
