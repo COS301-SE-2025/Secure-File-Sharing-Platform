@@ -114,22 +114,20 @@ export default function MyFiles() {
   }, []);
 
   const handleDownload = async (file) => {
-    const { encryptionKey } = useEncryptionStore.getState();
+    const { encryptionKey, userId } = useEncryptionStore.getState();
     if (!encryptionKey) {
       alert("Missing encryption key");
       return;
     }
 
-
     const sodium = await getSodium();
-    const userId = useEncryptionStore.getState().userId;
 
     try {
       const res = await fetch("http://localhost:5000/api/files/download", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId: userId,
+          userId,
           filename: file.name,
         }),
       });
@@ -138,23 +136,48 @@ export default function MyFiles() {
 
       const { fileName, fileContent, nonce } = await res.json();
 
-      console.log("Encrypted key is: ", encryptionKey);
       const decrypted = sodium.crypto_secretbox_open_easy(
         sodium.from_base64(fileContent, sodium.base64_variants.ORIGINAL),
         sodium.from_base64(nonce, sodium.base64_variants.ORIGINAL),
         encryptionKey
       );
 
-      console.log("Decrypted is: ", decrypted);
-
       const blob = new Blob([decrypted]);
       const url = window.URL.createObjectURL(blob);
-
       const a = document.createElement("a");
       a.href = url;
       a.download = fileName;
       a.click();
       window.URL.revokeObjectURL(url);
+
+      const token = localStorage.getItem("token");
+      if (!token) return;
+
+      let email = "";
+      try {
+        const profileRes = await fetch("http://localhost:5000/api/users/profile", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        const profileResult = await profileRes.json();
+        if (!profileRes.ok) throw new Error(profileResult.message || "Failed to fetch profile");
+
+        email = profileResult.data.email;
+      } catch (err) {
+        console.error("Failed to fetch user profile:", err.message);
+      }
+
+      await fetch("http://localhost:5000/api/files/addAccesslog", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          file_id: file.id,
+          user_id:  profileResult.data.id,
+          action: "downloaded",
+          message: `User ${email || "unknown"} has downloaded the file ${file.name}`,
+        }),
+      });
+
     } catch (err) {
       console.error("Download error:", err);
       alert("Download failed");

@@ -83,6 +83,36 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }) {
         });
 
         if (!res.ok) throw new Error("Upload failed");
+
+        const uploadResult = await res.json();
+        console.log(uploadResult);
+
+        const token = localStorage.getItem("token");
+        if (!token) return;
+
+        try {
+          const profileRes = await fetch("http://localhost:5000/api/users/profile", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+
+          const profileResult = await profileRes.json();
+          if (!profileRes.ok) throw new Error(profileResult.message || "Failed to fetch profile");
+
+          await fetch("http://localhost:5000/api/files/addAccesslog", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              file_id: uploadResult.server.fileId,
+              user_id: profileResult.data.id,
+              action: "uploaded",
+              message: `User ${profileResult.data.email} uploaded the file.`,
+            }),
+          });
+
+        } catch (err) {
+          console.error("Failed to fetch user profile:", err.message);
+        }
+        
       } catch (err) {
         console.error(`Upload failed for ${file.name}:`, err);
         alert(`Upload failed for ${file.name}`);

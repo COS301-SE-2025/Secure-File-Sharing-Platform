@@ -1,11 +1,55 @@
-//app/dashboard/myFilesV2/activityLogDialog.js
+// app/dashboard/myFilesV2/activityLogDialog.js
 
 'use client';
 
-import React from 'react';
-import { Clock, Download, Share, Edit, Eye } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Clock, Download, Share, Edit, Eye, Trash2 } from 'lucide-react';
 
 export function ActivityLogsDialog({ open, onOpenChange, file }) {
+  const [activities, setActivities] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const iconMap = {
+    downloaded: Download,
+    shared: Share,
+    edited: Edit,
+    viewed: Eye,
+    deleted: Trash2,
+    created: Clock,
+  };
+
+  useEffect(() => {
+    if (!file || !open) return;
+
+    const fetchLogs = async () => {
+      try {
+
+        console.log(file.id);
+
+        const res = await fetch('http://localhost:5000/api/files/getAccesslog', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ file_id: file.id }),
+        });
+
+        if (!res.ok) throw new Error('Failed to fetch logs');
+
+        const logs = await res.json();
+
+        const filteredLogs = logs.filter(log => log.file_id === file.id);
+        console.log(filteredLogs);
+        setActivities(filteredLogs);
+      } catch (err) {
+        console.error('Error fetching activity logs:', err);
+        setActivities([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLogs();
+  }, [file, open]);
+
   if (!file || !open) return null;
 
   const Dialog = ({ children }) => (
@@ -29,51 +73,8 @@ export function ActivityLogsDialog({ open, onOpenChange, file }) {
   );
 
   const ScrollArea = ({ children }) => (
-    <div className="h-96 overflow-y-auto pr-2 ">{children}</div>
+    <div className="h-96 overflow-y-auto pr-2">{children}</div>
   );
-
-  const mockActivities = [
-    {
-      id: '1',
-      action: 'shared',
-      user: 'You',
-      timestamp: '2024-01-15 10:30 AM',
-      details: 'Shared with john@example.com',
-      icon: Share,
-    },
-    {
-      id: '2',
-      action: 'downloaded',
-      user: 'john@example.com',
-      timestamp: '2024-01-15 09:45 AM',
-      details: 'Downloaded file',
-      icon: Download,
-    },
-    {
-      id: '3',
-      action: 'viewed',
-      user: 'sarah@example.com',
-      timestamp: '2024-01-14 4:20 PM',
-      details: 'Viewed file',
-      icon: Eye,
-    },
-    {
-      id: '4',
-      action: 'edited',
-      user: 'You',
-      timestamp: '2024-01-14 2:15 PM',
-      details: 'Modified file content',
-      icon: Edit,
-    },
-    {
-      id: '5',
-      action: 'created',
-      user: 'You',
-      timestamp: '2024-01-13 11:00 AM',
-      details: 'File created',
-      icon: Clock,
-    },
-  ];
 
   return (
     <Dialog>
@@ -93,29 +94,41 @@ export function ActivityLogsDialog({ open, onOpenChange, file }) {
         </DialogHeader>
 
         <ScrollArea>
-          <div className="space-y-4">
-            {mockActivities.map((activity) => {
-              const Icon = activity.icon;
-              return (
-                <div
-                  key={activity.id}
-                  className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg"
-                >
-                  <div className="p-2 bg-white rounded-full">
-                    <Icon className="h-4 w-4 text-gray-600" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-medium text-sm">{activity.user}</span>
-                      <span className="text-sm text-gray-500">{activity.action}</span>
+          {loading ? (
+            <p className="text-gray-500">Loading activity logs...</p>
+          ) : activities.length === 0 ? (
+            <p className="text-gray-500">No activity found for this file.</p>
+          ) : (
+            <div className="space-y-4">
+              {activities.map((activity) => {
+                const Icon = iconMap[activity.action] || Clock;
+                return (
+                  <div
+                    key={activity.id}
+                    className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg"
+                  >
+                    <div className="p-2 bg-white rounded-full">
+                      <Icon className="h-4 w-4 text-gray-600" />
                     </div>
-                    <p className="text-sm text-gray-600 mb-1">{activity.details}</p>
-                    <p className="text-xs text-gray-500">{activity.timestamp}</p>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-medium text-sm">
+                          {activity.message?.split(' ')[1] || activity.user_id || 'Unknown User'}
+                        </span>
+                        <span className="text-sm text-gray-500">{activity.action}</span>
+                      </div>
+                      <p className="text-sm text-gray-600 mb-1">
+                        {activity.message || ''}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {new Date(activity.timestamp).toLocaleString()}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </ScrollArea>
       </DialogContent>
     </Dialog>

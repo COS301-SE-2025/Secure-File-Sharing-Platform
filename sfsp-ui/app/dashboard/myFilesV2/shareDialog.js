@@ -66,6 +66,32 @@ export function ShareDialog({ open, onOpenChange, file }) {
 
         console.log("FileId", file.id);
         await SendFile(file, recipientId, file.id);
+
+        const token = localStorage.getItem("token");
+        if (!token) return;
+
+        try {
+          const profileRes = await fetch("http://localhost:5000/api/users/profile", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+
+          const profileResult = await profileRes.json();
+          if (!profileRes.ok) throw new Error(profileResult.message || "Failed to fetch profile");
+
+          await fetch("http://localhost:5000/api/files/addAccesslog", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              file_id: file.id,
+              user_id: profileResult.data.id,
+              action: "shared",
+              message: `User ${profileResult.data.email} has shared the file with ${email}`,
+            }),
+          });
+
+        } catch (err) {
+          console.error("Failed to fetch user profile:", err.message);
+        }
       }
 
       onOpenChange(false);
