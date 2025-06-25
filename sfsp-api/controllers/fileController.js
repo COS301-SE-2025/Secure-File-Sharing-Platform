@@ -6,7 +6,8 @@ exports.downloadFile = async (req, res) => {
   const { userId, filename } = req.body;
 
   if (!userId || !filename) {
-    return res.status(400).send("Missing userId or filename");
+    return res.status(400).send("Missing path or filename"); // if test is right
+
   }
 
   try {
@@ -18,11 +19,15 @@ exports.downloadFile = async (req, res) => {
 
     const { fileName, fileContent, nonce } = response.data;
 
+
     res.json({ fileName, fileContent, nonce });
   } catch (err) {
     console.error("Download error:", err.message);
-    res.status(500).send("Download failed");
+    return res.status(500).send("Download failed");
+
   }
+
+
 };
 
 exports.getMetaData = async (req, res) => {
@@ -65,8 +70,8 @@ exports.uploadFile = async (req, res) => {
       fileContent,
     } = req.body;
 
-    if (!fileName) {
-      return res.status(400).send("Missing file name");
+    if (!fileName || !fileContent) {
+      return res.status(400).send("Missing file name or file content");
     }
 
     if (!userId) {
@@ -77,9 +82,6 @@ exports.uploadFile = async (req, res) => {
       return res.status(400).send("Missing nonce");
     }
 
-    if (!fileContent) {
-      return res.status(400).send("Missing file content");
-    }
 
     console.log("📡 Uploading to:", process.env.FILE_SERVICE_URL);
 
@@ -109,7 +111,7 @@ exports.uploadFile = async (req, res) => {
     });
   } catch (err) {
     console.error(" Upload error:", err.message);
-    res.status(500).send("Upload failed");
+    res.status(510).send("Upload failed");
   }
 };
 
@@ -154,6 +156,7 @@ exports.deleteFile = async (req, res) => {
   try {
     const response = await axios.post(
       `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/deleteFile`,
+      { fileId, userId },
       { fileId, userId },
       { headers: { "Content-Type": "application/json" } }
     );
@@ -284,7 +287,7 @@ exports.addTags = async (req, res) => {
 exports.addUserToTable = async (req, res) => {
   const { userId } = req.body;
 
-  if(!userId){
+  if (!userId) {
     return res
       .status(400)
       .send("Missing UserId");
@@ -300,7 +303,48 @@ exports.addUserToTable = async (req, res) => {
     console.error("Add Users error:", err.message);
     res.status(500).send("Failed to add Users to the Table");
   }
-}
+
+};
+
+
+exports.softDeleteFile = async (req, res) => {
+  const { fileId } = req.body;
+  if (!fileId) {
+    return res.status(400).send("Missing fileId");
+  }
+
+  try {
+    const response = await axios.post(
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/softDeleteFile`,
+      { fileId },
+      { headers: { "Content-Type": "application/json" } }
+    );
+    res.status(response.status).json(response.data);
+  }
+  catch (err) {
+    console.error("Soft delete error:", err.message);
+    res.status(500).send("Failed to soft delete file");  // <-- match test expectation
+  }
+};
+
+exports.restoreFile = async (req, res) => {
+  const { fileId } = req.body;
+  if (!fileId) {
+    return res.status(400).send("Missing fileId");
+  }
+
+  try {
+    const response = await axios.post(
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/restoreFile`,
+      { fileId },
+      { headers: { "Content-Type": "application/json" } }
+    );
+    res.status(response.status).json(response.data);
+  } catch (err) {
+    console.error("Restore error:", err.message);
+    res.status(500).send("Restore failed");
+  }
+};
 
 exports.removeFileTags = async (req, res) => {
   const { fileId, tags } = req.body;
@@ -321,4 +365,6 @@ exports.removeFileTags = async (req, res) => {
     res.status(500).send("Failed to remove tags to the file");
   }
 }
+
+
 

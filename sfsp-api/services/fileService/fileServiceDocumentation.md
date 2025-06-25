@@ -1,22 +1,59 @@
+<<<<<<<<< Temporary merge branch 1
+Here is your **updated and consolidated File Services Documentation**, incorporating all the new endpoints, request/response formats, and metadata details you provided:
+
+---
+
 # File Services Documentation
 
 ## Table of Contents
 
-* [download document](#download-document)
-* [Upload document](#Upload-Document)
-* [Get Meta data to display](#Get-Meta-Data-to-display)
-* [File Access Logs](#File-Access-Logs)
+1. [Download Document](#1-download-document)
+2. [Upload Document](#2-upload-document)
+3. [Get Metadata](#3-get-metadata)
+4. [File Access Logs](#4-file-access-logs)
+5. [Notifications](#5-notifications)
+
+---
+
+## Table of Contents
+
+* [Download Document](#download-document)
+* [Upload Document](#upload-document)
+* [Get All File Metadata for User](#get-all-file-metadata-for-user)
+* [Get Specific File Metadata](#get-specific-file-metadata)
+* [Add File Tags](#add-file-tags)
+* [Share File With Another User](#share-file-with-another-user)
+* [File Access Logs](#file-access-logs)
+
+---
+
+## Download Document
+=========
+# File Services API Documentation
+
+## Table of Contents
+
+1. [Download Document](#1-download-document)
+2. [Upload Document](#2-upload-document)
+3. [Get Metadata](#3-get-metadata)
+4. [File Access Logs](#4-file-access-logs)
+5. [Notifications](#5-notifications)
 
 ---
 
 ## 1. Download Document
+>>>>>>>>> Temporary merge branch 2
 
-**Endpoint**: `POST http://localhost:5000/files/download`
-**Authentication**: Not required
+* **Endpoint**: `POST http://localhost:5000/files/download`
+* **Method**: `POST`
+* **Authentication**: Not Required
+* **Headers**:
 
-### Header
-Content-Type: application/json
+<<<<<<<<< Temporary merge branch 1
+=========
+  * `Content-Type: application/json`
 
+>>>>>>>>> Temporary merge branch 2
 ### Request Body
 
 ```json
@@ -35,11 +72,19 @@ Content-Type: application/json
 }
 ```
 
+<<<<<<<<< Temporary merge branch 1
+> **Note**: Client must decode base64 and decrypt the file using their private key before use.
+
+---
+
+## Upload Document
+=========
 > Note: The client must **Base64 decode** and **decrypt** the content using their private key to access the actual file.
 
 ---
 
-## Upload document
+## 2. Upload Document
+>>>>>>>>> Temporary merge branch 2
 
 * **Endpoint**: `POST http://localhost:5000/files/upload`
 * **Method**: `POST`
@@ -54,12 +99,21 @@ Content-Type: application/json
 {
   "fileName": "Algorithmic trading.pdf",
   "fileType": "application/pdf",
+<<<<<<<<< Temporary merge branch 1
   "userId": "550e8400-e29b-41d4-a716-446655440000",
   "nonce": "random-nonce",
   "fileDescription": "This is a test file",
   "fileTags": ["Demo"],
   "path": "files",
   "fileContent": "qwifuhqoifbq3i4bfoiuweabfkljswerbivaebvqwK"
+=========
+  "userId": "123",
+  "encryptionKey": "public key",
+  "fileDescription": "Demo PDF for testing",
+  "fileTags": ["test", "demo"],
+  "path": "files/demo",
+  "fileContent": "VGhpcyBpcyBhIHRlc3QgZmlsZSBjb250ZW50Lg=="
+>>>>>>>>> Temporary merge branch 2
 }
 ```
 
@@ -67,6 +121,7 @@ Content-Type: application/json
 
 ```json
 {
+<<<<<<<<< Temporary merge branch 1
   "fileId": "b334b3cc-d7fd-445f-9aeb-7f865f88896b",
   "message": "File uploaded and metadata stored"
 }
@@ -74,12 +129,12 @@ Content-Type: application/json
 
 ---
 
+<<<<<<<<< Temporary merge branch 1
+## Get All File Metadata for User
+=========
 ## 3. Get Metadata
+>>>>>>>>> Temporary merge branch 2
 
-* **Endpoint**: `GET http://localhost:5000/file/metadata`
-* **Method**: `GET`
-* **Authentication**: Not Required
-* **Headers**:
 
   * `Content-Type: application/json`
 
@@ -87,6 +142,7 @@ Content-Type: application/json
 
 ```json
 {
+<<<<<<<<< Temporary merge branch 1
   "userId": "550e8400-e29b-41d4-a716-446655440000"
 }
 ```
@@ -191,6 +247,17 @@ Content-Type: application/json
 ```json
 {
   "message": "File shared with recipient"
+=========
+  "FileName": "Trig-for-Computer-Graphics.pdf",
+  "FileSize": 1312720,
+  "FileType": "application/pdf",
+  "UserID": "123",
+  "EncryptionKey": "mysecretkey",
+  "UploadTimestamp": "2025-05-25T20:51:24.239Z",
+  "Description": "Sample test file",
+  "Tags": ["demo", "test", "go"],
+  "Path": "files/demo"
+>>>>>>>>> Temporary merge branch 2
 }
 ```
 
@@ -231,7 +298,6 @@ Content-Type: application/json
 ### b. Get Access Logs
 
 * **Endpoint**: `GET http://localhost:5000/files/getAccesslog`
-* **Method**: `GET`
 * **Authentication**: Not Required
 * **Headers**:
 
@@ -262,6 +328,7 @@ Content-Type: application/json
 ```
 
 ---
+
 
 ## 5. Notifications
 

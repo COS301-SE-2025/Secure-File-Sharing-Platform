@@ -2,6 +2,7 @@
 import { Bell, Sun, Moon } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useTheme } from 'next-themes';
+import NotificationDropdown from './NotificationDropdown';
 
 export function ActionButtons() {
   const [open, setOpen] = useState(false);
@@ -31,10 +32,9 @@ export function ActionButtons() {
   return (
     <div className="flex items-center space-x-2">
       {/* Bell Notification */}
-      <button className="relative w-10 h-10 rounded-full bg-gray-200 hover:bg-blue-300 flex items-center justify-center mr-10 dark:bg-gray-700">
-        <Bell className="h-5 w-5 text-gray-600 dark:text-white" />
-        <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
-      </button>
+      <div className="relative mr-2">
+        <NotificationDropdown />
+      </div>
 
       {/* Theme Toggle Button */}
       {mounted && (
@@ -48,7 +48,7 @@ export function ActionButtons() {
       )}
 
       {/* + New Dropdown */}
-      <div className="relative inline-block text-left mr-10" ref={dropdownRef}>
+      {/* <div className="relative inline-block text-left mr-10" ref={dropdownRef}>
         <button
           onClick={() => setOpen((prev) => !prev)}
           className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 w-full text-left"
@@ -67,7 +67,7 @@ export function ActionButtons() {
             <button className="w-full text-left px-4 py-2 hover:bg-blue-300 dark:hover:bg-gray-700">New Folder</button>
           </div>
         </div>
-      </div>
+      </div> */}
     </div>
   );
 }
