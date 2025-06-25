@@ -118,7 +118,7 @@ export default function NotificationDropdown() {
           <div className="p-3 border-b font-semibold text-gray-700 dark:text-gray-900 flex justify-between items-center">
             Notifications
             {unreadCount > 0 && (
-              <span className="bg-gray-200 dark:bg-gray-600 text-xs rounded-full px-2 py-0.5">
+              <span className="bg-gray-200 dark:bg-gray-200 text-xs rounded-full px-2 py-0.5">
                 {unreadCount} new
               </span>
             )}
@@ -139,8 +139,8 @@ export default function NotificationDropdown() {
                   <div className="flex items-start gap-3">
                     <FileText className="h-4 w-4 mt-1 text-blue-500" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">{notification.from}</p>
-                      <p className="text-sm text-gray-600 mb-2">{notification.message}</p>
+                      <p className="text-sm font-medium text-blue-600">{notification.message?.split(' ')[0]}</p>
+                      <p className="text-sm text-gray-600 mb-2">{notification.message?.split(' ').slice(1).join(' ')}</p>
                       <p className="text-xs text-gray-400">{formatTimestamp(notification.timestamp)}</p>
 
                       {/* accept/decline */}
@@ -160,7 +160,7 @@ export default function NotificationDropdown() {
                               e.stopPropagation();
                               respondToShareRequest(notification.id, 'declined');
                             }}
-                            className="flex items-center px-3 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                            className="flex items-center px-3 py-1 text-xs border border-gray-300 dark:text-gray-900 dark:border-gray-600 rounded hover:bg-gray-100 dark:hover:bg-gray-400"
                           >
                             <X className="h-3 w-3 mr-1" /> Decline
                           </button>
