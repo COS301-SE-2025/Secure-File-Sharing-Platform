@@ -505,7 +505,7 @@ describe('UserController Unit Tests', () => {
     describe('refreshToken', () => {
         it('should refresh token successfully', async () => {
             req.body = {
-                email: 'test@example.com'
+                userId: '1414'
             };
 
             const mockToken = 'new-jwt-token';
@@ -513,7 +513,7 @@ describe('UserController Unit Tests', () => {
 
             await UserController.refreshToken(req, res);
 
-            expect(userService.refreshToken).toHaveBeenCalledWith('test@example.com');
+            expect(userService.refreshToken).toHaveBeenCalledWith('1414');
             expect(res.status).toHaveBeenCalledWith(200);
             expect(res.json).toHaveBeenCalledWith({
                 success: true,
@@ -522,7 +522,7 @@ describe('UserController Unit Tests', () => {
             });
         });
 
-        it('should return 400 when email is missing', async () => {
+        it('should return 400 when userID is missing', async () => {
             req.body = {};
 
             await UserController.refreshToken(req, res);
@@ -531,24 +531,24 @@ describe('UserController Unit Tests', () => {
             expect(res.status).toHaveBeenCalledWith(400);
             expect(res.json).toHaveBeenCalledWith({
                 success: false,
-                message: 'Email is required.'
+                message: 'User ID is required.'
             });
         });
 
         it('should return 500 when userService.refreshToken throws an error', async () => {
-            req.body = {
-                email: 'test@example.com'
-            };
+          req.body = {
+        userId: 'test-id' // ✅ use userId, not email
+    };
 
-            userService.refreshToken.mockRejectedValue(new Error('User not found'));
+    userService.refreshToken.mockRejectedValue(new Error('User not found'));
 
-            await UserController.refreshToken(req, res);
+    await UserController.refreshToken(req, res);
 
-            expect(res.status).toHaveBeenCalledWith(500);
-            expect(res.json).toHaveBeenCalledWith({
-                success: false,
-                message: 'Internal server error.'
-            });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        message: 'Internal server error.'
+    });
         });
     });
 
