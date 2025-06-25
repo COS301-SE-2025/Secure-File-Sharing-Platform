@@ -49,7 +49,7 @@ func TestDownloadHandler(t *testing.T) {
 
 	t.Run("Success", func(t *testing.T) {
 		reqBody := fileHandler.DownloadRequest{
-			Path:     "valid/path",
+			:     "valid/path",
 			FileName: "file.txt",
 		}
 		body, _ := json.Marshal(reqBody)

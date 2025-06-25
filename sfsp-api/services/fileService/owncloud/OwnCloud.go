@@ -57,7 +57,7 @@ var DownloadFile = func(fileId, UserID string) ([]byte, error) {
 	return data, nil
 }
 
-func DeleteFile(fileId, UserID string) error {
+var DeleteFile = func(fileId, UserID string) error {
 	path := "files/"+UserID
 	fmt.Println("Paht is: ", path)
 	fullPath := fmt.Sprintf("%s/%s", path, fileId)

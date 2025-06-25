@@ -76,12 +76,10 @@ func main() {
     http.HandleFunc("/sendFile", fileHandler.SendFileHandler)
     http.HandleFunc("/addTags", metadata.AddTagsHandler)
     http.HandleFunc("/addUser", metadata.AddUserHandler)
+    http.HandleFunc("/removeTags", metadata.RemoveTagsFromFileHandler)
 
     //test from here
     http.HandleFunc("/addSentFiles", metadata.AddSentFileHandler) //I will combine this with the addPendingFiles endpoint later
-    http.HandleFunc("/AcceptReceivedFile", metadata.AcceptReceivedFileHandler)//I will make this automatically either upload the file to owncloud or download it to the user's device
-    http.HandleFunc("/RejectReceivedFile", metadata.RejectReceivedFileHandler)
     http.HandleFunc("/getSentFiles", metadata.GetSentFilesHandler)
-    http.HandleFunc("/removeTags", metadata.RemoveTagsFromFileHandler)
 	log.Fatal(http.ListenAndServe(":8081", nil))
 }

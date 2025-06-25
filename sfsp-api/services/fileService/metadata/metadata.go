@@ -1,13 +1,8 @@
 package metadata
 
 import (
-	//"context"
 	"encoding/json"
 	"net/http"
-	//"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler"
-	//"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/database"
-	//"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
-	//"go.mongodb.org/mongo-driver/bson"
 	"log"
 	"fmt"
 	"time"
@@ -145,7 +140,7 @@ func ListFileMetadataHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(files) // ✅ returns a proper array
+	json.NewEncoder(w).Encode(files)
 }
 
 
@@ -325,92 +320,6 @@ func AddSentFileHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func AcceptReceivedFileHandler(w http.ResponseWriter, r *http.Request) {
-	type AcceptRequest struct {
-		RecipientID string `json:"recipientId"`
-		FileID      string `json:"fileId"`
-	}
-
-	var req AcceptRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
-		return
-	}
-
-	if req.RecipientID == "" || req.FileID == "" {
-		http.Error(w, "Missing required fields", http.StatusBadRequest)
-		return
-	}
-
-	result, err := DB.Exec(`
-		UPDATE received_files
-		SET accepted = TRUE
-		WHERE recipient_id = $1 AND file_id = $2
-	`, req.RecipientID, req.FileID)
-
-	if err != nil {
-		log.Println("PostgreSQL accept update error:", err)
-		http.Error(w, "Failed to update received file record", http.StatusInternalServerError)
-		return
-	}
-
-	rowsAffected, _ := result.RowsAffected()
-	if rowsAffected == 0 {
-		http.Error(w, "No matching record found", http.StatusNotFound)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{
-		"message": "File accepted successfully",
-	})
-}
-
-func RejectReceivedFileHandler(w http.ResponseWriter, r *http.Request) {
-	type RejectRequest struct {
-		RecipientID string `json:"recipientId"`
-		FileID      string `json:"fileId"`
-	}
-
-	var req RejectRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
-		return
-	}
-
-	if req.RecipientID == "" || req.FileID == "" {
-		http.Error(w, "Missing required fields", http.StatusBadRequest)
-		return
-	}
-
-	if req.RecipientID == "" || req.FileID == "" {
-		http.Error(w, "Missing required fields", http.StatusBadRequest)
-		return
-	}
-
-	result, err := DB.Exec(`
-		DELETE FROM received_files
-		WHERE recipient_id = $1 AND file_id = $2
-	`, req.RecipientID, req.FileID)
-
-	if err != nil {
-		log.Println("PostgreSQL reject delete error:", err)
-		http.Error(w, "Failed to delete received file record", http.StatusInternalServerError)
-		return
-	}
-
-	rowsAffected, _ := result.RowsAffected()
-	if rowsAffected == 0 {
-		http.Error(w, "No matching record found", http.StatusNotFound)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{
-		"message": "File rejected and removed",
-	})
-}
-
 func GetSentFilesHandler(w http.ResponseWriter, r *http.Request) {
 	var req MetadataQueryRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -463,7 +372,7 @@ func GetSentFilesHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(sentFiles)
 }
 
-func DeleteFileMetadata(fileID string) error {
+var DeleteFileMetadata = func(fileID string) error {
 	tx, err := DB.Begin()
 	if err != nil {
 		log.Println("Failed to begin transaction:", err)
@@ -547,7 +456,7 @@ func GetRecipientIDFromOPK(opkID string) (string, error) {
 	return userID, nil
 }
 
-func InsertReceivedFile(db *sql.DB, recipientId, senderId, fileId, metadataJson string, expiresAt time.Time) error {
+var InsertReceivedFile = func(db *sql.DB, recipientId, senderId, fileId, metadataJson string, expiresAt time.Time) error {
 	// Step 1: Ensure the recipient exists
 	var exists bool
 	err := db.QueryRow(`
@@ -579,7 +488,7 @@ func InsertReceivedFile(db *sql.DB, recipientId, senderId, fileId, metadataJson 
 }
 
 
-func InsertSentFile(db *sql.DB, senderId, recipientId, fileId, encryptedFileKey, x3dhEphemeralPubKey string) error {
+var InsertSentFile = func(db *sql.DB, senderId, recipientId, fileId, encryptedFileKey, x3dhEphemeralPubKey string) error {
 	_, err := db.Exec(`
 		INSERT INTO sent_files (
 			sender_id, recipient_id, file_id, encrypted_file_key, x3dh_ephemeral_pubkey, sent_at
@@ -652,4 +561,3 @@ func AddUserHandler(w http.ResponseWriter, r *http.Request) {
 		"message": "User added successfully",
 	})
 }
-

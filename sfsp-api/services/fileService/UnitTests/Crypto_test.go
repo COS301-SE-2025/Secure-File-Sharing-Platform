@@ -3,21 +3,18 @@ package unitTests
 import (
 	"os"
 	"testing"
-	"log"
+	//"log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/joho/godotenv"
+	//"github.com/joho/godotenv"
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto"
 )
 
 func TestEncryptDecrypt(t *testing.T) {
-	err := godotenv.Load("../.env")
-    if err != nil {
-        log.Fatal("Error loading .env file")
-    }
+	err := os.Setenv("AES_KEY", "12345678901234567890123456789012")
+    require.NoError(t, err)
 
 	key := os.Getenv("AES_KEY")
-	require.Len(t, key, 32)
 
 	plaintext := "Hello world"
 	cipher, err := crypto.EncryptBytes([]byte(plaintext), key)
@@ -58,13 +55,10 @@ func TestEncryptDecryptWithEmptyKey(t *testing.T) {
 }
 
 func TestEncryptDecryptWithEmptyPlaintext(t *testing.T) {
-	err := godotenv.Load("../.env")
-    if err != nil {
-        log.Fatal("Error loading .env file")
-    }
+	err := os.Setenv("AES_KEY", "12345678901234567890123456789012")
+    require.NoError(t, err)
 
 	key := os.Getenv("AES_KEY")
-	require.Len(t, key, 32)
 
 	plaintext := ""
 	cipher, err := crypto.EncryptBytes([]byte(plaintext), key)
@@ -78,7 +72,11 @@ func TestEncryptDecryptWithEmptyPlaintext(t *testing.T) {
 
 func TestDecryptWithInvalidCiphertext(t *testing.T) {
 	invalidCiphertext := []byte("this is not a valid ciphertext")
+	err := os.Setenv("AES_KEY", "12345678901234567890123456789012")
+    require.NoError(t, err)
+
 	key := os.Getenv("AES_KEY")
+
 	require.Len(t, key, 32)
 
 	plain, err := crypto.DecryptBytes(invalidCiphertext, key)
@@ -89,6 +87,9 @@ func TestDecryptWithInvalidCiphertext(t *testing.T) {
 
 func TestEncryptWithInvalidCiphertext(t *testing.T) {
 	invalidCiphertext := []byte("this is not a valid ciphertext")
+	err := os.Setenv("AES_KEY", "12345678901234567890123456789012")
+    require.NoError(t, err)
+
 	key := os.Getenv("AES_KEY")
 	require.Len(t, key, 32)
 
@@ -103,10 +104,8 @@ func TestEncryptDecryptWithLongPlaintext(t *testing.T) {
 		"It is designed to test the encryption and decryption functions with larger data sizes, ensuring that they can handle " +
 		"arbitrary lengths without issues or performance degradation."
 
-	err := godotenv.Load("../.env")
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
+	err := os.Setenv("AES_KEY", "12345678901234567890123456789012")
+    require.NoError(t, err)
 
 	key := os.Getenv("AES_KEY")
 	require.Len(t, key, 32)
@@ -122,11 +121,9 @@ func TestEncryptDecryptWithLongPlaintext(t *testing.T) {
 
 func TestEncryptDecryptWithSpecialCharacters(t *testing.T) {
 	specialChars := "!@#$%^&*()_+[]{}|;:',.<>?/~`"
-	
-	err := godotenv.Load("../.env")
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
+
+	err := os.Setenv("AES_KEY", "12345678901234567890123456789012")
+    require.NoError(t, err)
 
 	key := os.Getenv("AES_KEY")
 	require.Len(t, key, 32)
@@ -143,10 +140,8 @@ func TestEncryptDecryptWithSpecialCharacters(t *testing.T) {
 func TestEncryptDecryptWithShortPlaintext(t *testing.T) {
 	shortPlaintext := "A"
 
-	err := godotenv.Load("../.env")
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
+	err := os.Setenv("AES_KEY", "12345678901234567890123456789012")
+    require.NoError(t, err)
 
 	key := os.Getenv("AES_KEY")
 	require.Len(t, key, 32)
@@ -163,10 +158,8 @@ func TestEncryptDecryptWithShortPlaintext(t *testing.T) {
 func TestEncryptDecryptWithEmptyCiphertext(t *testing.T) {
 	emptyCiphertext := []byte{}
 
-	err := godotenv.Load("../.env")
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
+	err := os.Setenv("AES_KEY", "12345678901234567890123456789012")
+    require.NoError(t, err)
 
 	key := os.Getenv("AES_KEY")
 	require.Len(t, key, 32)
@@ -182,11 +175,6 @@ func TestEncryptDecryptWithEmptyCiphertext(t *testing.T) {
 }
 
 func TestEncryptDecryptWithWrongKey(t* testing.T){
-	err := godotenv.Load("../.env")
-    if err != nil {
-        log.Fatal("Error loading .env file")
-    }
-
 	key := "WrongKey"
 
 	plaintext := "Hello world"
@@ -198,4 +186,3 @@ func TestEncryptDecryptWithWrongKey(t* testing.T){
 	require.Error(t, err)
 	assert.NotEqual(t, []byte(plaintext), plain)
 }
-
