@@ -9,9 +9,9 @@ if __name__ == "__main__":
     # Run pytest with coverage options
     sys.exit(
         pytest.main([
-            "--cov=routes",  # Coverage for routes directory
-            "--cov=services",  # Coverage for services directory
-            "--cov=utils",  # Coverage for utils directory
+            "--cov=routes",
+            "--cov=services",
+            "--cov=utils",
             "--cov-report=term",  # Terminal report
             "--cov-report=html:coverage_html",  # HTML report
             "-v",  # Verbose output
