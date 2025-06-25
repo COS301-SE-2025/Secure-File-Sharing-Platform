@@ -104,7 +104,7 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }) {
             body: JSON.stringify({
               file_id: uploadResult.server.fileId,
               user_id: profileResult.data.id,
-              action: "uploaded",
+              action: "created",
               message: `User ${profileResult.data.email} uploaded the file.`,
             }),
           });
