@@ -4,19 +4,19 @@ import (
 	//"encoding/base64"
 	"encoding/json"
 	//"fmt"
-	"log"
 	"net/http"
-
+	"log"
 	//"os"
-	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/metadata"
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
+	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/metadata"
 )
 
-type deleteRequest struct {
+type deleteRequest struct{
 	FileId string `json:"fileId"`
+	UserID string `json:"userId"`
 }
 
-func DeleteFileHandler(w http.ResponseWriter, r *http.Request) {
+func DeleteFileHandler(w http.ResponseWriter, r *http.Request){
 	var req deleteRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
@@ -30,7 +30,13 @@ func DeleteFileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = owncloud.DeleteFile(req.FileId)
+	if req.UserID == "" {
+		log.Println("No UserId provided")
+		http.Error(w, "Missing UserID", http.StatusBadRequest)
+		return
+	}
+
+	err = owncloud.DeleteFile(req.FileId, req.UserID)
 	if err != nil {
 		log.Println("OwnCloud deletefailed failed:", err)
 		http.Error(w, "File delete failed", http.StatusInternalServerError)
@@ -48,46 +54,6 @@ func DeleteFileHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{
 		"message": "File successfully deleted",
-	})
-}
-func SoftDeleteFileHandler(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		FileID string `json:"fileId"`
-	}
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.FileID == "" {
-		http.Error(w, "Invalid or missing fileId", http.StatusBadRequest)
-		return
-	}
-
-	err := metadata.AddTagToFile(req.FileID, "deleted")
-	if err != nil {
-		http.Error(w, "Failed to soft delete (add tag)", http.StatusInternalServerError)
-		return
-	}
-
-	json.NewEncoder(w).Encode(map[string]string{
-		"message": "File soft deleted (tagged as 'deleted')",
-	})
-}
-
-func RestoreFileHandler(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		FileID string `json:"fileId"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.FileID == "" {
-		http.Error(w, "Invalid or missing fileId", http.StatusBadRequest)
-		return
-	}
-
-	err := metadata.RemoveTagFromFile(req.FileID, "deleted")
-	if err != nil {
-		http.Error(w, "Failed to restore (remove tag)", http.StatusInternalServerError)
-		return
-	}
-
-	json.NewEncoder(w).Encode(map[string]string{
-		"message": "File restored (removed 'deleted' tag)",
 	})
 }

@@ -341,8 +341,6 @@ exports.restoreFile = async (req, res) => {
   }
 };
 
-}
-
 exports.removeFileTags = async (req, res) => {
   const { fileId, tags } = req.body;
   if (!fileId || !tags) {
