@@ -3,16 +3,31 @@ const axios = require("axios");
 require("dotenv").config();
 
 exports.getNotifications = async (req, res) => {
-    const { userId } = req.body;
+    const { email } = req.body;
 
-    if (!userId) {
+    if (!email) {
         return res.status(400).json({
             success: false,
-            error: "User ID is required"
+            error: "User email is required"
         });
     }
 
     try {
+        // First get the userId from the email
+        const userResponse = await axios.get(
+            `${process.env.API_URL || "http://localhost:5000"}/api/users/getUserId/${email}`
+        );
+
+        if (!userResponse.data.success || !userResponse.data.data.id) {
+            return res.status(404).json({
+                success: false,
+                error: "User not found for the provided email"
+            });
+        }
+
+        const userId = userResponse.data.data.id;
+
+        // Now fetch notifications using the userId
         const response = await axios.get(
             `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/notifications`,
             {
