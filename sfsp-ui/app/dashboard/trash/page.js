@@ -131,7 +131,7 @@ const handleDelete = async (fileId) => {
     const res = await fetch("http://localhost:5000/api/files/deleteFile", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ file_id: fileId }),
+      body: JSON.stringify({ fileId: fileId ,userId:userId}),
     });
 
     if (!res.ok) {

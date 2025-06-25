@@ -18,13 +18,13 @@ exports.downloadFile = async (req, res) => {
     );
 
     const { fileName, fileContent, nonce } = response.data;
-    
+
 
     res.json({ fileName, fileContent, nonce });
   } catch (err) {
     console.error("Download error:", err.message);
     return res.status(500).send("Download failed");
-    
+
   }
 
 
@@ -71,8 +71,8 @@ exports.uploadFile = async (req, res) => {
     } = req.body;
 
     if (!fileName || !fileContent) {
-    return res.status(400).send("Missing file name or file content");
-  }
+      return res.status(400).send("Missing file name or file content");
+    }
 
     if (!userId) {
       return res.status(400).send("Missing userId");
@@ -143,16 +143,20 @@ exports.getNumberOfFiles = async (req, res) => {
 };
 
 exports.deleteFile = async (req, res) => {
-  const fileId = req.body.fileId;
+  const { fileId, userId } = req.body;
 
   if (!fileId) {
     return res.status(400).send("FileId not received");
   }
 
+  if (!userId) {
+    return res.status(400).send("UserId not found");
+  }
+
   try {
     const response = await axios.post(
       `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/deleteFile`,
-      { fileId },
+      { fileId, userId },
       { headers: { "Content-Type": "application/json" } }
     );
 
@@ -282,7 +286,7 @@ exports.addTags = async (req, res) => {
 exports.addUserToTable = async (req, res) => {
   const { userId } = req.body;
 
-  if(!userId){
+  if (!userId) {
     return res
       .status(400)
       .send("Missing UserId");
@@ -315,11 +319,11 @@ exports.softDeleteFile = async (req, res) => {
       { headers: { "Content-Type": "application/json" } }
     );
     res.status(response.status).json(response.data);
-  } 
+  }
   catch (err) {
     console.error("Soft delete error:", err.message);
     res.status(500).send("Failed to soft delete file");  // <-- match test expectation
-}
+  }
 };
 
 exports.restoreFile = async (req, res) => {
