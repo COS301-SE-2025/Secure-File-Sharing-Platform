@@ -61,10 +61,11 @@ func main() {
 	// access log endpoints
 	http.HandleFunc("/addAccesslog", fileHandler.AddAccesslogHandler)
 	http.HandleFunc("/getAccesslog", fileHandler.GetAccesslogHandler)
-	// notification endpoints
-	/* http.HandleFunc("/addNotification", fileHandler.AddNotificationHandler)
-	   http.HandleFunc("/removeNotification", fileHandler.RemoveNotificationHandler)
-	   http.HandleFunc("/getNotifications", fileHandler.GetNotificationsHandler) */
+	// notification endpoints (updated for new handlers)
+	http.HandleFunc("/notifications", fileHandler.NotificationHandler)
+	http.HandleFunc("/notifications/markAsRead", fileHandler.MarkAsReadHandler)
+	http.HandleFunc("/notifications/respond", fileHandler.RespondToShareRequestHandler)
+	http.HandleFunc("/notifications/clear", fileHandler.ClearNotificationHandler)
 	// metadata endpoints
 	http.HandleFunc("/metadata", metadata.GetUserFilesHandler)
 	http.HandleFunc("/getFileMetadata", metadata.ListFileMetadataHandler)
