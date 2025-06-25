@@ -2,4 +2,4 @@
 /compose.yml
 /postgres
 /.env
-/.env.local
+/.env.local.env
