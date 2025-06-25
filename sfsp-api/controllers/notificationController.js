@@ -3,31 +3,16 @@ const axios = require("axios");
 require("dotenv").config();
 
 exports.getNotifications = async (req, res) => {
-    const { email } = req.body;
+    const { userId } = req.body;
 
-    if (!email) {
+    if (!userId) {
         return res.status(400).json({
             success: false,
-            error: "User email is required"
+            error: "User ID is required"
         });
     }
 
     try {
-        // First get the userId from the email
-        const userResponse = await axios.get(
-            `${process.env.API_URL || "http://localhost:5000"}/api/users/getUserId/${email}`
-        );
-
-        if (!userResponse.data.success || !userResponse.data.data.id) {
-            return res.status(404).json({
-                success: false,
-                error: "User not found for the provided email"
-            });
-        }
-
-        const userId = userResponse.data.data.id;
-
-        // Now fetch notifications using the userId
         const response = await axios.get(
             `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/notifications`,
             {
@@ -135,19 +120,66 @@ exports.clearNotification = async (req, res) => {
 };
 
 exports.addNotification = async (req, res) => {
-    const { type, from, to, file_name, file_id, message } = req.body;
+    const { type, fromEmail, toEmail, file_name, file_id, message } = req.body;
 
-    if (!type || !from || !to || !file_name || !file_id) {
+    if (!type || !fromEmail || !toEmail || !file_name || !file_id) {
         return res.status(400).json({
             success: false,
-            error: "Missing required fields: type, from, to, file_name, file_id"
+            error: "Missing required fields: type, fromEmail, toEmail, file_name, file_id"
         });
     }
 
     try {
+        let senderResponse;
+        try {
+            senderResponse = await axios.get(
+                `${process.env.API_URL || "http://localhost:5000"}/api/users/getUserId/${fromEmail}`
+            );
+
+            if (!senderResponse.data.success || !senderResponse.data.data.id) {
+                return res.status(404).json({
+                    success: false,
+                    error: `Sender with email ${fromEmail} not found`
+                });
+            }
+        } catch (error) {
+            return res.status(404).json({
+                success: false,
+                error: `Sender with email ${fromEmail} not found`
+            });
+        }
+
+        let recipientResponse;
+        try {
+            recipientResponse = await axios.get(
+                `${process.env.API_URL || "http://localhost:5000"}/api/users/getUserId/${toEmail}`
+            );
+
+            if (!recipientResponse.data.success || !recipientResponse.data.data.id) {
+                return res.status(404).json({
+                    success: false,
+                    error: `Recipient with email ${toEmail} not found`
+                });
+            }
+        } catch (error) {
+            return res.status(404).json({
+                success: false,
+                error: `Recipient with email ${toEmail} not found`
+            });
+        }
+
+        const fromId = senderResponse.data.data.id;
+        const toId = recipientResponse.data.data.id;
         const response = await axios.post(
-            `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/addNotification`,
-            { type, from, to, file_name, file_id, message },
+            `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/notifications/add`,
+            {
+                type,
+                from: fromId,
+                to: toId,
+                file_name,
+                file_id,
+                message
+            },
             { headers: { "Content-Type": "application/json" } }
         );
 

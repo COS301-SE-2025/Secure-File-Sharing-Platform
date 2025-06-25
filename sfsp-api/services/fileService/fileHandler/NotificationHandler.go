@@ -2,11 +2,11 @@ package fileHandler
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 )
 
-// Notification represents a notification object based on the database schema
 type Notification struct {
 	ID        string `json:"id"`
 	Type      string `json:"type"`
@@ -20,8 +20,6 @@ type Notification struct {
 	Read      bool   `json:"read"`
 }
 
-// GET /notifications
-// Retrieves notifications for a user based on their ID
 func NotificationHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -32,7 +30,6 @@ func NotificationHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get user ID from query params
 	userID := r.URL.Query().Get("id")
 	if userID == "" {
 		w.WriteHeader(http.StatusBadRequest)
@@ -43,7 +40,6 @@ func NotificationHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if DB client is initialized
 	if DB == nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]interface{}{
@@ -53,7 +49,6 @@ func NotificationHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Query the database for notifications where the user is the recipient
 	rows, err := DB.Query(`SELECT id, type, "from", "to", file_name, file_id, message, timestamp, status, read 
 		FROM notifications WHERE "to" = $1`, userID)
 	if err != nil {
@@ -84,8 +79,6 @@ func NotificationHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// POST /notifications/markAsRead
-// Marks a notification as read
 func MarkAsReadHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -155,8 +148,6 @@ func MarkAsReadHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// POST /notifications/respond
-// Responds to a share request notification
 func RespondToShareRequestHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -190,7 +181,6 @@ func RespondToShareRequestHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate status
 	if req.Status != "accepted" && req.Status != "declined" {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]interface{}{
@@ -200,7 +190,6 @@ func RespondToShareRequestHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if DB client is initialized
 	if DB == nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]interface{}{
@@ -210,7 +199,6 @@ func RespondToShareRequestHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update the notification status
 	result, err := DB.Exec("UPDATE notifications SET status = $1, read = TRUE WHERE id = $2", req.Status, req.ID)
 	if err != nil {
 		log.Printf("Error updating notification status: %v", err)
@@ -239,8 +227,6 @@ func RespondToShareRequestHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// POST /notifications/clear
-// Deletes a notification
 func ClearNotificationHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -251,7 +237,6 @@ func ClearNotificationHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Parse request body
 	var req struct {
 		ID string `json:"id"`
 	}
@@ -273,7 +258,6 @@ func ClearNotificationHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if DB client is initialized
 	if DB == nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]interface{}{
@@ -283,7 +267,6 @@ func ClearNotificationHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Delete the notification
 	result, err := DB.Exec("DELETE FROM notifications WHERE id = $1", req.ID)
 	if err != nil {
 		log.Printf("Error deleting notification: %v", err)
@@ -312,7 +295,6 @@ func ClearNotificationHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// AddNotificationHandler - helper function to add a notification
 func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -323,7 +305,6 @@ func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Parse request body
 	var notification struct {
 		Type     string `json:"type"`
 		From     string `json:"from"`
@@ -342,7 +323,6 @@ func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate required fields
 	if notification.Type == "" || notification.From == "" || notification.To == "" ||
 		notification.FileName == "" || notification.FileID == "" {
 		w.WriteHeader(http.StatusBadRequest)
@@ -350,10 +330,10 @@ func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
 			"success": false,
 			"error":   "Missing required fields",
 		})
+		fmt.Println("Notification details:", notification)
 		return
 	}
 
-	// Check if DB client is initialized
 	if DB == nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]interface{}{
