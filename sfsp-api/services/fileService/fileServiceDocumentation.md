@@ -1,25 +1,21 @@
-Here is your **updated and consolidated File Services Documentation**, incorporating all the new endpoints, request/response formats, and metadata details you provided:
-
----
-
 # File Services Documentation
 
 ## Table of Contents
 
-* [Download Document](#download-document)
-* [Upload Document](#upload-document)
-* [Get All File Metadata for User](#get-all-file-metadata-for-user)
-* [Get Specific File Metadata](#get-specific-file-metadata)
-* [Add File Tags](#add-file-tags)
-* [Share File With Another User](#share-file-with-another-user)
-* [File Access Logs](#file-access-logs)
+* [download document](#download-document)
+* [Upload document](#Upload-Document)
+* [Get Meta data to display](#Get-Meta-Data-to-display)
+* [File Access Logs](#File-Access-Logs)
 
 ---
 
-## Download Document
+## 1. Download Document
 
 **Endpoint**: `POST http://localhost:5000/files/download`
 **Authentication**: Not required
+
+### Header
+Content-Type: application/json
 
 ### Request Body
 
@@ -39,14 +35,18 @@ Here is your **updated and consolidated File Services Documentation**, incorpora
 }
 ```
 
-> **Note**: Client must decode base64 and decrypt the file using their private key before use.
+> Note: The client must **Base64 decode** and **decrypt** the content using their private key to access the actual file.
 
 ---
 
-## Upload Document
+## Upload document
 
-**Endpoint**: `POST http://localhost:5000/files/upload`
-**Authentication**: Not required
+* **Endpoint**: `POST http://localhost:5000/files/upload`
+* **Method**: `POST`
+* **Authentication**: Not Required
+* **Headers**:
+
+  * `Content-Type: application/json`
 
 ### Request Body
 
@@ -74,12 +74,16 @@ Here is your **updated and consolidated File Services Documentation**, incorpora
 
 ---
 
-## Get All File Metadata for User
+## 3. Get Metadata
 
-**Endpoint**: `GET http://localhost:5000/file/metadata`
-**Authentication**: Not Required
+* **Endpoint**: `GET http://localhost:5000/file/metadata`
+* **Method**: `GET`
+* **Authentication**: Not Required
+* **Headers**:
 
-### Request
+  * `Content-Type: application/json`
+
+### Request Body
 
 ```json
 {
@@ -192,44 +196,53 @@ Here is your **updated and consolidated File Services Documentation**, incorpora
 
 ---
 
-## File Access Logs
+## 4. File Access Logs
 
-### Add Access Log
+### a. Add Access Log
 
-**Endpoint**: `POST http://localhost:5000/files/addAccesslog`
-**Authentication**: Not required
+* **Endpoint**: `POST http://localhost:5000/api/files/addAccesslog`
+* **Method**: `POST`
+* **Authentication**: Not Required
+* **Headers**:
+
+  * `Content-Type: application/json`
 
 #### Request Body
 
 ```json
 {
-  "file_id": "<file-uuid>",
-  "user_id": "<user-uuid>",
-  "action": "viewed"
+  "file_id": "1e064cfa-3fa9-4476-9338-4b37533f3faa",
+  "user_id": "11111111-1111-1111-1111-111111111111",
+  "action": "viewed",
+  "message": "User <email> has <action> the files <file_name>"
 }
 ```
 
-#### Response
+#### Response `201 Created`
 
 ```json
-Access log added successfully
+{
+  "message": "Access log added successfully"
+}
 ```
 
 ---
 
-### Get Access Logs
+### b. Get Access Logs
 
-**Endpoint**: `GET http://localhost:5000/files/getAccesslog`
-**Authentication**: Not required
+* **Endpoint**: `GET http://localhost:5000/files/getAccesslog`
+* **Method**: `GET`
+* **Authentication**: Not Required
+* **Headers**:
 
-#### Query Parameters
+  * `Content-Type: application/json`
 
-* `file_id` (optional): Filter by file
+#### Request Body
 
-#### Example
-
-```
-GET http://localhost:5000/files/getAccesslog?file_id=<file-uuid>
+```json
+{
+  "file_id": "1e064cfa-3fa9-4476-9338-4b37533f3faa"
+}
 ```
 
 #### Response
@@ -237,47 +250,164 @@ GET http://localhost:5000/files/getAccesslog?file_id=<file-uuid>
 ```json
 [
   {
-    "id": "<log-uuid>",
-    "file_id": "<file-uuid>",
-    "user_id": "<user-uuid>",
-    "action": "viewed",
-    "timestamp": "2025-06-23T12:00:00Z"
-  }
+    "id": "cbe648ba-60d2-4b31-b9d5-00e927898d3d",
+    "file_id": "...",
+    "user_id": "...",
+    "action": "deleted",
+    "message": "User <email> has <action> the files <file_name>",
+    "timestamp": "2025-06-24T17:28:41.316972Z"
+  },
+  ...
 ]
 ```
 
 ---
 
-### Remove Access Log
+## 5. Notifications
 
-**Endpoint**: `DELETE http://localhost:5000/files/removeAccesslog?id=<log-uuid>`
-**Authentication**: Not required
+### a. Get Notifications
 
-#### Response
+* **Endpoint**: `POST http://localhost:5000/api/notifications/get`
+* **Method**: `POST`
+* **Authentication**: Not Required
+* **Headers**:
 
-```json
-Access log removed successfully
-```
-
----
-
-## Delete file
-
-**Endpoint**: `POST http://localhost:5000/files/deleteFile`
-**Authentication**: Not required
+  * `Content-Type: application/json`
 
 #### Request Body
 
 ```json
 {
-  "file_id": "<file-uuid>",
+  "userId": "06f2660c-faed-4396-80f3-a687e94e1987"
 }
 ```
 
 #### Response
 
 ```json
-Access log added successfully
+{
+  "notifications": [
+    {
+      "id": "dfe388a7-8aa9-49ef-a0a9-871dcefce8c5",
+      "type": "file_share",
+      "from": "...",
+      "to": "...",
+      "file_name": "resume.pdf",
+      "file_id": "...",
+      "message": "Please review my resume",
+      "timestamp": "2025-06-25T11:56:21.091249Z",
+      "status": "pending",
+      "read": false
+    }
+  ],
+  "success": true
+}
 ```
 
 ---
+
+### b. Mark Notification as Read
+
+* **Endpoint**: `POST http://localhost:5000/api/notifications/markAsRead`
+* **Method**: `POST`
+* **Authentication**: Not Required
+
+#### Request Body
+
+```json
+{
+  "id": "dfe388a7-8aa9-49ef-a0a9-871dcefce8c5"
+}
+```
+
+#### Response
+
+```json
+{
+  "message": "Notification marked as read",
+  "success": true
+}
+```
+
+---
+
+### c. Respond to Notification
+
+* **Endpoint**: `POST http://localhost:5000/api/notifications/respond`
+* **Method**: `POST`
+* **Authentication**: Not Required
+
+#### Request Body
+
+```json
+{
+  "id": "dfe388a7-8aa9-49ef-a0a9-871dcefce8c5",
+  "status": "declined"
+}
+```
+
+#### Response
+
+```json
+{
+  "message": "Notification status updated",
+  "success": true
+}
+```
+
+---
+
+### d. Clear Notification
+
+* **Endpoint**: `POST http://localhost:5000/api/notifications/clear`
+* **Method**: `POST`
+* **Authentication**: Not Required
+
+#### Request Body
+
+```json
+{
+  "id": "46988b24-e8dd-4b6f-bfff-8f1b8f382f56"
+}
+```
+
+#### Response
+
+```json
+{
+  "message": "Notification deleted",
+  "success": true
+}
+```
+
+---
+
+### e. Add Notification
+
+* **Endpoint**: `POST http://localhost:5000/api/notifications/add`
+* **Method**: `POST`
+* **Authentication**: Not Required
+
+#### Request Body
+
+```json
+{
+  "type": "file request",
+  "fromEmail": "tmakhene21@gmail.com",
+  "toEmail": "Goon@gmail.com",
+  "file_name": "design.png",
+  "file_id": "2dd40203-3db5-4fd7-97f6-c3a7b2b9c631",
+  "message": "Can I get a copy of your logo design?"
+}
+```
+
+#### Response
+
+```json
+{
+  "id": "2c27e743-0b55-476c-8e10-07e9c39cf066",
+  "message": "Notification added",
+  "success": true
+}
+```
+

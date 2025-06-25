@@ -152,7 +152,7 @@ class UserService {
         throw new Error("Invalid password.");
       }
 
-      const token = this.generateToken(user.id);
+      const token = this.generateToken(user.id, user.email);
       return {
         user: {
           id: user.id,
@@ -206,7 +206,7 @@ class UserService {
         throw new Error("User not found.");
       }
 
-      const token = this.generateToken(user.id);
+      const token = this.generateToken(user.id, user.email);
       return token;
     } catch (error) {
       throw new Error("Failed to refresh token: " + error.message);
@@ -275,8 +275,8 @@ class UserService {
     return resetPIN;
   }
 
-  generateToken(userId) {
-    return jwt.sign({ userId }, process.env.JWT_SECRET, {
+  generateToken(userId, email) {
+    return jwt.sign({ userId, email }, process.env.JWT_SECRET, {
       expiresIn: "1h",
     });
   }
@@ -465,6 +465,31 @@ class UserService {
     } catch (error) {
       console.error("Error sending password reset PIN email:", error);
       throw new Error("Failed to send password reset email");
+    }
+  }
+
+  getDecodedToken(token) {
+    try {
+      const decoded = this.verifyToken(token);
+      return {
+        valid: true,
+        decoded
+      };
+    } catch (error) {
+      return {
+        valid: false,
+        error: error.message
+      };
+    }
+  }
+
+  async logout(token) {
+    try {
+      this.verifyToken(token);
+
+      return true;
+    } catch (error) {
+      return false;
     }
   }
 }

@@ -33,28 +33,7 @@ class UserController {
       ) {
         return res.status(400).json({
           success: false,
-          message: "Username, email, and password are required.",
-        });
-      }
-
-      if (
-        !ik_public ||
-        !spk_public ||
-        !opks_public ||
-        !nonce ||
-        !signedPrekeySignature ||
-        !salt
-      ) {
-        return res.status(400).json({
-          success: false,
-          message: "Public keys are required.",
-        });
-      }
-
-      if (!ik_private_key || !spk_private_key || !opks_private) {
-        return res.status(400).json({
-          success: false,
-          message: "Private keys are required.",
+          message: "All required fields must be provided including keys.",
         });
       }
 
@@ -237,16 +216,16 @@ class UserController {
 
   async refreshToken(req, res) {
     try {
-      const { email } = req.body;
+      const { userId } = req.body;
 
-      if (!email) {
+      if (!userId) {
         return res.status(400).json({
           success: false,
-          message: "Email is required.",
+          message: "User ID is required.",
         });
       }
 
-      const token = await userService.refreshToken(email);
+      const token = await userService.refreshToken(userId);
       return res.status(200).json({
         success: true,
         message: "Token refreshed successfully.",
@@ -451,6 +430,81 @@ class UserController {
       res.status(500).json({
         success: false,
         message: error.message || "Failed to change password",
+      });
+    }
+  }
+
+  async getUserToken(req, res) {
+    try {
+      const { userId } = req.body;
+
+      if (!userId) {
+        return res.status(400).json({
+          success: false,
+          message: "User ID is required."
+        });
+      }
+
+      const { data: user, error } = await supabase
+        .from("users")
+        .select("email")
+        .eq("id", userId)
+        .single();
+
+      if (error || !user) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found."
+        });
+      }
+
+      const token = userService.generateToken(userId, user.email);
+
+      return res.status(200).json({
+        success: true,
+        token
+      });
+    } catch (error) {
+      console.error("Error generating token:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error."
+      });
+    }
+  }
+
+  async getUserInfoFromToken(req, res) {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({
+          success: false,
+          message: "Authorization token missing or invalid."
+        });
+      }
+
+      const token = authHeader.split(" ")[1];
+      const result = userService.getDecodedToken(token);
+
+      if (!result.valid) {
+        return res.status(401).json({
+          success: false,
+          message: "Invalid or expired token."
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          userId: result.decoded.userId,
+          email: result.decoded.email
+        }
+      });
+    } catch (error) {
+      console.error("Error decoding token:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error."
       });
     }
   }

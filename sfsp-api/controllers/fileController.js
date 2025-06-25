@@ -122,8 +122,7 @@ exports.getNumberOfFiles = async (req, res) => {
 
   try {
     const response = await axios.post(
-      `${
-        process.env.FILE_SERVICE_URL || "http://localhost:8081"
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"
       }/getNumberOfFiles`,
       { userId },
       { headers: { "Content-Type": "application/json" } }
@@ -228,16 +227,16 @@ exports.sendFile = async (req, res) => {
 };
 
 exports.addAccesslog = async (req, res) => {
-  const { file_id, user_id, action } = req.body;
-  if (!file_id || !user_id || !action) {
+  const { file_id, user_id, action, message } = req.body;
+  if (!file_id || !user_id || !action || !message) {
     return res
       .status(400)
-      .send("Missing required fields: file_id, user_id, or action");
+      .send("Missing required fields: file_id, user_id, action or message");
   }
   try {
     const response = await axios.post(
       `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/addAccesslog`,
-      { file_id, user_id, action },
+      { file_id, user_id, action, message },
       { headers: { "Content-Type": "application/json" } }
     );
     res.status(response.status).send(response.data);
@@ -247,31 +246,13 @@ exports.addAccesslog = async (req, res) => {
   }
 };
 
-exports.removeAccesslog = async (req, res) => {
-  const { id } = req.query;
-  if (!id) {
-    return res.status(400).send("Missing log id");
-  }
-  try {
-    const response = await axios.delete(
-      `${
-        process.env.FILE_SERVICE_URL || "http://localhost:8081"
-      }/removeAccesslog`,
-      { params: { id } }
-    );
-    res.status(response.status).send(response.data);
-  } catch (err) {
-    console.error("Remove access log error:", err.message);
-    res.status(500).send("Failed to remove access log");
-  }
-};
-
 exports.getAccesslog = async (req, res) => {
-  const { file_id } = req.query;
+  const { file_id } = req.body;
   try {
-    const response = await axios.get(
+    const response = await axios.post(
       `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/getAccesslog`,
-      { params: file_id ? { file_id } : {} }
+      file_id ? { file_id } : {},
+      { headers: { "Content-Type": "application/json" } }
     );
     res.status(response.status).json(response.data);
   } catch (err) {
