@@ -183,6 +183,8 @@ Interaction:
 
 # Domain Model
 
+![domain-model](https://drive.google.com/uc?export=view&id=1OmFp-Ee00GZG8nzvn3TvQ145BII6elc9)
+
 -----
 
 # Architectural Requirements
