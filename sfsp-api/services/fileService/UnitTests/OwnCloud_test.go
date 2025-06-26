@@ -1,106 +1,243 @@
 package unitTests
 
-// import (
-//     "errors"
-//     "os"    
-//     "testing"
+import (
+	"errors"
+	"os"
+	"testing"
 
-//     "github.com/stretchr/testify/assert"
-//     "github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 
-//     "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
-// )
+	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
+)
 
-// type MockClient struct {
-//     mock.Mock
-// }
+type MockWebDavClient struct {
+	mock.Mock
+}
 
-// func (m *MockClient) MkdirAll(path string, perm os.FileMode) error {
-//     args := m.Called(path, perm)
-//     return args.Error(0)
-// }
+func (m *MockWebDavClient) MkdirAll(path string, perm os.FileMode) error {
+	args := m.Called(path, perm)
+	return args.Error(0)
+}
 
-// func (m *MockClient) Write(name string, data []byte, perm os.FileMode) error {
-//     args := m.Called(name, data, perm)
-//     return args.Error(0)
-// }
+func (m *MockWebDavClient) Write(name string, data []byte, perm os.FileMode) error {
+	args := m.Called(name, data, perm)
+	return args.Error(0)
+}
 
-// func (m *MockClient) Read(name string) ([]byte, error) {
-//     args := m.Called(name)
-//     var b []byte
-//     if raw := args.Get(0); raw != nil {
-//         b = raw.([]byte)
-//     }
-//     return b, args.Error(1)
-// }
+func (m *MockWebDavClient) Read(name string) ([]byte, error) {
+	args := m.Called(name)
+	return args.Get(0).([]byte), args.Error(1)
+}
 
-// func TestUploadFile_Success(t *testing.T) {
-//     mockClient := new(MockClient)
-//     owncloud.SetClient(mockClient)
+func (m *MockWebDavClient) Remove(path string) error {
+	args := m.Called(path)
+	return args.Error(0)
+}
 
-//     path := "/testpath"
-//     filename := "file.txt"
-//     data := []byte("file data")
-//     fullPath := path + "/" + filename
+func TestUploadFile(t *testing.T) {
+	originalClient := owncloud.GetClient()
+	t.Cleanup(func() {
+		owncloud.SetClient(originalClient)
+	})
 
-//     mockClient.On("MkdirAll", path, os.FileMode(0755)).Return(nil)
-//     mockClient.On("Write", fullPath, data, os.FileMode(0644)).Return(nil)
+	t.Run("Success", func(t *testing.T) {
+		mockClient := &MockWebDavClient{}
+		owncloud.SetClient(mockClient)
 
-//     err := owncloud.UploadFile(path, filename, data)
+		path := "files/testuser"
+		filename := "testfile.txt"
+		data := []byte("test data")
+		fullPath := path + "/" + filename
 
-//     assert.NoError(t, err)
-//     mockClient.AssertExpectations(t)
-// }
+		mockClient.On("MkdirAll", path, os.FileMode(0755)).Return(nil)
+		mockClient.On("Write", fullPath, data, os.FileMode(0644)).Return(nil)
 
-// func TestUploadFile_MkdirAllFail(t *testing.T) {
-//     mockClient := new(MockClient)
-//     owncloud.SetClient(mockClient)
+		err := owncloud.UploadFile(path, filename, data)
+		assert.NoError(t, err)
 
-//     path := "/failpath"
-//     filename := "file.txt"
-//     data := []byte("file data")
+		mockClient.AssertExpectations(t)
+	})
 
-//     mockClient.On("MkdirAll", path, os.FileMode(0755)).Return(errors.New("mkdir error"))
+	t.Run("MkdirAll fails", func(t *testing.T) {
+		mockClient := &MockWebDavClient{}
+		owncloud.SetClient(mockClient)
 
-//     err := owncloud.UploadFile(path, filename, data)
+		path := "files/testuser"
+		filename := "testfile.txt"
+		data := []byte("test data")
+		fullPath := path + "/" + filename
 
-//     assert.Error(t, err)
-//     assert.EqualError(t, err, "mkdir error")
-//     mockClient.AssertExpectations(t)
-// }
+		mockClient.On("MkdirAll", path, os.FileMode(0755)).Return(errors.New("mkdir failed"))
+		mockClient.On("Write", fullPath, data, os.FileMode(0644)).Return(nil).Maybe()
 
-// func TestDownloadFile_Success(t *testing.T) {
-//     mockClient := new(MockClient)
-//     owncloud.SetClient(mockClient)
+		t.Logf("Calling UploadFile with path=%s, filename=%s", path, filename)
+		err := owncloud.UploadFile(path, filename, data)
+		t.Logf("UploadFile returned error: %v", err)
+		assert.Error(t, err)
+		assert.Equal(t, "mkdir failed", err.Error())
 
-//     path := "/testpath"
-//     filename := "file.txt"
-//     fullPath := path + "/" + filename
-//     fileData := []byte("file content")
+		mockClient.AssertExpectations(t)
+	})
 
-//     mockClient.On("Read", fullPath).Return(fileData, nil)
+	t.Run("Write fails", func(t *testing.T) {
+		mockClient := &MockWebDavClient{}
+		owncloud.SetClient(mockClient)
 
-//     data, err := owncloud.DownloadFile(path, filename)
+		path := "files/testuser"
+		filename := "testfile.txt"
+		data := []byte("test data")
+		fullPath := path + "/" + filename
 
-//     assert.NoError(t, err)
-//     assert.Equal(t, fileData, data)
-//     mockClient.AssertExpectations(t)
-// }
+		mockClient.On("MkdirAll", path, os.FileMode(0755)).Return(nil)
+		mockClient.On("Write", fullPath, data, os.FileMode(0644)).Return(errors.New("write failed"))
 
-// func TestDownloadFile_Failure(t *testing.T) {
-//     mockClient := new(MockClient)
-//     owncloud.SetClient(mockClient)
+		err := owncloud.UploadFile(path, filename, data)
+		assert.Error(t, err)
+		assert.Equal(t, "write failed", err.Error())
 
-//     path := "/failpath"
-//     filename := "file.txt"
-//     fullPath := path + "/" + filename
+		mockClient.AssertExpectations(t)
+	})
+}
 
-//     mockClient.On("Read", fullPath).Return(nil, errors.New("read error"))
+func TestDownloadFile(t *testing.T) {
+	originalClient := owncloud.GetClient()
+	t.Cleanup(func() {
+		owncloud.SetClient(originalClient)
+	})
 
-//     data, err := owncloud.DownloadFile(path, filename)
+	t.Run("Success", func(t *testing.T) {
+		mockClient := &MockWebDavClient{}
+		owncloud.SetClient(mockClient)
 
-//     assert.Nil(t, data)
-//     assert.Error(t, err)
-//     assert.Contains(t, err.Error(), "failed to download file: read error")
-//     mockClient.AssertExpectations(t)
-// }
+		fileID := "testfile.txt"
+		userID := "testuser"
+		fullPath := "files/" + userID + "/" + fileID
+		expectedData := []byte("test data")
+
+		mockClient.On("Read", fullPath).Return(expectedData, nil)
+
+		data, err := owncloud.DownloadFile(fileID, userID)
+		assert.NoError(t, err)
+		assert.Equal(t, expectedData, data)
+
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("Read fails", func(t *testing.T) {
+		mockClient := &MockWebDavClient{}
+		owncloud.SetClient(mockClient)
+
+		fileID := "testfile.txt"
+		userID := "testuser"
+		fullPath := "files/" + userID + "/" + fileID
+
+		mockClient.On("Read", fullPath).Return(([]byte)(nil), errors.New("file not found"))
+
+		data, err := owncloud.DownloadFile(fileID, userID)
+		assert.Error(t, err)
+		assert.Nil(t, data)
+		assert.Equal(t, "failed to download file: file not found", err.Error())
+
+		mockClient.AssertExpectations(t)
+	})
+}
+
+func TestDeleteFile(t *testing.T) {
+	originalClient := owncloud.GetClient()
+	t.Cleanup(func() {
+		owncloud.SetClient(originalClient)
+	})
+
+	t.Run("Success", func(t *testing.T) {
+		mockClient := &MockWebDavClient{}
+		owncloud.SetClient(mockClient)
+
+		fileID := "testfile.txt"
+		userID := "testuser"
+		fullPath := "files/" + userID + "/" + fileID
+
+		mockClient.On("Remove", fullPath).Return(nil)
+
+		err := owncloud.DeleteFile(fileID, userID)
+		assert.NoError(t, err)
+
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("Remove fails", func(t *testing.T) {
+		mockClient := &MockWebDavClient{}
+		owncloud.SetClient(mockClient)
+
+		fileID := "testfile.txt"
+		userID := "testuser"
+		fullPath := "files/" + userID + "/" + fileID
+
+		mockClient.On("Remove", fullPath).Return(errors.New("file not found"))
+
+		err := owncloud.DeleteFile(fileID, userID)
+		assert.Error(t, err)
+		assert.Equal(t, "failed to delete the file: file not found", err.Error())
+
+		mockClient.AssertExpectations(t)
+	})
+}
+
+func TestDownloadSentFile(t *testing.T) {
+	originalClient := owncloud.GetClient()
+	t.Cleanup(func() {
+		owncloud.SetClient(originalClient)
+	})
+
+	t.Run("Success", func(t *testing.T) {
+		mockClient := &MockWebDavClient{}
+		owncloud.SetClient(mockClient)
+
+		filePath := "sent/testfile.txt"
+		expectedData := []byte("test data")
+
+		mockClient.On("Read", filePath).Return(expectedData, nil)
+
+		data, err := owncloud.DownloadSentFile(filePath)
+		assert.NoError(t, err)
+		assert.Equal(t, expectedData, data)
+
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("Read fails", func(t *testing.T) {
+		mockClient := &MockWebDavClient{}
+		owncloud.SetClient(mockClient)
+
+		filePath := "sent/testfile.txt"
+
+		mockClient.On("Read", filePath).Return(([]byte)(nil), errors.New("file not found"))
+
+		data, err := owncloud.DownloadSentFile(filePath)
+		assert.Error(t, err)
+		assert.Nil(t, data)
+		assert.Equal(t, "failed to download file: file not found", err.Error())
+
+		mockClient.AssertExpectations(t)
+	})
+}
+
+func TestInitOwnCloud(t *testing.T) {
+	// Save original client and restore after test
+	originalClient := owncloud.GetClient()
+	t.Cleanup(func() {
+		owncloud.SetClient(originalClient)
+	})
+
+	t.Run("Success", func(t *testing.T) {
+		// No assertions needed; just verify it doesn't panic
+		assert.NotPanics(t, func() {
+			owncloud.InitOwnCloud("http://localhost:8080", "testuser", "testpass")
+		})
+	})
+
+	t.Run("Client not nil after init", func(t *testing.T) {
+		owncloud.InitOwnCloud("http://localhost:8080", "testuser", "testpass")
+		assert.NotNil(t, owncloud.GetClient())
+	})
+}

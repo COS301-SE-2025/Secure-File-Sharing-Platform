@@ -2,7 +2,6 @@ package unittests
 
 import (
 	"bytes"
-	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -15,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler"
+	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
 )
 
 // --- Mocking ---
@@ -29,26 +29,38 @@ func (m *mockRow) Scan(dest ...any) error {
 	if m.err != nil {
 		return m.err
 	}
-	dest[0] = m.fileID
-	dest[1] = m.nonce
+	if len(dest) < 2 {
+		return errors.New("not enough arguments to Scan")
+	}
+
+	// Use type assertion to *string, then assign
+	if p, ok := dest[0].(*string); ok {
+		*p = m.fileID
+	} else {
+		return errors.New("Scan dest[0] not *string")
+	}
+
+	if p, ok := dest[1].(*string); ok {
+		*p = m.nonce
+	} else {
+		return errors.New("Scan dest[1] not *string")
+	}
+
 	return nil
 }
 
-type mockDB struct {
-	queryRowFunc func(query string, args ...any) *mockRow
+type rowWrapper struct {
+	*mockRow
 }
 
-func (m *mockDB) QueryRow(query string, args ...any) *mockRow {
-	return m.queryRowFunc(query, args...)
+func (rw *rowWrapper) Scan(dest ...any) error {
+	return rw.mockRow.Scan(dest...)
 }
 
 func TestDownloadHandler_Success(t *testing.T) {
 	os.Setenv("AES_KEY", "12345678901234567890123456789012")
 	defer os.Unsetenv("AES_KEY")
 
-	fileHandler.DB = nil // clear global if needed
-
-	// Mock download + decrypt
 	fileHandler.OwnCloudDownloader = func(fileID, userID string) ([]byte, error) {
 		return []byte("encrypteddata"), nil
 	}
@@ -56,11 +68,10 @@ func TestDownloadHandler_Success(t *testing.T) {
 		assert.Equal(t, "12345678901234567890123456789012", key)
 		return []byte("decryptedcontent"), nil
 	}
-	fileHandler.QueryRowFunc = func(query string, args ...any) *mockRow {
+	fileHandler.QueryRowFunc = func(query string, args ...any) fileHandler.RowScanner {
 		return &mockRow{fileID: "file123", nonce: "xyz", err: nil}
 	}
 
-	// Prepare request
 	reqBody := fileHandler.DownloadRequest{UserID: "user1", FileName: "testfile.txt"}
 	body, _ := json.Marshal(reqBody)
 	req := httptest.NewRequest(http.MethodPost, "/download", bytes.NewReader(body))
@@ -96,7 +107,7 @@ func TestDownloadHandler_MissingFields(t *testing.T) {
 }
 
 func TestDownloadHandler_QueryFails(t *testing.T) {
-	fileHandler.QueryRowFunc = func(query string, args ...any) *mockRow {
+	fileHandler.QueryRowFunc = func(query string, args ...any) fileHandler.RowScanner {
 		return &mockRow{err: errors.New("not found")}
 	}
 
@@ -109,7 +120,7 @@ func TestDownloadHandler_QueryFails(t *testing.T) {
 }
 
 func TestDownloadHandler_DownloadFails(t *testing.T) {
-	fileHandler.QueryRowFunc = func(query string, args ...any) *mockRow {
+	fileHandler.QueryRowFunc = func(query string, args ...any) fileHandler.RowScanner {
 		return &mockRow{fileID: "id", nonce: "n", err: nil}
 	}
 	fileHandler.OwnCloudDownloader = func(_, _ string) ([]byte, error) {
@@ -126,7 +137,9 @@ func TestDownloadHandler_DownloadFails(t *testing.T) {
 
 func TestDownloadHandler_InvalidAESKey(t *testing.T) {
 	os.Setenv("AES_KEY", "shortkey")
-	fileHandler.QueryRowFunc = func(query string, args ...any) *mockRow {
+	defer os.Unsetenv("AES_KEY")
+
+	fileHandler.QueryRowFunc = func(query string, args ...any) fileHandler.RowScanner {
 		return &mockRow{fileID: "id", nonce: "n", err: nil}
 	}
 	fileHandler.OwnCloudDownloader = func(_, _ string) ([]byte, error) {
@@ -143,7 +156,9 @@ func TestDownloadHandler_InvalidAESKey(t *testing.T) {
 
 func TestDownloadHandler_DecryptFails(t *testing.T) {
 	os.Setenv("AES_KEY", "12345678901234567890123456789012")
-	fileHandler.QueryRowFunc = func(query string, args ...any) *mockRow {
+	defer os.Unsetenv("AES_KEY")
+
+	fileHandler.QueryRowFunc = func(query string, args ...any) fileHandler.RowScanner {
 		return &mockRow{fileID: "id", nonce: "n", err: nil}
 	}
 	fileHandler.OwnCloudDownloader = func(_, _ string) ([]byte, error) {
