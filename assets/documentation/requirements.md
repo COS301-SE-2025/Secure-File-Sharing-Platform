@@ -408,7 +408,7 @@ The following design patterns were selected (subject to change) for the followin
 |**Postgres** | Database management system allowing for data saving.|
 | **Supabase** | Backend-as-a-Service platform providing authentication and user management. 
 
-
+For more information regarding technology choices, make reference to [Technology Used Documentation](./technologies_used.md)
 
 # Versions of SRS documents
 
