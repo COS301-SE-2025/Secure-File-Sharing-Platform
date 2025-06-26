@@ -29,6 +29,7 @@ This document defines the coding standards, Git workflow (GitFlow), and language
 ## Repository Structure
 
 * All the code that concerns the backend is in `/sfsp-api`. 
+* All the frontend specific to a platform would have a separate folder independed from backend.
 * Tests should reside in the `tests/` directory, of each component in the api services and UI.
 
 ### Git flow
