@@ -1,27 +1,31 @@
 package fileHandler
 
 import (
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"log"
+	"net/http"
 	"os"
+
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
-	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto"
-	"database/sql"
-	//_ "github.com/lib/pq" // PostgreSQL driver
 )
 
-// var DB *sql.DB
+// Injected dependencies for testing and runtime flexibility
+var (
+	DB                 *sql.DB
+	OwnCloudDownloader func(fileID, userID string) ([]byte, error)
+	DecryptFunc        func(data []byte, key string) ([]byte, error)
+	QueryRowFunc       func(query string, args ...any) RowScanner
+)
 
-// func SetPostgreClient(db *sql.DB) {
-// 	// This function is used to set the PostgreSQL client in the fileHandler package
-// 	DB = db
-// }
+type RowScanner interface {
+	Scan(dest ...any) error
+}
 
 type DownloadRequest struct {
-	UserID string `json:"userId"`
+	UserID   string `json:"userId"`
 	FileName string `json:"fileName"`
 }
 
@@ -31,130 +35,55 @@ type DownloadResponse struct {
 	Nonce       string `json:"nonce"`
 }
 
-type DownloadDeps struct {
-	DB        *sql.DB
-	OC        func(fileID, userID string) ([]byte, error)
-	Decrypt   func(data []byte, key string) ([]byte, error)
-	GetAESKey func() string
-}
-
-func DownloadHandlerWithDeps(deps DownloadDeps) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req DownloadRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
-			return
-		}
-
-		if req.UserID == "" || req.FileName == "" {
-			http.Error(w, "Missing userId or fileName", http.StatusBadRequest)
-			return
-		}
-
-		var fileID, nonce string
-		err := deps.DB.QueryRow(`
-			SELECT id, nonce FROM files
-			WHERE owner_id = $1 AND file_name = $2
-		`, req.UserID, req.FileName).Scan(&fileID, &nonce)
-		if err != nil {
-			log.Println("Failed to retrieve file metadata:", err)
-			http.Error(w, "File not found", http.StatusNotFound)
-			return
-		}
-
-		data, err := deps.OC(fileID, req.UserID)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Download failed: %v", err), http.StatusInternalServerError)
-			return
-		}
-
-		aesKey := os.Getenv("AES_KEY")
-		if len(aesKey) != 32 {
-			http.Error(w, "Invalid AES key", http.StatusInternalServerError)
-			return
-		}
-
-		plain, err := deps.Decrypt(data, aesKey)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Decryption failed: %v", err), http.StatusInternalServerError)
-			return
-		}
-
-		base64Data := base64.StdEncoding.EncodeToString(plain)
-		res := DownloadResponse{
-			FileName:    req.FileName,
-			FileContent: base64Data,
-			Nonce:       nonce,
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(res)
-	}
+type DownloadSentRequest struct {
+	FilePath string `json:"filePath"`
 }
 
 func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 	var req DownloadRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-
 	if req.UserID == "" || req.FileName == "" {
-		http.Error(w, "Missing userId or fileName", http.StatusBadRequest)
+		http.Error(w, "Missing required fields", http.StatusBadRequest)
 		return
 	}
 
-	fmt.Println("User id is: ", req.UserID)
-	fmt.Println("File name is: ", req.FileName)
+	row := QueryRowFunc("SELECT id, nonce FROM files WHERE owner_id = $1 AND file_name = $2", req.UserID, req.FileName)
 	var fileID, nonce string
-	err := DB.QueryRow(`
-		SELECT id, nonce FROM files
-		WHERE owner_id = $1 AND file_name = $2
-	`, req.UserID, req.FileName).Scan(&fileID, &nonce)
-
-	if err != nil {
-		log.Println("Failed to retrieve file metadata:", err)
+	if err := row.Scan(&fileID, &nonce); err != nil {
+		log.Println("QueryRow failed:", err)
 		http.Error(w, "File not found", http.StatusNotFound)
 		return
 	}
 
-	fmt.Println("File ID is: ",fileID)
-
-	data, err := owncloud.DownloadFile(fileID, req.UserID)
+	encData, err := OwnCloudDownloader(fileID, req.UserID)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Download failed: %v", err), http.StatusInternalServerError)
-		fmt.Println("Download Failed")
+		http.Error(w, "Download failed", http.StatusInternalServerError)
 		return
 	}
 
-	aesKey := os.Getenv("AES_KEY")
-	if len(aesKey) != 32 {
+	key := os.Getenv("AES_KEY")
+	if len(key) != 32 {
 		http.Error(w, "Invalid AES key", http.StatusInternalServerError)
 		return
 	}
 
-	plain, err := crypto.DecryptBytes(data, aesKey)
+	decData, err := DecryptFunc(encData, key)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Decryption failed: %v", err), http.StatusInternalServerError)
+		http.Error(w, "Decryption failed", http.StatusInternalServerError)
 		return
 	}
 
-	base64Data := base64.StdEncoding.EncodeToString(plain)
-
-	//fmt.Println("FileContent is: ",base64Data)
-
-	res := DownloadResponse{
+	resp := DownloadResponse{
 		FileName:    req.FileName,
-		FileContent: base64Data,
+		FileContent: base64.StdEncoding.EncodeToString(decData),
 		Nonce:       nonce,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(res)
-}
-
-type DownloadSentRequest struct {
-	FilePath string `json:"filePath"`
+	json.NewEncoder(w).Encode(resp)
 }
 
 func DownloadSentFile(w http.ResponseWriter, r *http.Request) {
@@ -180,8 +109,7 @@ func DownloadSentFile(w http.ResponseWriter, r *http.Request) {
 
 	encoded := base64.RawURLEncoding.EncodeToString(data)
 
-    w.Header().Set("Content-Type", "text/plain") // or "application/json"
-    w.WriteHeader(http.StatusOK)
-    w.Write([]byte(encoded))
+	w.Header().Set("Content-Type", "text/plain")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(encoded))
 }
-
