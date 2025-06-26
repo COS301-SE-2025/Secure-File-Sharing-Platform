@@ -59,30 +59,30 @@ func main() {
 	http.HandleFunc("/upload", fileHandler.UploadHandler)
 	http.HandleFunc("/download", fileHandler.DownloadHandler)
 
-    // access log endpoints
-	  http.HandleFunc("/addAccesslog", fileHandler.AddAccesslogHandler)
-	  http.HandleFunc("/getAccesslog", fileHandler.GetAccesslogHandler)
-    // notification endpoints
-	  http.HandleFunc("/notifications", fileHandler.NotificationHandler)
-	  http.HandleFunc("/notifications/markAsRead", fileHandler.MarkAsReadHandler)
-	  http.HandleFunc("/notifications/respond", fileHandler.RespondToShareRequestHandler)
-	  http.HandleFunc("/notifications/clear", fileHandler.ClearNotificationHandler)
-	  http.HandleFunc("/notifications/add", fileHandler.AddNotificationHandler)
-    // metadata endpoints
-    http.HandleFunc("/metadata", metadata.GetUserFilesHandler)
-    http.HandleFunc("/getFileMetadata", metadata.ListFileMetadataHandler)
-    http.HandleFunc("/getNumberOfFiles", metadata.GetUserFileCountHandler)
-    http.HandleFunc("/addPendingFiles", metadata.AddReceivedFileHandler)
-    http.HandleFunc("/getPendingFiles", metadata.GetPendingFilesHandler)
-    http.HandleFunc("/deleteFile", fileHandler.DeleteFileHandler)
-    http.HandleFunc("/sendFile", fileHandler.SendFileHandler)
-    http.HandleFunc("/addTags", metadata.AddTagsHandler)
-    http.HandleFunc("/addUser", metadata.AddUserHandler)
-    http.HandleFunc("/removeTags", metadata.RemoveTagsFromFileHandler)
-  
-    //test from here
-    http.HandleFunc("/addSentFiles", metadata.AddSentFileHandler) //I will combine this with the addPendingFiles endpoint later
-    http.HandleFunc("/getSentFiles", metadata.GetSentFilesHandler)
+	// access log endpoints
+	http.HandleFunc("/addAccesslog", fileHandler.AddAccesslogHandler)
+	http.HandleFunc("/getAccesslog", fileHandler.GetAccesslogHandler)
+	// notification endpoints
+	http.HandleFunc("/notifications", fileHandler.NotificationHandler)
+	http.HandleFunc("/notifications/markAsRead", fileHandler.MarkAsReadHandler)
+	http.HandleFunc("/notifications/respond", fileHandler.RespondToShareRequestHandler)
+	http.HandleFunc("/notifications/clear", fileHandler.ClearNotificationHandler)
+	http.HandleFunc("/notifications/add", fileHandler.AddNotificationHandler)
+	// metadata endpoints
+	http.HandleFunc("/metadata", metadata.GetUserFilesHandler)
+	http.HandleFunc("/getFileMetadata", metadata.ListFileMetadataHandler)
+	http.HandleFunc("/getNumberOfFiles", metadata.GetUserFileCountHandler)
+	http.HandleFunc("/addPendingFiles", metadata.AddReceivedFileHandler)
+	http.HandleFunc("/getPendingFiles", metadata.GetPendingFilesHandler)
+	http.HandleFunc("/deleteFile", fileHandler.DeleteFileHandler)
+	http.HandleFunc("/sendFile", fileHandler.SendFileHandler)
+	http.HandleFunc("/addTags", metadata.AddTagsHandler)
+	http.HandleFunc("/addUser", metadata.AddUserHandler)
+	http.HandleFunc("/removeTags", metadata.RemoveTagsFromFileHandler)
+
+	//test from here
+	http.HandleFunc("/addSentFiles", metadata.AddSentFileHandler) //I will combine this with the addPendingFiles endpoint later
+	http.HandleFunc("/getSentFiles", metadata.GetSentFilesHandler)
 
 	log.Fatal(http.ListenAndServe(":8081", nil))
 }
