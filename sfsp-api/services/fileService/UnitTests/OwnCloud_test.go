@@ -6,14 +6,14 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
+	// "github.com/stretchr/testify/mock"
 
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
 )
 
-type MockWebDavClient struct {
-	mock.Mock
-}
+// type MockWebDavClient struct {
+// 	mock.Mock
+// }
 
 func (m *MockWebDavClient) MkdirAll(path string, perm os.FileMode) error {
 	args := m.Called(path, perm)

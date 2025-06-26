@@ -27,25 +27,25 @@ type MockWebDavClient struct {
 	mock.Mock
 }
 
-func (m *MockWebDavClient) MkdirAll(path string, perm os.FileMode) error {
-	args := m.Called(path, perm)
-	return args.Error(0)
-}
+// func (m *MockWebDavClient) MkdirAll(path string, perm os.FileMode) error {
+// 	args := m.Called(path, perm)
+// 	return args.Error(0)
+// }
 
-func (m *MockWebDavClient) Write(name string, data []byte, perm os.FileMode) error {
-	args := m.Called(name, data, perm)
-	return args.Error(0)
-}
+// func (m *MockWebDavClient) Write(name string, data []byte, perm os.FileMode) error {
+// 	args := m.Called(name, data, perm)
+// 	return args.Error(0)
+// }
 
-func (m *MockWebDavClient) Read(name string) ([]byte, error) {
-	args := m.Called(name)
-	return args.Get(0).([]byte), args.Error(1)
-}
+// func (m *MockWebDavClient) Read(name string) ([]byte, error) {
+// 	args := m.Called(name)
+// 	return args.Get(0).([]byte), args.Error(1)
+// }
 
-func (m *MockWebDavClient) Remove(path string) error {
-	args := m.Called(path)
-	return args.Error(0)
-}
+// func (m *MockWebDavClient) Remove(path string) error {
+// 	args := m.Called(path)
+// 	return args.Error(0)
+// }
 
 func TestUploadHandler(t *testing.T) {
 	// Load .env file
