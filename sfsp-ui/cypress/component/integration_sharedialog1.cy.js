@@ -3,7 +3,7 @@ import { ShareDialog } from "../../app/dashboard/myFilesV2/shareDialog";
 
 describe("ShareDialog Integration Test", () => {
   const falseFile = {
-    id: "file123",
+    id: "fileID",
     name: "testFile.pdf",
   };
 
