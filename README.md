@@ -227,8 +227,9 @@ professional data.
 | DOCUMENT     | DESCRIPTION  |  LINK                             |
 |------------------|-----------------------------------|-----------------------------------|
 | Requirements (SRS)   | Software Requirement Specification  | [Open](./assets/documentation/requirements.md)|
-| Coding Standard Documentation | ....| [Open](./assets/documentation/coding_standards_doc.md)|
-| User Manual Document|...|[Open](./assets/documentation/user_manual.md)|
+| Coding Standards Documentation | Description of our conventions and styles| [Open](./assets/documentation/coding_standards_doc.md)|
+| User Manual Document|A guide on how to use our system/platform|[Open](./assets/documentation/user_manual.md)|
+|Technologies Used|A list of technology choices and justifications |[Open](./assets/documentation/technologies_used.md)|
 
 ## 📌 Project Management
 
