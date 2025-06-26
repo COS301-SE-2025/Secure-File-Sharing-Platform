@@ -347,5 +347,5 @@ export async function ReceiveFile(fileData) {
   console.log("Upload success:", uploadResult);
 
   // 📦 Return file blob for preview or download
-  return new Blob([decryptedFile], { type: file_type });
+  // return new Blob([decryptedFile], { type: file_type });
 }
