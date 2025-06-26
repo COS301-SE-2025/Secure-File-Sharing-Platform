@@ -1,105 +1,145 @@
+# Technology Choices
 
+This section evaluates at least three technology options per system component. For each, we provide a  overview, pros and cons, and a clear justification for the selected choice.
 
-**Frontend Considerations**
+# Frontend Framework
 
-| Framework                                 | Pro                                 | Cons                              | Justification for selection                                                                                    |
-| ----------------------------------------- | ----------------------------------- | --------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| Next.js/React.js<br>with Tailwind CSS<br> | React is reusable component based   | Constant changes in ecosystem<br> | Leveraging React ecosystem , support for universal app building and better scalability support and SEO matters |
-|                                           | Large ecosystem                     | Steeper learning curve            |                                                                                                                |
-|                                           | Cross-platform consistency          |                                   |                                                                                                                |
-| Angular                                   | Large feature pool                  | Limited SEO<br>                   |                                                                                                                |
-|                                           | Better two-way data binding fro MVC | Complexity                        |                                                                                                                |
-|                                           | Efficient                           |                                   |                                                                                                                |
-| Vue.js                                    | Simplicity                          | Smaller support for community     |                                                                                                                |
-|                                           | Reactive data binding               | over flexibility                  |                                                                                                                |
+## Overview
+The frontend manages the user interface and system interaction. It must be performant and easily styled.
 
-**Backend Considerations**
+|Framework	|Pros	|Cons|
+|-|-|-|
+|React + Next.js + Tailwind CSS	| Reusable component-based architecture, large ecosystem, and cross-platform consistency.	|Fast-evolving ecosystem, learning curve|
+|Angular	|Built-in features, strong CLI, two-way binding	|Heavier setup, complex for small teams|
+|Vue.js|	Simple syntax, lightweight, great for rapid dev	|Smaller community, less opinionated|
 
+✅**Selected:** React + Next.js + Tailwind CSS
+- **Justification:**  Combines React’s modular design with Next.js’s server-side rendering and Tailwind CSS’s utility-first styling, making it ideal for scalable and SEO-friendly apps
 
-| Framework           | Pros                             | Cons                     | Justification for Selection                                                                   |
-| ------------------- | -------------------------------- | ------------------------ | --------------------------------------------------------------------------------------------- |
-| Express.js(node.js) | RESTful APIs and microservices   | Manual errror handling   | Flexibility,consistent JavaScript for frontend and backend, speed, performance and modularity |
-|                     | Fast and lightweight             | Scalability limitations  |                                                                                               |
-|                     | Middleware Support               |                          |                                                                                               |
-| Spring Boot (Java)  | Scalability                      | Steep Learning Curve     |                                                                                               |
-|                     | Microservices-based architetures | Heavyweight              |                                                                                               |
-|                     | Production-ready                 | Slow start-up time       |                                                                                               |
-| ASP.NET Core C#     | Architecture support             | Steep Leaning curve      |                                                                                               |
-|                     | internal coporate tools          | Heavy Ecosystem          |                                                                                               |
-|                     | Scalability                      | Complex deployment setup |                                                                                               |
+---
 
-**Data Storage Considerations**
+# Backend Framework
 
-| Framework | Pros                                    | Cons                                       | Justification for Selection                                                                            |
-| --------- | --------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
-| Supabase  | Open-source                             | Limited analytics                          | Real-time data synchronisation, authentication, and storage services extending backend infrastructure. |
-|           | Built-in Authentication and Storage     |                                            |                                                                                                        |
-|           | SQL based                               |                                            |                                                                                                        |
-| Firebase  | Scalable                                | Vendor lock-in (Google Cloud)              |                                                                                                        |
-|           | Deep integration with Google Cloud      | Pricing can increase at scale              |                                                                                                        |
-|           | Built-in Auth, Storage, and Hosting     | Vendor lock-in (Google)                    |                                                                                                        |
-| MongoDB   | Flexible Schema                         | No built-in auth/UI hosting                |                                                                                                        |
-|           | Horizontal scalability                  | Harder to enforce strict schema validation |                                                                                                        |
-|           | Great for unstructured or evolving data |                                            |                                                                                                        |
+## Overview  
+The backend handles services ,such as file encryption and key management, and database/API operations.
 
+| Framework           | Pros                                              | Cons                                           |
+|-|-|-|
+| **Express.js (Node.js)** | Lightweight, RESTful APIs, full JS stack         | Manual error handling, scalability limits       |
+| **Spring Boot (Java)**  | Robust, scalable, microservices-ready            | Heavy, steeper learning curve                   |
+| **ASP.NET Core (C#)**   | High performance, scalable, secure               | Windows-first, steep learning curve             |
 
-**IDE/Code Editor  Considerations** 
+**✅ Selected: Express.js (Node.js)**  
+- **Justification:** Lightweight and fast for REST APIs, fits with full-stack JavaScript, and ideal for rapid development and modular encryption/middleware logic.
 
-| Framework      | Pros                   | Cons                        | Justification for Selection                                        |
-| -------------- | ---------------------- | --------------------------- | ------------------------------------------------------------------ |
-| VsCode         | Multi-language Support | Limited Features            | Lightweight, powerful and adapbtable editor with GIT intergration. |
-|                | Cross platform         |                             |                                                                    |
-|                | Best for Node.js       |                             |                                                                    |
-| Visual studios | Full-featured IDE      | Windows Only                |                                                                    |
-|                | Feature - rich         |                             |                                                                    |
-| Vim/Neovim     | Multi-language Support | Steep learning curve        |                                                                    |
-|                | Fast                   | No initial Git intergration |                                                                    |
-|                | Cross platform         | Steep set up time           |                                                                    |
+---
 
-**CI/CD Pipeline Consideraions**
+# Data Storage
 
-| Framework      | Pros                               | Cons                                     | Justification for Selection                                                                                           |
-| -------------- | ---------------------------------- | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| GitHub Actions | Directly built into GitHub         | Slower build times                       | Enables automated testing, build, and deployment directly from the Git repository with environment specific workflows |
-|                | Free for public repos              | Limited UI                               |                                                                                                                       |
-|                | Easy Configuration                 |                                          |                                                                                                                       |
-| AzureDevOps    | Full Devops suite                  | Steeper learning Curver                  |                                                                                                                       |
-|                | Approval workflows                 | slower set up compared to GitHub Actions |                                                                                                                       |
-|                | Strong intergration with Microsoft |                                          |                                                                                                                       |
-| Octopus        | Visual dashbaords                  | Only for CD                              |                                                                                                                       |
-|                | complex deployment pattern support | Paid Product                             |                                                                                                                       |
-|                | deployment automation              | Requires external CI setup               |                                                                                                                       |
+## Overview  
+The platform needs persistent, secure, and real-time data storage.
 
-**Version Control & Collaboration**
+| Storage     | Pros                                                  | Cons                          |
+|-|-|-|
+| **Supabase**| Open-source, real-time sync, built-in auth            | Limited analytics             |
+| **Firebase**| Scalable, auth & hosting included                     | Vendor lock-in, pricing at scale |
+| **MongoDB** | Schema-less, scalable                                 | Schema validation can be complex |
 
-| Framework | Pros                        | Cons                                | Justification for Selection                                                                                                                                                        |
-| --------- | --------------------------- | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| GitHub    | large open source community | Limited built-in project management | Centralized platform for hosting repositories, managing collaborative work, and providing additional features such as issue tracking, project management tools, and pull requests. |
-|           | Intergration Ecosystem      |                                     |                                                                                                                                                                                    |
-|           | Built in Actions for CI/CD  |                                     |                                                                                                                                                                                    |
-| GitLab    | Complete DevOps platform    | Complex UI                          |                                                                                                                                                                                    |
-|           | rich Features               | Resource Intesive                   |                                                                                                                                                                                    |
-|           |                             |                                     |                                                                                                                                                                                    |
-| Bitbucket | Good for small teams        | Small community                     |                                                                                                                                                                                    |
-|           | Git support                 | Less Modern UI                      |                                                                                                                                                                                    |
+**✅ Selected: Supabase**  
+- **Justification:** SQL-based, with real-time features, file storage, and auth. Aligns with **open-source philosophy** and simplifies integration with frontend and backend.
 
-**Cloud Infrastructure Considerations**
+---
 
-| Framework | Pros                                              | Cons               | Justification for Selection                                                                                      |
-| --------- | ------------------------------------------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------- |
-| NextCloud | Brute force protection and other secuity features | Perfromance Issues | Open source cloud storage platforms with APIs and customization options and better for security and file-sharing |
-|           | File-sharing and collaboration features           |                    |                                                                                                                  |
-|           | Fast updates                                      |                    |                                                                                                                  |
-| ownCloud  | Minimal system requirements                       | Irregular updates  |                                                                                                                  |
-|           |                                                   | Performance issues |                                                                                                                  |
+# Code Editor / IDE
 
-**Testing Considerations**
+## Overview  
+Tool used to write, debug, and maintain source code.
 
-| Framework                          | Pros                                                   | Cons                                                  | Justification for Selection                                                             |
-| ---------------------------------- | ------------------------------------------------------ | ----------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| Jest,React Testing Library,Cypress | Zero configuration                                     | Feel heavy for small projects                         |  Scalable, all-in-one JavaScript and TypeScript testing in modern and legacy codebases. |
-|                                    | TypeScript support                                     | Performance hits in large monorepos                   |                                                                                         |
-|                                    | Automatic mocking and comprehensive assertion library. |                                                       |                                                                                         |
-| Vitest                             | Lightweight, performance-focused.                      | Vite-dependent and requires additional configurations |                                                                                         |
-|                                    | Speed-optimized modern frontend testing                | Limited community                                     |                                                                                         |
+| IDE              | Pros                                 | Cons                         |
+|-|-|-|
+| **VS Code**       | Lightweight, extensions, Git integration | Lacks full IDE depth         |
+| **Visual Studio** | Powerful for .NET, enterprise-grade     | Heavy, Windows-only          |
+| **Vim/Neovim**    | Fast, customizable                      | Steep learning curve         |
 
+**✅ Selected: VS Code**  
+- **Justification:** Perfect balance of power and simplicity. Ideal for **JavaScript/Node.js** workflows, team collaboration, and containerized dev environments.
+
+---
+
+# CI/CD Pipeline
+
+## Overview  
+Automates testing, building, and deployment workflows.
+
+| Tool               | Pros                                          | Cons                           |
+|-|-|-|
+| **GitHub Actions** | Native GitHub integration, easy to configure  | Slower builds                  |
+| **Azure DevOps**   | Full DevOps suite, approval flows             | Complex setup                  |
+| **Octopus Deploy** | Strong CD, visual pipelines                   | Paid, separate CI tool needed  |
+
+**✅ Selected: GitHub Actions**  
+- **Justification:** Built directly into GitHub, supports **branch-based workflows** and integrates seamlessly with our source control and testing tools.
+
+---
+
+## Version Control & Collaboration
+
+## Overview  
+Tracks changes, enables collaboration, and supports CI/CD integrations.
+
+| Platform    | Pros                                           | Cons                            |
+|-|-|-|
+| **GitHub**  | Open-source community, CI/CD integration       | Basic project management        |
+| **GitLab**  | Rich features, self-hosted option               | Resource heavy                  |
+| **Bitbucket**| Good for small teams                          | Dated UI, smaller ecosystem     |
+
+**✅ Selected: GitHub**  
+- **Justification:** Centralized version control, integrated with GitHub Actions for CI/CD, and supports **team workflows** with issues, pull requests, and project boards.
+
+---
+
+# Cloud Infrastructure
+
+## Overview  
+Used for encrypted file storage, sharing, and collaboration.
+
+| Platform     | Pros                                           | Cons                        |
+|-|-|-|
+| **Nextcloud**| Open-source, secure, API support               | May need performance tuning |
+| **ownCloud** | Lightweight, fast updates                      | Inconsistent releases       |
+| **Dropbox**  | Easy integration, stable                       | Not privacy-focused         |
+
+**✅ Selected: Nextcloud**  
+- **Justification:** **Self-hosted**, open-source, secure APIs. Ideal for a **privacy-first application** with full control over file storage and user access.
+
+---
+
+# Testing Stack
+
+## Overview  
+Ensures application reliability, correctness, and integration safety.
+
+| Stack                       | Pros                                               | Cons                                  |
+|-|-|-|
+| **Jest + RTL + Cypress**   | Supports all levels of testing, good TS support    | Heavy in large monorepos              |
+| **Vitest**                 | Fast, Vite-compatible                              | Smaller community                     |
+| **Mocha + Chai**           | Mature, customizable                              | Requires more setup                   |
+
+**✅ Selected: Jest + RTL + Cypress**  
+- **Justification:** Covers **unit, integration, and E2E testing**, with wide community support and tools for both frontend and backend testing.
+
+---
+
+# Encryption & Authentication
+
+## Overview  
+Ensures data privacy, secure key exchange, and authenticated user sessions.
+
+| Combination                                  | Encryption        | Key Exchange     | Session Management       |
+|-|-|-|
+| **AES-256 + RSA + JWT**                      | AES-256           | RSA              | JSON Web Tokens (JWT)    |
+| **AES-256 + X3DH + Auth Cookies**            | AES-256           | X3DH             | Secure HTTP-only cookies |
+| **AES-256 + X3DH + JWT**                     | AES-256           | X3DH             | JSON Web Tokens (JWT)    |
+
+**✅ Selected: AES-256 + X3DH + JWT**  
+- **Justification:** This combination provides **strong encryption (AES-256)**, a modern and secure **key exchange mechanism (X3DH)** suitable for asynchronous communication, and **JWT-based session management**, which enables stateless and scalable authentication. Together, they fulfill both the **security** and **usability** requirements of the Secure Share platform.
