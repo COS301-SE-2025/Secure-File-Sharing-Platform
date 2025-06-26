@@ -404,7 +404,7 @@ The following design patterns were selected (subject to change) for the followin
 | **MongoDB** | NoSQL database for storing application metadata, user data, and file information in a flexible document format. |
 | **Supabase** | Backend-as-a-Service platform providing authentication and user management. 
 
-
+For more information regarding technology choices, make reference to [Technology Used Documentation](./technologies_used.md)
 
 # Versions of SRS documents
 
