@@ -3,7 +3,16 @@
 # Table of Content 
 
 - [Introduction](#introduction)
-- [Getting Started](#)
+- [Getting Started](#getting-started)
+- [Logging In](#logging-in)
+- [Dashboard Overview](#dashboard-overview)
+- [Uploading Files](#uploading-files)
+- [Creating Folders](#creating-folders)
+- [Sharing Files](#sharing-files)
+- [Menu Actions](#menu-actions)
+- [Trash](#trash)
+- [Security Features](#security-features)
+- [Contact & Support](#contact--support) 
 
 # Introduction
 
