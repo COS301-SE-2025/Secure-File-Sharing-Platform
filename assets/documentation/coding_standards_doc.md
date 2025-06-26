@@ -42,7 +42,7 @@ We follow the [GitFlow](https://nvie.com/posts/a-successful-git-branching-model/
 | ----------- | ---------------------------------------- | --------------------- |
 | `main`      | Production-ready code                    | `main`                |
 | `develop`   | Integration of features for next release | `dev`             |
-| `feature/*` | New features                             | `feature/login`  |
+| `feature/*` | New features                             | `feature/ui/login`  |
 | `bugfix/*`  | Non-critical bug fixes                   | `bugfix/null-reference` |
 | `hotfix/*`  | Critical production fixes                | `hotfix/fix-crash`    |
 
@@ -74,7 +74,7 @@ We follow the [GitFlow](https://nvie.com/posts/a-successful-git-branching-model/
 ### Javascript
 
 * Use **ESLint** with Airbnb style guide.
-* Use `camelCase` for variables and functions, `PascalCase` for classes.
+* Use `PascalCase` for classes.
 * Prefer `const` and `let` over `var`.
 * Use arrow functions unless a method requires a context bound `this`.
 
