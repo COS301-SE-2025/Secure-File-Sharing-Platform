@@ -303,7 +303,7 @@ export default function Home() {
                 </div>
                 <div>
                   <h3 className="font-semibold mb-2">Built for Everyone</h3>
-                  <p className="text-gray-600 dark:text-gray-400 text-sm">Whether you're a business professional, healthcare worker, legal expert, or just privacy-conscious, SecureShare adapts to your needs.</p>
+                  <p className="text-gray-600 dark:text-gray-400 text-sm">Whether you&apos;re a business professional, healthcare worker, legal expert, or just privacy-conscious, SecureShare adapts to your needs.</p>
                 </div>
               </div>
               <div className="flex gap-4">
@@ -319,7 +319,7 @@ export default function Home() {
                 </div>
                 <div>
                   <h3 className="font-semibold mb-2">Simple Yet Powerful</h3>
-                  <p className="text-gray-600 dark:text-gray-400 text-sm">Advanced security doesn't mean complexity. Our intuitive interface makes secure sharing as easy as a few clicks.</p>
+                  <p className="text-gray-600 dark:text-gray-400 text-sm">Advanced security doesn&apos;t mean complexity. Our intuitive interface makes secure sharing as easy as a few clicks.</p>
                 </div>
               </div>
               <div className="flex gap-4">
@@ -335,7 +335,7 @@ export default function Home() {
                 </div>
                 <div>
                   <h3 className="font-semibold mb-2">Zero-Trust Architecture</h3>
-                  <p className="text-gray-600 dark:text-gray-400 text-sm">We can't access your files even if we wanted to. Your encryption keys never leave your device.</p>
+                  <p className="text-gray-600 dark:text-gray-400 text-sm">We can&apos;t access your files even if we wanted to. Your encryption keys never leave your device.</p>
                 </div>
               </div>
             </div>

@@ -1,8 +1,3 @@
-<<<<<<<<< Temporary merge branch 1
-Here is your **updated and consolidated File Services Documentation**, incorporating all the new endpoints, request/response formats, and metadata details you provided:
-
----
-
 # File Services Documentation
 
 ## Table of Contents
@@ -42,18 +37,13 @@ Here is your **updated and consolidated File Services Documentation**, incorpora
 ---
 
 ## 1. Download Document
->>>>>>>>> Temporary merge branch 2
 
 * **Endpoint**: `POST http://localhost:5000/files/download`
 * **Method**: `POST`
 * **Authentication**: Not Required
 * **Headers**:
 
-<<<<<<<<< Temporary merge branch 1
-=========
   * `Content-Type: application/json`
-
->>>>>>>>> Temporary merge branch 2
 ### Request Body
 
 ```json
@@ -72,19 +62,11 @@ Here is your **updated and consolidated File Services Documentation**, incorpora
 }
 ```
 
-<<<<<<<<< Temporary merge branch 1
-> **Note**: Client must decode base64 and decrypt the file using their private key before use.
-
----
-
-## Upload Document
-=========
 > Note: The client must **Base64 decode** and **decrypt** the content using their private key to access the actual file.
 
 ---
 
 ## 2. Upload Document
->>>>>>>>> Temporary merge branch 2
 
 * **Endpoint**: `POST http://localhost:5000/files/upload`
 * **Method**: `POST`
@@ -99,21 +81,12 @@ Here is your **updated and consolidated File Services Documentation**, incorpora
 {
   "fileName": "Algorithmic trading.pdf",
   "fileType": "application/pdf",
-<<<<<<<<< Temporary merge branch 1
   "userId": "550e8400-e29b-41d4-a716-446655440000",
   "nonce": "random-nonce",
   "fileDescription": "This is a test file",
   "fileTags": ["Demo"],
   "path": "files",
   "fileContent": "qwifuhqoifbq3i4bfoiuweabfkljswerbivaebvqwK"
-=========
-  "userId": "123",
-  "encryptionKey": "public key",
-  "fileDescription": "Demo PDF for testing",
-  "fileTags": ["test", "demo"],
-  "path": "files/demo",
-  "fileContent": "VGhpcyBpcyBhIHRlc3QgZmlsZSBjb250ZW50Lg=="
->>>>>>>>> Temporary merge branch 2
 }
 ```
 
@@ -121,7 +94,6 @@ Here is your **updated and consolidated File Services Documentation**, incorpora
 
 ```json
 {
-<<<<<<<<< Temporary merge branch 1
   "fileId": "b334b3cc-d7fd-445f-9aeb-7f865f88896b",
   "message": "File uploaded and metadata stored"
 }
@@ -129,12 +101,9 @@ Here is your **updated and consolidated File Services Documentation**, incorpora
 
 ---
 
-<<<<<<<<< Temporary merge branch 1
 ## Get All File Metadata for User
-=========
-## 3. Get Metadata
->>>>>>>>> Temporary merge branch 2
 
+## 3. Get Metadata
 
   * `Content-Type: application/json`
 
@@ -142,7 +111,6 @@ Here is your **updated and consolidated File Services Documentation**, incorpora
 
 ```json
 {
-<<<<<<<<< Temporary merge branch 1
   "userId": "550e8400-e29b-41d4-a716-446655440000"
 }
 ```
@@ -247,7 +215,6 @@ Here is your **updated and consolidated File Services Documentation**, incorpora
 ```json
 {
   "message": "File shared with recipient"
-=========
   "FileName": "Trig-for-Computer-Graphics.pdf",
   "FileSize": 1312720,
   "FileType": "application/pdf",
@@ -257,7 +224,6 @@ Here is your **updated and consolidated File Services Documentation**, incorpora
   "Description": "Sample test file",
   "Tags": ["demo", "test", "go"],
   "Path": "files/demo"
->>>>>>>>> Temporary merge branch 2
 }
 ```
 

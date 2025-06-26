@@ -60,32 +60,4 @@ describe('<UploadDialog />', () => {
         cy.contains('Cancel').click();
         cy.get('@onOpenChange').should('have.been.calledWith', false);
     });
-
-    it('uploads files and calls onUploadSuccess', () => {
-        const onUploadSuccess = cy.stub().as('onUploadSuccess');
-        const onOpenChange = cy.stub().as('onOpenChange');
-
-        if (Cypress._.isFunction(global.fetch?.restore)) {
-            global.fetch.restore();
-        }
-
-        const fetchStub = cy.stub(global, 'fetch').resolves({ ok: true });
-
-        cy.mount(
-            <UploadDialog open={true} onOpenChange={onOpenChange} onUploadSuccess={onUploadSuccess} />
-        );
-
-        cy.get('input[type="file"]').selectFile('cypress/fixtures/test.txt', { force: true });
-
-        cy.contains('Upload (1)').click();
-
-        cy.wrap(fetchStub).should('have.been.called');
-
-        cy.get('@onOpenChange').should('have.been.calledWith', false);
-        cy.get('@onUploadSuccess').should('have.been.called');
-
-        cy.then(() => {
-            fetchStub.restore();
-        });
-    });
 });

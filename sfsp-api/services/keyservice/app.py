@@ -5,10 +5,8 @@ import logging
 
 app = Flask(__name__)
 
-# Register blueprint
 app.register_blueprint(key_bp)
 
-# Register error handlers
 app.register_error_handler(404, not_found)
 app.register_error_handler(405, method_not_allowed)
 

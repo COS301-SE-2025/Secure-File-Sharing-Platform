@@ -3,23 +3,21 @@
 This is VERSION 2 of the software requirements specification document. 
 
 
-## Table of Contents
-
-| Section                     | Link                           |
-| :-------------------------- | :----------------------------- |
-| Introduction                | [Go to](#introduction)         |
-|User Stories / User Characteristics| [Go to](#user-stories--user-characteristics) |
-|.........Use Case Diagram| [Go to](#use-case-diagram) |
-| Functional Requirements     | [Go to](#functional-requirements) |
-|Service Contracts|[Go to](#service-contracts)|
-|Domain Model|[Go to](#domain-model)|
-|Architectural Requirements|[Go to](#architectural-requirements)|
-|.........Quality Requirements | [Go to](#quality-requirements) |
-|.........Architectural Patterns|[Go to](#architectural-patterns)|
-|.........Design Patterns|[Go to](#design-patterns)|
-|.........Constraints|[Go to](#constraints)|
-|Technology Requirements|[Go to](#technology-requirements)|
-|Versions of SRS Documents|[Go to](#versions-of-srs-documents)|
+## Table of Contents  
+1. [Introduction](#introduction)  
+2. [User Stories & Characteristics](#user-stories--user-characteristics)  
+   - [Use Case Diagram](#use-case-diagram)  
+3. [Functional Requirements](#functional-requirements)  
+4. [Service Contracts](#service-contracts)  
+5. [Domain Model](#domain-model)  
+6. [Architectural Requirements](#architectural-requirements)  
+   - [Quality Requirements](#quality-requirements)  
+   - [Architectural Mapping](#architectural-mapping)  
+   - [Architectural Patterns](#architectural-patterns)  
+   - [Design Patterns](#design-patterns)  
+   - [Constraints](#constraints)  
+7. [Technology Requirements](#technology-requirements)  
+8. [Version History](#versions-of-srs-documents)
 
 ---
 
@@ -202,43 +200,115 @@ Interaction:
 
 ------
 
-## Quality Requirements
+## **Quality Requirements**
 
-## **NF1 Security Requirements**
+## NF1: Security Requirements
 
-* **NFR1.1**: Sensitive user credentials must be encrypted using industry standard algorithms.
-* **NFR1.2**: Multi-factor authentication must be enforced where configured.
-* **NFR1.3**: Authentication endpoints must be resilient to brute force attacks.
-* **NFR1.4**: Password reset tokens must expire within 15 minutes.
-* **NFR1.5**: Encryption algorithms must use AES-256 for symmetric encryption and x3dh asymmetric operations.
-* **NFR1.6**: No unencrypted file or key material shall be stored on the server.
-* **NFR1.7**: Compliance with GDPR and other regional data protection regulations is mandatory.
-* **NFR1.8**: Permissions shall be enforced at the backend and shall not be bypassable via client modifications.
-* **NFR1.9**: Administrative interfaces must be restricted to authenticated and authorized users only.
-* **NFR1.10**: The system must log all critical and warning-level errors with full context for debugging.
-* **NFR1.11**: Keys must be generated using a secure random number generator.
-* **NFR1.12**: The system must ensure zero exposure of private keys to the server.
-* **NFR1.13**: Private keys should be stored in a sealed vault.
-* **NFR1.14**: Signing operations must comply with digital signature standards.
+### Description
+For a secure file sharing plartform, the security of the system is paramount ensuring the protection of sensitive data, prevention of unauthorized access, and compliance with data protection regulations. It encompasses all measures taken to protect the system and its data from unauthorized access, use, disclosure, disruption, modification, or destruction.
 
-## **NF1 Performance Requirements**
+### Quantification
+To properly quantify security, adherence to industry-standard encryption protocols and compliance with data protection regulations will be assessed. The system's resilience against common attack vectors will be measured through penetration testing. Access control mechanisms will be evaluated for their effectiveness in restricting unauthorized access.
 
-* **NFR2.1**: Progress indicators must update in real-time (less than 500 ms delay).
-* **NFR2.2**: Cancel operations must terminate transfers within 3 seconds.
-* **NFR2.3**: Digital signature verification must be deterministic and complete within 1 second.
-* **NFR2.4**: Notification delivery (email/push/pop) must occur within 30 seconds of the triggering event.
+### Targets
 
-## **NF3 Reliability and Availability**
-* **NFR3.1**: Log entries must be immutable and tamper proof.
-* **NFR3.2**: Logs must be retained for a minimum of 5 months.
-* **NFR3.3**: Expired links must be purged within 1 hour of expiration.
-* **NFR3.4**: One time links must expire automatically after download or expiration time, whichever comes first.
+1. **NFR1.1**: Sensitive user credentials must be encrypted using industry-standard algorithms (AES-256 for symmetric encryption and x3dh for asymmetric operations).
 
-## **NF4 Usability Requirements**
+2. **NFR1.2**: Multi-factor authentication must be enforced where configured.
 
-* **NFR4.1**: The user interface must visually distinguish between different permission levels clearly.
-* **NFR4.2**: All error messages must be user friendly, localizable, and provide actionable guidance.
-* **NFR4.3**: Administrator actions must be auditable and traceable.
+3. **NFR1.3**: Authentication endpoints must be resilient to brute force attacks, demonstrating zero successful brute-force attempts during security testing.
+
+4. **NFR1.4**: Password reset tokens must expire within 15 minutes.
+
+5. **NFR1.5**: No unencrypted file or key material shall be stored on the server.
+
+6. **NFR1.6**: Compliance with GDPR and other regional data protection regulations is mandatory, evidenced by regular audit reports.
+
+7. **NFR1.7**: Permissions shall be enforced at the backend and shall not be bypassable via client modifications.
+
+8. **NFR1.8**: Administrative interfaces must be restricted to authenticated and authorized users only.
+
+9. **NFR1.9**: The system must log all critical and warning-level errors with full context for debugging, and these logs must be auditable.
+
+10. **NFR1.10**: Keys must be generated using a secure random number generator.
+
+11. **NFR1.11**: The system must ensure zero exposure of private keys to the server.
+
+12. **NFR1.12**: Private keys should be stored in a sealed vault.
+
+13. **NFR1.13**: Signing operations must comply with digital signature standards.
+
+14. **NFR1.14**: Administrator actions must be auditable and traceable, capturing who performed what action and when.
+
+## NF2: Performance Requirements
+
+### Description
+The system must execute operations efficiently and respond promptly to user interactions, ensuring a smooth and responsive experience without undue delays.
+
+### Quantification
+Performance will be measured through load testing, response time monitoring for critical operations, and throughput analysis. Metrics will include the time taken to complete specific tasks under defined loads.
+
+### Targets
+
+1. **NFR2.1**: Cancel operations must terminate transfers within 3 seconds.
+
+2. **NFR2.2**: Digital signature verification must be deterministic and complete within 1 second.
+
+## NF3: Reliability and Availability
+
+### Description
+The system must maintain data integrity, ensure consistent operation, and provide high availability to users. It concerns the ability of the system to perform its required functions under stated conditions for a specified period of time, and to be accessible and operational when needed.
+
+### Quantification
+Reliability will be measured by the immutability and tamper-proofing of log entries, and the consistency of data. Availability will be measured by system uptime percentage and the success rate of automated data purging processes.
+
+### Targets
+
+1. **NFR3.1**: Log entries must be immutable and tamper-proof, verified by cryptographic hashing or similar integrity checks.
+
+2. **NFR3.2**: Logs must be retained for a minimum of 5 months.
+
+3. **NFR3.3**: Expired links must be purged within 1 hour of their expiration time.
+
+4. **NFR3.4**: One-time links must expire automatically after download or expiration time, whichever comes first.
+
+## NF4: Usability Requirements
+
+### Description
+The system's user interface must be intuitive, accessible, and provide clear and actionable feedback to users, facilitating efficient and error-free interaction.
+
+### Quantification
+Usability will be measured through user feedback, evaluation of task completion times for new users, and the clarity and helpfulness of error messages. Formal UX reviews and user testing will also quantify these aspects.
+
+### Targets
+
+1. **NFR4.1**: The user interface must visually distinguish between different permission levels clearly, aiding users in understanding their capabilities.
+
+2. **NFR4.2**: All error messages must be user-friendly, localizable, and provide actionable guidance to help users resolve issues.
+
+## NF5: Latency Requirements
+
+### Description
+The system must provide timely feedback and notifications to users, minimizing perceived delays in interaction and information delivery.
+
+### Quantification
+Latency will be measured by monitoring the delay between a system event (e.g. user action, internal trigger) and the corresponding visual update or notification delivery.
+
+### Targets
+
+1. **NFR5.1**: Progress indicators must update in real-time (less than 500 ms delay).
+
+2. **NFR5.2**: Notification delivery (email/push/pop) must occur within 30 seconds of the triggering event.
+
+## Architectural Mapping
+
+| **Requirements** | **Architectural Strategies**                                                                                                                                                                                                                                                                       | **Architectural Pattern**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Security**     | - Enforce client-side encryption using E2EE.<br>- Use Zero-Trust principles for inter-service communication.<br>- Isolate key management logic and vaulting in a dedicated service.<br>- Log and monitor critical/auth actions centrally.<br>- Restrict administrative interface via RBAC and MFA. | **End-to-End Encryption (E2EE)**: Ensures file contents are never exposed to the server, addressing NFR1.1, NFR1.5, NFR1.11, NFR1.12.<br>**Zero-Trust Architecture**: Authenticates all interactions independently, supporting NFR1.2, NFR1.3, NFR1.7, NFR1.8.<br>**Secure Key Management**: Isolates cryptographic processes and storage, fulfilling NFR1.10, NFR1.12, NFR1.13.<br>**Client-Side Logic Enforcement**: Prevents server from processing encrypted content, enforcing separation of duties (NFR1.11). |
+| **Performance**  | - Separate responsibilities via microservices.<br>- Use asynchronous communication for non-critical tasks.<br>- Isolate and scale critical operations (e.g., uploads, signing).                                                                                                                    | **Microservices-Based Deployment**: Decouples logic, improving throughput and load handling (NFR2.1, NFR2.2).<br>**Event-Driven Communication**: Handles operations like logging and notifications asynchronously, reducing bottlenecks (NFR2.2, NF5).                                                                                                                                      |
+| **Reliability**  | - Log all access and modifications.<br>- Automatically clean up expired resources.<br>- Validate and persist logs in immutable format.<br>- Isolate failure domains in microservices.                                                                                                              | **Event-Driven Communication**: Enables real-time cleanup and tamper-evident logging (NFR3.3, NFR3.4).<br>**Microservices-Based Deployment**: Fault isolation ensures failures don't cascade (NFR3.1, NFR3.2).<br>**Secure Key Management**: Enforces traceability and tamper proofing of admin actions and credentials (NFR3.1).                                                                                                                                                                                   |
+| **Usability**    |- Structure UI using Model-View-Controller.<br>- Separate presentation, logic, and data handling for maintainability and clarity.<br>- Simplify development of multiple user-facing clients (e.g. web and mobile).<br> - Provide localized, accessible error messages.<br>- Distinguish user roles visually in the UI.<br>- Trace administrator actions in the backend.<br>- Ensure client handles encryption tasks with minimal friction. -                                                                                 | **Model-View-Controller (MVC)**: Organizes UI into clear layers: the **Model** manages data, the **View** renders UI, and the **Controller** handles user input and updates. This structure supports NFR4.1 and NFR4.2 by making the UI intuitive, easier to maintain, and testable.<br>**Client-Side Logic Enforcement**: Requires UX design that simplifies complex encryption processes (NFR4.1, NFR4.2).<br>**Zero-Trust Architecture**: Enforces role aware UI constraints and backend enforcement of permissions (NFR4.1).                                                                                                                                                                                                                                                                        |
+| **Latency**      | - Use pub/sub or messaging queues for notifications.<br>- Ensure low-latency operations have dedicated channels.<br>- Push progress updates from client/server in real time.                                                                                                                       | **Event-Driven Communication**: Ensures near real-time updates for notifications and progress (NFR5.1, NFR5.2).<br>**Microservices-Based Deployment**: Allows low-latency services (e.g., notifications) to remain performant independently of heavier services (NFR5.2).                                                                |
 
 ---
 

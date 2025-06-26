@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "test": "cypress open",
-    "cypress": "cypress open"
+    "cypress": "cypress open",
+    "ct": "cypress run --component"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
@@ -35,12 +36,16 @@
     "@tailwindcss/postcss": "^4",
     "@testing-library/user-event": "^14.6.1",
     "autoprefixer": "^10.4.21",
+    "css-loader": "^7.1.2",
     "cypress": "^14.4.0",
     "eslint": "^9",
     "eslint-config-next": "15.3.2",
     "identity-obj-proxy": "^3.0.0",
+    "jest": "^30.0.3",
     "jest-environment-jsdom": "^29.7.0",
     "postcss": "^8.5.5",
+    "postcss-loader": "^8.1.1",
+    "style-loader": "^4.0.0",
     "tailwindcss": "^4.1.10"
   }
 }

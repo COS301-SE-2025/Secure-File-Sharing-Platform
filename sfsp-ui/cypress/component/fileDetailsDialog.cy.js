@@ -1,48 +1,64 @@
 import React from 'react';
 import { FileDetailsDialog } from '../../app/dashboard/myFilesV2/fileDetailsDialog';
 
-describe('<FileDetailsDialog />', () => {
+describe('FileDetailsDialog Component', () => {
     const mockFile = {
-        name: 'example.pdf',
+        name: 'document.pdf',
         type: 'pdf',
-        size: '1.2 MB',
-        modified: '2025-06-20',
-        category: 'Documents',
+        size: '2.3 MB',
+        modified: '2025-06-25',
+        category: 'Work',
         starred: true,
         shared: true,
     };
 
-    it('renders correctly with file details', () => {
+    Cypress._.defer(() => {
         cy.mount(
-            <FileDetailsDialog open={true} onOpenChange={cy.stub()} file={mockFile} />
+        <FileDetailsDialog open={true} onOpenChange={() => {}} file={mockFile} />
         );
-
-        cy.contains('File Details').should('exist');
-        cy.contains(mockFile.name).should('exist');
-        cy.contains('Pdf file').should('exist');
-        cy.contains('Starred').should('exist');
-        cy.contains('Shared').should('exist');
-        cy.contains('Size').next().should('have.text', mockFile.size);
-        cy.contains('Last Modified').next().should('have.text', mockFile.modified);
-        cy.contains('Owner').next().should('have.text', 'You');
-        cy.contains('My Files / Documents').should('exist');
     });
 
-    it('does not render content when open is false', () => {
+    it('does not render when open is false', () => {
         cy.mount(
-            <FileDetailsDialog open={false} onOpenChange={cy.stub()} file={{}} />
+        <FileDetailsDialog open={false} onOpenChange={() => {}} file={mockFile} />
         );
+        cy.get('h2').should('not.exist');
+    });
 
-        cy.contains('File Details').should('not.exist');
+    it('renders correctly when open is true', () => {
+        cy.mount(
+        <FileDetailsDialog open={true} onOpenChange={() => {}} file={mockFile} />
+        );
+        cy.contains('File Details').should('be.visible');
+        cy.contains(mockFile.name).should('be.visible');
+        cy.contains('Pdf file').should('be.visible');
+        cy.contains('Starred').should('be.visible');
+        cy.contains('Shared').should('be.visible');
+        cy.contains('2.3 MB').should('be.visible');
+        cy.contains('2025-06-25').should('be.visible');
+        cy.contains('You').should('be.visible');
+        cy.contains('My Files / Work').should('be.visible');
+    });
+
+    it('renders fallback category when missing', () => {
+        const file = { ...mockFile, category: undefined };
+        cy.mount(<FileDetailsDialog open={true} onOpenChange={() => {}} file={file} />);
+        cy.contains('My Files / Unknown').should('be.visible');
+    });
+
+    it('conditionally shows "Starred" and "Shared" tags', () => {
+        const file = { ...mockFile, starred: false, shared: false };
+        cy.mount(<FileDetailsDialog open={true} onOpenChange={() => {}} file={file} />);
+        cy.contains('Starred').should('not.exist');
+        cy.contains('Shared').should('not.exist');
     });
 
     it('calls onOpenChange(false) when close button is clicked', () => {
-        const onOpenChange = cy.stub().as('onOpenChange');
+        const onOpenChange = cy.stub().as('onClose');
         cy.mount(
-            <FileDetailsDialog open={true} onOpenChange={onOpenChange} file={mockFile} />
+        <FileDetailsDialog open={true} onOpenChange={onOpenChange} file={mockFile} />
         );
-
         cy.get('button[aria-label="Close dialog"]').click();
-        cy.get('@onOpenChange').should('have.been.calledWith', false);
+        cy.get('@onClose').should('have.been.calledWith', false);
     });
 });
