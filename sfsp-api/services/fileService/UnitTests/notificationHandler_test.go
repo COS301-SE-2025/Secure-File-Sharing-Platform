@@ -48,7 +48,7 @@ func TestNotificationHandler(t *testing.T) {
 			AddRow("notif2", "access", "user789", userID, "image.jpg", "file456", "Accessed your file", "2025-06-25T11:00:00Z", "completed", true)
 
 		mock.ExpectQuery(regexp.QuoteMeta(`SELECT id, type, "from", "to", file_name, file_id, message, timestamp, status, read 
-		FROM notifications WHERE "to" = $1`)).
+        FROM notifications WHERE "to" = $1`)).
 			WithArgs(userID).
 			WillReturnRows(rows)
 
@@ -101,7 +101,7 @@ func TestNotificationHandler(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		mock.ExpectQuery(regexp.QuoteMeta(`SELECT id, type, "from", "to", file_name, file_id, message, timestamp, status, read 
-		FROM notifications WHERE "to" = $1`)).
+        FROM notifications WHERE "to" = $1`)).
 			WithArgs(userID).
 			WillReturnError(sqlmock.ErrCancelled)
 
@@ -228,8 +228,44 @@ func TestRespondToShareRequestHandler(t *testing.T) {
 			WithArgs(reqBody["status"], reqBody["id"]).
 			WillReturnResult(sqlmock.NewResult(0, 1))
 
+		mock.ExpectQuery(regexp.QuoteMeta(`
+            SELECT n.file_id, n."from", n."to"
+            FROM notifications n
+            WHERE n.id = $1`)).
+			WithArgs(reqBody["id"]).
+			WillReturnRows(sqlmock.NewRows([]string{"file_id", "from", "to"}).
+				AddRow("file123", "user456", "user123"))
+
+		mock.ExpectQuery(regexp.QuoteMeta(`
+            SELECT metadata
+            FROM received_files
+            WHERE file_id = $1 AND recipient_id = $2`)).
+			WithArgs("file123", "user123").
+			WillReturnRows(sqlmock.NewRows([]string{"metadata"}).
+				AddRow(`{"key":"value"}`))
+
+		mock.ExpectQuery(regexp.QuoteMeta(`
+            SELECT file_name, file_type, cid, file_size
+            FROM files
+            WHERE id = $1`)).
+			WithArgs("file123").
+			WillReturnRows(sqlmock.NewRows([]string{"file_name", "file_type", "cid", "file_size"}).
+				AddRow("document.pdf", "application/pdf", "cid123", int64(1024)))
+
 		fileHandler.RespondToShareRequestHandler(w, req)
 		assert.Equal(t, http.StatusOK, w.Code)
+
+		var resp map[string]interface{}
+		err := json.NewDecoder(w.Body).Decode(&resp)
+		assert.NoError(t, err)
+		assert.Equal(t, true, resp["success"])
+		assert.Equal(t, "Notification status updated", resp["message"])
+		fileData, ok := resp["fileData"].(map[string]interface{})
+		assert.True(t, ok)
+		assert.Equal(t, "file123", fileData["file_id"])
+		assert.Equal(t, "user456", fileData["sender_id"])
+		assert.Equal(t, "user123", fileData["recipient_id"])
+		assert.Equal(t, "document.pdf", fileData["file_name"])
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
