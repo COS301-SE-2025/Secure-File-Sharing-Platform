@@ -208,9 +208,9 @@ export function ShareDialog({ open, onOpenChange, file }) {
                     onChange={(e) => updatePermission(r.email, e.target.value)}
                     className="text-sm px-2 py-1 border rounded"
                   >
-                    <option value="view">View</option>
-                    <option value="comment">Comment</option>
-                    <option value="edit">Edit</option>
+                    <option value="view">Download</option>
+                    {/* <option value="comment">Comment</option>
+                    <option value="edit">Edit</option> */}
                   </select>
                   <button
                     onClick={() => removeRecipient(r.email)}
@@ -226,7 +226,7 @@ export function ShareDialog({ open, onOpenChange, file }) {
 
         <hr />
 
-        <div>
+        {/* <div>
           <div className="flex items-center justify-between mb-3">
             <label className="text-sm font-medium">Share with link</label>
             <div className="flex items-center gap-2">
@@ -276,7 +276,7 @@ export function ShareDialog({ open, onOpenChange, file }) {
               onChange={(e) => setAllowDownload(e.target.checked)}
             />
           </div>
-        </div>
+        </div> */}
 
         <div className="flex justify-end gap-2 pt-4">
           <button
