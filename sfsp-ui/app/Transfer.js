@@ -212,6 +212,9 @@ export async function ReceiveFile(fileData) {
   const { ikPublicKey, ekPublicKey, fileNonce, keyNonce, opk_id, encryptedAesKey, spkPublicKey, file } =
     JSON.parse(metadata);
 
+    console.log("File is :", file);
+    
+
   console.log("File id is: ", file_id);
   console.log("File name is: ", file_name);
   console.log("File Type is: ", file_type);
@@ -316,10 +319,10 @@ export async function ReceiveFile(fileData) {
   // if (!decryptedFile) throw new Error("Failed to decrypt file");
 
   // ✍ Upload to ownCloud as user's personal copy
-  const fileBuffer = new Uint8Array(file);
+  const byteArray = new Uint8Array(Object.values(file));
   const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
   const ciphertext = sodium.crypto_secretbox_easy(
-    fileBuffer,
+    byteArray,
     nonce,
     encryptionKey
   );
