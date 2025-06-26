@@ -335,7 +335,7 @@ describe('UserController Integration Tests', () => {
     describe('POST /refresh-token', () => {
         it('should refresh token successfully', async () => {
             const requestData = {
-                email: 'test@example.com'
+                  userId: 'user123'
             };
 
             const mockToken = 'new-jwt-token-12345';
@@ -352,10 +352,10 @@ describe('UserController Integration Tests', () => {
                 token: mockToken
             });
 
-            expect(userService.refreshToken).toHaveBeenCalledWith('test@example.com');
+            expect(userService.refreshToken).toHaveBeenCalledWith('user123');
         });
 
-        it('should return validation error when email is missing', async () => {
+        it('should return validation error when userID is missing', async () => {
             const response = await request(app)
                 .post('/refresh-token')
                 .send({})
@@ -363,7 +363,7 @@ describe('UserController Integration Tests', () => {
 
             expect(response.body).toEqual({
                 success: false,
-                message: 'Email is required.'
+                message: 'User ID is required.'
             });
 
             expect(userService.refreshToken).not.toHaveBeenCalled();
@@ -371,7 +371,7 @@ describe('UserController Integration Tests', () => {
 
         it('should handle service errors gracefully', async () => {
             const requestData = {
-                email: 'nonexistent@example.com'
+                  userId: 'user123' 
             };
 
             userService.refreshToken.mockRejectedValue(new Error('User not found'));
