@@ -19,7 +19,7 @@ function TestComponent() {
 }
 
 describe('DashboardSearchContext', () => {
-  it('provides and updates search ', () => {
+  it('provides and updates search', () => {
     mount(
       <DashboardSearchProvider>
         <TestComponent />
@@ -42,7 +42,7 @@ describe('DashboardSearchContext', () => {
 
     cy.on('uncaught:exception', (err) => {
       expect(err.message).to.include('Cannot read properties of undefined');
-      return false; 
+      return false;
     });
 
     mount(<BrokenComponent />);
