@@ -23,7 +23,20 @@
 ---
 
 ## Download Document
+=========
+# File Services API Documentation
 
+## Table of Contents
+
+1. [Download Document](#1-download-document)
+2. [Upload Document](#2-upload-document)
+3. [Get Metadata](#3-get-metadata)
+4. [File Access Logs](#4-file-access-logs)
+5. [Notifications](#5-notifications)
+
+---
+
+## 1. Download Document
 
 * **Endpoint**: `POST http://localhost:5000/files/download`
 * **Method**: `POST`
@@ -31,8 +44,6 @@
 * **Headers**:
 
   * `Content-Type: application/json`
-
-
 ### Request Body
 
 ```json
@@ -51,13 +62,11 @@
 }
 ```
 
-
-> **Note**: Client must decode base64 and decrypt the file using their private key before use.
+> Note: The client must **Base64 decode** and **decrypt** the content using their private key to access the actual file.
 
 ---
 
-## Upload Document
-
+## 2. Upload Document
 
 * **Endpoint**: `POST http://localhost:5000/files/upload`
 * **Method**: `POST`
@@ -72,20 +81,19 @@
 {
   "fileName": "Algorithmic trading.pdf",
   "fileType": "application/pdf",
-
   "userId": "550e8400-e29b-41d4-a716-446655440000",
   "nonce": "random-nonce",
   "fileDescription": "This is a test file",
   "fileTags": ["Demo"],
   "path": "files",
   "fileContent": "qwifuhqoifbq3i4bfoiuweabfkljswerbivaebvqwK"
-
 }
 ```
 
 ### Response
 
-
+```json
+{
   "fileId": "b334b3cc-d7fd-445f-9aeb-7f865f88896b",
   "message": "File uploaded and metadata stored"
 }
@@ -95,6 +103,7 @@
 
 ## Get All File Metadata for User
 
+## 3. Get Metadata
 
   * `Content-Type: application/json`
 
@@ -102,7 +111,6 @@
 
 ```json
 {
-
   "userId": "550e8400-e29b-41d4-a716-446655440000"
 }
 ```
@@ -207,7 +215,15 @@
 ```json
 {
   "message": "File shared with recipient"
-
+  "FileName": "Trig-for-Computer-Graphics.pdf",
+  "FileSize": 1312720,
+  "FileType": "application/pdf",
+  "UserID": "123",
+  "EncryptionKey": "mysecretkey",
+  "UploadTimestamp": "2025-05-25T20:51:24.239Z",
+  "Description": "Sample test file",
+  "Tags": ["demo", "test", "go"],
+  "Path": "files/demo"
 }
 ```
 
@@ -319,7 +335,6 @@
   ],
   "success": true
 }
-
 ```
 
 ---

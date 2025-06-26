@@ -1,7 +1,9 @@
-package unitTests
+package unittests
 
 import (
 	"bytes"
+	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -10,156 +12,200 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler"
-	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
-	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto"
 )
 
-// MockOwnCloud mocks owncloud.DownloadFile function
-type MockOwnCloud struct {
-	mock.Mock
+// --- Mocking ---
+
+type mockRow struct {
+	fileID string
+	nonce  string
+	err    error
 }
 
-func (m *MockOwnCloud) DownloadFile(path, filename string) ([]byte, error) {
-	args := m.Called(path, filename)
-	return args.Get(0).([]byte), args.Error(1)
+func (m *mockRow) Scan(dest ...any) error {
+	if m.err != nil {
+		return m.err
+	}
+	dest[0] = m.fileID
+	dest[1] = m.nonce
+	return nil
 }
 
-// MockCrypto mocks crypto.DecryptBytes function
-type MockCrypto struct {
-	mock.Mock
+type mockDB struct {
+	queryRowFunc func(query string, args ...any) *mockRow
 }
 
-func (m *MockCrypto) DecryptBytes(data []byte, key string) ([]byte, error) {
-	args := m.Called(data, key)
-	return args.Get(0).([]byte), args.Error(1)
+func (m *mockDB) QueryRow(query string, args ...any) *mockRow {
+	return m.queryRowFunc(query, args...)
 }
 
-func TestDownloadHandler(t *testing.T) {
-	mockOwnCloud := new(MockOwnCloud)
-	mockCrypto := new(MockCrypto)
+func TestDownloadHandler_Success(t *testing.T) {
+	os.Setenv("AES_KEY", "12345678901234567890123456789012")
+	defer os.Unsetenv("AES_KEY")
 
-	// Patch the package functions for testing
-	owncloud.DownloadFile = mockOwnCloud.DownloadFile
-	crypto.DecryptBytes = mockCrypto.DecryptBytes
+	fileHandler.DB = nil // clear global if needed
 
-	os.Setenv("AES_KEY", "12345678901234567890123456789012") // valid 32-byte key
+	// Mock download + decrypt
+	fileHandler.OwnCloudDownloader = func(fileID, userID string) ([]byte, error) {
+		return []byte("encrypteddata"), nil
+	}
+	fileHandler.DecryptFunc = func(data []byte, key string) ([]byte, error) {
+		assert.Equal(t, "12345678901234567890123456789012", key)
+		return []byte("decryptedcontent"), nil
+	}
+	fileHandler.QueryRowFunc = func(query string, args ...any) *mockRow {
+		return &mockRow{fileID: "file123", nonce: "xyz", err: nil}
+	}
 
-	t.Run("Success", func(t *testing.T) {
-		reqBody := fileHandler.DownloadRequest{
-			Path:     "valid/path",
-			FileName: "file.txt",
-		}
-		body, _ := json.Marshal(reqBody)
+	// Prepare request
+	reqBody := fileHandler.DownloadRequest{UserID: "user1", FileName: "testfile.txt"}
+	body, _ := json.Marshal(reqBody)
+	req := httptest.NewRequest(http.MethodPost, "/download", bytes.NewReader(body))
+	w := httptest.NewRecorder()
 
-		mockOwnCloud.On("DownloadFile", reqBody.Path, reqBody.FileName).
-			Return([]byte("encrypted content"), nil)
-		mockCrypto.On("DecryptBytes", []byte("encrypted content"), os.Getenv("AES_KEY")).
-			Return([]byte("plain content"), nil)
+	fileHandler.DownloadHandler(w, req)
 
-		req := httptest.NewRequest(http.MethodPost, "/download", bytes.NewBuffer(body))
-		req.Header.Set("Content-Type", "application/json")
-		w := httptest.NewRecorder()
+	assert.Equal(t, http.StatusOK, w.Code)
 
-		fileHandler.DownloadHandler(w, req)
+	var res fileHandler.DownloadResponse
+	err := json.NewDecoder(w.Body).Decode(&res)
+	require.NoError(t, err)
+	assert.Equal(t, "testfile.txt", res.FileName)
+	assert.Equal(t, base64.StdEncoding.EncodeToString([]byte("decryptedcontent")), res.FileContent)
+	assert.Equal(t, "xyz", res.Nonce)
+}
 
-		assert.Equal(t, http.StatusOK, w.Code)
+func TestDownloadHandler_InvalidJSON(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/download", bytes.NewBuffer([]byte("{invalid")))
+	w := httptest.NewRecorder()
 
-		var resp fileHandler.DownloadResponse
-		err := json.NewDecoder(w.Body).Decode(&resp)
-		assert.NoError(t, err)
-		assert.Equal(t, reqBody.FileName, resp.FileName)
-		assert.NotEmpty(t, resp.FileContent) // base64 encoded string
+	fileHandler.DownloadHandler(w, req)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
 
-		mockOwnCloud.AssertExpectations(t)
-		mockCrypto.AssertExpectations(t)
-	})
+func TestDownloadHandler_MissingFields(t *testing.T) {
+	body, _ := json.Marshal(fileHandler.DownloadRequest{})
+	req := httptest.NewRequest(http.MethodPost, "/download", bytes.NewReader(body))
+	w := httptest.NewRecorder()
 
-	t.Run("Invalid JSON payload", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/download", bytes.NewBuffer([]byte("invalid json")))
-		req.Header.Set("Content-Type", "application/json")
-		w := httptest.NewRecorder()
+	fileHandler.DownloadHandler(w, req)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
 
-		fileHandler.DownloadHandler(w, req)
+func TestDownloadHandler_QueryFails(t *testing.T) {
+	fileHandler.QueryRowFunc = func(query string, args ...any) *mockRow {
+		return &mockRow{err: errors.New("not found")}
+	}
 
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-	})
+	body, _ := json.Marshal(fileHandler.DownloadRequest{UserID: "u", FileName: "f"})
+	req := httptest.NewRequest(http.MethodPost, "/download", bytes.NewReader(body))
+	w := httptest.NewRecorder()
 
-	t.Run("Missing path or filename", func(t *testing.T) {
-		reqBody := fileHandler.DownloadRequest{} // empty fields
-		body, _ := json.Marshal(reqBody)
+	fileHandler.DownloadHandler(w, req)
+	assert.Equal(t, http.StatusNotFound, w.Code)
+}
 
-		req := httptest.NewRequest(http.MethodPost, "/download", bytes.NewBuffer(body))
-		req.Header.Set("Content-Type", "application/json")
-		w := httptest.NewRecorder()
+func TestDownloadHandler_DownloadFails(t *testing.T) {
+	fileHandler.QueryRowFunc = func(query string, args ...any) *mockRow {
+		return &mockRow{fileID: "id", nonce: "n", err: nil}
+	}
+	fileHandler.OwnCloudDownloader = func(_, _ string) ([]byte, error) {
+		return nil, errors.New("owncloud error")
+	}
 
-		fileHandler.DownloadHandler(w, req)
+	body, _ := json.Marshal(fileHandler.DownloadRequest{UserID: "u", FileName: "f"})
+	req := httptest.NewRequest(http.MethodPost, "/download", bytes.NewReader(body))
+	w := httptest.NewRecorder()
 
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-	})
+	fileHandler.DownloadHandler(w, req)
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
 
-	t.Run("Download error", func(t *testing.T) {
-		reqBody := fileHandler.DownloadRequest{
-			Path:     "invalid/path",
-			FileName: "file.txt",
-		}
-		body, _ := json.Marshal(reqBody)
+func TestDownloadHandler_InvalidAESKey(t *testing.T) {
+	os.Setenv("AES_KEY", "shortkey")
+	fileHandler.QueryRowFunc = func(query string, args ...any) *mockRow {
+		return &mockRow{fileID: "id", nonce: "n", err: nil}
+	}
+	fileHandler.OwnCloudDownloader = func(_, _ string) ([]byte, error) {
+		return []byte("enc"), nil
+	}
 
-		mockOwnCloud.On("DownloadFile", reqBody.Path, reqBody.FileName).
-			Return([]byte{}, errors.New("download failed"))
+	body, _ := json.Marshal(fileHandler.DownloadRequest{UserID: "u", FileName: "f"})
+	req := httptest.NewRequest(http.MethodPost, "/download", bytes.NewReader(body))
+	w := httptest.NewRecorder()
 
-		req := httptest.NewRequest(http.MethodPost, "/download", bytes.NewBuffer(body))
-		req.Header.Set("Content-Type", "application/json")
-		w := httptest.NewRecorder()
+	fileHandler.DownloadHandler(w, req)
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
 
-		fileHandler.DownloadHandler(w, req)
+func TestDownloadHandler_DecryptFails(t *testing.T) {
+	os.Setenv("AES_KEY", "12345678901234567890123456789012")
+	fileHandler.QueryRowFunc = func(query string, args ...any) *mockRow {
+		return &mockRow{fileID: "id", nonce: "n", err: nil}
+	}
+	fileHandler.OwnCloudDownloader = func(_, _ string) ([]byte, error) {
+		return []byte("enc"), nil
+	}
+	fileHandler.DecryptFunc = func(_ []byte, _ string) ([]byte, error) {
+		return nil, errors.New("decryption error")
+	}
 
-		assert.Equal(t, http.StatusInternalServerError, w.Code)
-		mockOwnCloud.AssertExpectations(t)
-	})
+	body, _ := json.Marshal(fileHandler.DownloadRequest{UserID: "u", FileName: "f"})
+	req := httptest.NewRequest(http.MethodPost, "/download", bytes.NewReader(body))
+	w := httptest.NewRecorder()
 
-	t.Run("Invalid AES key", func(t *testing.T) {
-		os.Setenv("AES_KEY", "shortkey")
+	fileHandler.DownloadHandler(w, req)
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
 
-		reqBody := fileHandler.DownloadRequest{
-			Path:     "valid/path",
-			FileName: "file.txt",
-		}
-		body, _ := json.Marshal(reqBody)
+func TestDownloadSentFile_Success(t *testing.T) {
+	owncloud.DownloadSentFile = func(path string) ([]byte, error) {
+		return []byte("sent file data"), nil
+	}
+	defer func() { owncloud.DownloadSentFile = nil }()
 
-		req := httptest.NewRequest(http.MethodPost, "/download", bytes.NewBuffer(body))
-		req.Header.Set("Content-Type", "application/json")
-		w := httptest.NewRecorder()
+	body, _ := json.Marshal(fileHandler.DownloadSentRequest{FilePath: "files/abc"})
+	req := httptest.NewRequest(http.MethodPost, "/download/sent", bytes.NewReader(body))
+	w := httptest.NewRecorder()
 
-		fileHandler.DownloadHandler(w, req)
+	fileHandler.DownloadSentFile(w, req)
 
-		assert.Equal(t, http.StatusInternalServerError, w.Code)
-	})
+	assert.Equal(t, http.StatusOK, w.Code)
+	decoded, err := base64.RawURLEncoding.DecodeString(w.Body.String())
+	require.NoError(t, err)
+	assert.Equal(t, []byte("sent file data"), decoded)
+}
 
-	t.Run("Decryption error", func(t *testing.T) {
-		os.Setenv("AES_KEY", "12345678901234567890123456789012")
+func TestDownloadSentFile_InvalidJSON(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/download/sent", bytes.NewBuffer([]byte("{invalid")))
+	w := httptest.NewRecorder()
 
-		reqBody := fileHandler.DownloadRequest{
-			Path:     "valid/path",
-			FileName: "file.txt",
-		}
-		body, _ := json.Marshal(reqBody)
+	fileHandler.DownloadSentFile(w, req)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
 
-		mockOwnCloud.On("DownloadFile", reqBody.Path, reqBody.FileName).
-			Return([]byte("encrypted content"), nil)
-		mockCrypto.On("DecryptBytes", []byte("encrypted content"), os.Getenv("AES_KEY")).
-			Return([]byte{}, errors.New("decryption failed"))
+func TestDownloadSentFile_MissingPath(t *testing.T) {
+	body, _ := json.Marshal(fileHandler.DownloadSentRequest{})
+	req := httptest.NewRequest(http.MethodPost, "/download/sent", bytes.NewReader(body))
+	w := httptest.NewRecorder()
 
-		req := httptest.NewRequest(http.MethodPost, "/download", bytes.NewBuffer(body))
-		req.Header.Set("Content-Type", "application/json")
-		w := httptest.NewRecorder()
+	fileHandler.DownloadSentFile(w, req)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
 
-		fileHandler.DownloadHandler(w, req)
+func TestDownloadSentFile_Failure(t *testing.T) {
+	owncloud.DownloadSentFile = func(path string) ([]byte, error) {
+		return nil, errors.New("OC failed")
+	}
+	defer func() { owncloud.DownloadSentFile = nil }()
 
-		//assert.Equal(t, http.StatusInternalServerError, w.Code)
-		mockOwnCloud.AssertExpectations(t)
-		mockCrypto.AssertExpectations(t)
-	})
+	body, _ := json.Marshal(fileHandler.DownloadSentRequest{FilePath: "files/bad"})
+	req := httptest.NewRequest(http.MethodPost, "/download/sent", bytes.NewReader(body))
+	w := httptest.NewRecorder()
+
+	fileHandler.DownloadSentFile(w, req)
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
 }

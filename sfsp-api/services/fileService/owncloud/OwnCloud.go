@@ -66,3 +66,14 @@ var DeleteFile = func(fileId, UserID string) error {
 	}
 	return nil
 }
+
+var DownloadSentFile = func(filePath string) ([]byte, error) {
+	fmt.Println("Path is: ", filePath)
+	data, err := client.Read(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to download file: %w", err)
+		fmt.Println("Faled to download file")
+
+	}
+	return data, nil
+}

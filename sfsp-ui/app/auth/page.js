@@ -118,7 +118,7 @@ export default function AuthPage() {
         opks_public_temp = opks_public;
       }
       const userKeys = {
-        identity_private_key: sodium.to_base64(decryptedIkPrivateKeyRaw), // ✅ fixed
+        identity_private_key: decryptedIkPrivateKeyRaw, // ✅ fixed
         signedpk_private_key: sodium.from_base64(spk_private_key),
         oneTimepks_private: opks_private.map((opk) => ({
           opk_id: opk.opk_id,
@@ -134,6 +134,8 @@ export default function AuthPage() {
         salt: sodium.from_base64(salt),
         nonce: sodium.from_base64(nonce),
       };
+
+      console.log("Ik private is: ", decryptedIkPrivateKeyRaw);
 
       await storeDerivedKeyEncrypted(derivedKey); // stores with unlockToken
       sessionStorage.setItem("unlockToken", "session-unlock");
@@ -256,7 +258,7 @@ export default function AuthPage() {
       console.log("End if sign up");
 
       const userKeys = {
-        identity_private_key: sodium.to_base64(decryptedIkPrivateKey),
+        identity_private_key: decryptedIkPrivateKey,
         signedpk_private_key: sodium.from_base64(spk_private_key),
         oneTimepks_private: opks_private.map((opk) => ({
           opk_id: opk.opk_id,
