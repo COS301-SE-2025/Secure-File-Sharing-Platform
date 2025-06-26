@@ -327,7 +327,7 @@ export async function ReceiveFile(fileData) {
     fileName: file_name,
     fileType: file_type,
     userId: userId,
-    nonce: sodium.to_base64(personalNonce, sodium.base64_variants.ORIGINAL),
+    nonce: sodium.to_base64(nonce, sodium.base64_variants.ORIGINAL),
     fileDescription: "Received file",
     fileTags: ["received"],
     path: `files/${userId}`,
@@ -346,5 +346,5 @@ export async function ReceiveFile(fileData) {
   console.log("Upload success:", uploadResult);
 
   // 📦 Return file blob for preview or download
-  return new Blob([decryptedFile], { type: file_type });
+  // return new Blob([decryptedFile], { type: file_type });
 }
