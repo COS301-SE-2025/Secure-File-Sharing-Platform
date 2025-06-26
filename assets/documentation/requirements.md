@@ -37,14 +37,22 @@ This document outlines the requirements for the Secure File Sharing Platform sys
 | ***File sharing***<br><br>As a secure file sharing platform user I want to be able to securely share my files with other users So that I can send them information I need them to have.                                                                                                          | Given that a user has the username or email of the recipient when they click the send button, Then the recipient should be alerted that someone is trying to send over a file and  they can either accept the file then receive the file securely or deny the request then never receive the file. |
 | ***File Viewing***<br><br>As a secure file sharing platform user I want the ability to view file on my device before I download them or upload them So that I know that they contain information I need.                                                                                         | Given that a user can see all the files they have on the platform they should be able to When they click a file, Then they should be able to see the contents of the file before they download or upload it.                                                                                       |
 | ***File signing***<br><br>As a secure file sharing platform user I want to be able to sign a file So that I know when the contents of my file have been changed or tampered with.                                                                                                                | Given a user has uploaded a file, When they press a button to sign the document, Then the mathematical algorithms should be applied to the document so that it create a signature that is stored on the platform, with meta date such as when the signature was created.                           |
-| ***Edit files***<br><br>As a secure file sharing platform user I want to be able to edit file in the platform before I upload them and after I download them So that I can easily change parts of the document before they are saved on the platform.                                            | Given a user has a file to upload or had just downloaded a file, When they press the the edit button they should have the ability to edit the file before they upload or download it.                                                                                                              |
 | ***Access Control logs***<br><br>As a secure file sharing platform user I want the be able to see who downloaded my file, who I shared the file with, how many files I have uploaded or downloaded, So that I can be extra sure that my files are when they belong and I have not lost any files | Given that a user is on the platform, When they press the button to access the logs, Then they should be shown information about either specific files or general information about the files that have uploaded and downloaded.                                                                   |
 | ***One time downloads***<br><br>As a secure fil sharing platform user I want to be able to create files that can be downloaded only once, So that I know that my files won't have unauthorized distribution.                                                                                     | Given that a sender sent files to me When they download the files, Then the file should be removed from ever being downloaded again by them.                                                                                                                                                       |
 | ***Set expiration on file access***<br><br>As a secure file sharing platform user I want to be able to set a time limit for how long other users can download my file even if I sent it to them So that they do not have unlimited access to my file                                             | Given that a user is sending a file to someone When the click a button to add an expiration date, Then they should be prompted to add how long the file should be downloadable by the recipient for.                                                                                               |
 | ***Group Sharing***<br><br>As a secure file sharing platform user I want to be able to share files with multiple people or an organization So that I don't have to send files individually one-by-one to every person                                                                            | Given a user want to share a file, When they press the send, Then they should be prompted on whether they want to send it to a single person or a group or organization of people and whether it should be a one-time download, whether they want to set file expirations.                         |
 | ***Password Protected files***<br><br>As a secure file sharing platform user I want to be able to set a password for a public file so that only people who know the password can decrypt it.                                                                                                     | Given a user wants to add a password to a file, When they press the button to add a password to a file, The the system should prompt them to add a password, and send that file with the password protecting it.                                                                                   |
 | ***Restore Access Logs on File Deletion***<br><br>As a secure file sharing platform user I want to be able to view who accessed my files even after I delete them This is for forensic or auditing reasons                                                                                       | Given a user has deleted a file, When they go to the deleted files tab and press on the delete file. Then they should be able to see how many people access that file before it was deleted.                                                                                                       |
-|                                                                                                                                                                                                                                                                                                  |                                                                                                                                                                                                                                                                                                    |
+| ***View Notifications***<br><br>As a secure file sharing platform user I want to be able to view my notifications.   | Given a user has new notifications , when accessing their notifications through a bell icon they should be able to view their notifications. |
+| ***Delete Notifications***<br><br>As a secure file sharing platform user I want to be able to delete my notifications.   | Given a user has notifications they want to delete, when accessing their notifications through a bell icon they should be able to delete their notifications by pressing the 'x' on the right upper-side of the notification . |
+| ***Approve/Decline file shares***<br><br>As a secure file sharing platform user I want to be able to approve/decline file shares from other users. | Given a user is wants to approve/decline a file transfer, they should be able to click on the respective button in notifications.|
+| ***Delete/Restore files***<br><br>As a secure file sharing platform user I want to be able to delete/restore files. | Given a user is wants to delete/restore a file, they would navigate to the trash page allowing them to either permanently delete file(s) or restore them. If they wish to clear the trash page they can do so by clearing trash.|
+| ***Bulk uploads***<br><br>As a secure file sharing platform user I want to be able to upload multiple files at once. | Given a user is wants to upload multiple files at once, they can add the files to the dialogue according to their preference (drag and drop / selection). They can then upload and view the progress bar during the upload.|
+| ***Search for files***<br><br>As a secure file sharing platform user I want to be able to search for a specific file by file detail.   | Given a user wants to search for a file, they should be able to use the search bar at the top of the page to look for their desired file by file detail. |
+| ***View File Details for a specific file***<br><br>As a secure file sharing platform user I want to be able to view a file's details in order to ensure that it is the desired file I want.   | Given a user wants to view a file's details, they should be able to use a right-click menu to get access to the file's details.|
+| ***View Activity Logs for a specific file***<br><br>As a secure file sharing platform user I want to be able to view a file's activity details in order to keep track of activities involving my file.   | Given a user wants to view a file's activity log, they should be able to use a right-click menu to get access to the file's activity log.|
+
+---
 
 ## Use Case Diagram
 
@@ -112,6 +120,7 @@ The Secure File Sharing platform shall (Version 2):
 ### FR9. Notifications
 
 - **FR9.1** The system shall send push/email notifications on key events.
+- **FR9.2** The system should allow users to approve/disapprove notifications for transactions.
 
 ### FR10. File Organization
 
@@ -318,14 +327,10 @@ Latency will be measured by monitoring the delay between a system event (e.g. us
 
 **Microservices architecture:**
 
-![microservices](https://drive.google.com/uc?export=view&id=1ytoGTHN4bKQgv6z9nufgfS9beRtuG3CK)
-
 *Reasoning:*
 Allows for isolation of services. Allowing for independent scalability and flexibility in languages, as we plan to use GO for encrytion services.
 
 **MVC Architecture:**
-
-![mvc](https://drive.google.com/uc?export=view&id=1dTs8WEAZ8sjdMB9gyga10b5RKHitww2k)
 
 *Reasoning:*
 
@@ -333,7 +338,6 @@ Allows us to organize UI, and creates a separation of concerns. This will also h
 
 **Event-driven Architecture:**
 
-![event-driven](https://drive.google.com/uc?export=view&id=1CZRlsVonZZIa6h-L0yS3P2SLP4We0Sab)
 
 *Reasoning:*
 File upload/download should lead to a log action.
@@ -389,7 +393,7 @@ The following design patterns were selected (subject to change) for the followin
 <a href="https://nodejs.org/" target="_blank"><img src="https://skillicons.dev/icons?i=nodejs" alt="Node.js" /></a>
 <a href="https://golang.org/" target="_blank"><img src="https://skillicons.dev/icons?i=go" alt="Golang" /></a>
 <a href="https://supabase.com/" target="_blank"><img src="https://skillicons.dev/icons?i=supabase" alt="Supabase" /></a>
-<a href="https://www.mongodb.com/" target="_blank"><img src="https://skillicons.dev/icons?i=mongodb" alt="MongoDB" /></a>
+<a href="https://postgresql.org/" target="_blank"><img src="https://skillicons.dev/icons?i=postgres" alt="Postgres" /></a>
 <a href="https://owncloud.com/" target="_blank"><img src="https://skillicons.dev/icons?i=owncloud" alt="ownCloud" /></a>
 </div>
 
@@ -401,7 +405,7 @@ The following design patterns were selected (subject to change) for the followin
 | **Tailwind CSS** | Utility-first CSS framework for fast and responsive UI styling. |
 | **Express.js** + **Node.js** | Backend API server and routing logic for handling HTTP requests and business logic implementation. |
 | **Golang** | Handles large file uploads efficiently for high performance. |
-| **MongoDB** | NoSQL database for storing application metadata, user data, and file information in a flexible document format. |
+|**Postgres** | Database management system allowing for data saving.|
 | **Supabase** | Backend-as-a-Service platform providing authentication and user management. 
 
 
