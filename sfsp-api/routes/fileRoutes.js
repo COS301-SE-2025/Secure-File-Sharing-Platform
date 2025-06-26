@@ -3,6 +3,7 @@ const router = express.Router();
 const fileController = require('../controllers/fileController');
 
 router.post('/download', fileController.downloadFile);
+router.post('/downloadSentFile', fileController.downloadSentFile);
 router.post("/metadata", fileController.getMetaData)
 router.post('/upload', fileController.uploadFile);
 router.post('/getNumberOFFiles', fileController.getNumberOfFiles);

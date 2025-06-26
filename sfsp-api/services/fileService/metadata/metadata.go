@@ -466,10 +466,12 @@ var InsertReceivedFile = func(db *sql.DB, recipientId, senderId, fileId, metadat
 	`, recipientId).Scan(&exists)
 
 	if err != nil {
+		fmt.Println("Falied to check recipient")
 		return fmt.Errorf("failed to check recipient existence: %w", err)
 	}
 
 	if !exists {
+		fmt.Println("Recipient does not exist")
 		return fmt.Errorf("recipient user with id %s does not exist", recipientId)
 	}
 
@@ -482,6 +484,7 @@ var InsertReceivedFile = func(db *sql.DB, recipientId, senderId, fileId, metadat
 
 	if err != nil {
 		return fmt.Errorf("failed to insert received file: %w", err)
+		fmt.Println("Failed to inster received file into the received files table")
 	}
 
 	return nil

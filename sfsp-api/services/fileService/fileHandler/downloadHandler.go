@@ -91,3 +91,36 @@ func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(res)
 }
+
+type DownloadSentRequest struct {
+	FilePath string `json:"filePath"`
+}
+
+func DownloadSentFile(w http.ResponseWriter, r *http.Request) {
+	var req DownloadSentRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+		return
+	}
+
+	if req.FilePath == "" {
+		http.Error(w, "Missing file path", http.StatusBadRequest)
+		return
+	}
+
+	fmt.Println("Downloading file from path:", req.FilePath)
+
+	data, err := owncloud.DownloadSentFile(req.FilePath)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Download failed: %v", err), http.StatusInternalServerError)
+		fmt.Println("Download Failed:", err)
+		return
+	}
+
+	encoded := base64.RawURLEncoding.EncodeToString(data)
+
+    w.Header().Set("Content-Type", "text/plain") // or "application/json"
+    w.WriteHeader(http.StatusOK)
+    w.Write([]byte(encoded))
+}
+
