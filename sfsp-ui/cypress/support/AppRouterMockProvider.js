@@ -9,6 +9,17 @@ const mockRouter = {
     forward: () => {},
     refresh: () => {},
     pathname: '/dashboard',
+    route: '/',
+    basePath: '',
+    query: {},
+    events: {
+        on: () => {},
+        off: () => {},
+        emit: () => {},
+    },
+    isFallback: false,
+    isReady: true,
+    isPreview: false,
 };
 
 export function AppRouterMockProvider({ children }) {
