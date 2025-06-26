@@ -7,6 +7,8 @@ import (
 	"net/http"
 )
 
+//var DB DBInterface = nil
+
 func AddAccesslogHandler(w http.ResponseWriter, r *http.Request) {
 	type reqBody struct {
 		FileID  string `json:"file_id"`

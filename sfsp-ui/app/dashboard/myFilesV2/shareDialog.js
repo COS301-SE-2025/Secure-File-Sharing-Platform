@@ -7,7 +7,6 @@ import { X, Copy, Mail, Link, Plus, UserPlus, Globe, Lock } from "lucide-react";
 import {
   SendFile,
   ReceiveFile,
-  GetFilesRecievedFromOtherUsers,
 } from "@/app/Transfer";
 
 export function ShareDialog({ open, onOpenChange, file }) {
