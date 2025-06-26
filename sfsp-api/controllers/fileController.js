@@ -143,19 +143,20 @@ exports.getNumberOfFiles = async (req, res) => {
 };
 
 exports.deleteFile = async (req, res) => {
-  const { fileId, userId } = req.body;
+  const {fileId, userId} = req.body;
 
   if (!fileId) {
     return res.status(400).send("FileId not received");
   }
 
-  if (!userId) {
+  if(!userId){
     return res.status(400).send("UserId not found");
   }
 
   try {
     const response = await axios.post(
       `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/deleteFile`,
+      { fileId, userId },
       { fileId, userId },
       { headers: { "Content-Type": "application/json" } }
     );
@@ -364,4 +365,32 @@ exports.removeFileTags = async (req, res) => {
     res.status(500).send("Failed to remove tags to the file");
   }
 }
+
+exports.downloadSentFile = async (req, res) => {
+  const filepath = req.body.filepath;
+
+  if (!filepath) {
+    return res.status(400).send("file path is required");
+  }
+
+  try {
+    const response = await axios.post(
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/downloadSentFile`,
+      { filepath },
+      { headers: { "Content-Type": "application/json" } }
+    );
+
+    if (response.status !== 200) {
+      return res.status(response.status).send("Error retrieving the sent file");
+    }
+
+    const metadataList = response.data;
+    res.json(metadataList);
+  } catch (err) {
+    console.log("User ID:", userId);
+    console.error("Error retrieving the sent file:", err.message);
+    res.status(500).send("Error retrieving the sent file");
+  }
+}
+
 

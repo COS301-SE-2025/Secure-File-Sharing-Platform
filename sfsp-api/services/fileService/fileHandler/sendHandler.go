@@ -67,6 +67,8 @@ func SendFileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fmt.Println("Metadata is: ",metadataJSON)
+
 	// Insert into sent_files
 	if err := metadata.InsertSentFile(
 		DB,

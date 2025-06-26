@@ -181,11 +181,11 @@ func RespondToShareRequestHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Status != "accepted" && req.Status != "declined" {
+	if req.Status != "accepted" && req.Status != "declined" && req.Status != "pending" {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
-			"error":   "Invalid status. Must be 'accepted' or 'declined'",
+			"error":   "Invalid status. Must be 'accepted' or 'declined' or 'pending'",
 		})
 		return
 	}
@@ -199,6 +199,7 @@ func RespondToShareRequestHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// ✅ Update notification status
 	result, err := DB.Exec("UPDATE notifications SET status = $1, read = TRUE WHERE id = $2", req.Status, req.ID)
 	if err != nil {
 		log.Printf("Error updating notification status: %v", err)
@@ -220,11 +221,82 @@ func RespondToShareRequestHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	//fetch the file id from the god damn notifications table
+	if req.Status == "accepted" {
+	var fileID, metadata, senderId, recipientId string
+
+	// Step 1: Get notification info
+	err := DB.QueryRow(`
+		SELECT n.file_id, n."from", n."to"
+		FROM notifications n
+		WHERE n.id = $1
+	`, req.ID).Scan(&fileID, &senderId, &recipientId)
+
+	if err != nil {
+		log.Printf("Error fetching notification info: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Failed to retrieve notification info",
+		})
+		return
+	}
+
+	// Step 2: Get metadata from received_files
+	err = DB.QueryRow(`
+		SELECT metadata
+		FROM received_files
+		WHERE file_id = $1 AND recipient_id = $2
+	`, fileID, recipientId).Scan(&metadata)
+
+	if err != nil {
+		log.Printf("Error fetching received file metadata: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Failed to retrieve file metadata",
+		})
+		return
+	}
+
+	// Step 3: Get file info from files table
+	var fileName, fileType, fileCID string
+	var fileSize int64
+
+	err = DB.QueryRow(`
+		SELECT file_name, file_type, cid, file_size
+		FROM files
+		WHERE id = $1
+	`, fileID).Scan(&fileName, &fileType, &fileCID, &fileSize)
+
+	if err != nil {
+		log.Printf("Error fetching file details: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Failed to retrieve file details",
+		})
+		return
+	}
+
+	// ✅ Respond
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
 		"message": "Notification status updated",
+		"fileData": map[string]interface{}{
+			"file_id":    fileID,
+			"sender_id":  senderId,
+			"recipient_id": recipientId,
+			"file_name":  fileName,
+			"file_type":  fileType,
+			"cid":        fileCID,
+			"file_size":  fileSize,
+			"metadata":   metadata,
+		},
 	})
+	return
+  }
 }
 
 func ClearNotificationHandler(w http.ResponseWriter, r *http.Request) {
