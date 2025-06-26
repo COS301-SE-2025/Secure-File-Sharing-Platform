@@ -28,7 +28,7 @@ Secure Share was developed with the vision of providing a privacy-focused, secur
 
 Visit the SecureShare site(currently ran on localhost)
 
-![alt text](./image.png)
+![alt text](./img/image.png)
 
 ## Creating an Account
 
@@ -36,15 +36,15 @@ Visit the SecureShare site(currently ran on localhost)
 
 *(The following page would be visible after doing so)*
 
-![alt text](./image2.png)
+![alt text](./img/image2.png)
 
 2. Click on "Sign Up"
 
-![alt text](./image3.png)
+![alt text](./img/image3.png)
 
 3. Enter your username, email and password.
 
-![alt text](./image-1.png)
+![alt text](./img/image-1.png)
 
 4. Click "Create Account".
 
@@ -53,13 +53,13 @@ Visit the SecureShare site(currently ran on localhost)
 1. Navigate to the "Log In" button on the landing page and click on it.
 2. Enter your email and password.
 
-![alt text](./image-2.png)
+![alt text](./img/image-2.png)
 
 3. Click "Log In"
 
 # Dashboard Overview
 
-![alt text](./image-3.png)
+![alt text](./img/image-3.png)
 
 ## The top navbar is your navigation hub. 
 
@@ -87,23 +87,23 @@ Here's a description of each:
 
 1. Navigate to your "My Files" tab and click on it.
 
-![alt text](./image-4.png)
+![alt text](./img/image-4.png)
 
 2. Click on the "Upload Files" button.
 
-![alt text](./image-5.png)
+![alt text](./img/image-5.png)
 
 3. Then upload files according to preference. 
 4. Click on "Upload". 
 
-![alt text](./image-6.png)
+![alt text](./img/image-6.png)
 
 # Creating Folders
 
 1. Navigate to your "My Files" tab and click on it.
 2. Click on "Create Folder".
 
-![alt text](./image-7.png)
+![alt text](./img/image-7.png)
 
 3. Add the foldername of your choice then select "Create Folder".
 
@@ -114,7 +114,7 @@ Here's a description of each:
 3. Enter the email address of the user you want to send to.
 4. Click the add button.
 
-![alt text](./image-8.png)
+![alt text](./img/image-8.png)
 
 5. Once you have placed all the users you wish to share to, click "Send".
 
@@ -122,7 +122,7 @@ Here's a description of each:
 
 Right click on a file to get the menu.
 
-![alt text](./image-9.png)
+![alt text](./img/image-9.png)
 
 ## Downloading a File 
 
@@ -134,7 +134,7 @@ Right click on a file to get the menu.
 1. Right click on the file you want to view.
 2. Click on "View Details".
 
-![alt text](./image-10.png)
+![alt text](./img/image-10.png)
 
 3. To close, click on the 'x' in the right corner.
 
@@ -143,7 +143,7 @@ Right click on a file to get the menu.
 1. Right click on the file you want to view.
 2. Click on "Activity Logs".
 
-![alt text](./image-11.png)
+![alt text](./img/image-11.png)
 
 3. To close, click on the 'x' in the right corner.
 
@@ -156,7 +156,7 @@ Right click on a file to get the menu.
 
 This page can be accessed on the left nav-bar and by clicking on "Trash". This page is where deleted files move.
 
-![alt text](./image-12.png)
+![alt text](./img/image-12.png)
 
 - Click "Restore" to restore the file
 - Click "Delete" to permanently delete the file
