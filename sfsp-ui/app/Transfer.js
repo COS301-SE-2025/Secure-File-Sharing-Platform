@@ -235,6 +235,7 @@ export async function ReceiveFile(fileData) {
   if (!response.ok) throw new Error("Failed to retrieve encrypted file");
 
   const encryptedBuffer = await response.arrayBuffer()
+  //const fromBase64File = sodium.from_base64()
   const encryptedFile = new Uint8Array(encryptedBuffer)
   // 🔐 Retrieve private keys
   const ikPrivKey = userKeys.identity_private_key;
@@ -315,7 +316,7 @@ export async function ReceiveFile(fileData) {
   // if (!decryptedFile) throw new Error("Failed to decrypt file");
 
   // ✍ Upload to ownCloud as user's personal copy
-  const fileBuffer = new Uint8Array(await file);
+  const fileBuffer = new Uint8Array(file);
   const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
   const ciphertext = sodium.crypto_secretbox_easy(
     fileBuffer,
@@ -327,7 +328,7 @@ export async function ReceiveFile(fileData) {
     fileName: file_name,
     fileType: file_type,
     userId: userId,
-    nonce: sodium.to_base64(personalNonce, sodium.base64_variants.ORIGINAL),
+    nonce: sodium.to_base64(nonce, sodium.base64_variants.ORIGINAL),
     fileDescription: "Received file",
     fileTags: ["received"],
     path: `files/${userId}`,
