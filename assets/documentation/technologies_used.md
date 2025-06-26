@@ -126,7 +126,7 @@ Ensures application reliability, correctness, and integration safety.
 | **Mocha + Chai**           | Mature, customizable                              | Requires more setup                   |
 
 **✅ Selected: Jest + RTL + Cypress**  
-- **Justification:** Covers **unit, integration, and E2E testing**, with wide community support and tools for both frontend and backend testing.
+- **Justification:** Covers unit, integration, and E2E testing, with wide community support and tools for both frontend and backend testing.
 
 ---
 
@@ -135,11 +135,11 @@ Ensures application reliability, correctness, and integration safety.
 ## Overview  
 Ensures data privacy, secure key exchange, and authenticated user sessions.
 
-| Combination                                  | Encryption        | Key Exchange     | Session Management       |
-|-|-|-|
-| **AES-256 + RSA + JWT**                      | AES-256           | RSA              | JSON Web Tokens (JWT)    |
-| **AES-256 + X3DH + Auth Cookies**            | AES-256           | X3DH             | Secure HTTP-only cookies |
-| **AES-256 + X3DH + JWT**                     | AES-256           | X3DH             | JSON Web Tokens (JWT)    |
+| Combination                         | Pros                                                                 | Cons                                                                 |
+|------------------------------------|----------------------------------------------------------------------|----------------------------------------------------------------------|
+| **AES-256 + RSA + JWT**            | - Strong encryption and widely adopted standards  <br> - JWT supports stateless auth  <br> - RSA is well understood and secure | - RSA is slower for large key sizes <br> - No forward secrecy <br> - JWT tokens require proper storage and expiration handling |
+| **AES-256 + X3DH + Auth Cookies**  | - End-to-end encryption with forward secrecy  <br> - Secure session cookies resist XSS <br> - X3DH is ideal for asynchronous secure messaging | - Requires more complex session handling <br> - Cookies can be affected by CSRF without proper protection <br> - X3DH can be complex to implement |
+| **AES-256 + X3DH + JWT**           | - Combines modern encryption with forward secrecy <br> - Stateless, scalable auth with JWT <br> - Ideal for APIs and microservices | - JWT can be stolen if not secured properly <br> - X3DH requires key pre-distribution <br> - Requires careful session expiration and renewal logic |
 
 **✅ Selected: AES-256 + X3DH + JWT**  
-- **Justification:** This combination provides **strong encryption (AES-256)**, a modern and secure **key exchange mechanism (X3DH)** suitable for asynchronous communication, and **JWT-based session management**, which enables stateless and scalable authentication. Together, they fulfill both the **security** and **usability** requirements of the Secure Share platform.
+- **Justification:** This combination provides strong encryption (AES-256), a modern and secure key exchange mechanism (X3DH) suitable for asynchronous communication, and JWT-based session management, which enables stateless and scalable authentication. Together, they fulfill both the security and usability requirements of the Secure Share platform.
