@@ -143,3 +143,35 @@ Ensures data privacy, secure key exchange, and authenticated user sessions.
 
 **✅ Selected: AES-256 + X3DH + JWT**  
 - **Justification:** This combination provides strong encryption (AES-256), a modern and secure key exchange mechanism (X3DH) suitable for asynchronous communication, and JWT-based session management, which enables stateless and scalable authentication. Together, they fulfill both the security and usability requirements of the Secure Share platform.
+
+---
+
+# Secrets Management & Key Storage
+
+## Overview
+Secure storage and management of encryption keys, API credentials, and sensitive configuration.
+
+| Platform               | Pros                                                  | Cons                                           |
+|-----------------------|-------------------------------------------------------|------------------------------------------------|
+| **HashiCorp Vault**    | - Enterprise-grade security <br> - Dynamic secrets <br> - Access control & audit logs | - Complex initial setup <br> - Requires proper HA config |
+| **AWS Secrets Manager**| - Native AWS integration <br> - Auto-rotation <br> - IAM integration | - Vendor lock-in <br> - Per-secret pricing <br> - Regional limitations |
+| **Azure Key Vault**    | - Microsoft ecosystem integration <br> - Managed HSM <br> - Certificate management | - Azure-specific <br> - Complex RBAC model <br> - Higher latency |
+
+**✅ Selected: HashiCorp Vault**  
+- **Justification:** HashiCorp Vault provides enterprise-grade security with fine-grained access control, audit logging, and dynamic secrets generation. As an open-source solution, it avoids vendor lock-in while offering enterprise-level security features, making it ideal for our sensitive key management needs.
+
+---
+
+# Vault Service Implementation Language
+
+## Overview
+Programming language used to implement secure interaction with the vault service for key management.
+
+| Language        | Pros                                                  | Cons                                           |
+|----------------|-------------------------------------------------------|------------------------------------------------|
+| **Python**      | - Extensive crypto/security libraries <br> - Clean, readable syntax <br> - Strong HashiCorp SDK | - Slower execution <br> - GIL limitations for threading |
+| **Go**          | - Performant <br> - Strongly typed <br> - Native HashiCorp language | - Steeper learning curve <br> - Less extensive library ecosystem |
+| **Node.js**     | - JavaScript ecosystem consistency <br> - Async by default <br> - Fast development | - Less mature crypto libraries <br> - Dependency management complexity |
+
+**✅ Selected: Python**  
+- **Justification:** Python was selected for the Vault service implementation due to its comprehensive security-focused libraries, excellent HashiCorp Vault SDK support, and readable syntax that enhances security audit capabilities. For security-critical components like key management, Python's robust ecosystem provides the right balance of security, maintainability, and development speed.

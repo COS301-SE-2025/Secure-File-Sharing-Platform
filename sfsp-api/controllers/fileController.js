@@ -387,7 +387,7 @@ exports.downloadSentFile = async (req, res) => {
     const metadataList = response.data;
     res.json(metadataList);
   } catch (err) {
-    console.log("User ID:", userId);
+    console.log("FilePath: ", filepath);
     console.error("Error retrieving the sent file:", err.message);
     res.status(500).send("Error retrieving the sent file");
   }
