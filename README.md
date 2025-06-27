@@ -7,7 +7,7 @@
 <!-- [![Issue Tracking](https://img.shields.io/badge/Issue_Tracking-GitHub_Issues-yellow)](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/issues) -->
 [![GitHub issues](https://img.shields.io/github/issues/COS301-SE-2025/Secure-File-Sharing-Platform)](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/issues)
 [![Build Status](https://img.shields.io/badge/Build_Status-GitHub_Actions-brightgreen)](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/actions)
-[![codecov](https://img.shields.io/badge/codecov-unavailable-lightgrey)]()
+[![codecov](https://codecov.io/gh/COS301-SE-2025/Secure-File-Sharing-Platform/branch/main/graph/badge.svg)](https://codecov.io/gh/COS301-SE-2025/Secure-File-Sharing-Platform)
 ![Uptime status](https://img.shields.io/uptimerobot/status/m797015486-75c486778a8f87b141372bd7)
 
 [![Next.js](https://img.shields.io/badge/Frontend-Next.js-blue)]()

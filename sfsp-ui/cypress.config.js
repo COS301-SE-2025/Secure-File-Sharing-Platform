@@ -8,11 +8,16 @@ module.exports = defineConfig({
     },
     supportFile: "cypress/support/component.js",
     specPattern: 'cypress/component/**/*.cy.{js,jsx,ts,tsx}',
+    setupNodeEvents(on, config) {
+      require('@cypress/code-coverage/task')(on, config)
+      return config
+    },
   },
 
   e2e: {
     setupNodeEvents(on, config) {
-      // implement node event listeners here
+      require('@cypress/code-coverage/task')(on, config)
+      return config
     },
     specPattern: 'cypress/integration/**/*.{cy,spec}.js',
   },
