@@ -1,3 +1,5 @@
+//app/dashboard/layout.js
+
 'use client';
 import Sidebar from '@/app/dashboard/components/Sidebar';
 import Topbar from '@/app/dashboard/components/Topbar';

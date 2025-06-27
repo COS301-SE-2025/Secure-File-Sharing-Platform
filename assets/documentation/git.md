@@ -40,21 +40,21 @@ This project uses a Mono-Repo approach, where both the backend (`sfsp-api`) and 
      `git checkout -b <component>`
    - Open a PR to merge into `dev`.
 
-1. **Feature Development:**
+2. **Feature Development:**
    - Create a branch from `component`:  
      `git checkout -b feature/<component>/<feature-name>`
    - Open a PR to merge into `<components>` or pull directly if needed.
 
-2. **Bug Fixes:**
+3. **Bug Fixes:**
    - Create a branch from where the fixes are needed:  
      `git checkout -b bugfix/<component>/<bug-description>`
    - Merge/pull into branch that needed fixes.
 
-3. **Release:**
+4. **Release:**
    - When ready for release, merge `dev` into `main` via PR.
    - Tag the release on `main`.
 
-4. **Hotfixes:**
+5. **Hotfixes:**
    - Create a branch from `main`:  
      `git checkout -b hotfix/<issue> main`
    - Merge `main` back into `dev` to keep branches in sync.

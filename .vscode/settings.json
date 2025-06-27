@@ -1,0 +1,17 @@
+{
+    "cSpell.words": [
+        "keypair",
+        "libsodium",
+        "MEMLIMIT",
+        "NONCEBYTES",
+        "opks",
+        "OPSLIMIT",
+        "Prekey",
+        "pwhash",
+        "SALTBYTES",
+        "secretbox",
+        "signedpk",
+        "Timepks",
+        "uuidv"
+    ]
+}
