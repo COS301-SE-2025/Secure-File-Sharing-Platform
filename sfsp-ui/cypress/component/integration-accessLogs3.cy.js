@@ -74,7 +74,7 @@ describe("ActivityLogsDialog Integration Test", () => {
     );
 
     cy.wait("@getErrorLogs");
-    cy.contains("No activity found for this file.").should("exist"); // fallback UI
+    cy.contains("No activity found for this file.").should("exist"); 
   });
 
   it("closes the dialog when X is clicked", () => {
