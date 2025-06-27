@@ -32,7 +32,6 @@
     "zustand": "^5.0.5"
   },
   "devDependencies": {
-    "@cypress/code-coverage": "^3.12.20",
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@testing-library/user-event": "^14.6.1",
@@ -42,10 +41,8 @@
     "eslint": "^9",
     "eslint-config-next": "15.3.2",
     "identity-obj-proxy": "^3.0.0",
-    "istanbul-lib-coverage": "^3.2.2",
     "jest": "^30.0.3",
     "jest-environment-jsdom": "^29.7.0",
-    "nyc": "^15.1.0",
     "postcss": "^8.5.5",
     "postcss-loader": "^8.1.1",
     "style-loader": "^4.0.0",

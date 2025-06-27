@@ -2,7 +2,6 @@
 import './commands';
 import '../../app/globals.css';
 import { mount } from 'cypress/react';
-import '@cypress/code-coverage/support';
 
 Cypress.Commands.add('mount', mount);
 
