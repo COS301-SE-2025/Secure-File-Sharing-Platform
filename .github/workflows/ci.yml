@@ -38,7 +38,9 @@ jobs:
 
     - name: Install UI dependencies and coverage tools
       working-directory: ./sfsp-ui
-      run: npm ci && npm install --save-dev @cypress/code-coverage nyc istanbul-lib-coverage
+      run: |
+        npm ci
+        npm install -D @cypress/code-coverage nyc istanbul-lib-coverage
 
     - name: Run Cypress Unit Tests with Coverage
       working-directory: ./sfsp-ui
