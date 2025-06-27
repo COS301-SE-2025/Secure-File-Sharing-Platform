@@ -36,23 +36,14 @@ jobs:
         apt-get update && \
         apt-get install -y xvfb libnss3 libgtk-3-0 libxss1 libasound2 libgbm1
 
-    - name: Install UI dependencies and coverage tools
+    - name: Install UI dependencies
       working-directory: ./sfsp-ui
-      run: |
-        npm ci
-        npm install -D @cypress/code-coverage nyc istanbul-lib-coverage
+      run: npm ci
 
-    - name: Run Cypress Unit Tests with Coverage
+    - name: Run Cypress Unit Tests
       working-directory: ./sfsp-ui
       run: |
-        xvfb-run -a npx cypress run --component --coverage
-        
-    - name: Upload UI Coverage to Codecov
-      uses: codecov/codecov-action@v3
-      with:
-        directory: ./sfsp-ui/coverage/
-        flags: unittests,ui
-        name: ui-coverage
+        xvfb-run -a npx cypress run --component
 
   sfsp-api:
     name: SFSP API
