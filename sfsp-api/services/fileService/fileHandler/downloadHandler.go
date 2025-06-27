@@ -17,7 +17,12 @@ var (
 	DB                 *sql.DB
 	OwnCloudDownloader func(fileID, userID string) ([]byte, error)
 	DecryptFunc        func(data []byte, key string) ([]byte, error)
-	QueryRowFunc       func(query string, args ...any) RowScanner
+	QueryRowFunc       func(query string, args ...any) RowScanner = func(query string, args ...any) RowScanner {
+		if DB == nil {
+			log.Fatal("Database connection is nil")
+		}
+		return DB.QueryRow(query, args...)
+	}
 )
 
 type RowScanner interface {
