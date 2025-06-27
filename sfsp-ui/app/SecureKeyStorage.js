@@ -224,3 +224,7 @@ export const restoreSession = async () => {
 
   return true;
 };
+
+export function getUserId() {
+  return useEncryptionStore.getState().userId;
+}

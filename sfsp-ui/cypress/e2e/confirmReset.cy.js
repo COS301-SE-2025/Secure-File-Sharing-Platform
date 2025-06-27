@@ -1,6 +1,6 @@
 describe('Password Reset Confirmation Page', () => {
   beforeEach(() => {
-    cy.visit('http://localhost:3000/confirmReset');
+    cy.visit('/confirmReset');
   });
 
   it('should reset the password and redirect to login page', () => {
@@ -12,9 +12,14 @@ describe('Password Reset Confirmation Page', () => {
     cy.get('input[name="email"]').type('testuser@example.com');
     cy.get('input[name="password"]').type('NewPassword123!');
     cy.get('input[name="confirmPassword"]').type('NewPassword123!');
-        cy.get('input[name="resetPin"]').type('123456');
+    cy.get('input[name="resetPin"]').type('123456');
     cy.get('button[type="submit"]').click();
 
-    cy.url().should('include', 'http://localhost:3000/confirmReset');
+    // Wait for the API call to complete
+    cy.wait('@confirmReset');
+
+    // Check for success message and redirection to login
+    cy.contains('Password reset successfully').should('be.visible');
+    cy.url().should('include', '/auth/login');
   });
 });
