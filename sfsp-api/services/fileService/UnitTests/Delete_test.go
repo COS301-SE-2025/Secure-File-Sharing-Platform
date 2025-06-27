@@ -12,14 +12,13 @@ import (
 
 	// Replace with the actual import paths
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler"
-	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/metadata"
+	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
 )
 
-// Overrideable function pointers
 var (
-	originalDeleteFromOwnCloud   = owncloud.DeleteFile
-	originalDeleteFromMetadata   = metadata.DeleteFileMetadata
+	originalDeleteFromOwnCloud = owncloud.DeleteFile
+	originalDeleteFromMetadata = metadata.DeleteFileMetadata
 )
 
 func restoreOriginals() {

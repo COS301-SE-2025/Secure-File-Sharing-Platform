@@ -297,6 +297,12 @@ func RespondToShareRequestHandler(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Notification status updated",
+	})
 }
 
 func ClearNotificationHandler(w http.ResponseWriter, r *http.Request) {
