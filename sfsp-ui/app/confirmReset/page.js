@@ -6,7 +6,7 @@ import { confirmReset } from "@/lib/auth/confirmReset";
 
 export default function ConfirmResetPage() {
   const router = useRouter();
-  const [formData, setFormData] = useState({ email: '', resetPIn: '', newPassword: '' , confrimPassword:''});
+  const [formData, setFormData] = useState({ email: '', resetPin: '', newPassword: '' , confirmPassword:''});
   const [message, setMessage] = useState(null);
 
   const handleChange = (e) => {
@@ -56,8 +56,8 @@ export default function ConfirmResetPage() {
             </label>
             <input
               type="password"
-              name="password"
-              value={formData.password}
+              name="newPassword"
+              value={formData.newPassword}
               onChange={handleChange}
               required
               className="w-full px-4 py-2 mt-1 border rounded-md dark:bg-gray-700 dark:text-white dark:border-gray-600"
@@ -83,9 +83,9 @@ export default function ConfirmResetPage() {
               Reset Pin
             </label>
             <input
-              type="test"
+              type="text"
               name="resetPin"
-              value={formData.resetPIn}
+              value={formData.resetPin}
               onChange={handleChange}
               required
               className="w-full px-4 py-2 mt-1 border rounded-md dark:bg-gray-700 dark:text-white dark:border-gray-600"

@@ -1,68 +1,120 @@
 package fileHandler
 
 import (
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"log"
+	"net/http"
 	"os"
+
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
-	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto"
 )
 
+// Injected dependencies for testing and runtime flexibility
+var (
+	DB                 *sql.DB
+	OwnCloudDownloader func(fileID, userID string) ([]byte, error)
+	DecryptFunc        func(data []byte, key string) ([]byte, error)
+	QueryRowFunc       func(query string, args ...any) RowScanner = func(query string, args ...any) RowScanner {
+		if DB == nil {
+			log.Fatal("Database connection is nil")
+		}
+		return DB.QueryRow(query, args...)
+	}
+)
+
+type RowScanner interface {
+	Scan(dest ...any) error
+}
+
 type DownloadRequest struct {
-	Path     string `json:"path"`
-	FileName string `json:"filename"`
+	UserID   string `json:"userId"`
+	FileName string `json:"fileName"`
 }
 
 type DownloadResponse struct {
 	FileName    string `json:"fileName"`
 	FileContent string `json:"fileContent"`
+	Nonce       string `json:"nonce"`
+}
+
+type DownloadSentRequest struct {
+	FilePath string `json:"filePath"`
 }
 
 func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 	var req DownloadRequest
-	err := json.NewDecoder(r.Body).Decode(&req)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	if req.UserID == "" || req.FileName == "" {
+		http.Error(w, "Missing required fields", http.StatusBadRequest)
+		return
+	}
+
+	row := QueryRowFunc("SELECT id, nonce FROM files WHERE owner_id = $1 AND file_name = $2", req.UserID, req.FileName)
+	var fileID, nonce string
+	if err := row.Scan(&fileID, &nonce); err != nil {
+		log.Println("QueryRow failed:", err)
+		http.Error(w, "File not found", http.StatusNotFound)
+		return
+	}
+
+	encData, err := OwnCloudDownloader(fileID, req.UserID)
 	if err != nil {
-		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+		http.Error(w, "Download failed", http.StatusInternalServerError)
 		return
 	}
 
-	if req.Path == "" || req.FileName == "" {
-		log.Println("Path is: "+ req.Path + " and filename is: " + req.FileName)
-		http.Error(w, "Missing path or filename", http.StatusBadRequest)
-		return
-	}
-
-	// Get file bytes from OwnCloud
-	data, err := owncloud.DownloadFile(req.Path, req.FileName)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Download failed: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	aesKey := os.Getenv("AES_KEY")
-	if len(aesKey) != 32 {
+	key := os.Getenv("AES_KEY")
+	if len(key) != 32 {
 		http.Error(w, "Invalid AES key", http.StatusInternalServerError)
 		return
 	}
 
-	// Decrypt file content if encryption key is provided
-	plain, err := crypto.DecryptBytes(data, aesKey)
+	decData, err := DecryptFunc(encData, key)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Decryption failed: %v", err), http.StatusInternalServerError)
+		http.Error(w, "Decryption failed", http.StatusInternalServerError)
 		return
 	}
 
-	// Encode file to base64
-	base64Data := base64.StdEncoding.EncodeToString(plain)
-
-	res := DownloadResponse{
+	resp := DownloadResponse{
 		FileName:    req.FileName,
-		FileContent: base64Data,
+		FileContent: base64.StdEncoding.EncodeToString(decData),
+		Nonce:       nonce,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(res)
+	json.NewEncoder(w).Encode(resp)
+}
+
+func DownloadSentFile(w http.ResponseWriter, r *http.Request) {
+	var req DownloadSentRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+		return
+	}
+
+	if req.FilePath == "" {
+		http.Error(w, "Missing file path", http.StatusBadRequest)
+		return
+	}
+
+	fmt.Println("Downloading file from path:", req.FilePath)
+
+	data, err := owncloud.DownloadSentFile(req.FilePath)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Download failed: %v", err), http.StatusInternalServerError)
+		fmt.Println("Download Failed:", err)
+		return
+	}
+
+	encoded := base64.RawURLEncoding.EncodeToString(data)
+
+	w.Header().Set("Content-Type", "text/plain")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(encoded))
 }

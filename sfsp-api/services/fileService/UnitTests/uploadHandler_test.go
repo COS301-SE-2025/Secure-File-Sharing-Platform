@@ -2,295 +2,453 @@ package unitTests
 
 import (
 	"bytes"
-	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"regexp"
 	"testing"
-	//"time"
 
+	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto"
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler"
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
-// Mock for crypto.EncryptBytes
-// type MockCrypto struct {
-// 	mock.Mock
-// }
-
-func (m *MockCrypto) EncryptBytes(data []byte, key string) ([]byte, error) {
-	args := m.Called(data, key)
-	return args.Get(0).([]byte), args.Error(1)
-}
-
-// Mock for owncloud.UploadFile
-// type MockOwnCloud struct {
-// 	mock.Mock
-// }
-
-func (m *MockOwnCloud) UploadFile(path, filename string, data []byte) error {
-	args := m.Called(path, filename, data)
-	return args.Error(0)
-}
-
-// Mock for MongoDB collection
-type MockCollection struct {
+// MockWebDavClient is a mock implementation of the WebDavClient interface
+type MockWebDavClient struct {
 	mock.Mock
 }
 
-func (m *MockCollection) InsertOne(ctx context.Context, doc interface{}) (interface{}, error) {
-	args := m.Called(ctx, doc)
-	return args.Get(0), args.Error(1)
-}
+// func (m *MockWebDavClient) MkdirAll(path string, perm os.FileMode) error {
+// 	args := m.Called(path, perm)
+// 	return args.Error(0)
+// }
 
-// Mock for MongoDB client with Database method returning mock collection
-type MockMongoClient struct {
-	mock.Mock
-}
+// func (m *MockWebDavClient) Write(name string, data []byte, perm os.FileMode) error {
+// 	args := m.Called(name, data, perm)
+// 	return args.Error(0)
+// }
 
-func (m *MockMongoClient) Database(name string) mongo.Database {
-	args := m.Called(name)
-	return args.Get(0).(mongo.Database)
-}
+// func (m *MockWebDavClient) Read(name string) ([]byte, error) {
+// 	args := m.Called(name)
+// 	return args.Get(0).([]byte), args.Error(1)
+// }
 
-func (m *MockMongoClient) Collection(name string) *MockCollection {
-	args := m.Called(name)
-	return args.Get(0).(*MockCollection)
-}
+// func (m *MockWebDavClient) Remove(path string) error {
+// 	args := m.Called(path)
+// 	return args.Error(0)
+// }
 
 func TestUploadHandler(t *testing.T) {
-	mockCrypto := new(MockCrypto)
-	mockOwnCloud := new(MockOwnCloud)
-	//mockCollection := new(MockCollection)
+	// Load .env file
+	err := godotenv.Load("../.env")
+	if err != nil {
+		log.Println("Warning: Error loading .env file")
+	}
 
-	//  originalGetCollection := fileHandler.GetCollection
-    //  fileHandler.GetCollection = func() *mongo.Collection {
-    //     // Here you must return *mongo.Collection, but since you can't,
-    //     // you can define UploadHandler to accept interface or
-    //     // extract InsertOne call to a var and mock it.
+	// Set up mock database and OwnCloud client
+	db, mockDB, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("Failed to create mock database: %v", err)
+	}
+	defer db.Close()
 
-    //     // As a workaround, you can create a dummy *mongo.Collection and
-    //     // patch its InsertOne method via monkey patching with a library,
-    //     // or refactor UploadHandler to accept an interface for collection.
-    //     // This is the main limitation of testing mongo directly without abstraction.
+	mockClient := &MockWebDavClient{}
+	originalClient := owncloud.GetClient()
+	owncloud.SetClient(mockClient)
+	defer func() { owncloud.SetClient(originalClient) }()
 
-    //     // For now, panic or skip test if no refactor possible.
-    //     panic("Replace Mongo collection with mock or refactor handler")
-    // }
+	// Set database client
+	fileHandler.SetPostgreClient(db)
 
-	// Override global funcs/vars for test
-	origEncrypt := crypto.EncryptBytes
-	origUpload := owncloud.UploadFile
-	origMongoClient := fileHandler.MongoClient
+	// Set AES key for encryption
+	os.Setenv("AES_KEY", "12345678901234567890123456789012") // 32-byte key
+	defer os.Unsetenv("AES_KEY")
 
-	defer func() {
-		crypto.EncryptBytes = origEncrypt
-		owncloud.UploadFile = origUpload
-		fileHandler.MongoClient = origMongoClient
-	}()
-
-	crypto.EncryptBytes = mockCrypto.EncryptBytes
-	owncloud.UploadFile = mockOwnCloud.UploadFile
-
-	// Setup MongoClient with mocked Collection method
-	mockClient := &mongo.Client{}
-	fileHandler.MongoClient = mockClient
-
-	// We patch Collection method on client.Database("sfsp")
-	// For simplicity, we create a local function
-	// mockClient.Database = func(name string) mongo.Database {
-	// 	return mockDatabase{name: name, collection: mockCollection}
-	// }
-
-	// Test values
-	fileContent := "VGhpcyBpcyBhIHRlc3QgZmlsZSBjb250ZW50Lg==" // base64 "This is a test file content."
-	fileBytes, _ := base64.StdEncoding.DecodeString(fileContent)
-
-	t.Run("success", func(t *testing.T) {
-		reqData := fileHandler.UploadRequest{
-			FileName:      "file.txt",
-			FileType:      "text/plain",
-			UserID:        "user123",
-			EncryptionKey: "encryptionKey",
-			Description:   "desc",
-			Tags:          []string{"tag1", "tag2"},
-			Path:          "files",
-			FileContent:   fileContent,
+	t.Run("Success", func(t *testing.T) {
+		reqBody := fileHandler.UploadRequest{
+			FileName:    "testfile.txt",
+			FileType:    "text/plain",
+			UserID:      "user123",
+			Nonce:       "nonce123",
+			Description: "Test file",
+			Tags:        []string{"tag1", "tag2"},
+			Path:        "files/user123",
+			FileContent: base64.StdEncoding.EncodeToString([]byte("test data")),
 		}
-		reqBody, _ := json.Marshal(reqData)
+		body, _ := json.Marshal(reqBody)
 
-		mockCrypto.On("EncryptBytes", fileBytes, mock.Anything).Return([]byte("encrypted"), nil)
-		mockOwnCloud.On("UploadFile", "files", "file.txt", []byte("encrypted")).Return(nil)
-		//mockCollection.On("InsertOne", mock.Anything, mock.Anything).Return(nil, nil)
-
-		os.Setenv("AES_KEY", "12345678901234567890123456789012")
-
-		req := httptest.NewRequest("POST", "/upload", bytes.NewBuffer(reqBody))
+		req := httptest.NewRequest(http.MethodPost, "/upload", bytes.NewBuffer(body))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
-		fileHandler.UploadHandler(w, req)
-		//assert.Equal(t, http.StatusCreated, w.Result().StatusCode)
-		//assert.Contains(t, w.Body.String(), "File uploaded and metadata stored")
+		// Mock database queries
+		mockDB.ExpectExec(regexp.QuoteMeta(`
+            INSERT INTO users (id)
+            SELECT $1
+            WHERE NOT EXISTS (
+            SELECT 1 FROM users WHERE id = $1
+            )`)).
+			WithArgs(reqBody.UserID).
+			WillReturnResult(sqlmock.NewResult(0, 1))
 
-		mockCrypto.AssertExpectations(t)
-		mockOwnCloud.AssertExpectations(t)
-		//mockCollection.AssertExpectations(t)
+		mockDB.ExpectQuery(regexp.QuoteMeta(`
+            INSERT INTO files (
+                owner_id, file_name, file_type, file_size, cid, nonce, description, tags, created_at
+            )
+            VALUES ($1, $2, $3, $4, '', $5, $6, $7, $8)
+            RETURNING id`)).
+			WithArgs(
+				reqBody.UserID,
+				reqBody.FileName,
+				reqBody.FileType,
+				9, // len("test data")
+				reqBody.Nonce,
+				reqBody.Description,
+				sqlmock.AnyArg(), // tags (pq.Array)
+				sqlmock.AnyArg(), // created_at (time.Now())
+			).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow("file123"))
+
+		// Mock OwnCloud upload
+		mockClient.On("MkdirAll", reqBody.Path, os.FileMode(0755)).Return(nil)
+		mockClient.On("Write", reqBody.Path+"/file123", mock.Anything, os.FileMode(0644)).Return(nil)
+
+		// Mock CID update
+		mockDB.ExpectExec(regexp.QuoteMeta(`UPDATE files SET cid = $1 WHERE id = $2`)).
+			WithArgs(reqBody.Path+"/file123", "file123").
+			WillReturnResult(sqlmock.NewResult(0, 1))
+
+		fileHandler.UploadHandler(w, req)
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		var resp map[string]string
+		err := json.NewDecoder(w.Body).Decode(&resp)
+		assert.NoError(t, err)
+		assert.Equal(t, "File uploaded and metadata stored", resp["message"])
+		assert.Equal(t, "file123", resp["fileId"])
+		assert.NoError(t, mockDB.ExpectationsWereMet())
+		mockClient.AssertExpectations(t)
 	})
 
-	t.Run("invalid JSON", func(t *testing.T) {
-		req := httptest.NewRequest("POST", "/upload", bytes.NewBuffer([]byte("invalid json")))
+	t.Run("Invalid JSON payload", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/upload", bytes.NewBuffer([]byte("invalid json")))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
 		fileHandler.UploadHandler(w, req)
-
-		assert.Equal(t, http.StatusBadRequest, w.Result().StatusCode)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
 		assert.Contains(t, w.Body.String(), "Invalid JSON payload")
 	})
 
-	t.Run("missing required fields", func(t *testing.T) {
-		reqData := fileHandler.UploadRequest{}
-		reqBody, _ := json.Marshal(reqData)
+	t.Run("Missing required fields", func(t *testing.T) {
+		reqBody := fileHandler.UploadRequest{
+			FileName: "",
+			UserID:   "user123",
+		}
+		body, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("POST", "/upload", bytes.NewBuffer(reqBody))
+		req := httptest.NewRequest(http.MethodPost, "/upload", bytes.NewBuffer(body))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
 		fileHandler.UploadHandler(w, req)
-
-		assert.Equal(t, http.StatusBadRequest, w.Result().StatusCode)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
 		assert.Contains(t, w.Body.String(), "Missing required fields")
 	})
 
-	t.Run("invalid base64 content", func(t *testing.T) {
-		reqData := fileHandler.UploadRequest{
-			FileName:    "file.txt",
-			FileContent: "!!!notbase64!!!",
+	t.Run("Invalid base64 file content", func(t *testing.T) {
+		reqBody := fileHandler.UploadRequest{
+			FileName:    "testfile.txt",
+			FileType:    "text/plain",
+			UserID:      "user123",
+			Nonce:       "nonce123",
+			Description: "Test file",
+			Tags:        []string{"tag1", "tag2"},
+			Path:        "files/user123",
+			FileContent: "invalid-base64",
 		}
-		reqBody, _ := json.Marshal(reqData)
+		body, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("POST", "/upload", bytes.NewBuffer(reqBody))
+		req := httptest.NewRequest(http.MethodPost, "/upload", bytes.NewBuffer(body))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
 		fileHandler.UploadHandler(w, req)
-
-		assert.Equal(t, http.StatusBadRequest, w.Result().StatusCode)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
 		assert.Contains(t, w.Body.String(), "Invalid base64 file content")
 	})
 
-	t.Run("invalid AES key length", func(t *testing.T) {
-		reqData := fileHandler.UploadRequest{
-			FileName:    "file.txt",
-			FileContent: fileContent,
+	t.Run("Invalid AES key", func(t *testing.T) {
+		os.Setenv("AES_KEY", "short-key")
+		defer os.Setenv("AES_KEY", "12345678901234567890123456789012")
+
+		reqBody := fileHandler.UploadRequest{
+			FileName:    "testfile.txt",
+			FileType:    "text/plain",
+			UserID:      "user123",
+			Nonce:       "nonce123",
+			Description: "Test file",
+			Tags:        []string{"tag1", "tag2"},
+			Path:        "files/user123",
+			FileContent: base64.StdEncoding.EncodeToString([]byte("test data")),
 		}
-		reqBody, _ := json.Marshal(reqData)
+		body, _ := json.Marshal(reqBody)
 
-		os.Setenv("AES_KEY", "badkey")
-
-		req := httptest.NewRequest("POST", "/upload", bytes.NewBuffer(reqBody))
+		req := httptest.NewRequest(http.MethodPost, "/upload", bytes.NewBuffer(body))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
 		fileHandler.UploadHandler(w, req)
-
-		assert.Equal(t, http.StatusInternalServerError, w.Result().StatusCode)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
 		assert.Contains(t, w.Body.String(), "Invalid AES key")
 	})
 
-	t.Run("encryption failure", func(t *testing.T) {
-		reqData := fileHandler.UploadRequest{
-			FileName:    "file.txt",
-			FileContent: fileContent,
+	t.Run("Database error - user insertion", func(t *testing.T) {
+		reqBody := fileHandler.UploadRequest{
+			FileName:    "testfile.txt",
+			FileType:    "text/plain",
+			UserID:      "user123",
+			Nonce:       "nonce123",
+			Description: "Test file",
+			Tags:        []string{"tag1", "tag2"},
+			Path:        "files/user123",
+			FileContent: base64.StdEncoding.EncodeToString([]byte("test data")),
 		}
-		reqBody, _ := json.Marshal(reqData)
+		body, _ := json.Marshal(reqBody)
 
-		os.Setenv("AES_KEY", "12345678901234567890123456789012")
-
-		mockCrypto.On("EncryptBytes", fileBytes, mock.Anything).Return(nil, errors.New("encryption error"))
-
-		req := httptest.NewRequest("POST", "/upload", bytes.NewBuffer(reqBody))
+		req := httptest.NewRequest(http.MethodPost, "/upload", bytes.NewBuffer(body))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
+		mockDB.ExpectExec(regexp.QuoteMeta(`
+            INSERT INTO users (id)
+            SELECT $1
+            WHERE NOT EXISTS (
+            SELECT 1 FROM users WHERE id = $1
+            )`)).
+			WithArgs(reqBody.UserID).
+			WillReturnError(sqlmock.ErrCancelled)
+
 		fileHandler.UploadHandler(w, req)
-
-		assert.Equal(t, http.StatusInternalServerError, w.Result().StatusCode)
-		//assert.Contains(t, w.Body.String(), "Encryption failed")
-
-		mockCrypto.AssertExpectations(t)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+		assert.Contains(t, w.Body.String(), "User verification failed")
+		assert.NoError(t, mockDB.ExpectationsWereMet())
 	})
 
-	t.Run("upload failure", func(t *testing.T) {
-		reqData := fileHandler.UploadRequest{
-			FileName:    "file.txt",
-			FileContent: fileContent,
+	t.Run("Database error - metadata insertion", func(t *testing.T) {
+		reqBody := fileHandler.UploadRequest{
+			FileName:    "testfile.txt",
+			FileType:    "text/plain",
+			UserID:      "user123",
+			Nonce:       "nonce123",
+			Description: "Test file",
+			Tags:        []string{"tag1", "tag2"},
+			Path:        "files/user123",
+			FileContent: base64.StdEncoding.EncodeToString([]byte("test data")),
 		}
-		reqBody, _ := json.Marshal(reqData)
+		body, _ := json.Marshal(reqBody)
 
-		os.Setenv("AES_KEY", "12345678901234567890123456789012")
-
-		mockCrypto.On("EncryptBytes", fileBytes, mock.Anything).Return([]byte("encrypted"), nil)
-		mockOwnCloud.On("UploadFile", "files", "file.txt", []byte("encrypted")).Return(errors.New("upload error"))
-
-		req := httptest.NewRequest("POST", "/upload", bytes.NewBuffer(reqBody))
+		req := httptest.NewRequest(http.MethodPost, "/upload", bytes.NewBuffer(body))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
+		mockDB.ExpectExec(regexp.QuoteMeta(`
+            INSERT INTO users (id)
+            SELECT $1
+            WHERE NOT EXISTS (
+            SELECT 1 FROM users WHERE id = $1
+            )`)).
+			WithArgs(reqBody.UserID).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+
+		mockDB.ExpectQuery(regexp.QuoteMeta(`
+            INSERT INTO files (
+                owner_id, file_name, file_type, file_size, cid, nonce, description, tags, created_at
+            )
+            VALUES ($1, $2, $3, $4, '', $5, $6, $7, $8)
+            RETURNING id`)).
+			WithArgs(
+				reqBody.UserID,
+				reqBody.FileName,
+				reqBody.FileType,
+				9,
+				reqBody.Nonce,
+				reqBody.Description,
+				sqlmock.AnyArg(),
+				sqlmock.AnyArg(),
+			).
+			WillReturnError(sqlmock.ErrCancelled)
+
 		fileHandler.UploadHandler(w, req)
-
-		assert.Equal(t, http.StatusInternalServerError, w.Result().StatusCode)
-		//assert.Contains(t, w.Body.String(), "Upload failed")
-
-		mockCrypto.AssertExpectations(t)
-		mockOwnCloud.AssertExpectations(t)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+		assert.Contains(t, w.Body.String(), "Metadata storage failed")
+		assert.NoError(t, mockDB.ExpectationsWereMet())
 	})
 
-	t.Run("metadata storage failure", func(t *testing.T) {
-		reqData := fileHandler.UploadRequest{
-			FileName:    "file.txt",
-			FileContent: fileContent,
+	t.Run("OwnCloud upload failure", func(t *testing.T) {
+
+		originalUploadFile := owncloud.UploadFile
+		defer func() {
+			owncloud.UploadFile = originalUploadFile
+		}()
+
+		owncloud.UploadFile = func(path, filename string, data []byte) error {
+			return errors.New("upload failed")
 		}
-		reqBody, _ := json.Marshal(reqData)
 
-		os.Setenv("AES_KEY", "12345678901234567890123456789012")
+		reqBody := fileHandler.UploadRequest{
+			FileName:    "testfile.txt",
+			FileType:    "text/plain",
+			UserID:      "user123",
+			Nonce:       "nonce123",
+			Description: "Test file",
+			Tags:        []string{"tag1", "tag2"},
+			Path:        "files/user123",
+			FileContent: base64.StdEncoding.EncodeToString([]byte("test data")),
+		}
+		body, _ := json.Marshal(reqBody)
 
-		mockCrypto.On("EncryptBytes", fileBytes, mock.Anything).Return([]byte("encrypted"), nil)
-		mockOwnCloud.On("UploadFile", "files", "file.txt", []byte("encrypted")).Return(nil)
-		//mockCollection.On("InsertOne", mock.Anything, mock.Anything).Return(nil, errors.New("db error"))
-
-		req := httptest.NewRequest("POST", "/upload", bytes.NewBuffer(reqBody))
+		req := httptest.NewRequest(http.MethodPost, "/upload", bytes.NewBuffer(body))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
+		mockDB.ExpectExec(regexp.QuoteMeta(`
+            INSERT INTO users (id)
+            SELECT $1
+            WHERE NOT EXISTS (
+            SELECT 1 FROM users WHERE id = $1
+            )`)).
+			WithArgs(reqBody.UserID).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+
+		mockDB.ExpectQuery(regexp.QuoteMeta(`
+            INSERT INTO files (
+                owner_id, file_name, file_type, file_size, cid, nonce, description, tags, created_at
+            )
+            VALUES ($1, $2, $3, $4, '', $5, $6, $7, $8)
+            RETURNING id`)).
+			WithArgs(
+				reqBody.UserID,
+				reqBody.FileName,
+				reqBody.FileType,
+				9,
+				reqBody.Nonce,
+				reqBody.Description,
+				sqlmock.AnyArg(),
+				sqlmock.AnyArg(),
+			).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow("file123"))
+
+		mockClient.On("MkdirAll", reqBody.Path, os.FileMode(0755)).Return(nil)
+		mockClient.On("Write", reqBody.Path+"/file123", mock.Anything, os.FileMode(0644)).
+			Return(errors.New("upload failed"))
+
 		fileHandler.UploadHandler(w, req)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+		assert.Contains(t, w.Body.String(), "File upload failed")
+		assert.NoError(t, mockDB.ExpectationsWereMet())
+		mockClient.AssertExpectations(t)
+	})
 
-		assert.Equal(t, http.StatusInternalServerError, w.Result().StatusCode)
-		//assert.Contains(t, w.Body.String(), "Metadata storage failed")
+	t.Run("Database error - CID update (non-fatal)", func(t *testing.T) {
+		reqBody := fileHandler.UploadRequest{
+			FileName:    "testfile.txt",
+			FileType:    "text/plain",
+			UserID:      "user123",
+			Nonce:       "nonce123",
+			Description: "Test file",
+			Tags:        []string{"tag1", "tag2"},
+			Path:        "files/user123",
+			FileContent: base64.StdEncoding.EncodeToString([]byte("test data")),
+		}
+		body, _ := json.Marshal(reqBody)
 
-		mockCrypto.AssertExpectations(t)
-		mockOwnCloud.AssertExpectations(t)
-		//mockCollection.AssertExpectations(t)
+		req := httptest.NewRequest(http.MethodPost, "/upload", bytes.NewBuffer(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		mockDB.ExpectExec(regexp.QuoteMeta(`
+            INSERT INTO users (id)
+            SELECT $1
+            WHERE NOT EXISTS (
+            SELECT 1 FROM users WHERE id = $1
+            )`)).
+			WithArgs(reqBody.UserID).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+
+		mockDB.ExpectQuery(regexp.QuoteMeta(`
+            INSERT INTO files (
+                owner_id, file_name, file_type, file_size, cid, nonce, description, tags, created_at
+            )
+            VALUES ($1, $2, $3, $4, '', $5, $6, $7, $8)
+            RETURNING id`)).
+			WithArgs(
+				reqBody.UserID,
+				reqBody.FileName,
+				reqBody.FileType,
+				9,
+				reqBody.Nonce,
+				reqBody.Description,
+				sqlmock.AnyArg(),
+				sqlmock.AnyArg(),
+			).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow("file123"))
+
+		mockClient.On("MkdirAll", reqBody.Path, os.FileMode(0755)).Return(nil)
+		mockClient.On("Write", reqBody.Path+"/file123", mock.Anything, os.FileMode(0644)).Return(nil)
+
+		mockDB.ExpectExec(regexp.QuoteMeta(`UPDATE files SET cid = $1 WHERE id = $2`)).
+			WithArgs(reqBody.Path+"/file123", "file123").
+			WillReturnError(sqlmock.ErrCancelled)
+
+		fileHandler.UploadHandler(w, req)
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		var resp map[string]string
+		err := json.NewDecoder(w.Body).Decode(&resp)
+		assert.NoError(t, err)
+		assert.Equal(t, "File uploaded and metadata stored", resp["message"])
+		assert.Equal(t, "file123", resp["fileId"])
+		assert.NoError(t, mockDB.ExpectationsWereMet())
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("Encryption error", func(t *testing.T) {
+		reqBody := fileHandler.UploadRequest{
+			FileName:    "testfile.txt",
+			FileType:    "text/plain",
+			UserID:      "user123",
+			Nonce:       "nonce123",
+			Description: "Test file",
+			Tags:        []string{"tag1", "tag2"},
+			Path:        "files/user123",
+			FileContent: base64.StdEncoding.EncodeToString([]byte("test data")),
+		}
+		body, _ := json.Marshal(reqBody)
+
+		req := httptest.NewRequest(http.MethodPost, "/upload", bytes.NewBuffer(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		// Temporarily override crypto.EncryptBytes to simulate an error
+		originalEncrypt := crypto.EncryptBytes
+		crypto.EncryptBytes = func(data []byte, key string) ([]byte, error) {
+			return nil, errors.New("encryption failed")
+		}
+		defer func() { crypto.EncryptBytes = originalEncrypt }()
+
+		fileHandler.UploadHandler(w, req)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+		assert.Contains(t, w.Body.String(), "Encryption failed")
+		assert.NoError(t, mockDB.ExpectationsWereMet())
 	})
 }
-
-type mockDatabase struct {
-	name       string
-	collection *MockCollection
-}
-
-// func (db mockDatabase) Collection(name string, opts ...*options.CollectionOptions) *mongo.Collection {
-// 	// We can't return *mongo.Collection directly because it's struct from official driver
-// 	// Instead, you would want to adjust your code to abstract Mongo collection for better testing.
-// 	// For now, panic here or simulate needed behavior in tests.
-// 	panic("not implemented")
-// }

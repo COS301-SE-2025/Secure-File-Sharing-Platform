@@ -24,7 +24,7 @@ describe('FileTable component', () => {
     mountWithAppRouter(<FileTable files={files} />);
   });
 
-  it('renders the table headers ', () => {
+  it('renders the table headers', () => {
     cy.get('thead th').should('have.length', 5);
     cy.get('thead th').eq(0).should('contain.text', 'Name');
     cy.get('thead th').eq(1).should('contain.text', 'Size');

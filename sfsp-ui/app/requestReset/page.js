@@ -6,7 +6,7 @@ import { requestPasswordReset } from "@/lib/auth/requestReset";
 
 
 
-export default function resetPage() {
+export default function ResetPage() {
   const router = useRouter();
   const [formData, setFormData] = useState({ email: '', resetPIN: '' });
   const [message, setMessage] = useState(null);
