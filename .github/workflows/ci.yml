@@ -91,3 +91,39 @@ jobs:
       - name: Run Go Tests
         working-directory: ./sfsp-api/services/fileService
         run: go test ./UnitTests/... -v
+
+  sfsp-keyservice:
+    name: SFSP Key Service
+    runs-on: ubuntu-latest
+    container:
+      image: python:3.9
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Python dependencies
+        working-directory: ./sfsp-api/services/keyservice
+        run: |
+          python -m pip install --upgrade pip
+          pip install flask pytest requests pytest-cov hvac python-dotenv
+
+      - name: Create mock .env file
+        working-directory: ./sfsp-api/services/keyservice
+        run: |
+          cat <<EOF > .env
+          VAULT_URL=http://localhost:6732
+          VAULT_TOKEN=absolutelynonsenseofatoken
+
+          # Flask Configuration
+          FLASK_PORT=8443
+          FLASK_DEBUG=False
+
+          # Optional: Set Flask environment
+          FLASK_ENV=development
+          EOF
+
+      - name: Run Python Tests
+        working-directory: ./sfsp-api/services/keyservice
+        run: |
+          python run_tests.py
+
