@@ -83,7 +83,7 @@ exports.uploadFile = async (req, res) => {
     }
 
 
-    console.log("📡 Uploading to:", process.env.FILE_SERVICE_URL);
+    console.log("Uploading to:", process.env.FILE_SERVICE_URL);
 
     const payload = {
       fileName,
@@ -385,9 +385,9 @@ exports.downloadSentFile = async (req, res) => {
     }
 
     const metadataList = response.data;
+    console.log("Downloading a sent file returns: ", response.data);
     res.json(metadataList);
   } catch (err) {
-    console.log("User ID:", userId);
     console.error("Error retrieving the sent file:", err.message);
     res.status(500).send("Error retrieving the sent file");
   }

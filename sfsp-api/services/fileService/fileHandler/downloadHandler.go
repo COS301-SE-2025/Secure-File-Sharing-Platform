@@ -178,7 +178,7 @@ func DownloadSentFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	encoded := base64.RawURLEncoding.EncodeToString(data)
+	encoded := base64.StdEncoding.EncodeToString(data)
 
     w.Header().Set("Content-Type", "text/plain") // or "application/json"
     w.WriteHeader(http.StatusOK)
