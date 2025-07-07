@@ -1,7 +1,8 @@
 package fileHandler
 
 import (
-	"database/sql"
+	//"context"
+	//"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -11,8 +12,11 @@ import (
 	"time"
 
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto"
+	//"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/database"
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
+
 	"github.com/lib/pq"
+	"database/sql"
 )
 
 type UploadRequest struct {
@@ -26,13 +30,11 @@ type UploadRequest struct {
 	FileContent string   `json:"fileContent"`
 }
 
-// var DB *sql.DB
+var DB *sql.DB
 
 func SetPostgreClient(db *sql.DB) {
+	// This function is used to set the PostgreSQL client in the fileHandler package
 	DB = db
-	QueryRowFunc = func(query string, args ...any) RowScanner {
-		return db.QueryRow(query, args...)
-	}
 }
 
 func UploadHandler(w http.ResponseWriter, r *http.Request) {
@@ -64,36 +66,37 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	encryptedFile, err := crypto.EncryptBytes(fileBytes, aesKey)
 	if err != nil {
-		log.Printf("Encryption error: %v", err)
-		http.Error(w, fmt.Sprintf("Encryption failed: %v", err), http.StatusInternalServerError)
+		log.Println("Encryption error:", err)
+		http.Error(w, "Encryption failed", http.StatusInternalServerError)
 		fmt.Println("Encryption failed")
 		return
 	}
 
 	// Check if user exists; if not, insert
-	_, err = DB.Exec(`
-        INSERT INTO users (id)
-        SELECT $1
-        WHERE NOT EXISTS (
-        SELECT 1 FROM users WHERE id = $1
-        )
+    _, err = DB.Exec(`
+	  INSERT INTO users (id)
+	  SELECT $1
+	  WHERE NOT EXISTS (
+      SELECT 1 FROM users WHERE id = $1
+	 )
     `, req.UserID)
-	if err != nil {
-		log.Printf("Failed to ensure user exists: %v", err)
-		http.Error(w, "User verification failed", http.StatusInternalServerError)
-		fmt.Println("User verification failed")
-		return
-	}
+
+    if err != nil {
+	   log.Println("Failed to ensure user exists:", err)
+	   http.Error(w, "User verification failed", http.StatusInternalServerError)
+	   fmt.Println("User verification failed")
+	   return
+    }
 
 	// Step 1: Save metadata and get the generated file ID
 	var fileID string
 	err = DB.QueryRow(`
-        INSERT INTO files (
-            owner_id, file_name, file_type, file_size, cid, nonce, description, tags, created_at
-        )
-        VALUES ($1, $2, $3, $4, '', $5, $6, $7, $8)
-        RETURNING id
-    `,
+		INSERT INTO files (
+			owner_id, file_name, file_type, file_size, cid, nonce, description, tags, created_at
+		)
+		VALUES ($1, $2, $3, $4, '', $5, $6, $7, $8)
+		RETURNING id
+	`,
 		req.UserID,
 		req.FileName,
 		req.FileType,
@@ -103,8 +106,9 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 		pq.Array(req.Tags),
 		time.Now(),
 	).Scan(&fileID)
+
 	if err != nil {
-		log.Printf("PostgreSQL insert error: %v", err)
+		log.Println("PostgreSQL insert error:", err)
 		http.Error(w, "Metadata storage failed", http.StatusInternalServerError)
 		fmt.Println("Metadata storage failed")
 		return
@@ -118,7 +122,7 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	err = owncloud.UploadFile(uploadPath, fileID, encryptedFile)
 	if err != nil {
-		log.Printf("OwnCloud upload failed: %v", err)
+		log.Println("OwnCloud upload failed:", err)
 		http.Error(w, "File upload failed", http.StatusInternalServerError)
 		fmt.Println("File upload failed")
 		return
@@ -128,7 +132,7 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 	fullCID := fmt.Sprintf("%s/%s", uploadPath, fileID)
 	_, err = DB.Exec(`UPDATE files SET cid = $1 WHERE id = $2`, fullCID, fileID)
 	if err != nil {
-		log.Printf("PostgreSQL update cid failed: %v", err)
+		log.Println("PostgreSQL update cid failed:", err)
 		// Not fatal to the upload, so continue
 	}
 
