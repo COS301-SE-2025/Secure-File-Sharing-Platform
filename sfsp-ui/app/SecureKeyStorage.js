@@ -225,6 +225,7 @@ export const restoreSession = async () => {
   return true;
 };
 
-export function getUserId() {
-  return useEncryptionStore.getState().userId;
-}
+//One brach had this the other(receive) didn't
+// export function getUserId() {
+//   return useEncryptionStore.getState().userId;
+// }

@@ -1,8 +1,8 @@
 package fileHandler
 
 import (
-	"encoding/base64"
 	"encoding/json"
+	"encoding/base64"
 	"fmt"
 	"log"
 	"net/http"
@@ -13,14 +13,14 @@ import (
 )
 
 type SendFilePayload struct {
-	FileID          string                 `json:"fileid"`
-	FilePath        string                 `json:"filePath"`
-	UserID          string                 `json:"userId"`
-	RecipientID     string                 `json:"recipientUserId"`
-	EncryptedFile   string                 `json:"encryptedFile"` // base64
-	EncryptedAESKey string                 `json:"encryptedAesKey"`
-	EKPublicKey     string                 `json:"ekPublicKey"`
-	Metadata        map[string]interface{} `json:"metadata"` // includes nonce, ikPub, etc.
+	FileID           string                 `json:"fileid"`
+	FilePath         string                 `json:"filePath"`
+	UserID           string                 `json:"userId"`
+	RecipientID      string                 `json:"recipientUserId"`
+	EncryptedFile    string                 `json:"encryptedFile"`       // base64
+	EncryptedAESKey  string                 `json:"encryptedAesKey"`
+	EKPublicKey      string                 `json:"ekPublicKey"`
+	Metadata         map[string]interface{} `json:"metadata"`            // includes nonce, ikPub, etc.
 }
 
 func SendFileHandler(w http.ResponseWriter, r *http.Request) {
@@ -31,7 +31,7 @@ func SendFileHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Decode base64 file content
-	fileBytes, err := base64.RawURLEncoding.DecodeString(req.EncryptedFile)
+	fileBytes, err := base64.StdEncoding.DecodeString(req.EncryptedFile)
 	if err != nil {
 		log.Println("Failed to decode encrypted file:", err)
 		http.Error(w, "Invalid encrypted file format", http.StatusBadRequest)
@@ -47,11 +47,11 @@ func SendFileHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	metadataJSON, err := json.Marshal(req.Metadata)
-	if err != nil {
-		log.Println("Failed to serialize metadata:", err)
-		http.Error(w, "Invalid metadata format", http.StatusBadRequest)
-		return
-	}
+    if err != nil {
+	   log.Println("Failed to serialize metadata:", err)
+	   http.Error(w, "Invalid metadata format", http.StatusBadRequest)
+	   return
+    }
 
 	// Insert into received_files
 	if err := metadata.InsertReceivedFile(
@@ -59,7 +59,7 @@ func SendFileHandler(w http.ResponseWriter, r *http.Request) {
 		req.RecipientID,
 		req.UserID,
 		req.FileID,
-		string(metadataJSON),
+		string(metadataJSON),   
 		time.Now().Add(48*time.Hour),
 	); err != nil {
 		log.Println("Failed to insert received file:", err)
@@ -67,7 +67,7 @@ func SendFileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println("Metadata is: ", metadataJSON)
+	fmt.Println("Metadata is: ",metadataJSON)
 
 	// Insert into sent_files
 	if err := metadata.InsertSentFile(

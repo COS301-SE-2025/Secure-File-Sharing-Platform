@@ -21,10 +21,6 @@ func SetClient(c WebDavClient) {
 	client = c
 }
 
-func GetClient() WebDavClient {
-	return client
-}
-
 func InitOwnCloud(url, username, password string) {
 	c := gowebdav.NewClient(url, username, password)
 	client = c
@@ -32,9 +28,6 @@ func InitOwnCloud(url, username, password string) {
 }
 
 var UploadFile = func(path, filename string, data []byte) error {
-	if client == nil {
-		return fmt.Errorf("WebDAV client not initialized")
-	}
 	fullPath := path + "/" + filename
 	log.Println("Uploading to WebDAV path:", fullPath)
 
@@ -53,9 +46,6 @@ var UploadFile = func(path, filename string, data []byte) error {
 }
 
 var DownloadFile = func(fileId, UserID string) ([]byte, error) {
-	if client == nil {
-		return nil, fmt.Errorf("WebDAV client not initialized")
-	}
 	path := "files/" + UserID
 	fullPath := fmt.Sprintf("%s/%s", path, fileId)
 	fmt.Println("Path is: ", fullPath)
@@ -67,11 +57,8 @@ var DownloadFile = func(fileId, UserID string) ([]byte, error) {
 }
 
 var DeleteFile = func(fileId, UserID string) error {
-	if client == nil {
-		return fmt.Errorf("WebDAV client not initialized")
-	}
 	path := "files/" + UserID
-	fmt.Println("Path is: ", path)
+	fmt.Println("Paht is: ", path)
 	fullPath := fmt.Sprintf("%s/%s", path, fileId)
 	err := client.Remove(fullPath)
 	if err != nil {
@@ -81,14 +68,12 @@ var DeleteFile = func(fileId, UserID string) error {
 }
 
 var DownloadSentFile = func(filePath string) ([]byte, error) {
-	if client == nil {
-		return nil, fmt.Errorf("WebDAV client not initialized")
-	}
 	fmt.Println("Path is: ", filePath)
 	data, err := client.Read(filePath)
 	if err != nil {
-		fmt.Println("Failed to download file")
 		return nil, fmt.Errorf("failed to download file: %w", err)
+		fmt.Println("Faled to download file")
+
 	}
 	return data, nil
 }

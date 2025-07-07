@@ -26,4 +26,3 @@ func InitMongo(uri string) (*mongo.Client, error) {
     log.Println("✅ MongoDB connected")
     return client, nil
 }
-

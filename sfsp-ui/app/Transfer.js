@@ -44,16 +44,6 @@ export async function SendFile(fileMetadata, recipientUserId, fileid) {
   const sodium = await getSodium();
   const { userId, encryptionKey } = useEncryptionStore.getState();
 
-  // try {
-  //   sodium.from_base64(
-  //     userKeysRaw.identity_private_key,
-  //     sodium.base64_variants.ORIGINAL
-  //   );
-  //   console.log("Valid base64 key");
-  // } catch (e) {
-  //   console.error("INVALID base64:", e);
-  // }
-
   // 1️⃣ Get and normalize keys
   const userKeysRaw = await getUserKeysSecurely(encryptionKey);
   console.log("Before normalization IK:", userKeysRaw.identity_private_key);
@@ -68,11 +58,11 @@ export async function SendFile(fileMetadata, recipientUserId, fileid) {
   if (!response.ok) throw new Error("Failed to retrieve file content");
   const { fileName, fileContent, nonce } = await response.json();
 
-      const decrypted = sodium.crypto_secretbox_open_easy(
-        sodium.from_base64(fileContent, sodium.base64_variants.ORIGINAL),
-        sodium.from_base64(nonce, sodium.base64_variants.ORIGINAL),
-        encryptionKey
-      );
+  const decrypted = sodium.crypto_secretbox_open_easy(
+    sodium.from_base64(fileContent, sodium.base64_variants.ORIGINAL),
+    sodium.from_base64(nonce, sodium.base64_variants.ORIGINAL),
+    encryptionKey
+  );
 
   const fileBuffer = decrypted;
 
@@ -105,24 +95,30 @@ export async function SendFile(fileMetadata, recipientUserId, fileid) {
   );
 
   // 6️⃣ Ephemeral key pair
-  const EK = sodium.crypto_box_keypair();
+  const EK = sodium.crypto_kx_keypair();
 
   // 7️⃣ Derive 4 X3DH shared secrets
   const DH1 = sodium.crypto_scalarmult(
     ikPrivKeyCurve25519,
-    sodium.from_base64(recipientKeys.spk_public)
+    sodium.crypto_sign_ed25519_pk_to_curve25519(
+      sodium.from_base64(recipientKeys.spk_public)
+    )
   );
 
   console.log("DH1 is :", DH1);
   const DH2 = sodium.crypto_scalarmult(
     EK.privateKey,
-    sodium.from_base64(recipientKeys.ik_public)
+    sodium.crypto_sign_ed25519_pk_to_curve25519(
+      sodium.from_base64(recipientKeys.ik_public)
+    )
   );
 
   console.log("DH2 is: ", DH2);
   const DH3 = sodium.crypto_scalarmult(
     EK.privateKey,
-    sodium.from_base64(recipientKeys.spk_public)
+    sodium.crypto_sign_ed25519_pk_to_curve25519(
+      sodium.from_base64(recipientKeys.spk_public)
+    )
   );
 
   console.log("DH3 is: ", DH3);
@@ -135,7 +131,7 @@ export async function SendFile(fileMetadata, recipientUserId, fileid) {
   const combinedDH = concatUint8Arrays([DH1, DH2, DH3, DH4]);
 
   console.log("Combined DH is :", combinedDH);
-  const sharedKey = sodium.crypto_generichash(32, DH4);
+  const sharedKey = sodium.crypto_generichash(32, combinedDH);
 
   // 8️⃣ Encrypt the file
   const aesKey = sodium.crypto_secretbox_keygen();
@@ -166,7 +162,6 @@ export async function SendFile(fileMetadata, recipientUserId, fileid) {
     ekPublicKey: sodium.to_base64(EK.publicKey),
     opk_id: recipientKeys.opk.opk_id,
     encryptedAesKey: sodium.to_base64(encryptedAesKey),
-    file: decrypted,
   };
 
   // 🔁 Send encrypted data
@@ -177,12 +172,17 @@ export async function SendFile(fileMetadata, recipientUserId, fileid) {
       fileid,
       userId,
       recipientUserId,
-      encryptedFile: sodium.to_base64(encryptedFile, sodium.base64_variants.URLSAFE_NO_PADDING),
+      encryptedFile: sodium.to_base64(
+        encryptedFile,
+        sodium.base64_variants.ORIGINAL
+      ),
       encryptedAesKey: sodium.to_base64(encryptedAesKey),
       ekPublicKey: sodium.to_base64(EK.publicKey),
       metadata,
     }),
   });
+
+  console.log("Encrypted base 64 file is: ", sodium.to_base64(encryptedFile));
 
   console.log("EncryptedAesKey is: ", encryptedAesKey);
   console.log("Key Nonce is: ", keyNonce);
@@ -201,24 +201,20 @@ export async function ReceiveFile(fileData) {
   const userKeys = normalizeUserKeys(rawKeys, sodium);
 
   // 🎯 Extract metadata
+  const { file_id, file_name, file_type, cid, metadata, sender_id } = fileData;
   const {
-    file_id,
-    file_name,
-    file_type,
-    cid,
-    metadata,
-    sender_id,
-  } = fileData;
-  const { ikPublicKey, ekPublicKey, fileNonce, keyNonce, opk_id, encryptedAesKey, spkPublicKey, file } =
-    JSON.parse(metadata);
-
-    console.log("File is :", file);
-    
+    ikPublicKey,
+    ekPublicKey,
+    fileNonce,
+    keyNonce,
+    opk_id,
+    encryptedAesKey,
+    spkPublicKey,
+  } = JSON.parse(metadata);
 
   console.log("File id is: ", file_id);
   console.log("File name is: ", file_name);
   console.log("File Type is: ", file_type);
-  console.log("metadata is: ", metadata);
 
   const path = `/files/${sender_id}/sent/${file_id}`;
   console.log("Path is: ", path);
@@ -237,10 +233,30 @@ export async function ReceiveFile(fileData) {
 
   if (!response.ok) throw new Error("Failed to retrieve encrypted file");
 
-  const encryptedBuffer = await response.arrayBuffer()
-  //const fromBase64File = sodium.from_base64()
-  const encryptedFile = new Uint8Array(encryptedBuffer)
-  // 🔐 Retrieve private keys
+  const encryptedBase64 = await response.text();
+  //console.log("EncryptedBase 64 string is before padding:", encryptedBase64);
+
+  function padBase64(base64) {
+    const missingPadding = base64.length % 4;
+    if (missingPadding === 0) return base64;
+    return base64 + "=".repeat(4 - missingPadding);
+  }
+
+  // const paddedBase64 = padBase64(encryptedBase64);
+  // console.log("Padded base 64 sting is: ", paddedBase64);
+  console.log("🔍 Base64 length:", encryptedBase64.length);
+  console.log("🔍 Ends with:", encryptedBase64.slice(-20));
+  console.log("🔍 Has padding?", encryptedBase64.endsWith("="));
+  console.log("🔍 Mod 4:", encryptedBase64.length % 4);
+  const cleanBase64 = encryptedBase64.replace(/^"|"$/g, "");
+  console.log("Clean base64 length:", cleanBase64.length);
+  console.log("Mod 4:", cleanBase64.length % 4);
+  const padded = padBase64(cleanBase64);
+  const encryptedFile = sodium.from_base64(
+    padded,
+    sodium.base64_variants.ORIGINAL
+  );
+
   const ikPrivKey = userKeys.identity_private_key;
   const spkPrivKey = userKeys.signedpk_private_key;
   const opkMatch = userKeys.oneTimepks_private.find(
@@ -249,48 +265,50 @@ export async function ReceiveFile(fileData) {
   if (!opkMatch) throw new Error("Matching OPK not found");
   const opkPrivKey = opkMatch.private_key;
 
-  const spkPrivKeyCurve = sodium.crypto_sign_ed25519_sk_to_curve25519(spkPrivKey);
+  const spkPrivKeyCurve =
+    sodium.crypto_sign_ed25519_sk_to_curve25519(spkPrivKey);
   const ikPrivKeyCurve = sodium.crypto_sign_ed25519_sk_to_curve25519(ikPrivKey);
 
-  const senderIkCurve = ed25519PubToCurve(sodium.from_base64(ikPublicKey), sodium);
-  const senderSpkCurve = ed25519PubToCurve(sodium.from_base64(spkPublicKey), sodium);
+  const senderIkCurve = sodium.crypto_sign_ed25519_pk_to_curve25519(
+    sodium.from_base64(ikPublicKey)
+  );
+  const senderSpkCurve = sodium.crypto_sign_ed25519_pk_to_curve25519(
+    sodium.from_base64(spkPublicKey)
+  );
 
   //keys are:
   console.log("Spk private: ", spkPrivKey);
   console.log("ikPublickey is: ", sodium.from_base64(ikPublicKey));
 
   // 🔑 Derive shared secret using 4 DH operations
-  const DH1 = sodium.crypto_scalarmult(
-  spkPrivKeyCurve,
-  senderIkCurve
-);
+  const DH1 = sodium.crypto_scalarmult(spkPrivKeyCurve, senderIkCurve);
 
-
-  console.log("DH1 is: ",DH1);
+  console.log("DH1 is: ", DH1);
 
   console.log("Ik private is: ", ikPrivKey);
   console.log("ekPublicKey is :", sodium.from_base64(ekPublicKey));
   const DH2 = sodium.crypto_scalarmult(
     ikPrivKeyCurve,
-  sodium.from_base64(ekPublicKey),
-);
+    sodium.from_base64(ekPublicKey)
+  );
 
-  console.log("DH2 is: ",DH2);
+  console.log("DH2 is: ", DH2);
   console.log("SpkPrivekey is: ", spkPrivKey);
   const DH3 = sodium.crypto_scalarmult(
     spkPrivKeyCurve,
-  sodium.from_base64(ekPublicKey),
-);
+    sodium.from_base64(ekPublicKey)
+  );
 
-  console.log("DH3 is: ",DH3)
+  console.log("DH3 is: ", DH3);
   const DH4 = sodium.crypto_scalarmult(
     opkPrivKey,
     sodium.from_base64(ekPublicKey)
   );
 
   console.log("DH4 is: ", DH4);
-  console.log("Combined key is: ", concatUint8Arrays([DH1, DH2, DH3, DH4]))
-  const sharedKey = sodium.crypto_generichash(32, DH4);
+  console.log("Combined key is: ", concatUint8Arrays([DH1, DH2, DH3, DH4]));
+  const combineDH = concatUint8Arrays([DH1, DH2, DH3, DH4]);
+  const sharedKey = sodium.crypto_generichash(32, combineDH);
 
   console.log("EncryptedAES keys is: ", sodium.from_base64(encryptedAesKey));
   console.log("Key Nonce is: ", sodium.from_base64(keyNonce));
@@ -308,21 +326,19 @@ export async function ReceiveFile(fileData) {
   console.log("AES key is: ", aesKey);
   console.log("Encrypted file (raw):", encryptedFile);
   console.log("Type of encryptedFile:", typeof encryptedFile);
-  //console.log("Encrypted file after from base 64 :", sodium.from_base64(encryptedFile));
-  // const decryptedFile = sodium.crypto_secretbox_open_easy(
-  //   encryptedFile,
-  //   sodium.from_base64(fileNonce),
-  //   aesKey
-  // );
+  //console.log("Encrypted file after from base 64 :", sodium.from_base64(encryptedFile, sodium.base64_variants.URLSAFE_NO_PADDING));
+  const decryptedFile = sodium.crypto_secretbox_open_easy(
+    encryptedFile,
+    sodium.from_base64(fileNonce),
+    aesKey
+  );
 
-  // console.log("Decrypted file is: ", decryptedFile);
-  // if (!decryptedFile) throw new Error("Failed to decrypt file");
+  console.log("Decrypted file is: ", decryptedFile);
+  if (!decryptedFile) throw new Error("Failed to decrypt file");
 
-  // ✍ Upload to ownCloud as user's personal copy
-  const byteArray = new Uint8Array(Object.values(file));
   const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
   const ciphertext = sodium.crypto_secretbox_easy(
-    byteArray,
+    decryptedFile,
     nonce,
     encryptionKey
   );
@@ -349,6 +365,6 @@ export async function ReceiveFile(fileData) {
   const uploadResult = await uploadRes.json();
   console.log("Upload success:", uploadResult);
 
-  // 📦 Return file blob for preview or download
+  // Return file blob for preview
   // return new Blob([decryptedFile], { type: file_type });
 }
