@@ -16,6 +16,64 @@ export default function AccountSettings() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
+  const [notificationSettings, setNotificationSettings] = useState({
+    alerts: {
+      runningOutOfSpace: true,
+      deleteLargeFiles: true,
+      newBrowserSignIn: true,
+      newDeviceLinked: true,
+      newAppConnected: true,
+    },
+    files: {
+      sharedFolderActivity: true,
+    },
+    news: {
+      newFeatures: true,
+      secureShareTips: false,
+      feedbackSurveys: true,
+    }
+  });
+
+  const [isUpdatingNotifications, setIsUpdatingNotifications] = useState(false);
+  const [notificationMessage, setNotificationMessage] = useState('');
+
+  const handleNotificationChange = (category, setting, value) => {
+    setNotificationSettings(prev => ({
+      ...prev,
+      [category]: {
+        ...prev[category],
+        [setting]: value
+      }
+    }));
+  };
+
+  const handleSaveNotifications = async () => {
+    setIsUpdatingNotifications(true);
+    setNotificationMessage('');
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/notifications`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(notificationSettings),
+      });
+
+      if (response.ok) {
+        setNotificationMessage('Notification settings updated successfully!');
+        setTimeout(() => setNotificationMessage(''), 3000);
+      } else {
+        throw new Error('Failed to update notification settings');
+      }
+    } catch (error) {
+      setNotificationMessage('Failed to update notification settings. Please try again.');
+      setTimeout(() => setNotificationMessage(''), 5000);
+    } finally {
+      setIsUpdatingNotifications(false);
+    }
+  };
+
   useEffect(() => {
     async function fetchProfile() {
       const token = localStorage.getItem('token');
@@ -637,320 +695,187 @@ export default function AccountSettings() {
 
         {activeTab === 'NOTIFICATIONS' && (
           <div className="max-w-2xl">
-            <h3 className="text-lg font-semibold mb-4">Notification Settings</h3>
-            <p className="text-slate-400">Notification settings coming soon...</p>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold">Notification Settings</h3>
+            </div>
+
+            {/* Success/Error Messages */}
+            {notificationMessage && (
+              <div className={`mb-6 p-3 rounded-md ${
+                notificationMessage.includes('successfully') 
+                  ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+                  : 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
+              }`}>
+                {notificationMessage}
+              </div>
+            )}
+
+            <div className="space-y-8">
+              {/* Alerts and News - Side by Side */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* Alerts Section */}
+                <div>
+                  <h4 className="text-base font-semibold mb-3">Alerts</h4>
+                  <p className="text-sm text-slate-400 mb-4">Email me when:</p>
+                  
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between py-2">
+                      <span className="text-sm">I'm running out of space</span>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={notificationSettings.alerts.runningOutOfSpace}
+                          onChange={(e) => handleNotificationChange('alerts', 'runningOutOfSpace', e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                      </label>
+                    </div>
+
+                    <div className="flex items-center justify-between py-2">
+                      <span className="text-sm">I delete a large number of files</span>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={notificationSettings.alerts.deleteLargeFiles}
+                          onChange={(e) => handleNotificationChange('alerts', 'deleteLargeFiles', e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                      </label>
+                    </div>
+
+                    <div className="flex items-center justify-between py-2">
+                      <span className="text-sm">A new browser is used to sign in</span>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={notificationSettings.alerts.newBrowserSignIn}
+                          onChange={(e) => handleNotificationChange('alerts', 'newBrowserSignIn', e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                      </label>
+                    </div>
+
+                    <div className="flex items-center justify-between py-2">
+                      <span className="text-sm">A new device is linked</span>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={notificationSettings.alerts.newDeviceLinked}
+                          onChange={(e) => handleNotificationChange('alerts', 'newDeviceLinked', e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                      </label>
+                    </div>
+
+                    <div className="flex items-center justify-between py-2">
+                      <span className="text-sm">A new app is connected</span>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={notificationSettings.alerts.newAppConnected}
+                          onChange={(e) => handleNotificationChange('alerts', 'newAppConnected', e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                {/* News Section */}
+                <div className="ml-32 w-full max-w-xl">
+                  <h4 className="text-base font-semibold mb-3">News</h4>
+                  <p className="text-sm text-slate-400 mb-4">Email me about:</p>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center py-2 pr-4">
+                      <span className="text-sm min-w-[250px]">New features and updates</span>
+                      <label className="ml-auto relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={notificationSettings.news.newFeatures}
+                          onChange={(e) =>
+                            handleNotificationChange('news', 'newFeatures', e.target.checked)
+                          }
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                      </label>
+                    </div>
+
+                    <div className="flex items-center py-2 pr-4">
+                      <span className="text-sm min-w-[250px]">Tips on using SecureShare</span>
+                      <label className="ml-auto relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={notificationSettings.news.secureShareTips}
+                          onChange={(e) =>
+                            handleNotificationChange('news', 'secureShareTips', e.target.checked)
+                          }
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                      </label>
+                    </div>
+
+                    <div className="flex items-center py-2 pr-4">
+                      <span className="text-sm min-w-[250px]">SecureShare feedback surveys</span>
+                      <label className="ml-auto relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={notificationSettings.news.feedbackSurveys}
+                          onChange={(e) =>
+                            handleNotificationChange('news', 'feedbackSurveys', e.target.checked)
+                          }
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Files Section - Full Width Below */}
+              <div>
+                <h4 className="text-base font-semibold mb-3">Files</h4>
+                <p className="text-sm text-slate-400 mb-4">Email me about:</p>
+                
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between py-2">
+                    <span className="text-sm">Activity in shared folders (weekly digest)</span>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={notificationSettings.files.sharedFolderActivity}
+                        onChange={(e) => handleNotificationChange('files', 'sharedFolderActivity', e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Save Button */}
+            <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+              <button
+                type="button"
+                onClick={handleSaveNotifications}
+                disabled={isUpdatingNotifications}
+                className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
+              >
+                {isUpdatingNotifications ? 'Saving...' : 'Save Notification Settings'}
+              </button>
+            </div>
           </div>
         )}
       </div>
     </div>
   );
 }
-
-
-// 'use client';
-// import { useEffect, useState } from 'react';
-// import { Camera } from 'lucide-react';
-
-// export default function AccountSettings() {
-//     const [activeTab, setActiveTab] = useState('MY ACCOUNT');
-//     const [user, setUser] = useState(null);
-//     const [isSaving, setIsSaving] = useState(false);
-//     const [isDeleting, setIsDeleting] = useState(false);
-//     const [showDeleteModal, setShowDeleteModal] = useState(false);
-
-//     const [formData, setFormData] = useState({
-//         username: '',
-//         email: ''
-//     });
-
-//     const [errors, setErrors] = useState({
-//         username: '',
-//         email: ''
-//     });
-
-//     const tabs = ['MY ACCOUNT', 'CHANGE PASSWORD', 'NOTIFICATIONS'];
-
-//     const handleInputChange = (field, value) => {
-//         setFormData(prev => ({
-//         ...prev,
-//         [field]: value
-//         }));
-//     };
-
-//     useEffect(() => {
-//         const fetchProfile = async () => {
-//             const token = localStorage.getItem('token');
-//             if (!token) return;
-
-//             try {
-//             const res = await fetch('http://localhost:5000/api/users/profile', {
-//                 headers: {
-//                 Authorization: `Bearer ${token}`,
-//                 },
-//             });
-
-//             const result = await res.json();
-//             if (!res.ok) throw new Error(result.message || 'Failed to fetch profile');
-
-//             setUser(result.data);
-//             setFormData({
-//                 username: result.data.firstName || '',
-//                 email: result.data.email || ''
-//             });
-//             } catch (err) {
-//             console.error('Failed to fetch profile:', err.message);
-//             }
-//         };
-
-//         fetchProfile();
-//     }, []);
-
-
-//     const handleSaveChanges = async () => {
-//         const token = localStorage.getItem('token');
-//         setIsSaving(true);
-
-//         try {
-//             const res = await fetch('http://localhost:5000/api/users/profile', {
-//                 method: 'PUT',
-//                 headers: {
-//                     'Content-Type': 'application/json',
-//                     Authorization: `Bearer ${token}`,
-//                 },
-//                 body: JSON.stringify({
-//                     username: formData.username,
-//             })
-//         });
-
-//         if (!res.ok) {
-//             throw new Error('Failed to update profile');
-//         }
-
-//         const data = await res.json();
-//         console.log('Profile updated successfully:', data);
-//         setFormData(prev => ({...prev, username: data.data.username }));
-//     } catch (err) {
-//             console.error('Error updating profile:', err.message);
-//         }
-//     };
-
-//     const handleConfirmDelete = async () => {
-//         const token = localStorage.getItem('token');
-//         setIsDeleting(true);
-
-//         try {
-//             const res = await fetch('http://localhost:5000/api/users/profile', {
-//                 method: 'DELETE',
-//                 headers: {
-//                     Authorization: `Bearer ${token}`,
-//                     'Content-Type': 'application/json',
-//                 },
-//                 body: JSON.stringify({
-//                     email: user.email,
-//                 }),
-//             });
-
-//             if (!res.ok) throw new Error("Failed to delete account");
-
-//             localStorage.removeItem('token');
-//             window.location.href = '/dashboard';
-//         } catch (err) {
-//             console.error("Delete error:", err.message);
-//             setShowDeleteModal(false);
-//         } finally {
-//             setIsDeleting(false);
-//         }
-//     };
-
-//     const handleDeleteClick = () => {
-//         let hasError = false;
-//         const newErrors = { username: '', email: '' };
-
-//         if (!formData.username) {
-//             newErrors.username = 'Username is required';
-//             hasError = true;
-//         }
-
-//         if (!formData.email) {
-//             newErrors.email = 'Email is required';
-//             hasError = true;
-//         }
-
-//         if (
-//             formData.username.trim().toLowerCase() !== user?.username?.toLowerCase()
-//         ) {
-//             newErrors.username = 'Username does not match your account';
-//             hasError = true;
-//         }
-
-//         if (
-//             formData.email.trim().toLowerCase() !== user?.email?.toLowerCase()
-//         ) {
-//             newErrors.email = 'Email does not match your account';
-//             hasError = true;
-//         }
-
-//         if (hasError) {
-//             setErrors(newErrors);
-//             return;
-//         }
-
-//         setErrors({ username: '', email: '' });
-//         setShowDeleteModal(true);
-//     };
-
-
-
-// return (
-//     <div className = "p-6">
-//         <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow">
-//             <div className="flex items-center gap-4 mb-8">
-//                 <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-bold">
-//                     {user?.username?.slice(0, 2).toUpperCase() || '??'}
-//                 </div>
-//                 <h1 className="text-2xl text-blue-600">{user?.username || 'Loading...'}</h1>
-//             </div>
-
-//             <div className="mb-8">
-//                 <div className="flex gap-8 border-b border-slate-600">
-//                     {tabs.map((tab) => (
-//                         <button key={tab} onClick={() => setActiveTab(tab)} className={`pb-2 px-1 text-sm font-medium transition-colors ${ activeTab === tab ? 'text-blue-400 border-b-2 border-blue-400' : 'text-slate-400 hover:text-slate-300' }`}>
-//                             {tab}
-//                         </button>
-//                     ))}
-//                 </div>
-//             </div>
-
-//             {activeTab === 'MY ACCOUNT' && (
-//                 <div className="max-w-2xl">
-//                     <div className="mb-8">
-//                         <h3 className="text-lg font-semibold mb-2">Avatar</h3>
-//                         <p className="text-sm text-slate-400 mb-4">    
-//                             JPG or PNG / 8MB maximum / 250×250px minimum
-//                         </p>
-                        
-//                         <div className="flex items-center gap-4">
-//                             <div className="w-15 h-15 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-semibold text-2xl">
-//                                 {user?.username?.slice(0, 2).toUpperCase() || '??'}
-//                             </div>
-
-//                             <button className="px-4 py-2 bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-300 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-600 transition-colors flex items-center gap-2">
-//                                 <Camera size={16} />
-//                                 Upload photo
-//                             </button>
-//                         </div>
-//                     </div>
-
-//                     <div className="space-y-6">
-//                         <div>
-//                             <label className="block text-sm font-medium mb-2">
-//                                 Username <span className="text-red-500">*</span>
-//                             </label>
-//                             <input
-//                                 type="text"
-//                                 value={formData.username}
-//                                 onChange={(e) => {
-//                                 handleInputChange('username', e.target.value);
-//                                 setErrors((prev) => ({ ...prev, username: '' }));
-//                                 }}
-//                                 className={`mt-1 block w-full px-4 py-2 border rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-//                                 errors.username ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-//                                 }`}
-//                             />
-//                             {errors.username && (
-//                                 <p className="text-sm text-red-500 mt-1">{errors.username}</p>
-//                             )}
-//                         </div>
-
-//                         <div>
-//                             <label className="block text-sm font-medium mb-2">
-//                                 Email <span className="text-red-500">*</span>
-//                             </label>
-//                             <input
-//                                 type="email"
-//                                 value={formData.email}
-//                                 onChange={(e) => {
-//                                 handleInputChange('email', e.target.value);
-//                                 setErrors((prev) => ({ ...prev, email: '' }));
-//                                 }}
-//                                 className={`mt-1 block w-full px-4 py-2 border rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-//                                 errors.email ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-//                                 }`}
-//                             />
-//                             {errors.email && (
-//                                 <p className="text-sm text-red-500 mt-1">{errors.email}</p>
-//                             )}
-//                         </div>
-//                     </div>
-
-//                     <div className="mt-8">
-//                         <button
-//                             onClick={handleSaveChanges}
-//                             disabled={isSaving}
-//                             className="px-6 py-2 bg-blue-600 hover:bg-blue-400 text-white font-medium rounded-lg transition-colors"
-//                             >
-//                             Save changes
-//                         </button>
-//                     </div>
-
-//                     <div className="mt-4">
-//                         <button
-//                             onClick={handleDeleteClick}
-//                             disabled={isDeleting}
-//                             className="px-6 py-2 bg-red-600 hover:bg-red-500 text-white font-medium rounded-lg transition-colors"
-//                             >
-//                             {isDeleting ? "Deleting..." : "Delete Account"}
-//                         </button>
-//                     </div>
-
-//                     {showDeleteModal && (
-//                         <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
-//                             <div className="bg-white dark:bg-slate-800 rounded-lg p-6 shadow-lg w-full max-w-md pointer-events-auto">
-//                                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-//                                     Confirm Account Deletion
-//                                 </h2>
-
-//                                 <p className="text-sm text-gray-600 dark:text-slate-300 mb-6">
-//                                     Are you sure you want to delete your account? This action cannot be undone.
-//                                 </p>
-
-//                                 <div className="flex justify-end space-x-3">
-//                                     <button
-//                                     onClick={() => setShowDeleteModal(false)}
-//                                     className="px-4 py-2 bg-gray-200 dark:bg-slate-600 text-gray-800 dark:text-white rounded-md hover:bg-gray-300 dark:hover:bg-slate-500"
-//                                     >
-//                                         Cancel
-//                                     </button>
-
-//                                     <button
-//                                     onClick={handleConfirmDelete}
-//                                     disabled={isDeleting}
-//                                     className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-500"
-//                                     >
-//                                         {isDeleting ? "Deleting..." : "Delete"}
-//                                     </button>
-//                                 </div>
-//                             </div>
-//                         </div>
-//                     )}
-//                 </div>
-//             )}
-
-//             {/* Placeholder content for other tabs */}
-//             {activeTab === 'CHANGE PASSWORD' && (
-//                 <div className="max-w-2xl">
-//                     <h3 className="text-lg font-semibold mb-4">Change Password</h3>
-//                     <p className="text-slate-400">Password change functionality coming soon...</p>
-//                 </div>
-//             )}
-
-//             {activeTab === 'NOTIFICATIONS' && (
-//                 <div className="max-w-2xl">
-//                     <h3 className="text-lg font-semibold mb-4">Notification Settings</h3>
-//                     <p className="text-slate-400">Notification settings coming soon...</p>
-//                 </div>
-//             )}
-//         </div>
-//     </div>
-//     );
-// }

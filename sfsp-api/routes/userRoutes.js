@@ -19,5 +19,7 @@ router.get('/public-keys/:userId', userController.getPublicKeys);
 router.get('/getUserId/:email', userController.getUserIdFromEmail);
 router.post('/get-token', userController.getUserToken);
 router.get('/token-info', userController.getUserInfoFromToken);
+router.get('/notifications', authMiddleware, userController.getNotificationSettings);
+router.put('/notifications', authMiddleware, userController.updateNotificationSettings);
 
 module.exports = router;

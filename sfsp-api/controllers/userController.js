@@ -508,6 +508,36 @@ class UserController {
       });
     }
   }
+
+  async updateNotificationSettings(req, res) {
+    try {
+      const userId = req.user.id;
+      const notificationSettings = req.body;
+
+      if (!notificationSettings) {
+        return res.status(400).json({ error: 'Notification settings are required' });
+      }
+
+      const updatedSettings = await userService.updateNotificationSettings(userId, notificationSettings);
+
+      return res.status(200).json({
+        message: 'Notification settings updated successfully',
+        data: updatedSettings,
+      });
+    } catch (error) {
+      return res.status(500).json({ error: error.message });
+    }
+  }
+
+  async getNotificationSettings(req, res) {
+    try {
+      const userId = req.user.id;
+      const { notificationSettings, email, username } = await userService.getNotificationSettings(userId);
+      return res.status(200).json({ data: { notificationSettings, email, username } });
+    } catch (error) {
+      return res.status(500).json({ error: error.message });
+    }
+  }
 }
 
 module.exports = new UserController();

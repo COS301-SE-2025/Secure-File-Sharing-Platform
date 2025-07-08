@@ -492,6 +492,103 @@ class UserService {
       return false;
     }
   }
+
+  async updateNotificationSettings(userId, notificationSettings) {
+    try {
+      if (!notificationSettings || typeof notificationSettings !== 'object') {
+        throw new Error('Invalid notification settings');
+      }
+
+      const expectedKeys = {
+        alerts: [
+          'runningOutOfSpace',
+          'deleteLargeFiles',
+          'newBrowserSignIn',
+          'newDeviceLinked',
+          'newAppConnected',
+        ],
+        files: ['sharedFolderActivity'],
+        news: ['newFeatures', 'secureShareTips', 'feedbackSurveys'],
+      };
+
+      for (const [category, settings] of Object.entries(expectedKeys)) {
+        if (!notificationSettings[category]) {
+          throw new Error(`Missing ${category} in notification settings`);
+        }
+        for (const key of settings) {
+          if (!(key in notificationSettings[category])) {
+            throw new Error(`Missing ${key} in ${category}`);
+          }
+          if (typeof notificationSettings[category][key] !== 'boolean') {
+            throw new Error(`${key} in ${category} must be a boolean`);
+          }
+        }
+      }
+
+      const { data, error } = await supabase
+        .from('users')
+        .update({ notification_settings: notificationSettings })
+        .eq('id', userId)
+        .select('notification_settings')
+        .single();
+
+      if (error) {
+        throw new Error(`Supabase error: ${error.message}`);
+      }
+
+      if (!data) {
+        throw new Error('User not found');
+      }
+
+      return data.notification_settings;
+    } catch (error) {
+      throw new Error(`Failed to update notification settings: ${error.message}`);
+    }
+  }
+
+  async getNotificationSettings(userId) {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('notification_settings, email, username')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        throw new Error(`Supabase error: ${error.message}`);
+      }
+
+      if (!data) {
+        throw new Error('User not found');
+      }
+
+      return {
+        notificationSettings: data.notification_settings,
+        email: data.email,
+        username: data.username,
+      };
+    } catch (error) {
+      throw new Error(`Failed to fetch notification settings: ${error.message}`);
+    }
+  }
+
+  async shouldSendEmail(userId, notificationType, category) {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('notification_settings')
+        .eq('id', userId)
+        .single();
+
+      if (error || !data) {
+        return false;
+      }
+
+      return data.notification_settings[category]?.[notificationType] || false;
+    } catch (error) {
+      return false;
+    }
+  }
 }
 
 module.exports = new UserService();
