@@ -143,13 +143,13 @@ exports.getNumberOfFiles = async (req, res) => {
 };
 
 exports.deleteFile = async (req, res) => {
-  const {fileId, userId} = req.body;
+  const { fileId, userId } = req.body;
 
   if (!fileId) {
     return res.status(400).send("FileId not received");
   }
 
-  if(!userId){
+  if (!userId) {
     return res.status(400).send("UserId not found");
   }
 
@@ -390,6 +390,57 @@ exports.downloadSentFile = async (req, res) => {
   } catch (err) {
     console.error("Error retrieving the sent file:", err.message);
     res.status(500).send("Error retrieving the sent file");
+  }
+}
+
+exports.viewFile = async (req, res) => {
+  const { userId, filename } = req.body;
+
+  if (!userId || !filename) {
+    return res.status(400).send("Missing userId or filename");
+  }
+
+  try {
+    const response = await axios.post(
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/view`,
+      { userId, fileName: filename },
+      { headers: { "Content-Type": "application/json" } }
+    );
+
+    if (response.status !== 200) {
+      return res.status(response.status).send("Error viewing the file");
+    }
+
+    const { fileName, fileContent, fileType, preview } = response.data;
+    res.json({ fileName, fileContent, fileType, preview });
+  } catch (err) {
+    console.error("View file error:", err.message);
+    res.status(500).send("Failed to view file");
+  }
+}
+
+exports.getFilePreview = async (req, res) => {
+  const { userId, filename } = req.body;
+
+  if (!userId || !filename) {
+    return res.status(400).send("Missing userId or filename");
+  }
+
+  try {
+    const response = await axios.post(
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/preview`,
+      { userId, fileName: filename },
+      { headers: { "Content-Type": "application/json" } }
+    );
+
+    if (response.status !== 200) {
+      return res.status(response.status).send("Error generating file preview");
+    }
+
+    res.json(response.data);
+  } catch (err) {
+    console.error("Preview generation error:", err.message);
+    res.status(500).send("Failed to generate file preview");
   }
 }
 

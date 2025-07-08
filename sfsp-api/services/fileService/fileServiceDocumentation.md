@@ -4,9 +4,11 @@
 
 1. [Download Document](#1-download-document)
 2. [Upload Document](#2-upload-document)
-3. [Get Metadata](#3-get-metadata)
-4. [File Access Logs](#4-file-access-logs)
-5. [Notifications](#5-notifications)
+3. [View Document](#3-view-document)
+4. [Get File Preview](#4-get-file-preview)
+5. [Get Metadata](#5-get-metadata)
+6. [File Access Logs](#6-file-access-logs)
+7. [Notifications](#7-notifications)
 
 ---
 
@@ -14,6 +16,8 @@
 
 * [Download Document](#download-document)
 * [Upload Document](#upload-document)
+* [View Document](#view-document)
+* [Get File Preview](#get-file-preview)
 * [Get All File Metadata for User](#get-all-file-metadata-for-user)
 * [Get Specific File Metadata](#get-specific-file-metadata)
 * [Add File Tags](#add-file-tags)
@@ -103,7 +107,7 @@
 
 ## Get All File Metadata for User
 
-## 3. Get Metadata
+## 5. Get Metadata
 
   * `Content-Type: application/json`
 
@@ -229,7 +233,71 @@
 
 ---
 
-## 4. File Access Logs
+## 3. View Document
+
+* **Endpoint**: `POST http://localhost:5000/files/view`
+* **Method**: `POST`
+* **Authentication**: Not Required
+* **Headers**:
+
+  * `Content-Type: application/json`
+
+### Request Body
+
+```json
+{
+  "userId": "550e8400-e29b-41d4-a716-446655440000",
+  "fileName": "Algorithmic trading.pdf"
+}
+```
+
+### Response
+
+```json
+{
+  "fileName": "Algorithmic trading.pdf",
+  "fileContent": "c29tZSBlbmNvZGVkIGNvbnRlbnQ=",
+  "fileType": "application/pdf",
+  "preview": true
+}
+```
+
+> Note: The `fileContent` is Base64 encoded and can be displayed directly in the browser without downloading. The `preview` field indicates whether the file type is suitable for preview.
+
+---
+
+## 4. Get File Preview
+
+* **Endpoint**: `POST http://localhost:5000/files/preview`
+* **Method**: `POST`
+* **Authentication**: Not Required
+* **Headers**:
+
+  * `Content-Type: application/json`
+
+### Request Body
+
+```json
+{
+  "userId": "550e8400-e29b-41d4-a716-446655440000",
+  "fileName": "Algorithmic trading.pdf"
+}
+```
+
+### Response
+
+```json
+{
+  "preview": "c29tZSBwcmV2aWV3IGNvbnRlbnQ=",
+  "fileType": "application/pdf"
+}
+```
+
+> Note: The `preview` contains a Base64 encoded content snippet of the file. For text files, this will be the first 1000 characters. For images, this will be the entire image. For documents, this will be the first portion of content.
+
+---
+
+## 6. File Access Logs
 
 ### a. Add Access Log
 
@@ -296,7 +364,7 @@
 ---
 
 
-## 5. Notifications
+## 7. Notifications
 
 ### a. Get Notifications
 
