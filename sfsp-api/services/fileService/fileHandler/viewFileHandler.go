@@ -13,29 +13,23 @@ import (
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
 )
 
-// Define interfaces for dependency injection in tests
 type RowScanner interface {
 	Scan(dest ...any) error
 }
 
-// QueryRowFunc allows mocking the database query row in tests
 var QueryRowFunc = func(query string, args ...any) RowScanner {
 	return DB.QueryRow(query, args...)
 }
 
-// OwnCloudDownloader allows mocking the OwnCloud download function in tests
 var OwnCloudDownloader = owncloud.DownloadFile
 
-// DecryptFunc allows mocking the decryption function in tests
 var DecryptFunc = crypto.DecryptBytes
 
-// ViewRequest is the request structure for viewing a file
 type ViewRequest struct {
 	UserID   string `json:"userId"`
 	FileName string `json:"fileName"`
 }
 
-// ViewResponse is the response structure for viewing a file
 type ViewResponse struct {
 	FileName    string `json:"fileName"`
 	FileContent string `json:"fileContent"`
@@ -43,7 +37,6 @@ type ViewResponse struct {
 	Preview     bool   `json:"preview"`
 }
 
-// ViewFileHandler handles requests to view files without downloading them
 func ViewFileHandler(w http.ResponseWriter, r *http.Request) {
 	var req ViewRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -197,7 +190,6 @@ func GetPreviewHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// Helper function to check if a file can be previewed
 func canPreview(fileType string) bool {
 	previewableTypes := []string{
 		"text/", "image/", "application/pdf",
@@ -214,8 +206,6 @@ func canPreview(fileType string) bool {
 	return false
 }
 
-// Helper function to generate a preview based on file type
-// For this implementation, we'll generate a simple preview:
 // - For text files: first 1000 characters
 // - For images: return the same content (full preview)
 // - For documents: first 1000 characters (simplified)
@@ -228,7 +218,6 @@ func generatePreview(data []byte, fileType string) []byte {
 		return data
 	}
 
-	// Images - return as is (browser can handle display)
 	if strings.HasPrefix(fileType, "image/") {
 		return data
 	}
