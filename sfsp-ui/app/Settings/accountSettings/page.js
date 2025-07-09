@@ -50,12 +50,15 @@ export default function AccountSettings() {
   const handleSaveNotifications = async () => {
     setIsUpdatingNotifications(true);
     setNotificationMessage('');
+
+    const token = localStorage.getItem('token');
     
     try {
       const response = await fetch(`${API_BASE_URL}/notifications`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify(notificationSettings),
       });
