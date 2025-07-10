@@ -49,7 +49,6 @@ func ViewFileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get file metadata
 	var fileID, nonce, fileType string
 	row := QueryRowFunc(`
 		SELECT id, nonce, file_type FROM files
@@ -63,7 +62,6 @@ func ViewFileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Download the file (encrypted)
 	data, err := OwnCloudDownloader(fileID, req.UserID)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("View failed: %v", err), http.StatusInternalServerError)
@@ -81,10 +79,8 @@ func ViewFileHandler(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Println("Failed to log file access:", err)
-		// Don't return an error to the client, just log it
 	}
 
-	// Return encrypted file content and nonce
 	base64Data := base64.StdEncoding.EncodeToString(data)
 	res := ViewResponse{
 		FileName:    req.FileName,
@@ -111,7 +107,6 @@ func GetPreviewHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get file metadata
 	var fileID, nonce, fileType string
 	row := QueryRowFunc(`
 		SELECT id, nonce, file_type FROM files
@@ -130,7 +125,6 @@ func GetPreviewHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Download the file (encrypted)
 	data, err := OwnCloudDownloader(fileID, req.UserID)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Preview generation failed: %v", err), http.StatusInternalServerError)
@@ -138,7 +132,6 @@ func GetPreviewHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Generate preview of encrypted data (first 1000 bytes or full for images)
 	var previewData []byte
 	if strings.HasPrefix(fileType, "text/") || strings.HasPrefix(fileType, "application/") {
 		if len(data) > 1000 {
@@ -156,7 +149,6 @@ func GetPreviewHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Record access log
 	_, err = DB.Exec(`
 		INSERT INTO access_logs (file_id, user_id, action, message)
 		VALUES ($1, $2, $3, $4)
@@ -188,37 +180,4 @@ func canPreview(fileType string) bool {
 	}
 
 	return false
-}
-
-// - For text files: first 1000 characters
-// - For images: return the same content (full preview)
-// - For documents: first 1000 characters (simplified)
-func generatePreview(data []byte, fileType string) []byte {
-	// Text files
-	if strings.HasPrefix(fileType, "text/") {
-		if len(data) > 1000 {
-			return data[:1000]
-		}
-		return data
-	}
-
-	if strings.HasPrefix(fileType, "image/") {
-		return data
-	}
-
-	// PDF and office documents - simplified preview (first 1000 bytes)
-	// In a real implementation, you might use a library to extract text or render thumbnails
-	if strings.HasPrefix(fileType, "application/") {
-		previewSize := 1000
-		if len(data) > previewSize {
-			return data[:previewSize]
-		}
-		return data
-	}
-
-	// Default preview
-	if len(data) > 500 {
-		return data[:500]
-	}
-	return data
 }
