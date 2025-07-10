@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto"
@@ -35,6 +34,7 @@ type ViewResponse struct {
 	FileContent string `json:"fileContent"`
 	FileType    string `json:"fileType"`
 	Preview     bool   `json:"preview"`
+	Nonce       string `json:"nonce"`
 }
 
 func ViewFileHandler(w http.ResponseWriter, r *http.Request) {
@@ -63,7 +63,7 @@ func ViewFileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Download the file
+	// Download the file (encrypted)
 	data, err := OwnCloudDownloader(fileID, req.UserID)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("View failed: %v", err), http.StatusInternalServerError)
@@ -71,20 +71,6 @@ func ViewFileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Decrypt the file
-	aesKey := os.Getenv("AES_KEY")
-	if len(aesKey) != 32 {
-		http.Error(w, "Invalid AES key", http.StatusInternalServerError)
-		return
-	}
-
-	plain, err := DecryptFunc(data, aesKey)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Decryption failed: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	// Create a preview based on file type
 	isPreviewable := canPreview(fileType)
 
 	// Record access log
@@ -98,15 +84,14 @@ func ViewFileHandler(w http.ResponseWriter, r *http.Request) {
 		// Don't return an error to the client, just log it
 	}
 
-	// Convert file content to base64
-	base64Data := base64.StdEncoding.EncodeToString(plain)
-
-	// Create response
+	// Return encrypted file content and nonce
+	base64Data := base64.StdEncoding.EncodeToString(data)
 	res := ViewResponse{
 		FileName:    req.FileName,
 		FileContent: base64Data,
 		FileType:    fileType,
 		Preview:     isPreviewable,
+		Nonce:       nonce,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -127,27 +112,25 @@ func GetPreviewHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get file metadata
-	var fileID, fileType string
+	var fileID, nonce, fileType string
 	row := QueryRowFunc(`
-		SELECT id, file_type FROM files
+		SELECT id, nonce, file_type FROM files
 		WHERE owner_id = $1 AND file_name = $2
 	`, req.UserID, req.FileName)
 
-	err := row.Scan(&fileID, &fileType)
-
+	err := row.Scan(&fileID, &nonce, &fileType)
 	if err != nil {
 		log.Println("Failed to retrieve file metadata:", err)
 		http.Error(w, "File not found", http.StatusNotFound)
 		return
 	}
 
-	// Check if preview is possible
 	if !canPreview(fileType) {
 		http.Error(w, "Preview not available for this file type", http.StatusBadRequest)
 		return
 	}
 
-	// Download the file
+	// Download the file (encrypted)
 	data, err := OwnCloudDownloader(fileID, req.UserID)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Preview generation failed: %v", err), http.StatusInternalServerError)
@@ -155,21 +138,23 @@ func GetPreviewHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Decrypt the file
-	aesKey := os.Getenv("AES_KEY")
-	if len(aesKey) != 32 {
-		http.Error(w, "Invalid AES key", http.StatusInternalServerError)
-		return
+	// Generate preview of encrypted data (first 1000 bytes or full for images)
+	var previewData []byte
+	if strings.HasPrefix(fileType, "text/") || strings.HasPrefix(fileType, "application/") {
+		if len(data) > 1000 {
+			previewData = data[:1000]
+		} else {
+			previewData = data
+		}
+	} else if strings.HasPrefix(fileType, "image/") {
+		previewData = data
+	} else {
+		if len(data) > 500 {
+			previewData = data[:500]
+		} else {
+			previewData = data
+		}
 	}
-
-	plain, err := DecryptFunc(data, aesKey)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Decryption failed: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	// Generate preview
-	preview := generatePreview(plain, fileType)
 
 	// Record access log
 	_, err = DB.Exec(`
@@ -179,14 +164,13 @@ func GetPreviewHandler(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Println("Failed to log file access:", err)
-		// Don't return an error to the client, just log it
 	}
 
-	// Return preview data
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{
-		"preview":  base64.StdEncoding.EncodeToString(preview),
+		"preview":  base64.StdEncoding.EncodeToString(previewData),
 		"fileType": fileType,
+		"nonce":    nonce,
 	})
 }
 
