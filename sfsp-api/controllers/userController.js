@@ -538,6 +538,25 @@ class UserController {
       return res.status(500).json({ error: error.message });
     }
   }
+
+  async updateAvatarUrl(req, res) {
+    try {
+
+      console.log('Received updateAvatarUrl request:', { userId: req.user.id, avatar_url: req.body.avatar_url });
+      const userId = req.user.id;
+      const { avatar_url } = req.body;
+
+      if (!avatar_url && avatar_url !== null) {
+        return res.status(400).json({ success: false, message: 'Avatar URL required (or null to remove)' });
+      }
+      
+      const updatedUrl = await userService.updateAvatarUrl(userId, avatar_url); // Call method on instance
+      res.status(200).json({ success: true, data: { avatar_url: updatedUrl } });
+    } catch (error) {
+      console.error('Error in updateAvatarUrl:', error.message);
+      res.status(500).json({ success: false, message: error.message });
+    }
+  };
 }
 
 module.exports = new UserController();

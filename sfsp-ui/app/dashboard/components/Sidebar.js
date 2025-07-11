@@ -6,16 +6,7 @@ import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import Image from 'next/image';
-import {
-  FileText,
-  Grid3X3,
-  Users,
-  Clock,
-  Trash2,
-  Settings,
-  ChevronDown,
-  LogOut,
-} from 'lucide-react';
+import { FileText, Grid3X3, Users, Clock, Trash2, Settings, ChevronDown,LogOut,} from 'lucide-react';
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -136,8 +127,16 @@ export default function Sidebar() {
             className="flex items-center gap-3 p-3 w-full text-left rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             onClick={() => setDropdownOpen((prev) => !prev)}
           >
-            <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-bold">
-              {user?.username?.slice(0, 2).toUpperCase() || '??'}
+            <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-bold overflow-hidden">
+              {user?.avatar_url ? (
+                <img
+                  src={user.avatar_url}
+                  alt="Avatar"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                user?.username?.slice(0, 2).toUpperCase() || '??'
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-sm font-medium truncate">{user?.username || 'Loading...'}</div>

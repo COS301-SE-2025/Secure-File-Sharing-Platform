@@ -1,6 +1,8 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Camera } from 'lucide-react';
+import { Camera, Trash2 } from 'lucide-react';
+import axios from 'axios';
+// import { supabase } from '@/lib/supabaseClient';
 
 const API_BASE_URL = 'http://localhost:5000/api/users';
 
@@ -14,7 +16,9 @@ export default function AccountSettings() {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [avatarMessage, setAvatarMessage] = useState('');
 
   const [notificationSettings, setNotificationSettings] = useState({
     alerts: {
@@ -219,9 +223,188 @@ export default function AccountSettings() {
     }
   };
 
+  // --------------------------------------------------------------- UPLOAD PHOTO ---------------------------------------------------------
+
   const handleUploadPhoto = () => {
-    alert('Avatar upload functionality coming soon!');
+    try {
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.accept = 'image/jpeg,image/png,image/jpg';
+      
+      fileInput.onchange = async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        if (!file.type.match(/^image\/(jpeg|png|jpg)$/)) {
+          setAvatarMessage('Only JPG or PNG images are allowed.');
+          setTimeout(() => setAvatarMessage(''), 5000);
+          return;
+        }
+        
+        if (file.size > 8 * 1024 * 1024) {
+          setAvatarMessage('File size must be less than 8MB.');
+          setTimeout(() => setAvatarMessage(''), 5000);
+          return;
+        }
+        
+        const img = new Image();
+        img.onload = async () => {
+          if (img.width < 250 || img.height < 250) {
+            setAvatarMessage('Image must be at least 250×250 pixels.');
+            setTimeout(() => setAvatarMessage(''), 5000);
+            return;
+          }
+          
+          await uploadAvatar(file);
+        };
+        
+        img.src = URL.createObjectURL(file);
+      };
+      
+      fileInput.click();
+    } catch (error) {
+      console.error('Error selecting file:', error);
+      setAvatarMessage('Error selecting file. Please try again.');
+      setTimeout(() => setAvatarMessage(''), 5000);
+    }
   };
+
+  const uploadAvatar = async (file) => {
+    try {
+      setIsUploading(true);
+      
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setAvatarMessage('Please log in to upload an avatar.');
+        setTimeout(() => setAvatarMessage(''), 5000);
+        window.location.href = '/login';
+        return;
+      }
+
+      // Upload to Cloudinary
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET); // Fixed key from 'avatar' to 'upload_preset'
+      formData.append('folder', 'avatars'); // Optional: organize in Cloudinary
+
+      const response = await axios.post(
+        `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
+        formData
+      );
+
+      const avatarUrl = response.data.secure_url;
+
+      // Update avatar_url via backend
+      const updateResponse = await fetch(`${API_BASE_URL}/avatar-url`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ avatar_url: avatarUrl }),
+      });
+
+      if (!updateResponse.ok) {
+        const errorData = await updateResponse.json();
+        throw new Error(errorData.message || 'Failed to update avatar URL');
+      }
+
+      const { data } = await updateResponse.json();
+      setUser((prev) => ({
+        ...prev,
+        avatar_url: data.avatar_url,
+      }));
+
+      setAvatarMessage('Avatar updated successfully!');
+      setTimeout(() => setAvatarMessage(''), 3000);
+    } catch (error) {
+      console.error('Error uploading avatar:', error);
+      setAvatarMessage(error.message || 'Error uploading avatar. Please try again.');
+      setTimeout(() => setAvatarMessage(''), 5000);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleDeleteAvatar = async () => {
+    try {
+      if (!user?.avatar_url) {
+        setAvatarMessage('No avatar to remove.');
+        setTimeout(() => setAvatarMessage(''), 3000);
+        return;
+      }
+      
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setAvatarMessage('Please log in to remove avatar.');
+        setTimeout(() => setAvatarMessage(''), 5000);
+        window.location.href = '/login';
+        return;
+      }
+
+      // Update avatar_url to null via backend
+      const response = await fetch(`${API_BASE_URL}/avatar-url`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ avatar_url: null }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to remove avatar');
+      }
+
+      setUser((prev) => ({
+        ...prev,
+        avatar_url: null,
+      }));
+
+      setAvatarMessage('Avatar removed successfully!');
+      setTimeout(() => setAvatarMessage(''), 3000);
+    } catch (error) {
+      console.error('Error removing avatar:', error);
+      setAvatarMessage(error.message || 'Error removing avatar. Please try again.');
+      setTimeout(() => setAvatarMessage(''), 5000);
+    }
+  };
+
+  {user?.avatar_url && (
+    <button 
+      type="button" 
+      onClick={handleDeleteAvatar}
+      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
+    >
+      <Trash2 size={16} />
+      Remove photo
+    </button>
+  )}
+
+  useEffect(() => {
+    async function fetchProfile() {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      try {
+        const res = await fetch(`${API_BASE_URL}/profile`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.message || 'Failed to fetch profile');
+
+        setUser(result.data);
+        setFormData({ username: result.data.username || '', email: result.data.email || '' });
+      } catch (error) {
+        console.error('Failed to fetch profile:', error.message);
+      }
+    }
+
+    fetchProfile();
+  }, []);
+
+  // --------------------------------------------------------------- END UPLOAD PHOTO -----------------------------------------------------
 
   // --------------------------------------------------------------- PASSWORD TAB ---------------------------------------------------------
   const [passwordData, setPasswordData] = useState({
@@ -371,8 +554,16 @@ export default function AccountSettings() {
       <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow">
         {/* User Info Header */}
         <div className="flex items-center gap-4 mb-8">
-          <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-bold">
-            {user?.username?.slice(0, 2).toUpperCase() || '??'}
+          <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-bold overflow-hidden">
+            {user?.avatar_url ? (
+              <img 
+                src={user.avatar_url} 
+                alt="Avatar" 
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              user?.username?.slice(0, 2).toUpperCase() || '??'
+            )}
           </div>
           <h1 className="text-2xl text-blue-600">{user?.username || 'Loading...'}</h1>
         </div>
@@ -406,18 +597,52 @@ export default function AccountSettings() {
               <p className="text-sm text-slate-400 mb-4">
                 JPG or PNG / 8MB maximum / 250×250px minimum
               </p>
-              <div className="flex items-center gap-4">
-                <div className="w-15 h-15 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-semibold text-2xl">
-                  {user?.username?.slice(0, 2).toUpperCase() || '??'}
-                </div>
-                <button
-                  type="button"
-                  onClick={handleUploadPhoto}
-                  className="px-4 py-2 bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-300 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-600 transition-colors flex items-center gap-2"
+              {avatarMessage && (
+                <div
+                  className={`mb-4 p-3 rounded-md ${
+                    avatarMessage.includes('successfully')
+                      ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+                      : 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
+                  }`}
                 >
-                  <Camera size={16} />
-                  Upload photo
-                </button>
+                  {avatarMessage}
+                </div>
+              )}
+              <div className="flex items-center gap-4">
+                {user?.avatar_url ? (
+                  <img
+                    src={user.avatar_url}
+                    alt="User avatar"
+                    className="w-15 h-15 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-15 h-15 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-semibold text-2xl">
+                    {user?.username?.slice(0, 2).toUpperCase() || '??'}
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleUploadPhoto}
+                    disabled={isUploading}
+                    className={`px-4 py-2 bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-300 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-600 transition-colors flex items-center gap-2 ${
+                      isUploading ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    <Camera size={16} />
+                    {isUploading ? 'Uploading...' : 'Upload photo'}
+                  </button>
+                  {user?.avatar_url && (
+                    <button
+                      type="button"
+                      onClick={handleDeleteAvatar}
+                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
+                    >
+                      <Trash2 size={16} />
+                      Remove photo
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
 

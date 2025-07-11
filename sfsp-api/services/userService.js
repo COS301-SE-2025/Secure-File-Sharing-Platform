@@ -188,6 +188,7 @@ class UserService {
         id: user.id,
         username: user.username,
         email: user.email,
+        avatar_url: user.avatar_url,
       };
     } catch (error) {
       throw new Error("Failed to fetch user profile: " + error.message);
@@ -588,6 +589,20 @@ class UserService {
     } catch (error) {
       return false;
     }
+  }
+
+  async updateAvatarUrl(userId, avatarUrl) {
+    const { data, error } = await supabase
+      .from('users')
+      .update({ avatar_url: avatarUrl })
+      .eq('id', userId)
+      .select('avatar_url')
+      .single();
+
+    if (error) throw new Error(error.message);
+    if (!data) throw new Error('User not found');
+
+    return data.avatar_url;
   }
 }
 
