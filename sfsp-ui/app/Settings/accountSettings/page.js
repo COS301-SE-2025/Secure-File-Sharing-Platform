@@ -8,6 +8,7 @@ import axios from 'axios';
 const API_BASE_URL = 'http://localhost:5000/api/users';
 
 export default function AccountSettings() {
+  const router = useRouter();
   const tabs = ['MY ACCOUNT', 'CHANGE PASSWORD', 'NOTIFICATIONS'];
   const [activeTab, setActiveTab] = useState(tabs[0]);
   const [user, setUser] = useState(null);
@@ -48,7 +49,6 @@ export default function AccountSettings() {
   const [passwordStep, setPasswordStep] = useState('verify');
   const [isProcessing, setIsProcessing] = useState(false);
   const [passwordMessage, setPasswordMessage] = useState('');
-  const router = useRouter();
 
   // Fetch user profile
   useEffect(() => {
@@ -540,7 +540,7 @@ export default function AccountSettings() {
   return (
     <div className="flex min-h-screen">
       {/* Sidebar */}
-      <div className="w-64 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white p-6 flex flex-col shadow-lg min-h-screen">
+      <div className="w-64 bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-white p-6 flex flex-col shadow-md min-h-screen">
         <div className="flex items-center mb-8">
           <button
             type="button"
@@ -575,7 +575,7 @@ export default function AccountSettings() {
                 ${
                   activeTab === tab
                     ? 'bg-blue-100 dark:bg-[#2A3548] text-blue-700 dark:text-white font-semibold'
-                    : 'text-gray-600 dark:text-gray-400 hover:bg-blue-100 dark:hover:bg-[#2A3548] hover:text-blue-700 dark:hover:text-white'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-blue-300 dark:hover:bg-gray-700 hover:text-blue-700 dark:hover:text-white'
                 }`}
             >
               {tab}
@@ -586,9 +586,9 @@ export default function AccountSettings() {
 
       {/* Main Content */}
       <div className="flex-1 bg-gray-50 dark:bg-[#1E2A3A] text-gray-900 dark:text-white min-h-screen">
-        <div className="bg-white dark:bg-gray-900 h-16 flex items-center px-6 shadow-sm">
+        <div className="bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-white h-16 flex items-center px-6 shadow-sm">
           <div className="flex items-center gap-4">
-            <h1 className="text-lg font-semibold text-gray-900 dark:text-white">ACCOUNT SETTINGS</h1>
+            <h1 className="text-2xl font-semibold text-blue-500 ">ACCOUNT SETTINGS</h1>
           </div>
         </div>
 
