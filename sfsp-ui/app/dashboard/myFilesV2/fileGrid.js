@@ -12,6 +12,8 @@ export function FileGrid({
   onViewActivity,
   onDownload,
   onDelete,
+  onClick,
+  onDoubleClick
 }) {
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const [menuFile, setMenuFile] = useState(null);
@@ -105,6 +107,8 @@ export function FileGrid({
         {files.map((file) => (
           <div
             key={file.id}
+            onClick={() => onClick && onClick(file)}
+            onDoubleClick={() => onDoubleClick && onDoubleClick(file)}
             onContextMenu={(e) => handleContextMenu(e, file)}
             className="relative group bg-white rounded-lg border border-gray-300 p-4 hover:shadow-lg transition-shadow cursor-pointer dark:bg-gray-200 dark:hover:bg-blue-100"
           >
