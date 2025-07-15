@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import Loader from '@/app/dashboard/components/Loader';
 import { getSodium } from "@/app/lib/sodium";
 import { v4 as uuidv4 } from "uuid";
 //import * as sodium from 'libsodium-wrappers-sumo';
@@ -21,7 +22,9 @@ export default function AuthPage() {
   const router = useRouter();
   const [tab, setTab] = useState("login");
   const [isLoading, setIsLoading] = useState(false);
+  const [loaderMessage, setLoaderMessage] = useState("Loading...");
   const [message, setMessage] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const [loginData, setLoginData] = useState({ email: "", password: "" });
   const [signupData, setSignupData] = useState({
@@ -39,12 +42,20 @@ export default function AuthPage() {
         ...prev,
         [name]: value,
       }));
+      
+      if (fieldErrors[name]) {
+        setFieldErrors((prev) => ({
+          ...prev,
+          [name]: '',
+        }));
+      }
     };
   }
 
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
+    setLoaderMessage("Signing you in...");
     setMessage(null);
 
     console.log(loginData.email);
@@ -177,20 +188,42 @@ export default function AuthPage() {
     e.preventDefault();
     const { name, email, password, confirmPassword } = signupData;
     setIsLoading(true);
+    setLoaderMessage("Creating your SecureShare account...");
     setMessage(null);
 
-    // Validation
-    if (!name || !email || !password || !confirmPassword) {
-      return setError("All fields are required.");
+    setFieldErrors({});
+
+    let errors = {};
+
+    if (!name) {
+      errors.name = "Name is required.";
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return setError("Please enter a valid email address.");
+    
+    if (!email) {
+      errors.email = "Email is required.";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errors.email = "Please enter a valid email address.";
     }
-    if (password.length < 6) {
-      return setError("Password must be at least 6 characters.");
+
+    if (!password) {
+      errors.password = "Password is required.";
+    } else {
+      const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{8,}$/;
+      if (!passwordRegex.test(password)) {
+        errors.password = "Password must be at least 8 characters long and include at least one uppercase letter, one lowercase letter, one number, and one special character (!@#$%^&*).";
+      }
     }
-    if (password !== confirmPassword) {
-      return setError("Passwords do not match.");
+
+    if (!confirmPassword) {
+      errors.confirmPassword = "Please confirm your password.";
+    } else if (password !== confirmPassword) {
+      errors.confirmPassword = "Passwords do not match.";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setIsLoading(false);
+      return;
     }
 
     try {
@@ -287,7 +320,9 @@ export default function AuthPage() {
 
       localStorage.setItem("token", token.replace(/^Bearer\s/, ""));
       setMessage("User successfully registered!");
-      router.push("/dashboard");
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 1000);
     } catch (err) {
       console.error("Signup error:", err);
       setMessage(err.message || "Something went wrong. Please try again.");
@@ -382,6 +417,7 @@ export default function AuthPage() {
 
   return (
     <div className="min-h-screen bg-white flex">
+      {isLoading && <Loader message={loaderMessage} />}
       {/* Left Panel */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 relative overflow-hidden">
         <div className="absolute inset-0 bg-blue-600 bg-opacity-10 dark:bg-gray-900" />
@@ -430,6 +466,7 @@ export default function AuthPage() {
               onClick={() => {
                 setTab("login");
                 setMessage(null);
+                setFieldErrors({});
               }}
               className={`cursor-pointer text-center pb-2 font-medium transition-all ${
                 tab === "login"
@@ -443,6 +480,7 @@ export default function AuthPage() {
               onClick={() => {
                 setTab("signup");
                 setMessage(null);
+                setFieldErrors({});
               }}
               className={`cursor-pointer text-center pb-2 font-medium transition-all ${
                 tab === "signup"
@@ -604,8 +642,13 @@ export default function AuthPage() {
                     value={signupData.name}
                     onChange={handleChange(setSignupData)}
                     required
-                    className="w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 "
+                    className={`w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${
+                      fieldErrors.name ? 'border-red-500' : ''
+                    }`}
                   />
+                  {fieldErrors.name && (
+                    <p className="text-red-500 text-sm mt-1">{fieldErrors.name}</p>
+                  )}
                 </div>
                 <div>
                   <label
@@ -621,8 +664,13 @@ export default function AuthPage() {
                     value={signupData.email}
                     onChange={handleChange(setSignupData)}
                     required
-                    className="w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900  "
+                    className={`w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${
+                      fieldErrors.email ? 'border-red-500' : ''
+                    }`}
                   />
+                  {fieldErrors.email && (
+                    <p className="text-red-500 text-sm mt-1">{fieldErrors.email}</p>
+                  )}
                 </div>
                 <div>
                   <label
@@ -638,8 +686,13 @@ export default function AuthPage() {
                     value={signupData.password}
                     onChange={handleChange(setSignupData)}
                     required
-                    className="w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900  "
+                    className={`w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${
+                      fieldErrors.password ? 'border-red-500' : ''
+                    }`}
                   />
+                  {fieldErrors.password && (
+                    <p className="text-red-500 text-sm mt-1">{fieldErrors.password}</p>
+                  )}
                 </div>
                 <div>
                   <label
@@ -655,8 +708,13 @@ export default function AuthPage() {
                     value={signupData.confirmPassword}
                     onChange={handleChange(setSignupData)}
                     required
-                    className="w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900  "
+                    className={`w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${
+                      fieldErrors.confirmPassword ? 'border-red-500' : ''
+                    }`}
                   />
+                  {fieldErrors.confirmPassword && (
+                    <p className="text-red-500 text-sm mt-1">{fieldErrors.confirmPassword}</p>
+                  )}
                 </div>
 
                 {message && (
