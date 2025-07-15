@@ -56,6 +56,7 @@ export default function AccountSettings() {
   const [deleteErrors, setDeleteErrors] = useState({});
   const [deleteMessage, setDeleteMessage] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   useEffect(() => {
     async function fetchProfile() {
@@ -188,16 +189,11 @@ export default function AccountSettings() {
       return;
     }
     setDeleteErrors({});
-
-    const confirmed = window.confirm(
-      'Are you sure you want to delete your account? This action cannot be undone.'
-    );
-    if (confirmed) {
-      handleConfirmDelete();
-    }
+    setShowDeleteModal(true);
   };
 
   const handleConfirmDelete = async () => {
+    setShowDeleteModal(false);
     setIsDeleting(true);
     try {
       const token = localStorage.getItem('token');
@@ -227,6 +223,12 @@ export default function AccountSettings() {
       setIsDeleting(false);
     }
   };
+
+  const handleCancelDelete = () => {
+    setShowDeleteModal(false);
+  };
+
+
 
   const handleUploadPhoto = () => {
     try {
@@ -615,7 +617,7 @@ export default function AccountSettings() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 bg-gray-50 dark:bg-[#1E2A3A] text-gray-900 dark:text-white min-h-screen">
+      <div className="flex-1 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white min-h-screen">
         <div className="bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-white h-16 flex items-center px-6 shadow-sm">
           <div className="flex items-center gap-4">
             <h1 className="text-2xl font-semibold text-blue-500 ">ACCOUNT SETTINGS</h1>
@@ -1227,6 +1229,36 @@ export default function AccountSettings() {
           )}
         </div>
       </div>
+
+      {/* Delete Account Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              Confirm Account Deletion
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+              Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently lost.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                type="button"
+                onClick={handleCancelDelete}
+                className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white rounded-md hover:bg-gray-300 dark:hover:bg-gray-500"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+              >
+                Yes, Delete Account
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

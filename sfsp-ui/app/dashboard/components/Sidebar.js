@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import {useRef, useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import Image from 'next/image';
@@ -11,6 +11,7 @@ import { FileText, Grid3X3, Users, Clock, Trash2, Settings, ChevronDown,LogOut,}
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const dropdownRef = useRef(null);
   const [user, setUser] = useState(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -49,6 +50,20 @@ export default function Sidebar() {
 
     fetchProfile();
   }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setSettingsOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -161,7 +176,7 @@ export default function Sidebar() {
         </div>
 
         {/* Settings Dropdown */}
-        <div className="relative">
+        <div className="relative" ref={dropdownRef}>
           <button
             data-testid="settings-dropdown"
             onClick={() => setSettingsOpen((prev) => !prev)}
