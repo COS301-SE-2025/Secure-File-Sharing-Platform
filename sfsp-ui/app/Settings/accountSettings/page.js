@@ -1,22 +1,24 @@
 // AccountSettings.jsx
 'use client';
 import { useEffect, useState } from 'react';
-import { Camera, Trash2 } from 'lucide-react';
+import { Camera, Trash2, Sun, Moon, ChevronUp, ChevronDown } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useTheme } from 'next-themes';
 import axios from 'axios';
 
 const API_BASE_URL = 'http://localhost:5000/api/users';
 
 export default function AccountSettings() {
   const router = useRouter();
+  const { setTheme, resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  const [dateFormat, setDateFormat] = useState('MM/DD/YYYY');
   const tabs = ['MY ACCOUNT', 'CHANGE PASSWORD', 'NOTIFICATIONS'];
   const [activeTab, setActiveTab] = useState(tabs[0]);
   const [user, setUser] = useState(null);
   const [formData, setFormData] = useState({ username: '', email: '' });
   const [errors, setErrors] = useState({ username: '', email: '' });
   const [isSaving, setIsSaving] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [avatarMessage, setAvatarMessage] = useState('');
@@ -49,13 +51,17 @@ export default function AccountSettings() {
   const [passwordStep, setPasswordStep] = useState('verify');
   const [isProcessing, setIsProcessing] = useState(false);
   const [passwordMessage, setPasswordMessage] = useState('');
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [deleteFormData, setDeleteFormData] = useState({ email: '', password: '' });
+  const [deleteErrors, setDeleteErrors] = useState({});
+  const [deleteMessage, setDeleteMessage] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  // Fetch user profile
   useEffect(() => {
     async function fetchProfile() {
       const token = localStorage.getItem('token');
       if (!token) {
-        router.push('/login');
+        router.push('/auth');
         return;
       }
 
@@ -77,7 +83,14 @@ export default function AccountSettings() {
     fetchProfile();
   }, [router]);
 
-  // Handlers for MY ACCOUNT tab
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const toggleTheme = () => {
+    setTheme(resolvedTheme === 'dark' ? 'light' : 'dark');
+  };
+
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     setErrors((prev) => ({ ...prev, [field]: '' }));
@@ -145,34 +158,47 @@ export default function AccountSettings() {
     }
   };
 
+  const handleDateFormatChange = (value) => {
+    setDateFormat(value);
+    localStorage.setItem('dateFormat', value);
+  };
+
+  const handleDeleteInputChange = (field, value) => {
+    setDeleteFormData((prev) => ({ ...prev, [field]: value }));
+    setDeleteErrors((prev) => ({ ...prev, [field]: '' }));
+  };
+
+  const validateDeleteForm = () => {
+    const newErrors = {};
+    if (!deleteFormData.email) {
+      newErrors.email = 'Email is required';
+    } else if (deleteFormData.email.trim().toLowerCase() !== user?.email?.toLowerCase()) {
+      newErrors.email = 'Email does not match your account';
+    }
+    if (!deleteFormData.password) {
+      newErrors.password = 'Password is required';
+    }
+    return newErrors;
+  };
+
   const handleDeleteClick = () => {
-    if (!validate()) return;
-
-    const mismatchErrors = {};
-    let hasMismatch = false;
-
-    if (formData.username.trim().toLowerCase() !== user?.username?.toLowerCase()) {
-      mismatchErrors.username = 'Username does not match your account';
-      hasMismatch = true;
-    }
-
-    if (formData.email.trim().toLowerCase() !== user?.email?.toLowerCase()) {
-      mismatchErrors.email = 'Email does not match your account';
-      hasMismatch = true;
-    }
-
-    if (hasMismatch) {
-      setErrors(mismatchErrors);
+    const validationErrors = validateDeleteForm();
+    if (Object.keys(validationErrors).length > 0) {
+      setDeleteErrors(validationErrors);
       return;
     }
+    setDeleteErrors({});
 
-    setErrors({ username: '', email: '' });
-    setShowDeleteModal(true);
+    const confirmed = window.confirm(
+      'Are you sure you want to delete your account? This action cannot be undone.'
+    );
+    if (confirmed) {
+      handleConfirmDelete();
+    }
   };
 
   const handleConfirmDelete = async () => {
     setIsDeleting(true);
-
     try {
       const token = localStorage.getItem('token');
       const res = await fetch(`${API_BASE_URL}/profile`, {
@@ -181,17 +207,22 @@ export default function AccountSettings() {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email: user.email }),
+        body: JSON.stringify({
+          email: deleteFormData.email,
+          password: deleteFormData.password,
+        }),
       });
 
       if (!res.ok) throw new Error('Failed to delete account');
 
       localStorage.removeItem('token');
-      router.push('/login');
+      setDeleteMessage('Account deleted successfully');
+      setTimeout(() => {
+        router.push('/');
+      }, 1000);
     } catch (error) {
       console.error('Delete error:', error.message);
-      setErrors((prev) => ({ ...prev, general: 'Failed to delete account. Please try again.' }));
-      setShowDeleteModal(false);
+      setDeleteErrors({ general: 'Failed to delete account. Please try again.' });
     } finally {
       setIsDeleting(false);
     }
@@ -345,7 +376,6 @@ export default function AccountSettings() {
     }
   };
 
-  // Handlers for CHANGE PASSWORD tab
   const handlePasswordInputChange = (field, value) => {
     setPasswordData((prev) => ({ ...prev, [field]: value }));
     if (passwordErrors[field]) {
@@ -605,8 +635,9 @@ export default function AccountSettings() {
           </div>
 
           {activeTab === 'MY ACCOUNT' && (
-            <div className="max-w-2xl">
-              <div className="mb-8">
+            <div className="max-w-2xl space-y-8">
+              {/* Avatar Section */}
+              <div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Avatar</h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                   JPG or PNG / 8MB maximum / 250×250px minimum
@@ -660,111 +691,202 @@ export default function AccountSettings() {
                 </div>
               </div>
 
-              <div className="space-y-6">
-                <div>
-                  <label htmlFor="username" className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
-                    Username <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    id="username"
-                    type="text"
-                    value={formData.username}
-                    onChange={(e) => handleInputChange('username', e.target.value)}
-                    className={`mt-1 block w-full px-4 py-2 border rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors.username ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                    }`}
-                    aria-invalid={!!errors.username}
-                    aria-describedby={errors.username ? 'username-error' : undefined}
-                  />
-                  {errors.username && (
-                    <p id="username-error" className="text-sm text-red-500 mt-1">
-                      {errors.username}
-                    </p>
+              <hr className="border-gray-300 dark:border-gray-600" />
+
+              {/* Change Username Section */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Change Username</h3>
+                <div className="space-y-6">
+                  <div>
+                    <label htmlFor="username" className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
+                      Username <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      id="username"
+                      type="text"
+                      value={formData.username}
+                      onChange={(e) => handleInputChange('username', e.target.value)}
+                      className={`mt-1 block w-full px-4 py-2 border rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                        errors.username ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                      }`}
+                      aria-invalid={!!errors.username}
+                      aria-describedby={errors.username ? 'username-error' : undefined}
+                    />
+                    {errors.username && (
+                      <p id="username-error" className="text-sm text-red-500 mt-1">
+                        {errors.username}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label htmlFor="email" className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
+                      Email <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      id="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => handleInputChange('email', e.target.value)}
+                      className={`mt-1 block w-full px-4 py-2 border rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                        errors.email ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                      }`}
+                      aria-invalid={!!errors.email}
+                      aria-describedby={errors.email ? 'email-error' : undefined}
+                    />
+                    {errors.email && (
+                      <p id="email-error" className="text-sm text-red-500 mt-1">
+                        {errors.email}
+                      </p>
+                    )}
+                  </div>
+
+                  {errors.general && (
+                    <p className="text-sm text-red-500 mt-1">{errors.general}</p>
+                  )}
+
+                  <div className="mt-6">
+                    <button
+                      type="button"
+                      onClick={handleSaveChanges}
+                      disabled={isSaving}
+                      className="px-6 py-2 bg-blue-600 hover:bg-blue-400 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      {isSaving ? 'Saving...' : 'Save changes'}
+                    </button>
+                  </div>
+
+                  {successMessage && (
+                    <p className="mt-4 text-green-500 font-semibold">{successMessage}</p>
                   )}
                 </div>
+              </div>
 
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
-                    Email <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => handleInputChange('email', e.target.value)}
-                    className={`mt-1 block w-full px-4 py-2 border rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors.email ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                    }`}
-                    aria-invalid={!!errors.email}
-                    aria-describedby={errors.email ? 'email-error' : undefined}
-                  />
-                  {errors.email && (
-                    <p id="email-error" className="text-sm text-red-500 mt-1">
-                      {errors.email}
-                    </p>
-                  )}
-                </div>
+              <hr className="border-gray-300 dark:border-gray-600" />
 
-                {errors.general && (
-                  <p className="text-sm text-red-500 mt-1">{errors.general}</p>
+              {/* Date Format Section */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Date Format</h3>
+                <select
+                  id="dateFormat"
+                  value={dateFormat}
+                  onChange={(e) => handleDateFormatChange(e.target.value)}
+                  className="mt-1 block w-full px-4 py-2 border rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-300 dark:border-gray-600"
+                >
+                  <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                  <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                  <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                </select>
+              </div>
+
+              <hr className="border-gray-300 dark:border-gray-600" />
+
+              {/* Theme Section */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Theme</h3>
+                {mounted && (
+                  <button
+                    onClick={toggleTheme}
+                    className="w-10 h-10 flex items-center justify-center bg-gray-300 dark:bg-gray-800 text-gray-800 dark:text-white rounded-full hover:bg-gray-400 dark:hover:bg-gray-700"
+                    title="Toggle theme"
+                  >
+                    {resolvedTheme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+                  </button>
                 )}
               </div>
 
-              <div className="mt-8 flex gap-4">
-                <button
-                  type="button"
-                  onClick={handleSaveChanges}
-                  disabled={isSaving}
-                  className="px-6 py-2 bg-blue-600 hover:bg-blue-400 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
-                >
-                  {isSaving ? 'Saving...' : 'Save changes'}
-                </button>
+              <hr className="border-gray-300 dark:border-gray-600" />
 
-                <button
-                  type="button"
-                  onClick={handleDeleteClick}
-                  disabled={isDeleting}
-                  className="px-6 py-2 bg-red-600 hover:bg-red-500 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
-                >
-                  {isDeleting ? 'Deleting...' : 'Delete Account'}
-                </button>
-              </div>
-
-              {successMessage && (
-                <p className="mt-4 text-green-500 font-semibold">{successMessage}</p>
-              )}
-
-              {showDeleteModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-                  <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg w-full max-w-md">
-                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                      Confirm Account Deletion
-                    </h2>
-                    <p className="text-sm text-gray-600 dark:text-gray-300 mb-6">
-                      Are you sure you want to delete your account? This action cannot be undone.
-                    </p>
-                    <div className="flex justify-end space-x-3">
-                      <button
-                        type="button"
-                        onClick={() => setShowDeleteModal(false)}
-                        className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white rounded-md hover:bg-gray-300 dark:hover:bg-gray-500"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleConfirmDelete}
-                        disabled={isDeleting}
-                        className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
-                      >
-                        {isDeleting ? 'Deleting...' : 'Delete'}
-                      </button>
-                    </div>
+          {/* Delete Account Section (Collapsible) */}
+            <div>
+              <button
+                type="button"
+                onClick={() => setIsDeleteOpen(!isDeleteOpen)}
+                className="flex items-center justify-between w-full text-lg font-semibold text-gray-900 dark:text-white mb-2"
+              >
+                Delete Account
+                {isDeleteOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+              </button>
+              {isDeleteOpen && (
+                <div className="mt-4 space-y-6">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Deleting your account is permanent and cannot be undone. Please enter your email and password to confirm.
+                  </p>
+                  <div>
+                    <label htmlFor="delete-email" className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
+                      Email <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      id="delete-email"
+                      type="email"
+                      value={deleteFormData.email}
+                      onChange={(e) => handleDeleteInputChange('email', e.target.value)}
+                      className={`mt-1 block w-full px-4 py-2 border rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                        deleteErrors.email ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                      }`}
+                      aria-invalid={!!deleteErrors.email}
+                      aria-describedby={deleteErrors.email ? 'delete-email-error' : undefined}
+                    />
+                    {deleteErrors.email && (
+                      <p id="delete-email-error" className="text-sm text-red-500 mt-1">
+                        {deleteErrors.email}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <label htmlFor="delete-password" className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
+                      Password <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      id="delete-password"
+                      type="password"
+                      value={deleteFormData.password}
+                      onChange={(e) => handleDeleteInputChange('password', e.target.value)}
+                      className={`mt-1 block w-full px-4 py-2 border rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                        deleteErrors.password ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                      }`}
+                      aria-invalid={!!deleteErrors.password}
+                      aria-describedby={deleteErrors.password ? 'delete-password-error' : undefined}
+                    />
+                    {deleteErrors.password && (
+                      <p id="delete-password-error" className="text-sm text-red-500 mt-1">
+                        {deleteErrors.password}
+                      </p>
+                    )}
+                  </div>
+                  {deleteErrors.general && (
+                    <p className="text-sm text-red-500 mt-1">{deleteErrors.general}</p>
+                  )}
+                  {deleteMessage && (
+                    <p className="text-sm text-green-500 mt-1">{deleteMessage}</p>
+                  )}
+                  <div className="flex justify-end space-x-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsDeleteOpen(false);
+                        setDeleteFormData({ email: '', password: '' });
+                        setDeleteErrors({});
+                        setDeleteMessage('');
+                      }}
+                      className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white rounded-md hover:bg-gray-300 dark:hover:bg-gray-500"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDeleteClick}
+                      disabled={isDeleting}
+                      className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
+                    >
+                      {isDeleting ? 'Deleting...' : 'Delete Account'}
+                    </button>
                   </div>
                 </div>
               )}
             </div>
-          )}
+            </div>
+            )}
 
           {activeTab === 'CHANGE PASSWORD' && (
             <div className="max-w-2xl">
