@@ -4,11 +4,9 @@
 
 1. [Download Document](#1-download-document)
 2. [Upload Document](#2-upload-document)
-3. [View Document](#3-view-document)
-4. [Get File Preview](#4-get-file-preview)
-5. [Get Metadata](#5-get-metadata)
-6. [File Access Logs](#6-file-access-logs)
-7. [Notifications](#7-notifications)
+3. [Get Metadata](#3-get-metadata)
+4. [File Access Logs](#4-file-access-logs)
+5. [Notifications](#5-notifications)
 
 ---
 
@@ -16,8 +14,6 @@
 
 * [Download Document](#download-document)
 * [Upload Document](#upload-document)
-* [View Document](#view-document)
-* [Get File Preview](#get-file-preview)
 * [Get All File Metadata for User](#get-all-file-metadata-for-user)
 * [Get Specific File Metadata](#get-specific-file-metadata)
 * [Add File Tags](#add-file-tags)
@@ -107,7 +103,7 @@
 
 ## Get All File Metadata for User
 
-## 5. Get Metadata
+## 3. Get Metadata
 
   * `Content-Type: application/json`
 
@@ -233,65 +229,218 @@
 
 ---
 
-## 3. View Document
+## 4. File Access Logs
 
-* **Endpoint**: `POST http://localhost:5000/files/view`
+### a. Add Access Log
+
+* **Endpoint**: `POST http://localhost:5000/api/files/addAccesslog`
 * **Method**: `POST`
 * **Authentication**: Not Required
 * **Headers**:
 
   * `Content-Type: application/json`
 
-### Request Body
+#### Request Body
 
 ```json
 {
-  "userId": "550e8400-e29b-41d4-a716-446655440000",
-  "fileName": "Algorithmic trading.pdf"
+  "file_id": "1e064cfa-3fa9-4476-9338-4b37533f3faa",
+  "user_id": "11111111-1111-1111-1111-111111111111",
+  "action": "viewed",
+  "message": "User <email> has <action> the files <file_name>"
 }
 ```
 
-### Response
+#### Response `201 Created`
 
 ```json
 {
-  "fileName": "Algorithmic trading.pdf",
-  "fileContent": "<base64-encoded-encrypted-content>",
-  "fileType": "application/pdf",
-  "preview": true,
-  "nonce": "<base64-encoded-nonce>"
+  "message": "Access log added successfully"
 }
 ```
 
 ---
 
-## 4. Get File Preview
+### b. Get Access Logs
 
-* **Endpoint**: `POST http://localhost:5000/files/preview`
+* **Endpoint**: `GET http://localhost:5000/files/getAccesslog`
+* **Authentication**: Not Required
+* **Headers**:
+
+  * `Content-Type: application/json`
+
+#### Request Body
+
+```json
+{
+  "file_id": "1e064cfa-3fa9-4476-9338-4b37533f3faa"
+}
+```
+
+#### Response
+
+```json
+[
+  {
+    "id": "cbe648ba-60d2-4b31-b9d5-00e927898d3d",
+    "file_id": "...",
+    "user_id": "...",
+    "action": "deleted",
+    "message": "User <email> has <action> the files <file_name>",
+    "timestamp": "2025-06-24T17:28:41.316972Z"
+  },
+  ...
+]
+```
+
+---
+
+
+## 5. Notifications
+
+### a. Get Notifications
+
+* **Endpoint**: `POST http://localhost:5000/api/notifications/get`
 * **Method**: `POST`
 * **Authentication**: Not Required
 * **Headers**:
 
   * `Content-Type: application/json`
 
-### Request Body
+#### Request Body
 
 ```json
 {
-  "userId": "550e8400-e29b-41d4-a716-446655440000",
-  "fileName": "Algorithmic trading.pdf"
+  "userId": "06f2660c-faed-4396-80f3-a687e94e1987"
 }
 ```
 
-### Response
+#### Response
 
 ```json
 {
-  "preview": "<base64-encoded-encrypted-preview>",
-  "fileType": "application/pdf",
-  "nonce": "<base64-encoded-nonce>"
+  "notifications": [
+    {
+      "id": "dfe388a7-8aa9-49ef-a0a9-871dcefce8c5",
+      "type": "file_share",
+      "from": "...",
+      "to": "...",
+      "file_name": "resume.pdf",
+      "file_id": "...",
+      "message": "Please review my resume",
+      "timestamp": "2025-06-25T11:56:21.091249Z",
+      "status": "pending",
+      "read": false
+    }
+  ],
+  "success": true
 }
 ```
 
 ---
+
+### b. Mark Notification as Read
+
+* **Endpoint**: `POST http://localhost:5000/api/notifications/markAsRead`
+* **Method**: `POST`
+* **Authentication**: Not Required
+
+#### Request Body
+
+```json
+{
+  "id": "dfe388a7-8aa9-49ef-a0a9-871dcefce8c5"
+}
+```
+
+#### Response
+
+```json
+{
+  "message": "Notification marked as read",
+  "success": true
+}
+```
+
+---
+
+### c. Respond to Notification
+
+* **Endpoint**: `POST http://localhost:5000/api/notifications/respond`
+* **Method**: `POST`
+* **Authentication**: Not Required
+
+#### Request Body
+
+```json
+{
+  "id": "dfe388a7-8aa9-49ef-a0a9-871dcefce8c5",
+  "status": "declined"
+}
+```
+
+#### Response
+
+```json
+{
+  "message": "Notification status updated",
+  "success": true
+}
+```
+
+---
+
+### d. Clear Notification
+
+* **Endpoint**: `POST http://localhost:5000/api/notifications/clear`
+* **Method**: `POST`
+* **Authentication**: Not Required
+
+#### Request Body
+
+```json
+{
+  "id": "46988b24-e8dd-4b6f-bfff-8f1b8f382f56"
+}
+```
+
+#### Response
+
+```json
+{
+  "message": "Notification deleted",
+  "success": true
+}
+```
+
+---
+
+### e. Add Notification
+
+* **Endpoint**: `POST http://localhost:5000/api/notifications/add`
+* **Method**: `POST`
+* **Authentication**: Not Required
+
+#### Request Body
+
+```json
+{
+  "type": "file request",
+  "fromEmail": "tmakhene21@gmail.com",
+  "toEmail": "Goon@gmail.com",
+  "file_name": "design.png",
+  "file_id": "2dd40203-3db5-4fd7-97f6-c3a7b2b9c631",
+  "message": "Can I get a copy of your logo design?"
+}
+```
+
+#### Response
+
+```json
+{
+  "id": "2c27e743-0b55-476c-8e10-07e9c39cf066",
+  "message": "Notification added",
+  "success": true
+}
+```
 

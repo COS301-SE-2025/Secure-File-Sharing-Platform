@@ -20,8 +20,7 @@ router.post("/deleteFile", fileController.deleteFile);
 router.post('/softDeleteFile', fileController.softDeleteFile);
 router.post('/restoreFile', fileController.restoreFile);
 router.post("/deleteFile", fileController.deleteFile);
-router.post("/view", fileController.viewFile);
-router.post("/preview", fileController.getFilePreview);
+router.post("/sendByView", fileController.sendByView);
 
 
 module.exports = router;

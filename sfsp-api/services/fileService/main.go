@@ -58,8 +58,6 @@ func main() {
 
 	http.HandleFunc("/upload", fileHandler.UploadHandler)
 	http.HandleFunc("/download", fileHandler.DownloadHandler)
-	http.HandleFunc("/view", fileHandler.ViewFileHandler)
-	http.HandleFunc("/preview", fileHandler.GetPreviewHandler)
 
 	// access log endpoints
 	http.HandleFunc("/addAccesslog", fileHandler.AddAccesslogHandler)
