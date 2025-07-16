@@ -202,7 +202,7 @@ export default function MyFiles() {
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-2xl font-semibold text-blue-500 ">My FIles</h1>
+            <h1 className="text-2xl font-semibold text-blue-500 ">My Files</h1>
             <p className="text-gray-600 dark:text-gray-400">
               Manage and organize your files
             </p>
