@@ -229,6 +229,30 @@ exports.sendFile = async (req, res) => {
   }
 };
 
+exports.getAccessLogs = async (req, res) => {
+  const { fileId, userId } = req.body;
+
+  if (!fileId || !userId) {
+    return res.status(400).send("Missing fileId or userId");
+  }
+
+  try {
+    const response = await axios.post(
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/getAccessLogs`,
+      { fileId, userId },
+      { headers: { "Content-Type": "application/json" } }
+    );
+
+    if (response.status !== 200) {
+      return res.status(response.status).send("Error retrieving access logs");
+    }
+    res.json(response.data);
+  } catch (err) {
+    console.error("Error retrieving access logs:", err.message);
+    res.status(500).send("Error retrieving access logs");
+  }
+};
+
 exports.addAccesslog = async (req, res) => {
   const { file_id, user_id, action, message } = req.body;
   if (!file_id || !user_id || !action || !message) {
@@ -305,7 +329,6 @@ exports.addUserToTable = async (req, res) => {
   }
 
 };
-
 
 exports.softDeleteFile = async (req, res) => {
   const { fileId } = req.body;
@@ -394,5 +417,55 @@ exports.downloadSentFile = async (req, res) => {
 }
 
 exports.sendByView = async (req, res) => {
-  // user should 
-}
+  const {
+    fileId,
+    userId,
+    recipientUserId,
+    encryptedFile,
+    encryptedAesKey,
+    ekPublicKey,
+    metadata,
+  } = req.body;
+
+  if (!fileid) return res.status(400).send("File ID is missing");
+  if (!userId || !recipientUserId)
+    return res.status(400).send("User ID or Recipient User ID is missing");
+  if (!encryptedFile || !encryptedAesKey)
+    return res.status(400).send("Encrypted file or AES key is missing");
+
+  if (
+    !metadata ||
+    !metadata.fileNonce ||
+    !metadata.keyNonce ||
+    !metadata.ikPublicKey ||
+    !metadata.ekPublicKey ||
+    !metadata.opk_id
+  ) {
+    return res
+      .status(400)
+      .send("Metadata is incomplete or missing required keys");
+  }
+  try {
+    const response = await axios.post(
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/sendByView`,
+      {
+        fileId,
+        userId,
+        recipientUserId,
+        encryptedFile,
+        encryptedAesKey,
+        ekPublicKey,
+        metadata,
+      },
+      { headers: { "Content-Type": "application/json" } }
+    );
+
+    if (response.status !== 200) {
+      return res.status(response.status).send("Error sending file by view");
+    }
+    res.status(response.status).send(response.data);
+  } catch (err) {
+    console.error("Send by view error:", err.message);
+    res.status(500).send("Failed to send file by view");
+  }
+};
