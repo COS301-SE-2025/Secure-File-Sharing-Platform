@@ -33,25 +33,62 @@ export function PreviewDrawer({ file, content, onClose, onOpenFullView }) {
             Modified: {file?.modified}
           </div>
 
-          {file?.type === "image" && content?.url && (
-            <div className="max-h-64 overflow-hidden rounded">
-              <img
-                src={content.url}
-                alt="Preview"
-                className="w-full object-cover"
-              />
-            </div>
-          )}
+          {(() => {
+            switch (file?.type) {
+              case "image":
+                return content?.url ? (
+                  <div className="max-h-64 overflow-hidden rounded">
+                    <img
+                      src={content.url}
+                      alt="Preview"
+                      className="w-full object-cover"
+                    />
+                  </div>
+                ) : null;
 
-          {file?.type === "pdf" && content?.url && (
-            <iframe src={content.url} className="w-full h-64 rounded"></iframe>
-          )}
+              case "video":
+                return content?.url ? (
+                  <video
+                    controls
+                    src={content.url}
+                    className="w-full max-h-64 rounded"
+                  ></video>
+                ) : null;
 
-          {content?.text && (
-            <pre className="p-2 bg-gray-100 rounded max-h-48 overflow-y-auto">
-              {content.text}
-            </pre>
-          )}
+              case "audio":
+                return content?.url ? (
+                  <audio controls className="w-full mt-2">
+                    <source src={content.url} />
+                    Your browser does not support the audio element.
+                  </audio>
+                ) : null;
+
+              case "pdf":
+                return content?.url ? (
+                  <iframe
+                    src={content.url}
+                    className="w-full h-64 rounded"
+                  ></iframe>
+                ) : null;
+
+              case "txt":
+              case "json":
+              case "csv":
+              case "html":
+                return content?.text ? (
+                  <pre className="p-2 bg-gray-100 rounded max-h-48 overflow-y-auto">
+                    {content.text}
+                  </pre>
+                ) : null;
+
+              default:
+                return (
+                  <div className="p-4 bg-gray-50 border rounded text-center text-sm text-gray-500">
+                    ❌ This file type cannot be previewed.
+                  </div>
+                );
+            }
+          })()}
         </div>
 
         <button

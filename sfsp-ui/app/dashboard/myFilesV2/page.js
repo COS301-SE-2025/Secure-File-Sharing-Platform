@@ -23,6 +23,7 @@ function getFileType(mimeType) {
   if (mimeType.includes("image")) return "image";
   if (mimeType.includes("video")) return "video";
   if (mimeType.includes("audio")) return "audio";
+  if (mimeType.includes("application")) return "application";
   if (mimeType.includes("zip") || mimeType.includes("rar")) return "archive";
   if (
     mimeType.includes("spreadsheet") ||
@@ -235,7 +236,7 @@ export default function MyFiles() {
     let contentUrl = null;
     let textSnippet = null;
 
-    if (file.type === "image") {
+    if (file.type === "image" || file.type === "video" || file.type === "audio") {
       contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
     } else if (file.type === "pdf") {
       contentUrl = URL.createObjectURL(
@@ -260,7 +261,7 @@ export default function MyFiles() {
     let contentUrl = null;
     let textFull = null;
 
-    if (file.type === "image") {
+    if (file.type === "image" || file.type === "video" || file.type === "audio") {
       contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
     } else if (file.type === "pdf") {
       contentUrl = URL.createObjectURL(

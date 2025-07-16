@@ -104,8 +104,8 @@ func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println("User id is: ", req.UserID)
-	fmt.Println("File name is: ", req.FileName)
+	//fmt.Println("User id is: ", req.UserID)
+	//fmt.Println("File name is: ", req.FileName)
 	var fileID, nonce string
 	err := DB.QueryRow(`
 		SELECT id, nonce FROM files
@@ -118,12 +118,12 @@ func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println("File ID is: ",fileID)
+	//fmt.Println("File ID is: ",fileID)
 
 	data, err := owncloud.DownloadFile(fileID, req.UserID)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Download failed: %v", err), http.StatusInternalServerError)
-		fmt.Println("Download Failed")
+		//fmt.Println("Download Failed")
 		return
 	}
 
