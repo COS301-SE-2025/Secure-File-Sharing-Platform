@@ -142,14 +142,29 @@ export default function MyFiles() {
 
       if (!res.ok) throw new Error("Download failed");
 
-      const { fileName, fileContent, nonce } = await res.json();
+      // 🚀 NEW: get binary data directly
+      const buffer = await res.arrayBuffer();
+      const encryptedFile = new Uint8Array(buffer);
+
+      // 🚀 NEW: get nonce + fileName from headers
+      const nonceBase64 = res.headers.get("X-Nonce");
+      const fileName = res.headers.get("X-File-Name");
+
+      if (!nonceBase64 || !fileName) {
+        throw new Error("Missing nonce or fileName in response headers");
+      }
 
       const decrypted = sodium.crypto_secretbox_open_easy(
-        sodium.from_base64(fileContent, sodium.base64_variants.ORIGINAL),
-        sodium.from_base64(nonce, sodium.base64_variants.ORIGINAL),
+        encryptedFile,
+        sodium.from_base64(nonceBase64, sodium.base64_variants.ORIGINAL),
         encryptionKey
       );
 
+      if (!decrypted) {
+        throw new Error("Decryption failed");
+      }
+
+      // download file as before
       const blob = new Blob([decrypted]);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -158,6 +173,7 @@ export default function MyFiles() {
       a.click();
       window.URL.revokeObjectURL(url);
 
+      // keep your access log logic unchanged
       const token = localStorage.getItem("token");
       if (!token) return;
 
@@ -173,7 +189,6 @@ export default function MyFiles() {
         if (!profileRes.ok)
           throw new Error(profileResult.message || "Failed to fetch profile");
 
-        console.log(file);
         await fetch("http://localhost:5000/api/files/addAccesslog", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -199,6 +214,7 @@ export default function MyFiles() {
       alert("Missing encryption key");
       return null;
     }
+
     const sodium = await getSodium();
 
     try {
@@ -213,12 +229,31 @@ export default function MyFiles() {
 
       if (!res.ok) throw new Error("Download failed");
 
-      const { fileName, fileContent, nonce } = await res.json();
+      for (let pair of res.headers.entries()) {
+        console.log(pair[0] + ": " + pair[1]);
+      }
+
+      // 🚀 NEW: get binary data directly
+      const buffer = await res.arrayBuffer();
+      const encryptedFile = new Uint8Array(buffer);
+
+      // 🚀 NEW: get nonce + fileName from headers
+      const nonceBase64 = res.headers.get("X-Nonce");
+      const fileName = res.headers.get("X-File-Name");
+
+      if (!nonceBase64 || !fileName) {
+        throw new Error("Missing nonce or fileName in response headers");
+      }
+
       const decrypted = sodium.crypto_secretbox_open_easy(
-        sodium.from_base64(fileContent, sodium.base64_variants.ORIGINAL),
-        sodium.from_base64(nonce, sodium.base64_variants.ORIGINAL),
+        encryptedFile,
+        sodium.from_base64(nonceBase64, sodium.base64_variants.ORIGINAL),
         encryptionKey
       );
+
+      if (!decrypted) {
+        throw new Error("Decryption failed");
+      }
 
       return { fileName, decrypted };
     } catch (err) {
@@ -236,7 +271,11 @@ export default function MyFiles() {
     let contentUrl = null;
     let textSnippet = null;
 
-    if (file.type === "image" || file.type === "video" || file.type === "audio") {
+    if (
+      file.type === "image" ||
+      file.type === "video" ||
+      file.type === "audio"
+    ) {
       contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
     } else if (file.type === "pdf") {
       contentUrl = URL.createObjectURL(
@@ -261,7 +300,11 @@ export default function MyFiles() {
     let contentUrl = null;
     let textFull = null;
 
-    if (file.type === "image" || file.type === "video" || file.type === "audio") {
+    if (
+      file.type === "image" ||
+      file.type === "video" ||
+      file.type === "audio"
+    ) {
       contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
     } else if (file.type === "pdf") {
       contentUrl = URL.createObjectURL(

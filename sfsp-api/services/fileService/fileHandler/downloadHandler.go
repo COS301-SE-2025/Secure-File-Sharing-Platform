@@ -103,6 +103,7 @@ func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Missing userId or fileName", http.StatusBadRequest)
 		return
 	}
+	log.Println("Got request:", req.UserID, req.FileName)
 
 	//fmt.Println("User id is: ", req.UserID)
 	//fmt.Println("File name is: ", req.FileName)
@@ -118,6 +119,8 @@ func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Println("Found file:", fileID, "nonce:", nonce)
+
 	//fmt.Println("File ID is: ",fileID)
 
 	data, err := owncloud.DownloadFile(fileID, req.UserID)
@@ -127,30 +130,31 @@ func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Println("Downloaded encrypted data, len:", len(data))
+
 	aesKey := os.Getenv("AES_KEY")
 	if len(aesKey) != 32 {
 		http.Error(w, "Invalid AES key", http.StatusInternalServerError)
 		return
 	}
 
+	
+    log.Println("Decrypting...")
 	plain, err := crypto.DecryptBytes(data, aesKey)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Decryption failed: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	base64Data := base64.StdEncoding.EncodeToString(plain)
+	//base64Data := base64.StdEncoding.EncodeToString(plain)
 
 	//fmt.Println("FileContent is: ",base64Data)
 
-	res := DownloadResponse{
-		FileName:    req.FileName,
-		FileContent: base64Data,
-		Nonce:       nonce,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(res)
+	log.Println("Returning binary response:", len(plain))
+    w.Header().Set("Content-Type", "application/octet-stream")
+    w.Header().Set("X-File-Name", req.FileName)
+    w.Header().Set("X-Nonce", nonce)
+    w.Write(plain)
 }
 
 type DownloadSentRequest struct {
