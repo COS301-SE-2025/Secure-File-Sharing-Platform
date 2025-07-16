@@ -27,15 +27,7 @@ func main() {
 
 	log.Println("Starting File Service...")
 	log.Println("Environment variables loaded successfully")
-	//log.Println("mongoURI:", os.Getenv("MONGO_URI"))
 	log.Println("ownCloud URL:", os.Getenv("OWNCLOUD_URL"))
-
-	// mongoURI := os.Getenv("MONGO_URI")
-	// client, het := database.InitMongo(mongoURI)
-	// if het != nil {
-	//     log.Fatalf("Failed to connect to MongoDB: %v", het)
-	// }
-	//fileHandler.SetMongoClient(client)
 
 	db, err := database.InitPostgre()
 	if err != nil {
@@ -62,6 +54,7 @@ func main() {
 	// access log endpoints
 	http.HandleFunc("/addAccesslog", fileHandler.AddAccesslogHandler)
 	http.HandleFunc("/getAccesslog", fileHandler.GetAccesslogHandler)
+	http.HandleFunc("getAccessLogs", fileHandler.GetAccessLogsHandler)
 	// notification endpoints
 	http.HandleFunc("/notifications", fileHandler.NotificationHandler)
 	http.HandleFunc("/notifications/markAsRead", fileHandler.MarkAsReadHandler)
@@ -76,6 +69,7 @@ func main() {
 	http.HandleFunc("/getPendingFiles", metadata.GetPendingFilesHandler)
 	http.HandleFunc("/deleteFile", fileHandler.DeleteFileHandler)
 	http.HandleFunc("/sendFile", fileHandler.SendFileHandler)
+	http.HandleFunc("/sendByView", fileHandler.SendByViewHandler)
 	http.HandleFunc("/addTags", metadata.AddTagsHandler)
 	http.HandleFunc("/addUser", metadata.AddUserHandler)
 	http.HandleFunc("/removeTags", metadata.RemoveTagsFromFileHandler)
