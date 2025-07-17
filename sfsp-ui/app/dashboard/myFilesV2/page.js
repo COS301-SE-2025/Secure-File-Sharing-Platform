@@ -80,14 +80,21 @@ export default function MyFiles() {
         return;
       }
 
+      console.log("Getting the users files");
       const res = await fetch("http://localhost:5000/api/files/metadata", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId }),
       });
 
-      const data = await res.json();
-      console.log("Fetched files from API:", data);
+      let data;
+      try {
+        data = await res.json();
+      } catch (e) {
+        const text = await res.text();
+        console.error("Failed to parse JSON:", text);
+        return;
+      }
 
       const formatted = data
         .filter((f) => {

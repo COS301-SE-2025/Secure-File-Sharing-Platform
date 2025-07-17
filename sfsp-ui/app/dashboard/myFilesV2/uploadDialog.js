@@ -4,7 +4,7 @@
 
 import React, { useState, useRef } from "react";
 import { Upload, X, File } from "lucide-react";
-import { useEncryptionStore } from '@/app/SecureKeyStorage';
+import { useEncryptionStore } from "@/app/SecureKeyStorage";
 import { getSodium } from "@/app/lib/sodium";
 
 export function UploadDialog({ open, onOpenChange, onUploadSuccess }) {
@@ -52,51 +52,59 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }) {
 
     const sodium = await getSodium();
 
-    for (let i = 0; i < uploadFiles.length; i++) {
-      const file = uploadFiles[i];
-      try {
-        const fileBuffer = new Uint8Array(await file.arrayBuffer());
-        const nonce = sodium.randombytes_buf(
-          sodium.crypto_secretbox_NONCEBYTES
-        );
-        const ciphertext = sodium.crypto_secretbox_easy(
-          fileBuffer,
-          nonce,
-          encryptionKey
-        );
-
-        const formData = {
-          userId,
-          fileName: file.name,
-          fileType: file.type,
-          fileDescription: "User personal upload",
-          fileTags: ["personal"],
-          path: `files/${userId}`,
-          fileContent: sodium.to_base64(ciphertext, sodium.base64_variants.ORIGINAL),
-          nonce: sodium.to_base64(nonce, sodium.base64_variants.ORIGINAL),
-        };
-
-        const res = await fetch("http://localhost:5000/api/files/upload", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(formData),
-        });
-
-        if (!res.ok) throw new Error("Upload failed");
-
-        const uploadResult = await res.json();
-        console.log(uploadResult);
-
-        const token = localStorage.getItem("token");
-        if (!token) return;
-
+    // Upload in parallel
+    await Promise.all(
+      uploadFiles.map(async (file, index) => {
         try {
-          const profileRes = await fetch("http://localhost:5000/api/users/profile", {
-            headers: { Authorization: `Bearer ${token}` },
+          const fileBuffer = new Uint8Array(await file.arrayBuffer());
+          const nonce = sodium.randombytes_buf(
+            sodium.crypto_secretbox_NONCEBYTES
+          );
+          const ciphertext = sodium.crypto_secretbox_easy(
+            fileBuffer,
+            nonce,
+            encryptionKey
+          );
+
+          const formData = new FormData();
+          formData.append("userId", userId);
+          formData.append("fileName", file.name);
+          formData.append("fileType", file.type);
+          formData.append("fileDescription", "User personal upload");
+          formData.append("fileTags", JSON.stringify(["personal"]));
+          formData.append("path", `files/${userId}`);
+          formData.append(
+            "nonce",
+            sodium.to_base64(nonce, sodium.base64_variants.ORIGINAL)
+          );
+
+          // ⬇️ Encrypted file as binary Blob
+          formData.append("encryptedFile", new Blob([ciphertext]), file.name);
+
+          const res = await fetch("http://localhost:5000/api/files/upload", {
+            method: "POST",
+            body: formData,
           });
 
+          if (!res.ok) throw new Error("Upload failed");
+
+          const uploadResult = await res.json();
+          console.log(uploadResult);
+
+          // Log access
+          const token = localStorage.getItem("token");
+          if (!token) return;
+
+          const profileRes = await fetch(
+            "http://localhost:5000/api/users/profile",
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          );
+
           const profileResult = await profileRes.json();
-          if (!profileRes.ok) throw new Error(profileResult.message || "Failed to fetch profile");
+          if (!profileRes.ok)
+            throw new Error(profileResult.message || "Failed to fetch profile");
 
           await fetch("http://localhost:5000/api/files/addAccesslog", {
             method: "POST",
@@ -108,18 +116,16 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }) {
               message: `User ${profileResult.data.email} uploaded the file.`,
             }),
           });
-
         } catch (err) {
-          console.error("Failed to fetch user profile:", err.message);
+          console.error(`Upload failed for ${file.name}:`, err);
+          alert(`Upload failed for ${file.name}`);
         }
-        
-      } catch (err) {
-        console.error(`Upload failed for ${file.name}:`, err);
-        alert(`Upload failed for ${file.name}`);
-      }
 
-      setUploadProgress(Math.round(((i + 1) / uploadFiles.length) * 100));
-    }
+        setUploadProgress((prev) =>
+          Math.round(((index + 1) / uploadFiles.length) * 100)
+        );
+      })
+    );
 
     setUploading(false);
     setUploadFiles([]);

@@ -3,13 +3,14 @@ package fileHandler
 import (
 	//"context"
 	//"database/sql"
-	"encoding/base64"
+	//"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"time"
+	"io"
 
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto"
 	//"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/database"
@@ -19,16 +20,16 @@ import (
 	"database/sql"
 )
 
-type UploadRequest struct {
-	FileName    string   `json:"fileName"`
-	FileType    string   `json:"fileType"`
-	UserID      string   `json:"userId"`
-	Nonce       string   `json:"nonce"`
-	Description string   `json:"fileDescription"`
-	Tags        []string `json:"fileTags"`
-	Path        string   `json:"path"`
-	FileContent string   `json:"fileContent"`
-}
+// type UploadRequest struct {
+// 	FileName    string   `json:"fileName"`
+// 	FileType    string   `json:"fileType"`
+// 	UserID      string   `json:"userId"`
+// 	Nonce       string   `json:"nonce"`
+// 	Description string   `json:"fileDescription"`
+// 	Tags        []string `json:"fileTags"`
+// 	Path        string   `json:"path"`
+// 	FileContent string   `json:"fileContent"`
+// }
 
 var DB *sql.DB
 
@@ -38,26 +39,59 @@ func SetPostgreClient(db *sql.DB) {
 }
 
 func UploadHandler(w http.ResponseWriter, r *http.Request) {
-	var req UploadRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
-		fmt.Println("Invalid JSON payload")
-		return
-	}
-
-	if req.FileName == "" || req.FileContent == "" {
-		http.Error(w, "Missing required fields", http.StatusBadRequest)
-		fmt.Println("Missing filename or file contents")
-		return
-	}
-
-	fileBytes, err := base64.StdEncoding.DecodeString(req.FileContent)
+	err := r.ParseMultipartForm(2 << 30) // up to 2GB
 	if err != nil {
-		http.Error(w, "Invalid base64 file content", http.StatusBadRequest)
-		fmt.Println("Invalid base 64 file content")
+		http.Error(w, "Failed to parse multipart form", http.StatusBadRequest)
+		fmt.Println("Failed to parse multipart form:", err)
 		return
 	}
 
+	// 🔸 Get form values
+	userId := r.FormValue("userId")
+	fileName := r.FormValue("fileName")
+	fileType := r.FormValue("fileType")
+	nonce := r.FormValue("nonce")
+	description := r.FormValue("fileDescription")
+	tagsRaw := r.FormValue("fileTags")
+	uploadPath := r.FormValue("path")
+	if uploadPath == "" {
+		uploadPath = "files"
+	}
+
+	if userId == "" || fileName == "" || nonce == "" {
+		http.Error(w, "Missing required fields", http.StatusBadRequest)
+		fmt.Println("Missing required fields")
+		return
+	}
+
+	// 🔸 Parse tags
+	var tags []string
+	if tagsRaw != "" {
+		err := json.Unmarshal([]byte(tagsRaw), &tags)
+		if err != nil {
+			http.Error(w, "Invalid fileTags JSON", http.StatusBadRequest)
+			fmt.Println("Invalid tags JSON")
+			return
+		}
+	}
+
+	// 🔸 Get file
+	file, _, err := r.FormFile("encryptedFile")
+	if err != nil {
+		http.Error(w, "Missing encrypted file", http.StatusBadRequest)
+		fmt.Println("Missing encrypted file")
+		return
+	}
+	defer file.Close()
+
+	fileBytes, err := io.ReadAll(file)
+	if err != nil {
+		http.Error(w, "Failed to read file content", http.StatusInternalServerError)
+		fmt.Println("Failed to read file content")
+		return
+	}
+
+	// 🔐 Encrypt before upload
 	aesKey := os.Getenv("AES_KEY")
 	if len(aesKey) != 32 {
 		http.Error(w, "Invalid AES key", http.StatusInternalServerError)
@@ -68,27 +102,22 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println("Encryption error:", err)
 		http.Error(w, "Encryption failed", http.StatusInternalServerError)
-		fmt.Println("Encryption failed")
 		return
 	}
 
-	// Check if user exists; if not, insert
-    _, err = DB.Exec(`
-	  INSERT INTO users (id)
-	  SELECT $1
-	  WHERE NOT EXISTS (
-      SELECT 1 FROM users WHERE id = $1
-	 )
-    `, req.UserID)
+	// 🧑‍💻 Ensure user exists
+	_, err = DB.Exec(`
+		INSERT INTO users (id)
+		SELECT $1
+		WHERE NOT EXISTS (SELECT 1 FROM users WHERE id = $1)
+	`, userId)
+	if err != nil {
+		log.Println("Failed to ensure user exists:", err)
+		http.Error(w, "User verification failed", http.StatusInternalServerError)
+		return
+	}
 
-    if err != nil {
-	   log.Println("Failed to ensure user exists:", err)
-	   http.Error(w, "User verification failed", http.StatusInternalServerError)
-	   fmt.Println("User verification failed")
-	   return
-    }
-
-	// Step 1: Save metadata and get the generated file ID
+	// 🗂️ Store metadata
 	var fileID string
 	err = DB.QueryRow(`
 		INSERT INTO files (
@@ -97,46 +126,39 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 		VALUES ($1, $2, $3, $4, '', $5, $6, $7, $8)
 		RETURNING id
 	`,
-		req.UserID,
-		req.FileName,
-		req.FileType,
+		userId,
+		fileName,
+		fileType,
 		len(fileBytes),
-		req.Nonce,
-		req.Description,
-		pq.Array(req.Tags),
+		nonce,
+		description,
+		pq.Array(tags),
 		time.Now(),
 	).Scan(&fileID)
 
 	if err != nil {
 		log.Println("PostgreSQL insert error:", err)
 		http.Error(w, "Metadata storage failed", http.StatusInternalServerError)
-		fmt.Println("Metadata storage failed")
 		return
 	}
 
-	// Step 2: Upload file using fileID as filename
-	uploadPath := req.Path
-	if uploadPath == "" {
-		uploadPath = "files"
-	}
-
+	// ☁️ Upload encrypted file to ownCloud
 	err = owncloud.UploadFile(uploadPath, fileID, encryptedFile)
 	if err != nil {
 		log.Println("OwnCloud upload failed:", err)
 		http.Error(w, "File upload failed", http.StatusInternalServerError)
-		fmt.Println("File upload failed")
 		return
 	}
 
-	// Step 3: Update cid in database
+	// 🔁 Update CID
 	fullCID := fmt.Sprintf("%s/%s", uploadPath, fileID)
 	_, err = DB.Exec(`UPDATE files SET cid = $1 WHERE id = $2`, fullCID, fileID)
 	if err != nil {
 		log.Println("PostgreSQL update cid failed:", err)
-		// Not fatal to the upload, so continue
+		// Not fatal
 	}
 
-	// Respond with success and fileID
+	// ✅ Respond
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{
 		"message": "File uploaded and metadata stored",

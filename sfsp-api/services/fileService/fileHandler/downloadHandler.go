@@ -173,18 +173,18 @@ func DownloadSentFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println("Downloading file from path:", req.FilePath)
+	log.Println("Downloading file from path:", req.FilePath)
 
 	data, err := owncloud.DownloadSentFile(req.FilePath)
 	if err != nil {
+		log.Println("Download Failed:", err)
 		http.Error(w, fmt.Sprintf("Download failed: %v", err), http.StatusInternalServerError)
-		fmt.Println("Download Failed:", err)
 		return
 	}
 
-	encoded := base64.StdEncoding.EncodeToString(data)
+	log.Println("Downloaded sent file, len:", len(data))
 
-    w.Header().Set("Content-Type", "text/plain") // or "application/json"
-    w.WriteHeader(http.StatusOK)
-    w.Write([]byte(encoded))
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Write(data)
 }
+

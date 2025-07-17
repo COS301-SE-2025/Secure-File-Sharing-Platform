@@ -1,6 +1,10 @@
 /* global process */
 const axios = require("axios");
 require("dotenv").config();
+const multer = require("multer");
+const FormData = require('form-data')
+
+const upload = multer();
 
 exports.downloadFile = async (req, res) => {
   const { userId, filename } = req.body;
@@ -53,7 +57,8 @@ exports.downloadFile = async (req, res) => {
 
 exports.getMetaData = async (req, res) => {
   const userId = req.body.userId;
-
+  console.log("📦 Received metadata request:", req.body);
+  
   if (!userId) {
     return res.status(400).send("User ID is required");
   }
@@ -78,62 +83,54 @@ exports.getMetaData = async (req, res) => {
   }
 };
 
-exports.uploadFile = async (req, res) => {
-  try {
-    const {
-      fileName,
-      fileType,
-      userId,
-      nonce,
-      fileDescription,
-      fileTags,
-      path: uploadPath,
-      fileContent,
-    } = req.body;
+exports.uploadFile = [
+  upload.single("encryptedFile"),
+  async (req, res) => {
+    try {
+      const {
+        fileName,
+        fileType,
+        userId,
+        nonce,
+        fileDescription,
+        fileTags,
+        path: uploadPath,
+      } = req.body;
 
-    if (!fileName || !fileContent) {
-      return res.status(400).send("Missing file name or file content");
-    }
-
-    if (!userId) {
-      return res.status(400).send("Missing userId");
-    }
-
-    if (!nonce) {
-      return res.status(400).send("Missing nonce");
-    }
-
-    console.log("Uploading to:", process.env.FILE_SERVICE_URL);
-
-    const payload = {
-      fileName,
-      fileType,
-      userId,
-      nonce,
-      uploadTimestamp: new Date().toISOString(),
-      fileDescription,
-      fileTags,
-      path: uploadPath || "files",
-      fileContent,
-    };
-
-    const response = await axios.post(
-      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/upload`,
-      payload,
-      {
-        headers: { "Content-Type": fileType },
+      if (!fileName || !req.file?.buffer) {
+        return res.status(400).send("Missing file name or file content");
       }
-    );
 
-    res.status(201).json({
-      message: "File uploaded",
-      server: response.data,
-    });
-  } catch (err) {
-    console.error(" Upload error:", err.message);
-    res.status(500).send("Upload failed");
-  }
-};
+      if (!userId || !nonce) {
+        return res.status(400).send("Missing userId or nonce");
+      }
+
+      const formData = new FormData();
+      formData.append("fileName", fileName);
+      formData.append("fileType", fileType);
+      formData.append("userId", userId);
+      formData.append("nonce", nonce);
+      formData.append("fileDescription", fileDescription);
+      formData.append("fileTags", fileTags);
+      formData.append("path", uploadPath || "files");
+      formData.append("encryptedFile", req.file.buffer, fileName);
+
+      const response = await axios.post(
+        `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/upload`,
+        formData,
+        { headers: formData.getHeaders() } // 👈 important
+      );
+
+      res.status(201).json({
+        message: "File uploaded",
+        server: response.data,
+      });
+    } catch (err) {
+      console.error("Upload error:", err.message);
+      res.status(500).send("Upload failed");
+    }
+  },
+];
 
 exports.getNumberOfFiles = async (req, res) => {
   const userId = req.body.userId;
@@ -192,63 +189,46 @@ exports.deleteFile = async (req, res) => {
   }
 };
 
-exports.sendFile = async (req, res) => {
-  const {
-    fileid,
-    userId,
-    recipientUserId,
-    encryptedFile,
-    encryptedAesKey,
-    ekPublicKey,
-    metadata,
-  } = req.body;
+exports.sendFile = [
+  upload.single("encryptedFile"),
+  async (req, res) => {
+    try {
+      const { fileid, userId, recipientUserId, metadata } = req.body;
+      const encryptedFile = req.file?.buffer;
 
-  // Basic validation
-  if (!fileid) return res.status(400).send("File ID is missing");
-  if (!userId || !recipientUserId)
-    return res.status(400).send("User ID or Recipient User ID is missing");
-  if (!encryptedFile || !encryptedAesKey)
-    return res.status(400).send("Encrypted file or AES key is missing");
+      if (!fileid || !userId || !recipientUserId || !encryptedFile) {
+        return res
+          .status(400)
+          .send("Missing file id, user ids or encrypted file");
+      }
 
-  // Validate metadata fields
-  if (
-    !metadata ||
-    !metadata.fileNonce ||
-    !metadata.keyNonce ||
-    !metadata.ikPublicKey ||
-    !metadata.ekPublicKey ||
-    !metadata.opk_id
-  ) {
-    return res
-      .status(400)
-      .send("Metadata is incomplete or missing required keys");
-  }
+      const formData = new FormData();
+      formData.append("fileid", fileid);
+      formData.append("userId", userId);
+      formData.append("recipientUserId", recipientUserId);
+      formData.append("metadata", metadata); // should still be JSON string
+      formData.append("encryptedFile", encryptedFile, {
+        filename: "encrypted.bin",
+        contentType: "application/octet-stream",
+      });
 
-  try {
-    const response = await axios.post(
-      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/sendFile`,
-      {
-        fileid,
-        userId,
-        recipientUserId,
-        encryptedFile,
-        encryptedAesKey,
-        ekPublicKey,
-        metadata, // send entire metadata map to Go
-      },
-      { headers: { "Content-Type": "application/json" } }
-    );
+      const goResponse = await axios.post(
+        `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/sendFile`,
+        formData,
+        { headers: formData.getHeaders() }
+      );
 
-    if (response.status !== 200) {
-      return res.status(response.status).send("Error sending file");
+      if (goResponse.status !== 200) {
+        return res.status(goResponse.status).send("Error from Go service");
+      }
+
+      res.status(200).json({ message: "File sent successfully" });
+    } catch (err) {
+      console.error("Error sending file:", err.message);
+      res.status(500).send("Failed to send file");
     }
-
-    return res.status(200).json({ message: "File sent successfully" });
-  } catch (err) {
-    console.error("Error sending file:", err.message);
-    return res.status(500).send("Failed to send file");
-  }
-};
+  },
+];
 
 exports.addAccesslog = async (req, res) => {
   const { file_id, user_id, action, message } = req.body;
@@ -388,21 +368,30 @@ exports.downloadSentFile = async (req, res) => {
   }
 
   try {
-    const response = await axios.post(
-      `${
+    const response = await axios({
+      method: "post",
+      url: `${
         process.env.FILE_SERVICE_URL || "http://localhost:8081"
       }/downloadSentFile`,
-      { filepath },
-      { headers: { "Content-Type": "application/json" } }
+      data: { filepath },
+      responseType: "arraybuffer", // ⭐ CRITICAL to handle binary
+      headers: { "Content-Type": "application/json" },
+    });
+
+    console.log(
+      "Downloaded sent file from Go:",
+      filepath,
+      "length:",
+      response.data.length
     );
 
-    if (response.status !== 200) {
-      return res.status(response.status).send("Error retrieving the sent file");
-    }
+    // pass binary directly to client
+    res.set({
+      "Content-Type": "application/octet-stream",
+      "Content-Length": response.data.length,
+    });
 
-    const metadataList = response.data;
-    console.log("Downloading a sent file returns: ", response.data);
-    res.json(metadataList);
+    res.send(Buffer.from(response.data));
   } catch (err) {
     console.error("Error retrieving the sent file:", err.message);
     res.status(500).send("Error retrieving the sent file");
