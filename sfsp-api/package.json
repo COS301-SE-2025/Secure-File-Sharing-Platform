@@ -28,6 +28,7 @@
     "form-data": "^4.0.2",
     "is-promise": "^4.0.0",
     "jsonwebtoken": "^9.0.2",
+    "multer": "^2.0.1",
     "nodemailer": "^7.0.3",
     "nodemon": "^3.1.10",
     "path-to-regexp": "^8.2.0"

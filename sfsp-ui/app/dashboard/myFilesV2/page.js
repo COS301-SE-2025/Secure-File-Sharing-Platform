@@ -14,6 +14,8 @@ import { FileList } from "./fileList";
 import { useDashboardSearch } from "../components/DashboardSearchContext";
 import { useEncryptionStore } from "@/app/SecureKeyStorage";
 import { getSodium } from "@/app/lib/sodium";
+import { PreviewDrawer } from "./previewDrawer";
+import { FullViewModal } from "./fullViewModal";
 
 function getFileType(mimeType) {
   if (!mimeType) return "unknown";
@@ -21,6 +23,7 @@ function getFileType(mimeType) {
   if (mimeType.includes("image")) return "image";
   if (mimeType.includes("video")) return "video";
   if (mimeType.includes("audio")) return "audio";
+  if (mimeType.includes("application")) return "application";
   if (mimeType.includes("zip") || mimeType.includes("rar")) return "archive";
   if (
     mimeType.includes("spreadsheet") ||
@@ -57,6 +60,11 @@ export default function MyFiles() {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isActivityOpen, setIsActivityOpen] = useState(false);
 
+  const [previewContent, setPreviewContent] = useState(null);
+  const [previewFile, setPreviewFile] = useState(null);
+  const [viewerFile, setViewerFile] = useState(null);
+  const [viewerContent, setViewerContent] = useState(null);
+
   const filteredFiles = files.filter(
     (file) =>
       file &&
@@ -72,18 +80,25 @@ export default function MyFiles() {
         return;
       }
 
+      console.log("Getting the users files");
       const res = await fetch("http://localhost:5000/api/files/metadata", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId }),
       });
 
-      const data = await res.json();
-      console.log("Fetched files from API:", data);
+      let data;
+      try {
+        data = await res.json();
+      } catch (e) {
+        const text = await res.text();
+        console.error("Failed to parse JSON:", text);
+        return;
+      }
 
       const formatted = data
         .filter((f) => {
-          const tags = f.tags ? f.tags.replace(/[{}]/g, '').split(',') : [];
+          const tags = f.tags ? f.tags.replace(/[{}]/g, "").split(",") : [];
 
           return (
             !tags.includes("deleted") &&
@@ -134,14 +149,29 @@ export default function MyFiles() {
 
       if (!res.ok) throw new Error("Download failed");
 
-      const { fileName, fileContent, nonce } = await res.json();
+      // 🚀 NEW: get binary data directly
+      const buffer = await res.arrayBuffer();
+      const encryptedFile = new Uint8Array(buffer);
+
+      // 🚀 NEW: get nonce + fileName from headers
+      const nonceBase64 = res.headers.get("X-Nonce");
+      const fileName = res.headers.get("X-File-Name");
+
+      if (!nonceBase64 || !fileName) {
+        throw new Error("Missing nonce or fileName in response headers");
+      }
 
       const decrypted = sodium.crypto_secretbox_open_easy(
-        sodium.from_base64(fileContent, sodium.base64_variants.ORIGINAL),
-        sodium.from_base64(nonce, sodium.base64_variants.ORIGINAL),
+        encryptedFile,
+        sodium.from_base64(nonceBase64, sodium.base64_variants.ORIGINAL),
         encryptionKey
       );
 
+      if (!decrypted) {
+        throw new Error("Decryption failed");
+      }
+
+      // download file as before
       const blob = new Blob([decrypted]);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -150,18 +180,22 @@ export default function MyFiles() {
       a.click();
       window.URL.revokeObjectURL(url);
 
+      // keep your access log logic unchanged
       const token = localStorage.getItem("token");
       if (!token) return;
 
       try {
-        const profileRes = await fetch("http://localhost:5000/api/users/profile", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const profileRes = await fetch(
+          "http://localhost:5000/api/users/profile",
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
 
         const profileResult = await profileRes.json();
-        if (!profileRes.ok) throw new Error(profileResult.message || "Failed to fetch profile");
+        if (!profileRes.ok)
+          throw new Error(profileResult.message || "Failed to fetch profile");
 
-        console.log(file);
         await fetch("http://localhost:5000/api/files/addAccesslog", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -172,15 +206,127 @@ export default function MyFiles() {
             message: `User ${profileResult.data.email} has downloaded the file.`,
           }),
         });
-
       } catch (err) {
         console.error("Failed to fetch user profile:", err.message);
       }
-
     } catch (err) {
       console.error("Download error:", err);
       alert("Download failed");
     }
+  };
+
+  const handleLoadFile = async (file) => {
+    const { encryptionKey, userId } = useEncryptionStore.getState();
+    if (!encryptionKey) {
+      alert("Missing encryption key");
+      return null;
+    }
+
+    const sodium = await getSodium();
+
+    try {
+      const res = await fetch("http://localhost:5000/api/files/download", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          filename: file.name,
+        }),
+      });
+
+      if (!res.ok) throw new Error("Download failed");
+
+      for (let pair of res.headers.entries()) {
+        console.log(pair[0] + ": " + pair[1]);
+      }
+
+      // 🚀 NEW: get binary data directly
+      const buffer = await res.arrayBuffer();
+      const encryptedFile = new Uint8Array(buffer);
+
+      // 🚀 NEW: get nonce + fileName from headers
+      const nonceBase64 = res.headers.get("X-Nonce");
+      const fileName = res.headers.get("X-File-Name");
+
+      if (!nonceBase64 || !fileName) {
+        throw new Error("Missing nonce or fileName in response headers");
+      }
+
+      const decrypted = sodium.crypto_secretbox_open_easy(
+        encryptedFile,
+        sodium.from_base64(nonceBase64, sodium.base64_variants.ORIGINAL),
+        encryptionKey
+      );
+
+      if (!decrypted) {
+        throw new Error("Decryption failed");
+      }
+
+      return { fileName, decrypted };
+    } catch (err) {
+      console.error("Load file error:", err);
+      alert("Failed to load file");
+      return null;
+    }
+  };
+
+  const handlePreview = async (file) => {
+    console.log("Inside handlePreview");
+    const result = await handleLoadFile(file);
+    if (!result) return;
+
+    let contentUrl = null;
+    let textSnippet = null;
+
+    if (
+      file.type === "image" ||
+      file.type === "video" ||
+      file.type === "audio"
+    ) {
+      contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
+    } else if (file.type === "pdf") {
+      contentUrl = URL.createObjectURL(
+        new Blob([result.decrypted], { type: "application/pdf" })
+      );
+    } else if (
+      file.type === "txt" ||
+      file.type === "json" ||
+      file.type === "csv"
+    ) {
+      textSnippet = new TextDecoder().decode(result.decrypted).slice(0, 1000); // show 1000 chars
+    }
+
+    setPreviewContent({ url: contentUrl, text: textSnippet });
+    setPreviewFile(file);
+  };
+
+  const handleOpenFullView = async (file) => {
+    const result = await handleLoadFile(file);
+    if (!result) return;
+
+    let contentUrl = null;
+    let textFull = null;
+
+    if (
+      file.type === "image" ||
+      file.type === "video" ||
+      file.type === "audio"
+    ) {
+      contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
+    } else if (file.type === "pdf") {
+      contentUrl = URL.createObjectURL(
+        new Blob([result.decrypted], { type: "application/pdf" })
+      );
+    } else if (
+      file.type === "txt" ||
+      file.type === "json" ||
+      file.type === "csv"
+    ) {
+      textFull = new TextDecoder().decode(result.decrypted);
+    }
+
+    setViewerContent({ url: contentUrl, text: textFull });
+    setViewerFile(file);
   };
 
   const openShareDialog = (file) => {
@@ -202,7 +348,7 @@ export default function MyFiles() {
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-2xl font-semibold text-blue-500 ">My FIles</h1>
+            <h1 className="text-2xl font-semibold text-blue-500 ">My Files</h1>
             <p className="text-gray-600 dark:text-gray-400">
               Manage and organize your files
             </p>
@@ -212,19 +358,21 @@ export default function MyFiles() {
             {/* View Toggle */}
             <div className="flex items-center bg-white rounded-lg border p-1 dark:bg-gray-200">
               <button
-                className={`px-3 py-1 rounded ${viewMode === "grid"
-                  ? "bg-blue-500 text-white"
-                  : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
-                  }`}
+                className={`px-3 py-1 rounded ${
+                  viewMode === "grid"
+                    ? "bg-blue-500 text-white"
+                    : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
+                }`}
                 onClick={() => setViewMode("grid")}
               >
                 <Grid className="h-4 w-4" />
               </button>
               <button
-                className={`px-3 py-1 rounded ${viewMode === "list"
-                  ? "bg-blue-500 text-white"
-                  : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
-                  }`}
+                className={`px-3 py-1 rounded ${
+                  viewMode === "list"
+                    ? "bg-blue-500 text-white"
+                    : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
+                }`}
                 onClick={() => setViewMode("list")}
               >
                 <List className="h-4 w-4" />
@@ -259,6 +407,8 @@ export default function MyFiles() {
             onViewActivity={openActivityDialog}
             onDownload={handleDownload}
             onDelete={fetchFiles}
+            onClick={handlePreview}
+            onDoubleClick={handleOpenFullView}
           />
         ) : (
           <FileList
@@ -268,6 +418,8 @@ export default function MyFiles() {
             onViewActivity={openActivityDialog}
             onDownload={handleDownload}
             onDelete={fetchFiles}
+            onClick={handlePreview}
+            onDoubleClick={handleOpenFullView}
           />
         )}
 
@@ -295,6 +447,18 @@ export default function MyFiles() {
           open={isActivityOpen}
           onOpenChange={setIsActivityOpen}
           file={selectedFile}
+        />
+        <PreviewDrawer
+          file={previewFile}
+          content={previewContent}
+          onClose={setPreviewFile}
+          onOpenFullView={handleOpenFullView}
+        />
+
+        <FullViewModal
+          file={viewerFile}
+          content={viewerContent}
+          onClose={setViewerFile}
         />
       </div>
     </div>

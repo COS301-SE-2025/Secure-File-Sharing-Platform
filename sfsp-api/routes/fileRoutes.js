@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const fileController = require('../controllers/fileController');
+const multer = require('multer');
+
+const upload = multer({ limits: { fileSize: 2 * 1024 * 1024 * 1024 } }); // 2GB
 
 router.post('/download', fileController.downloadFile);
 router.post('/downloadSentFile', fileController.downloadSentFile);
