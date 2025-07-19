@@ -24,5 +24,4 @@ router.post('/softDeleteFile', fileController.softDeleteFile);
 router.post('/restoreFile', fileController.restoreFile);
 router.post("/deleteFile",fileController.deleteFile);
 
-
 module.exports = router;
