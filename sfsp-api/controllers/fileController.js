@@ -417,3 +417,43 @@ exports.addDescription = async (req, res) => {
     res.status(500).send("Failed to add description to the file");
   }
 };
+
+exports.createFolder = async (req, res) => {
+  const { userId, folderName, parentPath, description } = req.body;
+
+  if (!userId || !folderName) {
+    return res.status(400).send("Missing userId or folderName");
+  }
+
+  try {
+    const response = await axios.post(
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/createFolder`,
+      { userId, folderName, parentPath, description },
+      { headers: { "Content-Type": "application/json" } }
+    );
+    res.status(response.status).json(response.data);
+  } catch (err) {
+    console.error("Create folder error:", err.message);
+    res.status(500).send("Failed to create folder");
+  }
+};
+
+exports.updateFilePath = async (req, res) => {
+  const { fileId, newPath } = req.body;
+
+  if (!fileId || !newPath) {
+    return res.status(400).send("Missing fileId or newPath");
+  }
+
+  try {
+    const response = await axios.post(
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/updateFilePath`,
+      { fileId, newPath },
+      { headers: { "Content-Type": "application/json" } }
+    );
+    res.status(response.status).json(response.data);
+  } catch (err) {
+    console.error("Update file path error:", err.message);
+    res.status(500).send("Failed to update file path");
+  }
+}

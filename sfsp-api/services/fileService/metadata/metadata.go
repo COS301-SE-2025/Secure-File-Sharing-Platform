@@ -40,7 +40,7 @@ w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 
 	log.Println("🟡 Querying database for user files")
 	rows, err := DB.Query(`
-		SELECT id, file_name, file_type, file_size, description, tags, created_at
+		SELECT id, file_name, file_type, file_size, description, tags, created_at, cid
 		FROM files
 		WHERE owner_id = $1
 	`, userID)
@@ -58,10 +58,11 @@ w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 	for rows.Next() {
 		var (
 			id, fileName, fileType, description, tags string
-			fileSize                                  int64
-			createdAt                                 time.Time
+			fileSize                                   int64
+			createdAt                                  time.Time
+			cid                                        string
 		)
-		err := rows.Scan(&id, &fileName, &fileType, &fileSize, &description, &tags, &createdAt)
+		err := rows.Scan(&id, &fileName, &fileType, &fileSize, &description, &tags, &createdAt, &cid)
 		if err != nil {
 			log.Println("Row scan error:", err)
 			continue
@@ -75,6 +76,7 @@ w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 			"description": description,
 			"tags":       tags,
 			"createdAt":  createdAt,
+			"cid":       cid,
 		})
 		count++
 	}
@@ -630,5 +632,40 @@ func AddDescriptionHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{
 		"message": "Description updated successfully",
+	})
+}
+
+func UpdateFilePathHandler(w http.ResponseWriter, r *http.Request) {
+	type UpdatePathRequest struct {
+		FileID string `json:"fileId"`
+		NewPath string `json:"newPath"`
+	}
+
+	var req UpdatePathRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Println("Failed to parse JSON:", err)
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	if req.FileID == "" || req.NewPath == "" {
+		http.Error(w, "Missing fileId or newPath", http.StatusBadRequest)
+		return
+	}
+
+	_, err := DB.Exec(`
+		UPDATE files
+		SET cid = $1
+		WHERE id = $2
+	`, req.NewPath, req.FileID)
+	if err != nil {
+		log.Println("Failed to update file path:", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "File path updated successfully",
 	})
 }

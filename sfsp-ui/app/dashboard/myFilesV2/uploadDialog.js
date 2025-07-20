@@ -7,7 +7,7 @@ import { Upload, X, File } from "lucide-react";
 import { useEncryptionStore } from "@/app/SecureKeyStorage";
 import { getSodium } from "@/app/lib/sodium";
 
-export function UploadDialog({ open, onOpenChange, onUploadSuccess }) {
+export function UploadDialog({ open, onOpenChange, onUploadSuccess, currentFolderPath }) {
   const [dragActive, setDragActive] = useState(false);
   const [uploadFiles, setUploadFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
@@ -70,9 +70,9 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }) {
           formData.append("userId", userId);
           formData.append("fileName", file.name);
           formData.append("fileType", file.type);
-          formData.append("fileDescription", "User personal upload");
+          formData.append("fileDescription", ""); // a user can add description later
           formData.append("fileTags", JSON.stringify(["personal"]));
-          formData.append("path", `files/${userId}`);
+          formData.append("path", currentFolderPath || "");
           formData.append(
             "nonce",
             sodium.to_base64(nonce, sodium.base64_variants.ORIGINAL)

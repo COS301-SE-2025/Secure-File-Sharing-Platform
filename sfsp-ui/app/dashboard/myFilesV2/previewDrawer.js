@@ -2,7 +2,13 @@
 
 import React from "react";
 
-export function PreviewDrawer({ file, content, onClose, onOpenFullView, onSaveDescription }) {
+export function PreviewDrawer({
+  file,
+  content,
+  onClose,
+  onOpenFullView,
+  onSaveDescription,
+}) {
   const [description, setDescription] = React.useState(file?.description || "");
   const [isSaving, setIsSaving] = React.useState(false);
   const [isEditing, setIsEditing] = React.useState(false);
@@ -61,7 +67,9 @@ export function PreviewDrawer({ file, content, onClose, onOpenFullView, onSaveDe
         <div className="space-y-2">
           <div className="text-sm text-gray-600">Type: {file?.type}</div>
           <div className="text-sm text-gray-600">Size: {file?.size}</div>
-          <div className="text-sm text-gray-600">Modified: {file?.modified}</div>
+          <div className="text-sm text-gray-600">
+            Modified: {file?.modified}
+          </div>
 
           {/* Preview */}
           {(() => {
@@ -69,12 +77,20 @@ export function PreviewDrawer({ file, content, onClose, onOpenFullView, onSaveDe
               case "image":
                 return content?.url ? (
                   <div className="max-h-64 overflow-hidden rounded">
-                    <img src={content.url} alt="Preview" className="w-full object-cover" />
+                    <img
+                      src={content.url}
+                      alt="Preview"
+                      className="w-full object-cover"
+                    />
                   </div>
                 ) : null;
               case "video":
                 return content?.url ? (
-                  <video controls src={content.url} className="w-full max-h-64 rounded" />
+                  <video
+                    controls
+                    src={content.url}
+                    className="w-full max-h-64 rounded"
+                  />
                 ) : null;
               case "audio":
                 return content?.url ? (
@@ -87,6 +103,13 @@ export function PreviewDrawer({ file, content, onClose, onOpenFullView, onSaveDe
                 return content?.url ? (
                   <iframe src={content.url} className="w-full h-64 rounded" />
                 ) : null;
+              case "md":
+              case "markdown":
+                return content?.text ? (
+                  <pre className="p-2 bg-gray-100 rounded max-h-48 overflow-y-auto">
+                    {content.text}
+                  </pre>
+                ) : null;
               case "txt":
               case "json":
               case "csv":
@@ -96,6 +119,12 @@ export function PreviewDrawer({ file, content, onClose, onOpenFullView, onSaveDe
                     {content.text}
                   </pre>
                 ) : null;
+              case "folder":
+                return (
+                  <div className="p-4 bg-blue-50 border border-blue-300 rounded text-center text-blue-700 text-sm">
+                    📁 {content?.text || "This is a folder."}
+                  </div>
+                );
               default:
                 return (
                   <div className="p-4 bg-gray-50 border rounded text-center text-sm text-gray-500">
@@ -112,7 +141,9 @@ export function PreviewDrawer({ file, content, onClose, onOpenFullView, onSaveDe
 
           {!isEditing ? (
             <div className="flex justify-between items-start">
-              <p className="text-gray-600 whitespace-pre-wrap">{file?.description || "—"}</p>
+              <p className="text-gray-600 whitespace-pre-wrap">
+                {file?.description || "—"}
+              </p>
               <button
                 onClick={() => setIsEditing(true)}
                 className="ml-2 text-sm text-blue-600 hover:underline"

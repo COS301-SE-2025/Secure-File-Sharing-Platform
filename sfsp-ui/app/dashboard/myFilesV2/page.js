@@ -37,6 +37,12 @@ function getFileType(mimeType) {
   if (mimeType.includes("json")) return "json";
   if (mimeType.includes("csv")) return "csv";
   if (mimeType.includes("html")) return "html";
+  if (mimeType.includes("folder")) return "folder"; // Custom type for folders
+  if (mimeType.includes("podcast")) return "podcast"; // Custom type for podcasts
+  if (mimeType.includes("markdown")) return "markdown"; // Custom type for markdown files
+  if (mimeType.includes("x-markdown")) return "markdown"; // Another common type for markdown
+  if (mimeType.includes("md")) return "markdown";
+  if (mimeType.includes("code") || mimeType.includes("script")) return "code"; // Custom type for code files
   return "file";
 }
 
@@ -53,6 +59,8 @@ export default function MyFiles() {
   const [viewMode, setViewMode] = useState("grid");
   const [selectedFile, setSelectedFile] = useState(null);
   const { search } = useDashboardSearch();
+  const [currentPath, setCurrentPath] = useState("");
+  const [refreshFlag, setRefreshFlag] = useState(false);
 
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
@@ -65,12 +73,23 @@ export default function MyFiles() {
   const [viewerFile, setViewerFile] = useState(null);
   const [viewerContent, setViewerContent] = useState(null);
 
-  const filteredFiles = files.filter(
-    (file) =>
-      file &&
-      typeof file.name === "string" &&
-      file.name.toLowerCase().includes((search || "").toLowerCase())
-  );
+  const isDirectChild = (path) => {
+    if (!path && !currentPath) return true;
+    if (!path || !currentPath) return false;
+
+    const relative = path.replace(currentPath + "/", "");
+    return !relative.includes("/");
+  };
+
+  const filteredVisibleFiles = files.filter((file) => {
+    const name = file?.name?.toLowerCase() || "";
+    const path = file?.path || "";
+    const keyword = (search || "").toLowerCase();
+
+    return (
+      name.includes(keyword) && path === currentPath && isDirectChild(path)
+    );
+  });
 
   const fetchFiles = async () => {
     try {
@@ -95,7 +114,10 @@ export default function MyFiles() {
         console.error("Failed to parse JSON:", text);
         return;
       }
-
+      if (!Array.isArray(data)) {
+        console.error("Unexpected data from server:", data);
+        return;
+      }
       const formatted = data
         .filter((f) => {
           const tags = f.tags ? f.tags.replace(/[{}]/g, "").split(",") : [];
@@ -111,12 +133,17 @@ export default function MyFiles() {
           size: formatFileSize(f.fileSize || 0),
           type: getFileType(f.fileType || ""),
           description: f.description || "",
+          path: f.cid || "",
           modified: f.createdAt
             ? new Date(f.createdAt).toLocaleDateString()
             : "",
           shared: false,
           starred: false,
         }));
+      console.log(
+        "FileType:",
+        formatted.map((f) => f.type)
+      );
 
       setFiles(formatted);
       console.log("Formatted (filtered) files:", formatted);
@@ -273,9 +300,17 @@ export default function MyFiles() {
 
   const handlePreview = async (file) => {
     console.log("Inside handlePreview");
+    if (file.type === "folder") {
+      setPreviewContent({
+        url: null,
+        text: "This is a folder. Double-click to open.",
+      });
+      setPreviewFile(file);
+      return;
+    }
+
     const result = await handleLoadFile(file);
     if (!result) return;
-
     let contentUrl = null;
     let textSnippet = null;
 
@@ -302,6 +337,15 @@ export default function MyFiles() {
   };
 
   const handleOpenFullView = async (file) => {
+    if (file.type === "folder") {
+      setPreviewContent({
+        url: null,
+        text: "This is a folder. Double-click to open.",
+      });
+      setPreviewFile(file);
+      return;
+    }
+
     const result = await handleLoadFile(file);
     if (!result) return;
 
@@ -332,13 +376,16 @@ export default function MyFiles() {
 
   const handleUpdateDescription = async (fileId, description) => {
     try {
-      const res = await fetch("http://localhost:5000/api/files/addDescription", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ fileId, description }),
-      });
+      const res = await fetch(
+        "http://localhost:5000/api/files/addDescription",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ fileId, description }),
+        }
+      );
       fetchFiles(); // Refresh files after update
       if (res.status === 200) {
         console.log("Description updated successfully");
@@ -348,6 +395,20 @@ export default function MyFiles() {
       }
     } catch (err) {
       console.error("Error updating description:", err);
+    }
+  };
+
+  const handleMoveFile = async (file, newPath) => {
+    const res = await fetch("http://localhost:5000/api/files/updateFilePath", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fileId: file.id, newPath }),
+    });
+
+    if (res.ok) {
+      fetchFiles();
+    } else {
+      alert("Failed to move file");
     }
   };
 
@@ -362,6 +423,33 @@ export default function MyFiles() {
   const openActivityDialog = (file) => {
     setSelectedFile(file);
     setIsActivityOpen(true);
+  };
+
+  const renderBreadcrumbs = () => {
+    const segments = currentPath ? currentPath.split("/") : [];
+    const crumbs = [
+      { name: "Root", path: "" },
+      ...segments.map((seg, i) => ({
+        name: seg,
+        path: segments.slice(0, i + 1).join("/"),
+      })),
+    ];
+
+    return (
+      <nav className="mb-4 text-sm text-gray-700 dark:text-gray-200">
+        {crumbs.map((crumb, i) => (
+          <span key={crumb.path}>
+            <button
+              onClick={() => setCurrentPath(crumb.path)}
+              className="text-blue-600 hover:underline"
+            >
+              {crumb.name || "Root"}
+            </button>
+            {i < crumbs.length - 1 && <span className="mx-1">/</span>}
+          </span>
+        ))}
+      </nav>
+    );
   };
 
   return (
@@ -419,11 +507,27 @@ export default function MyFiles() {
             </button>
           </div>
         </div>
+        {/* Back Button */}
+        <div className="flex flex-col space-y-2 mb-4">
+          {currentPath && (
+            <button
+              onClick={() =>
+                setCurrentPath(currentPath.split("/").slice(0, -1).join("/"))
+              }
+              className="self-start text-sm text-blue-600 hover:underline"
+            >
+              ← Go Back to "
+              {currentPath.split("/").slice(0, -1).join("/") || "root"}"
+            </button>
+          )}
+        </div>
+        
+        {renderBreadcrumbs()}
 
         {/*File */}
         {viewMode === "grid" ? (
           <FileGrid
-            files={filteredFiles}
+            files={filteredVisibleFiles} // files filtered by currentPath
             onShare={openShareDialog}
             onViewDetails={openDetailsDialog}
             onViewActivity={openActivityDialog}
@@ -431,10 +535,20 @@ export default function MyFiles() {
             onDelete={fetchFiles}
             onClick={handlePreview}
             onDoubleClick={handleOpenFullView}
+            onMoveFile={handleMoveFile}
+            onEnterFolder={(folderName) =>
+              setCurrentPath(
+                currentPath ? `${currentPath}/${folderName}` : folderName
+              )
+            }
+            currentPath={currentPath}
+            onGoBack={() =>
+              setCurrentPath(currentPath.split("/").slice(0, -1).join("/"))
+            }
           />
         ) : (
           <FileList
-            files={filteredFiles}
+            files={filteredVisibleFiles}
             onShare={openShareDialog}
             onViewDetails={openDetailsDialog}
             onViewActivity={openActivityDialog}
@@ -442,6 +556,7 @@ export default function MyFiles() {
             onDelete={fetchFiles}
             onClick={handlePreview}
             onDoubleClick={handleOpenFullView}
+            onMoveFile={handleMoveFile}
           />
         )}
 
@@ -450,6 +565,7 @@ export default function MyFiles() {
           open={isUploadOpen}
           onOpenChange={setIsUploadOpen}
           onUploadSuccess={fetchFiles}
+          currentFolderPath={currentPath}
         />
         <CreateFolderDialog
           open={isCreateFolderOpen}

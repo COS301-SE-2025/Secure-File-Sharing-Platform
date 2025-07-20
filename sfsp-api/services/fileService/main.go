@@ -83,8 +83,12 @@ func main() {
     http.HandleFunc("/downloadSentFile", fileHandler.DownloadSentFile)
   
     //test from here
-    http.HandleFunc("/addSentFiles", metadata.AddSentFileHandler) //I will combine this with the addPendingFiles endpoint later
+    http.HandleFunc("/addSentFiles", metadata.AddSentFileHandler)
     http.HandleFunc("/getSentFiles", metadata.GetSentFilesHandler)
+
+	// Folder handling
+	http.HandleFunc("/createFolder", fileHandler.CreateFolderHandler)
+	http.HandleFunc("/updateFilePath", metadata.UpdateFilePathHandler)
 
 	log.Fatal(http.ListenAndServe(":8081", nil))
 }

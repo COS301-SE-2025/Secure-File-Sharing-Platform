@@ -142,7 +142,6 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ☁️ Upload encrypted file to ownCloud
 	pathForUpload := "files/" + userId
 	err = owncloud.UploadFile(pathForUpload, fileID, encryptedFile)
 	if err != nil {
@@ -151,13 +150,11 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 🔁 Update CID
-	fullCID := fmt.Sprintf("%s/%s", uploadPath, fileID)
-	_, err = DB.Exec(`UPDATE files SET cid = $1 WHERE id = $2`, fullCID, fileID)
+	_, err = DB.Exec(`UPDATE files SET cid = $1 WHERE id = $2`, uploadPath, fileID)
 	if err != nil {
 		log.Println("PostgreSQL update cid failed:", err)
 		// Not fatal
-	}
+	} 
 
 	// ✅ Respond
 	w.Header().Set("Content-Type", "application/json")
