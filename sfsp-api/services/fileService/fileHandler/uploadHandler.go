@@ -143,7 +143,8 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// ☁️ Upload encrypted file to ownCloud
-	err = owncloud.UploadFile(uploadPath, fileID, encryptedFile)
+	pathForUpload := "files/" + userId
+	err = owncloud.UploadFile(pathForUpload, fileID, encryptedFile)
 	if err != nil {
 		log.Println("OwnCloud upload failed:", err)
 		http.Error(w, "File upload failed", http.StatusInternalServerError)
