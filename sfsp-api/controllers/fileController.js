@@ -397,3 +397,23 @@ exports.downloadSentFile = async (req, res) => {
     res.status(500).send("Error retrieving the sent file");
   }
 };
+
+exports.addDescription = async (req, res) => {
+  const { fileId, description } = req.body;
+
+  if (!fileId || !description) {
+    return res.status(400).send("Missing fileId or description");
+  }
+
+  try {
+    const response = await axios.post(
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/addDescription`,
+      { fileId, description },
+      { headers: { "Content-Type": "application/json" } }
+    );
+    res.status(response.status).send(response.data);
+  } catch (err) {
+    console.error("Add description error:", err.message);
+    res.status(500).send("Failed to add description to the file");
+  }
+};

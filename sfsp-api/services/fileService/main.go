@@ -70,6 +70,7 @@ func main() {
 	  http.HandleFunc("/notifications/add", fileHandler.AddNotificationHandler)
     // metadata endpoints
     http.HandleFunc("/metadata", metadata.GetUserFilesHandler)
+	http.HandleFunc("/addDescription", metadata.AddDescriptionHandler)
     http.HandleFunc("/getFileMetadata", metadata.ListFileMetadataHandler)
     http.HandleFunc("/getNumberOfFiles", metadata.GetUserFileCountHandler)
     http.HandleFunc("/addPendingFiles", metadata.AddReceivedFileHandler)

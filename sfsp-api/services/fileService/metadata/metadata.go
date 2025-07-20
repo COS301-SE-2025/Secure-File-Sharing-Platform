@@ -597,3 +597,38 @@ func AddUserHandler(w http.ResponseWriter, r *http.Request) {
 		"message": "User added successfully",
 	})
 }
+
+func AddDescriptionHandler(w http.ResponseWriter, r *http.Request) {
+	type DescriptionRequest struct {
+		FileID      string `json:"fileId"`
+		Description string `json:"description"`
+	}
+
+	var req DescriptionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Println("Failed to parse JSON:", err)
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	if req.FileID == "" || req.Description == "" {
+		http.Error(w, "Missing fileId or description", http.StatusBadRequest)
+		return
+	}
+
+	_, err := DB.Exec(`
+		UPDATE files
+		SET description = $1
+		WHERE id = $2
+	`, req.Description, req.FileID)
+	if err != nil {
+		log.Println("Failed to update description:", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Description updated successfully",
+	})
+}

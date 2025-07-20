@@ -23,6 +23,7 @@ router.post("/deleteFile",fileController.deleteFile);
 router.post('/softDeleteFile', fileController.softDeleteFile);
 router.post('/restoreFile', fileController.restoreFile);
 router.post("/deleteFile",fileController.deleteFile);
+router.post('/addDescription', fileController.addDescription);
 
 
 module.exports = router;

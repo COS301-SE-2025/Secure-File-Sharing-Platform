@@ -110,6 +110,7 @@ export default function MyFiles() {
           name: f.fileName || "Unnamed file",
           size: formatFileSize(f.fileSize || 0),
           type: getFileType(f.fileType || ""),
+          description: f.description || "",
           modified: f.createdAt
             ? new Date(f.createdAt).toLocaleDateString()
             : "",
@@ -329,6 +330,27 @@ export default function MyFiles() {
     setViewerFile(file);
   };
 
+  const handleUpdateDescription = async (fileId, description) => {
+    try {
+      const res = await fetch("http://localhost:5000/api/files/addDescription", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ fileId, description }),
+      });
+      fetchFiles(); // Refresh files after update
+      if (res.status === 200) {
+        console.log("Description updated successfully");
+      }
+      if (!res.ok) {
+        throw new Error("Failed to update description");
+      }
+    } catch (err) {
+      console.error("Error updating description:", err);
+    }
+  };
+
   const openShareDialog = (file) => {
     setSelectedFile(file);
     setIsShareOpen(true);
@@ -453,6 +475,7 @@ export default function MyFiles() {
           content={previewContent}
           onClose={setPreviewFile}
           onOpenFullView={handleOpenFullView}
+          onSaveDescription={handleUpdateDescription}
         />
 
         <FullViewModal
