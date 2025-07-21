@@ -54,7 +54,7 @@ func main() {
 	// access log endpoints
 	http.HandleFunc("/addAccesslog", fileHandler.AddAccesslogHandler)
 	http.HandleFunc("/getAccesslog", fileHandler.GetAccesslogHandler)
-	http.HandleFunc("getAccessLogs", fileHandler.GetAccessLogsHandler)
+	http.HandleFunc("/getAccessLogs", fileHandler.GetAccessLogsHandler)
 	// notification endpoints
 	http.HandleFunc("/notifications", fileHandler.NotificationHandler)
 	http.HandleFunc("/notifications/markAsRead", fileHandler.MarkAsReadHandler)
