@@ -23,6 +23,9 @@ type MetadataQueryRequest struct {
 }
 
 func GetUserFilesHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	log.Println("Inside User files handler")
 	var req MetadataQueryRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
@@ -35,8 +38,9 @@ func GetUserFilesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Println("🟡 Querying database for user files")
 	rows, err := DB.Query(`
-		SELECT id, file_name, file_type, file_size, description, tags, created_at
+		SELECT id, file_name, file_type, file_size, description, tags, created_at, cid
 		FROM files
 		WHERE owner_id = $1
 	`, userID)
@@ -45,32 +49,45 @@ func GetUserFilesHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to fetch metadata", http.StatusInternalServerError)
 		return
 	}
+	log.Println("🟢 Query complete")
 	defer rows.Close()
 
 	var files []map[string]interface{}
+	count := 0
 
 	for rows.Next() {
-		var file map[string]interface{} = make(map[string]interface{})
 		var (
 			id, fileName, fileType, description, tags string
-			fileSize                              int64
-			createdAt                             time.Time
+			fileSize                                   int64
+			createdAt                                  time.Time
+			cid                                        string
 		)
-		err := rows.Scan(&id, &fileName, &fileType, &fileSize, &description, &tags, &createdAt)
+		err := rows.Scan(&id, &fileName, &fileType, &fileSize, &description, &tags, &createdAt, &cid)
 		if err != nil {
 			log.Println("Row scan error:", err)
 			continue
 		}
-		file["fileId"] = id
-		file["fileName"] = fileName
-		file["fileType"] = fileType
-		file["fileSize"] = fileSize
-		file["description"] = description
-		file["tags"] = tags
-		file["createdAt"] = createdAt
 
-		files = append(files, file)
+		files = append(files, map[string]interface{}{
+			"fileId":     id,
+			"fileName":   fileName,
+			"fileType":   fileType,
+			"fileSize":   fileSize,
+			"description": description,
+			"tags":       tags,
+			"createdAt":  createdAt,
+			"cid":       cid,
+		})
+		count++
 	}
+
+	if err = rows.Err(); err != nil {
+		log.Println("Rows iteration error:", err)
+		http.Error(w, "Failed to fetch metadata", http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("Returning %d files for user %s\n", count, userID)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(files)
@@ -491,14 +508,32 @@ var InsertReceivedFile = func(db *sql.DB, recipientId, senderId, fileId, metadat
 }
 
 
-var InsertSentFile = func(db *sql.DB, senderId, recipientId, fileId, encryptedFileKey, x3dhEphemeralPubKey string) error {
+var InsertSentFile = func(db *sql.DB, senderId, recipientId, fileId, metadataJson string) error {
+	var metadata map[string]interface{}
+	if err := json.Unmarshal([]byte(metadataJson), &metadata); err != nil {
+		return fmt.Errorf("failed to parse metadata JSON: %w", err)
+	}
+
+	encryptedAESKey, ok1 := metadata["encryptedAesKey"].(string)
+	ekPublicKey, ok2 := metadata["ekPublicKey"].(string)
+
+	if !ok1 || !ok2 {
+		return fmt.Errorf("missing encryptedAesKey or ekPublicKey in metadata")
+	}
+
 	_, err := db.Exec(`
 		INSERT INTO sent_files (
 			sender_id, recipient_id, file_id, encrypted_file_key, x3dh_ephemeral_pubkey, sent_at
 		) VALUES ($1, $2, $3, $4, $5, NOW())
-	`, senderId, recipientId, fileId, encryptedFileKey, x3dhEphemeralPubKey)
-	return err
+	`, senderId, recipientId, fileId, encryptedAESKey, ekPublicKey)
+
+	if err != nil {
+		return fmt.Errorf("failed to insert into sent_files: %w", err)
+	}
+
+	return nil
 }
+
 
 type AddTagsRequest struct {
 	FileID string   `json:"fileId"`
@@ -562,5 +597,75 @@ func AddUserHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{
 		"message": "User added successfully",
+	})
+}
+
+func AddDescriptionHandler(w http.ResponseWriter, r *http.Request) {
+	type DescriptionRequest struct {
+		FileID      string `json:"fileId"`
+		Description string `json:"description"`
+	}
+
+	var req DescriptionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Println("Failed to parse JSON:", err)
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	if req.FileID == "" || req.Description == "" {
+		http.Error(w, "Missing fileId or description", http.StatusBadRequest)
+		return
+	}
+
+	_, err := DB.Exec(`
+		UPDATE files
+		SET description = $1
+		WHERE id = $2
+	`, req.Description, req.FileID)
+	if err != nil {
+		log.Println("Failed to update description:", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Description updated successfully",
+	})
+}
+
+func UpdateFilePathHandler(w http.ResponseWriter, r *http.Request) {
+	type UpdatePathRequest struct {
+		FileID string `json:"fileId"`
+		NewPath string `json:"newPath"`
+	}
+
+	var req UpdatePathRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Println("Failed to parse JSON:", err)
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	if req.FileID == "" || req.NewPath == "" {
+		http.Error(w, "Missing fileId or newPath", http.StatusBadRequest)
+		return
+	}
+
+	_, err := DB.Exec(`
+		UPDATE files
+		SET cid = $1
+		WHERE id = $2
+	`, req.NewPath, req.FileID)
+	if err != nil {
+		log.Println("Failed to update file path:", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "File path updated successfully",
 	})
 }

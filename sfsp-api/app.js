@@ -8,6 +8,8 @@ const routes = require('./routes')
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+app.use(express.json({ limit: '10mb' }));
+
 app.use(cors({
     origin: process.env.CORS_ORIGIN || '*',
     credentials: true

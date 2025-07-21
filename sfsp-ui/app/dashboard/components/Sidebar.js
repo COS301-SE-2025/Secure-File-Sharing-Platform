@@ -2,24 +2,16 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import {useRef, useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import Image from 'next/image';
-import {
-  FileText,
-  Grid3X3,
-  Users,
-  Clock,
-  Trash2,
-  Settings,
-  ChevronDown,
-  LogOut,
-} from 'lucide-react';
+import { FileText, Grid3X3, Users, Clock, Trash2, Settings, ChevronDown,LogOut,} from 'lucide-react';
 
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const dropdownRef = useRef(null);
   const [user, setUser] = useState(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -58,6 +50,20 @@ export default function Sidebar() {
 
     fetchProfile();
   }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setSettingsOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -136,8 +142,16 @@ export default function Sidebar() {
             className="flex items-center gap-3 p-3 w-full text-left rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             onClick={() => setDropdownOpen((prev) => !prev)}
           >
-            <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-bold">
-              {user?.username?.slice(0, 2).toUpperCase() || '??'}
+            <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-bold overflow-hidden">
+              {user?.avatar_url ? (
+                <img
+                  src={user.avatar_url}
+                  alt="Avatar"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                user?.username?.slice(0, 2).toUpperCase() || '??'
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-sm font-medium truncate">{user?.username || 'Loading...'}</div>
@@ -162,7 +176,7 @@ export default function Sidebar() {
         </div>
 
         {/* Settings Dropdown */}
-        <div className="relative">
+        <div className="relative" ref={dropdownRef}>
           <button
             data-testid="settings-dropdown"
             onClick={() => setSettingsOpen((prev) => !prev)}
