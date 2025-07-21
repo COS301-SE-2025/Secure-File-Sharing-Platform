@@ -476,7 +476,9 @@ exports.updateFilePath = async (req, res) => {
     console.error("Update file path error:", err.message);
     res.status(500).send("Failed to update file path");
   }
-}exports.sendByView = async (req, res) => {
+};
+
+exports.sendByView = async (req, res) => {
   const {
     fileId,
     userId,
