@@ -183,7 +183,7 @@ export default function MyFiles() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId,
-          filename: file.name,
+          fileId: file.id,
         }),
       });
 
@@ -270,7 +270,7 @@ export default function MyFiles() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId,
-          filename: file.name,
+          fileId: file.id,
         }),
       });
 

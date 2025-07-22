@@ -223,14 +223,14 @@ func RespondToShareRequestHandler(w http.ResponseWriter, r *http.Request) {
 
 	//fetch the file id from the god damn notifications table
 	if req.Status == "accepted" {
-	var fileID, metadata, senderId, recipientId string
+	var fileID, metadata, senderId, recipientId, receivedFileId string
 
 	// Step 1: Get notification info
 	err := DB.QueryRow(`
-		SELECT n.file_id, n."from", n."to"
+		SELECT n.file_id, n."from", n."to", n."received_file_id"
 		FROM notifications n
 		WHERE n.id = $1
-	`, req.ID).Scan(&fileID, &senderId, &recipientId)
+	`, req.ID).Scan(&fileID, &senderId, &recipientId, &receivedFileId)
 
 	if err != nil {
 		log.Printf("Error fetching notification info: %v", err)
@@ -246,8 +246,8 @@ func RespondToShareRequestHandler(w http.ResponseWriter, r *http.Request) {
 	err = DB.QueryRow(`
 		SELECT metadata
 		FROM received_files
-		WHERE file_id = $1 AND recipient_id = $2
-	`, fileID, recipientId).Scan(&metadata)
+		WHERE file_id = $1 AND recipient_id = $2 AND id = $3
+	`, fileID, recipientId, receivedFileId).Scan(&metadata)
 
 	if err != nil {
 		log.Printf("Error fetching received file metadata: %v", err)
@@ -384,6 +384,7 @@ func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
 		FileName string `json:"file_name"`
 		FileID   string `json:"file_id"`
 		Message  string `json:"message"`
+		ReceivedFileID string `json:"receivedFileID"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&notification); err != nil {
@@ -406,6 +407,15 @@ func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if notification.ReceivedFileID == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Received File ID is required",
+		})
+		return
+	}
+
 	if DB == nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]interface{}{
@@ -417,10 +427,10 @@ func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
 
 	var notificationID string
 	err := DB.QueryRow(`INSERT INTO notifications 
-		(type, "from", "to", file_name, file_id, message, status) 
-		VALUES ($1, $2, $3, $4, $5, $6, 'pending') RETURNING id`,
+		(type, "from", "to", file_name, file_id, received_file_id, message, status) 
+		VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending') RETURNING id`,
 		notification.Type, notification.From, notification.To,
-		notification.FileName, notification.FileID, notification.Message).Scan(&notificationID)
+		notification.FileName, notification.FileID, notification.ReceivedFileID, notification.Message).Scan(&notificationID)
 
 	if err != nil {
 		log.Printf("Error adding notification: %v", err)

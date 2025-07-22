@@ -52,7 +52,7 @@ export async function SendFile(fileMetadata, recipientUserId, fileid) {
   const response = await fetch("http://localhost:5000/api/files/download", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userId, filename: fileMetadata.name }),
+    body: JSON.stringify({ userId, fileId: fileid }),
   });
   if (!response.ok) throw new Error("Failed to retrieve file content");
 
@@ -153,6 +153,11 @@ export async function SendFile(fileMetadata, recipientUserId, fileid) {
   });
 
   if (!res.ok) throw new Error("Failed to send file");
+  const result = await res.json();
+  //if (!result.success) throw new Error(result.message || "File upload failed");
+  console.log("File sent successfully:", res);
+  console.log("Received File ID:", result.receivedFileID);
+  return result.receivedFileID;
 }
 
 export async function ReceiveFile(fileData) {
@@ -244,6 +249,7 @@ export async function ReceiveFile(fileData) {
   if (!aesKey) throw new Error("Failed to decrypt AES key");
 
   // 🔓 Decrypt actual file
+  console.log("FileNonce is:", sodium.from_base64(fileNonce));
   const decryptedFile = sodium.crypto_secretbox_open_easy(
     encryptedFile,
     sodium.from_base64(fileNonce),
@@ -265,9 +271,9 @@ export async function ReceiveFile(fileData) {
   formData.append("userId", userId);
   formData.append("fileName", file_name);
   formData.append("fileType", file_type);
-  formData.append("fileDescription", "Received file");
+  formData.append("fileDescription", "");
   formData.append("fileTags", JSON.stringify(["received"]));
-  formData.append("path", `files/${userId}`);
+  formData.append("path", "");
   formData.append(
     "nonce",
     sodium.to_base64(nonce, sodium.base64_variants.ORIGINAL)

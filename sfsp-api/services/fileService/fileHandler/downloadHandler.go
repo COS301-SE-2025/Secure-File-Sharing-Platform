@@ -1,7 +1,7 @@
 package fileHandler
 
 import (
-	"encoding/base64"
+	//"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -22,7 +22,7 @@ import (
 
 type DownloadRequest struct {
 	UserID string `json:"userId"`
-	FileName string `json:"fileName"`
+	FileId string `json:"fileId"`
 }
 
 type DownloadResponse struct {
@@ -38,59 +38,59 @@ type DownloadDeps struct {
 	GetAESKey func() string
 }
 
-func DownloadHandlerWithDeps(deps DownloadDeps) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req DownloadRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
-			return
-		}
+// func DownloadHandlerWithDeps(deps DownloadDeps) http.HandlerFunc {
+// 	return func(w http.ResponseWriter, r *http.Request) {
+// 		var req DownloadRequest
+// 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+// 			http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+// 			return
+// 		}
 
-		if req.UserID == "" || req.FileName == "" {
-			http.Error(w, "Missing userId or fileName", http.StatusBadRequest)
-			return
-		}
+// 		if req.UserID == "" || req.FileName == "" {
+// 			http.Error(w, "Missing userId or fileName", http.StatusBadRequest)
+// 			return
+// 		}
 
-		var fileID, nonce string
-		err := deps.DB.QueryRow(`
-			SELECT id, nonce FROM files
-			WHERE owner_id = $1 AND file_name = $2
-		`, req.UserID, req.FileName).Scan(&fileID, &nonce)
-		if err != nil {
-			log.Println("Failed to retrieve file metadata:", err)
-			http.Error(w, "File not found", http.StatusNotFound)
-			return
-		}
+// 		var fileID, nonce string
+// 		err := deps.DB.QueryRow(`
+// 			SELECT id, nonce FROM files
+// 			WHERE owner_id = $1 AND file_name = $2
+// 		`, req.UserID, req.FileName).Scan(&fileID, &nonce)
+// 		if err != nil {
+// 			log.Println("Failed to retrieve file metadata:", err)
+// 			http.Error(w, "File not found", http.StatusNotFound)
+// 			return
+// 		}
 
-		data, err := deps.OC(fileID, req.UserID)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Download failed: %v", err), http.StatusInternalServerError)
-			return
-		}
+// 		data, err := deps.OC(fileID, req.UserID)
+// 		if err != nil {
+// 			http.Error(w, fmt.Sprintf("Download failed: %v", err), http.StatusInternalServerError)
+// 			return
+// 		}
 
-		aesKey := os.Getenv("AES_KEY")
-		if len(aesKey) != 32 {
-			http.Error(w, "Invalid AES key", http.StatusInternalServerError)
-			return
-		}
+// 		aesKey := os.Getenv("AES_KEY")
+// 		if len(aesKey) != 32 {
+// 			http.Error(w, "Invalid AES key", http.StatusInternalServerError)
+// 			return
+// 		}
 
-		plain, err := deps.Decrypt(data, aesKey)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Decryption failed: %v", err), http.StatusInternalServerError)
-			return
-		}
+// 		plain, err := deps.Decrypt(data, aesKey)
+// 		if err != nil {
+// 			http.Error(w, fmt.Sprintf("Decryption failed: %v", err), http.StatusInternalServerError)
+// 			return
+// 		}
 
-		base64Data := base64.StdEncoding.EncodeToString(plain)
-		res := DownloadResponse{
-			FileName:    req.FileName,
-			FileContent: base64Data,
-			Nonce:       nonce,
-		}
+// 		base64Data := base64.StdEncoding.EncodeToString(plain)
+// 		res := DownloadResponse{
+// 			FileName:    req.FileName,
+// 			FileContent: base64Data,
+// 			Nonce:       nonce,
+// 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(res)
-	}
-}
+// 		w.Header().Set("Content-Type", "application/json")
+// 		json.NewEncoder(w).Encode(res)
+// 	}
+// }
 
 func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 	var req DownloadRequest
@@ -99,19 +99,17 @@ func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.UserID == "" || req.FileName == "" {
-		http.Error(w, "Missing userId or fileName", http.StatusBadRequest)
+	if req.UserID == "" || req.FileId == "" {
+		http.Error(w, "Missing userId or fileId", http.StatusBadRequest)
 		return
 	}
-	log.Println("Got request:", req.UserID, req.FileName)
+	log.Println("Got request:", req.UserID, req.FileId)
 
-	//fmt.Println("User id is: ", req.UserID)
-	//fmt.Println("File name is: ", req.FileName)
-	var fileID, nonce string
+	var fileName, nonce string
 	err := DB.QueryRow(`
-		SELECT id, nonce FROM files
-		WHERE owner_id = $1 AND file_name = $2
-	`, req.UserID, req.FileName).Scan(&fileID, &nonce)
+		SELECT file_name, nonce FROM files
+		WHERE owner_id = $1 AND id = $2
+	`, req.UserID, req.FileId).Scan(&fileName, &nonce)
 
 	if err != nil {
 		log.Println("Failed to retrieve file metadata:", err)
@@ -119,11 +117,11 @@ func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println("Found file:", fileID, "nonce:", nonce)
+	log.Println("Found file:", fileName, "nonce:", nonce)
 
 	//fmt.Println("File ID is: ",fileID)
 
-	data, err := owncloud.DownloadFile(fileID, req.UserID)
+	data, err := owncloud.DownloadFile(req.FileId, req.UserID)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Download failed: %v", err), http.StatusInternalServerError)
 		//fmt.Println("Download Failed")
@@ -152,7 +150,7 @@ func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("Returning binary response:", len(plain))
     w.Header().Set("Content-Type", "application/octet-stream")
-    w.Header().Set("X-File-Name", req.FileName)
+    w.Header().Set("X-File-Name", fileName)
     w.Header().Set("X-Nonce", nonce)
     w.Write(plain)
 }

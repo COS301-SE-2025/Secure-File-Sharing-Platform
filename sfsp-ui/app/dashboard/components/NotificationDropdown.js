@@ -69,7 +69,6 @@ export default function NotificationDropdown() {
     });
 
     if (res.data.success) {
-      // ✅ Update UI state
       setNotifications((prev) =>
         prev.map((n) => (n.id === id ? { ...n, status, read: true } : n))
       );
@@ -77,10 +76,9 @@ export default function NotificationDropdown() {
   
       if (status === 'accepted' && res.data.fileData) {
         const fileData = res.data.fileData;
-
         await ReceiveFile(fileData);
-        // setActiveFile(fileData); 
-        // setShowPreviewModal(true);
+        //reload page after accepting
+        //window.location.reload();
       }
     }
   } catch (error) {

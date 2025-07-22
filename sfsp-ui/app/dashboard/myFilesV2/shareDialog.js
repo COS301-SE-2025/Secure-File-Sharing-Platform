@@ -80,8 +80,9 @@ export function ShareDialog({ open, onOpenChange, file }) {
         console.log("FileId", file.id);
 
         // Send the file
-        await SendFile(file, recipientId, file.id);
-
+        // send file returns a receivedFileID
+        const receivedFileID = await SendFile(file, recipientId, file.id);
+        console.log("Received File ID in shared Dialog:", receivedFileID);
         // Log file access
         await fetch("http://localhost:5000/api/files/addAccesslog", {
           method: "POST",
@@ -104,6 +105,7 @@ export function ShareDialog({ open, onOpenChange, file }) {
             toEmail: email,
             file_name: file.name,
             file_id: file.id,
+            receivedFileID : receivedFileID,
             message: `${senderEmail} wants to share ${file.name} with you`,
           }),
         });

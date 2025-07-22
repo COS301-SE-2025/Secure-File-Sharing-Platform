@@ -7,10 +7,10 @@ const FormData = require('form-data')
 const upload = multer();
 
 exports.downloadFile = async (req, res) => {
-  const { userId, filename } = req.body;
+  const { userId, fileId } = req.body;
 
-  if (!userId || !filename) {
-    return res.status(400).send("Missing userId or filename");
+  if (!userId || !fileId) {
+    return res.status(400).send("Missing userId or fileId");
   }
 
   try {
@@ -19,7 +19,7 @@ exports.downloadFile = async (req, res) => {
       url: `${
         process.env.FILE_SERVICE_URL || "http://localhost:8081"
       }/download`,
-      data: { userId, filename },
+      data: { userId, fileId },
       responseType: "arraybuffer",
       headers: { "Content-Type": "application/json" },
     });
@@ -206,7 +206,7 @@ exports.sendFile = [
       formData.append("fileid", fileid);
       formData.append("userId", userId);
       formData.append("recipientUserId", recipientUserId);
-      formData.append("metadata", metadata); // should still be JSON string
+      formData.append("metadata", metadata); // JSON string
       formData.append("encryptedFile", encryptedFile, {
         filename: "encrypted.bin",
         contentType: "application/octet-stream",
@@ -218,11 +218,13 @@ exports.sendFile = [
         { headers: formData.getHeaders() }
       );
 
-      if (goResponse.status !== 200) {
-        return res.status(goResponse.status).send("Error from Go service");
-      }
+      // ✅ Forward the receivedFileID from Go response
+      const { receivedFileID, message } = goResponse.data;
 
-      res.status(200).json({ message: "File sent successfully" });
+      res.status(200).json({
+        message: message || "File sent successfully",
+        receivedFileID, // ✅ Frontend can now reference the correct file
+      });
     } catch (err) {
       console.error("Error sending file:", err.message);
       res.status(500).send("Failed to send file");
