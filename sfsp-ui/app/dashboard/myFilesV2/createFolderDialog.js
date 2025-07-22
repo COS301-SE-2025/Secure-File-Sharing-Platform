@@ -60,7 +60,7 @@ const Label = ({ htmlFor, children }) => (
   </label>
 );
 
-export function CreateFolderDialog({ open, onOpenChange }) {
+export function CreateFolderDialog({ open, onOpenChange, currentPath }) {
   const [folderName, setFolderName] = useState("");
 
   const createFolder = async () => {
@@ -73,13 +73,15 @@ export function CreateFolderDialog({ open, onOpenChange }) {
         return;
       }
 
+      const fullPath = currentPath ? `${currentPath}/${folderName}` : folderName;
+
       const res = await fetch("http://localhost:5000/api/files/createFolder", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId,
           folderName,
-          parentPath: "",
+          parentPath: currentPath || "",
           description: "",
         }),
       });

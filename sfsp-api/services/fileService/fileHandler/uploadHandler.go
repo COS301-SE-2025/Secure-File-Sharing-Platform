@@ -18,6 +18,7 @@ import (
 
 	"github.com/lib/pq"
 	"database/sql"
+	"strings"
 )
 
 // type UploadRequest struct {
@@ -150,12 +151,22 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = DB.Exec(`UPDATE files SET cid = $1 WHERE id = $2`, uploadPath, fileID)
-	if err != nil {
-		log.Println("PostgreSQL update cid failed:", err)
-		// Not fatal
-	} 
+	var fullCID string
+    if uploadPath != "" {
+		fmt.Println("Filename is : ", fileName)
+	   fullCID = strings.TrimSuffix(uploadPath, "/") + "/" + fileName
+	   fmt.Println("Full CID is: ", fullCID)
+    } else {
+	   fullCID = fileName
+    }
 
+   _, err = DB.Exec(`UPDATE files SET cid = $1 WHERE id = $2`, fullCID, fileID)
+	if err != nil {
+		log.Println("Failed to update file CID:", err)
+		http.Error(w, "Failed to update file CID", http.StatusInternalServerError)
+		return
+	}
+ 
 	// ✅ Respond
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{

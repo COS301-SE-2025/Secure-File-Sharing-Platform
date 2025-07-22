@@ -73,21 +73,33 @@ export default function MyFiles() {
   const [viewerFile, setViewerFile] = useState(null);
   const [viewerContent, setViewerContent] = useState(null);
 
-  const isDirectChild = (path) => {
-    if (!path && !currentPath) return true;
-    if (!path || !currentPath) return false;
+  const normalizePath = (path) =>
+    path?.startsWith("files/") ? path.slice(6) : path || "";
 
-    const relative = path.replace(currentPath + "/", "");
-    return !relative.includes("/");
+  const isDirectChild = (rawPath) => {
+    const filePath = normalizePath(rawPath);
+    const base = currentPath || "";
+
+    if (base === "") {
+      return !filePath.includes("/");
+    }
+
+    const expectedPrefix = base.endsWith("/") ? base : base + "/";
+    if (!filePath.startsWith(expectedPrefix)) return false;
+
+    const remainder = filePath.slice(expectedPrefix.length);
+    return remainder !== "" && !remainder.includes("/");
   };
 
   const filteredVisibleFiles = files.filter((file) => {
     const name = file?.name?.toLowerCase() || "";
-    const path = file?.path || "";
+    const path = normalizePath(file?.path);
     const keyword = (search || "").toLowerCase();
 
     return (
-      name.includes(keyword) && path === currentPath && isDirectChild(path)
+      name.includes(keyword) &&
+      path?.startsWith(currentPath || "") &&
+      isDirectChild(path)
     );
   });
 
@@ -398,11 +410,15 @@ export default function MyFiles() {
     }
   };
 
-  const handleMoveFile = async (file, newPath) => {
+  const handleMoveFile = async (file, destinationFolderPath) => {
+    const fullPath = destinationFolderPath
+      ? `files/${destinationFolderPath}/${file.name}`
+      : `files/${file.name}`; // for root-level
+
     const res = await fetch("http://localhost:5000/api/files/updateFilePath", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fileId: file.id, newPath }),
+      body: JSON.stringify({ fileId: file.id, newPath: fullPath }),
     });
 
     if (res.ok) {
@@ -521,7 +537,7 @@ export default function MyFiles() {
             </button>
           )}
         </div>
-        
+
         {renderBreadcrumbs()}
 
         {/*File */}
@@ -570,6 +586,7 @@ export default function MyFiles() {
         <CreateFolderDialog
           open={isCreateFolderOpen}
           onOpenChange={setIsCreateFolderOpen}
+          currentPath={currentPath}
         />
         <ShareDialog
           open={isShareOpen}
