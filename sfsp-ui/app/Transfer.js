@@ -40,7 +40,7 @@ function ed25519PubToCurve(pubEd25519, sodium) {
   return sodium.crypto_sign_ed25519_pk_to_curve25519(pubEd25519);
 }
 
-export async function SendFile(fileMetadata, recipientUserId, fileid) {
+export async function SendFile(fileMetadata, recipientUserId, fileid, sendViewUrl) {
   const sodium = await getSodium();
   const { userId, encryptionKey } = useEncryptionStore.getState();
 
@@ -146,6 +146,15 @@ export async function SendFile(fileMetadata, recipientUserId, fileid) {
     })
   );
   formData.append("encryptedFile", new Blob([encryptedFile]));
+
+  if (sendViewUrl) {
+    const res = await fetch(sendViewUrl, {
+      method: "POST",
+      body: formData,
+    });
+    if (!res.ok) throw new Error("Failed to send file via view");
+    return;
+  }
 
   const res = await fetch("http://localhost:5000/api/files/send", {
     method: "POST",

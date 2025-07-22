@@ -15,6 +15,7 @@ export function ShareDialog({ open, onOpenChange, file }) {
   const [linkAccess, setLinkAccess] = useState("restricted");
   const [allowComments, setAllowComments] = useState(true);
   const [allowDownload, setAllowDownload] = useState(true);
+  const sendviewurl = "http://localhost:5000/api/files/sendByView";
 
   const addRecipient = () => {
     if (newEmail && shareWith.every((r) => r.email !== newEmail)) {
@@ -79,8 +80,8 @@ export function ShareDialog({ open, onOpenChange, file }) {
         console.log("Recipient Id is:", recipientId);
         console.log("FileId", file.id);
 
-        // Send the file
-        await SendFile(file, recipientId, file.id);
+        // Send the file (Temporarily using SendByView function)
+        await SendFile(file, recipientId, file.id, sendviewurl);
 
         // Log file access
         await fetch("http://localhost:5000/api/files/addAccesslog", {
@@ -99,7 +100,7 @@ export function ShareDialog({ open, onOpenChange, file }) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            type: "file_share_request", 
+            type: "file_share_request",
             fromEmail: senderEmail,
             toEmail: email,
             file_name: file.name,
