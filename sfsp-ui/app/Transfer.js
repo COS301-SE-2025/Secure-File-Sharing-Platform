@@ -148,11 +148,15 @@ export async function SendFile(fileMetadata, recipientUserId, fileid, sendViewUr
   formData.append("encryptedFile", new Blob([encryptedFile]));
 
   if (sendViewUrl) {
+    console.log("Sending file via view URL:", sendViewUrl);
+    console.log("FormData contents:", formData);
     const res = await fetch(sendViewUrl, {
       method: "POST",
       body: formData,
     });
     if (!res.ok) throw new Error("Failed to send file via view");
+    console.log("File sent successfully via view URL");
+    console.log("Response:", await res.json());
     return;
   }
 

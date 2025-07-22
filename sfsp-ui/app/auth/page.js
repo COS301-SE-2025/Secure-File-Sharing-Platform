@@ -46,7 +46,7 @@ export default function AuthPage() {
         ...prev,
         [name]: value,
       }));
-      
+
       if (fieldErrors[name]) {
         setFieldErrors((prev) => ({
           ...prev,
@@ -202,7 +202,7 @@ export default function AuthPage() {
     if (!name) {
       errors.name = "Name is required.";
     }
-    
+
     if (!email) {
       errors.email = "Email is required.";
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -472,11 +472,10 @@ export default function AuthPage() {
                 setMessage(null);
                 setFieldErrors({});
               }}
-              className={`cursor-pointer text-center pb-2 font-medium transition-all ${
-                tab === "login"
+              className={`cursor-pointer text-center pb-2 font-medium transition-all ${tab === "login"
                   ? "text-blue-600 font-bold text-lg border-b-2 border-blue-600"
                   : "text-gray-500 hover:text-blue-600"
-              }`}
+                }`}
             >
               Log In
             </div>
@@ -486,11 +485,10 @@ export default function AuthPage() {
                 setMessage(null);
                 setFieldErrors({});
               }}
-              className={`cursor-pointer text-center pb-2 font-medium transition-all ${
-                tab === "signup"
+              className={`cursor-pointer text-center pb-2 font-medium transition-all ${tab === "signup"
                   ? "text-blue-600 font-bold text-lg border-b-2 border-blue-600"
                   : "text-gray-500 hover:text-blue-600"
-              }`}
+                }`}
             >
               Sign Up
             </div>
@@ -499,11 +497,10 @@ export default function AuthPage() {
           {/* Messages */}
           {message && (
             <div
-              className={`p-3 rounded-md text-sm mb-4 ${
-                message.includes("successful")
+              className={`p-3 rounded-md text-sm mb-4 ${message.includes("successful")
                   ? "bg-green-100 text-green-700"
                   : "bg-red-100 text-red-700"
-              }`}
+                }`}
             >
               {message}
             </div>
@@ -660,9 +657,8 @@ export default function AuthPage() {
                     value={signupData.name}
                     onChange={handleChange(setSignupData)}
                     required
-                    className={`w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${
-                      fieldErrors.name ? 'border-red-500' : ''
-                    }`}
+                    className={`w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${fieldErrors.name ? 'border-red-500' : ''
+                      }`}
                   />
                   {fieldErrors.name && (
                     <p className="text-red-500 text-sm mt-1">{fieldErrors.name}</p>
@@ -682,9 +678,8 @@ export default function AuthPage() {
                     value={signupData.email}
                     onChange={handleChange(setSignupData)}
                     required
-                    className={`w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${
-                      fieldErrors.email ? 'border-red-500' : ''
-                    }`}
+                    className={`w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${fieldErrors.email ? 'border-red-500' : ''
+                      }`}
                   />
                   {fieldErrors.email && (
                     <p className="text-red-500 text-sm mt-1">{fieldErrors.email}</p>
@@ -697,30 +692,29 @@ export default function AuthPage() {
                   >
                     Password
                   </label>
-                    <div className="relative">
-                      <input
-                        id="password"
-                        name="password"
-                        type={showSignupPassword ? 'text' : 'password'}
-                        value={signupData.password}
-                        onChange={handleChange(setSignupData)}
-                        required
-                        className={`w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${
-                          fieldErrors.password ? 'border-red-500' : ''
+                  <div className="relative">
+                    <input
+                      id="password"
+                      name="password"
+                      type={showSignupPassword ? 'text' : 'password'}
+                      value={signupData.password}
+                      onChange={handleChange(setSignupData)}
+                      required
+                      className={`w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${fieldErrors.password ? 'border-red-500' : ''
                         }`}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowSignupPassword(!showSignupPassword)}
-                        className="absolute inset-y-0 right-0 flex items-center pr-3"
-                        aria-label={showSignupPassword ? 'Hide password' : 'Show password'}
-                      >
-                        {showSignupPassword ? (
-                          <Eye className="h-5 w-5 text-gray-500 hover:text-gray-700" />
-                        ) : (
-                          <EyeClosed className="h-5 w-5 text-gray-500 hover:text-gray-700" />
-                        )}
-                      </button>
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowSignupPassword(!showSignupPassword)}
+                      className="absolute inset-y-0 right-0 flex items-center pr-3"
+                      aria-label={showSignupPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showSignupPassword ? (
+                        <Eye className="h-5 w-5 text-gray-500 hover:text-gray-700" />
+                      ) : (
+                        <EyeClosed className="h-5 w-5 text-gray-500 hover:text-gray-700" />
+                      )}
+                    </button>
                     {fieldErrors.password && (
                       <p className="text-red-500 text-sm mt-1">{fieldErrors.password}</p>
                     )}
@@ -733,31 +727,30 @@ export default function AuthPage() {
                   >
                     Confirm Password
                   </label>
-                    <div className="relative">
-                      <input
-                        id="confirmPassword"
-                        name="confirmPassword"
-                        type={showConfirmPassword ? 'text' : 'password'}
-                        value={signupData.confirmPassword}
-                        onChange={handleChange(setSignupData)}
-                        required
-                        className={`w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${
-                          fieldErrors.confirmPassword ? 'border-red-500' : ''
+                  <div className="relative">
+                    <input
+                      id="confirmPassword"
+                      name="confirmPassword"
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      value={signupData.confirmPassword}
+                      onChange={handleChange(setSignupData)}
+                      required
+                      className={`w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${fieldErrors.confirmPassword ? 'border-red-500' : ''
                         }`}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        className="absolute inset-y-0 right-0 flex items-center pr-3"
-                        aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
-                      >
-                        {showConfirmPassword ? (
-                          <Eye className="h-5 w-5 text-gray-500 hover:text-gray-700" />
-                        ) : (
-                          <EyeClosed className="h-5 w-5 text-gray-500 hover:text-gray-700" />
-                        )}
-                      </button>
-                    </div>
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute inset-y-0 right-0 flex items-center pr-3"
+                      aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+                    >
+                      {showConfirmPassword ? (
+                        <Eye className="h-5 w-5 text-gray-500 hover:text-gray-700" />
+                      ) : (
+                        <EyeClosed className="h-5 w-5 text-gray-500 hover:text-gray-700" />
+                      )}
+                    </button>
+                  </div>
                   {fieldErrors.confirmPassword && (
                     <p className="text-red-500 text-sm mt-1">{fieldErrors.confirmPassword}</p>
                   )}

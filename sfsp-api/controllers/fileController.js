@@ -479,55 +479,42 @@ exports.updateFilePath = async (req, res) => {
 };
 
 exports.sendByView = async (req, res) => {
-  const {
-    fileId,
-    userId,
-    recipientUserId,
-    encryptedFile,
-    encryptedAesKey,
-    ekPublicKey,
-    metadata,
-  } = req.body;
+  uploud.single("encryptedFile"),
+    async (req, res) => {
+      try {
+        const { fileid, userId, recipientUserId, metadata } = req.body;
+        const encryptedFile = req.file?.buffer;
 
-  if (!fileid) return res.status(400).send("File ID is missing");
-  if (!userId || !recipientUserId)
-    return res.status(400).send("User ID or Recipient User ID is missing");
-  if (!encryptedFile || !encryptedAesKey)
-    return res.status(400).send("Encrypted file or AES key is missing");
+        if (!fileid || !userId || !recipientUserId || !encryptedFile) {
+          return res
+            .status(400)
+            .send("Missing file id, user ids or encrypted file");
+        }
 
-  if (
-    !metadata ||
-    !metadata.fileNonce ||
-    !metadata.keyNonce ||
-    !metadata.ikPublicKey ||
-    !metadata.ekPublicKey ||
-    !metadata.opk_id
-  ) {
-    return res
-      .status(400)
-      .send("Metadata is incomplete or missing required keys");
-  }
-  try {
-    const response = await axios.post(
-      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/sendByView`,
-      {
-        fileId,
-        userId,
-        recipientUserId,
-        encryptedFile,
-        encryptedAesKey,
-        ekPublicKey,
-        metadata,
-      },
-      { headers: { "Content-Type": "application/json" } }
-    );
+        const formData = new FormData();
+        formData.append("fileid", fileid);
+        formData.append("userId", userId);
+        formData.append("recipientUserId", recipientUserId);
+        formData.append("metadata", metadata); // should still be JSON string
+        formData.append("encryptedFile", encryptedFile, {
+          filename: "encrypted.bin",
+          contentType: "application/octet-stream",
+        });
 
-    if (response.status !== 200) {
-      return res.status(response.status).send("Error sending file by view");
+        const response = await axios.post(
+          `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/sendByView`,
+          formData,
+          { headers: formData.getHeaders() }
+        );
+
+        if (response.status !== 200) {
+          return res.status(response.status).send("Error from Go service");
+        }
+
+        res.status(200).json({ message: "File sent successfully via view" });
+      } catch (err) {
+        console.error("Error sending file by view:", err.message);
+        res.status(500).send("Failed to send file by view");
+      }
     }
-    res.status(response.status).send(response.data);
-  } catch (err) {
-    console.error("Send by view error:", err.message);
-    res.status(500).send("Failed to send file by view");
-  }
 };
