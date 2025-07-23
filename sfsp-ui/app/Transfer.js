@@ -128,6 +128,12 @@ export async function SendFile(fileMetadata, recipientUserId, fileid) {
     sharedKey
   );
 
+  //Do the digital signature
+  const ikPrivateKey = userKeys.identity_private_key;
+
+  const fileHash = sodium.crypto_generichash(32, encryptedFile);
+  const signature = sodium.crypto_sign_detached(fileHash, ikPrivateKey);
+
   // 7️⃣ Use FormData to upload as binary
   const formData = new FormData();
   formData.append("fileid", fileid);
@@ -138,11 +144,13 @@ export async function SendFile(fileMetadata, recipientUserId, fileid) {
     JSON.stringify({
       fileNonce: sodium.to_base64(fileNonce),
       keyNonce: sodium.to_base64(keyNonce),
-      ikPublicKey: sodium.to_base64(userKeys.identity_public_key),
+      ikPublicKey: sodium.to_base64(userKeys.identity_public_key),//we already send ikPublicKey
       spkPublicKey: sodium.to_base64(userKeys.signedpk_public_key),
       ekPublicKey: sodium.to_base64(EK.publicKey),
       opk_id: recipientKeys.opk.opk_id,
       encryptedAesKey: sodium.to_base64(encryptedAesKey),
+      signature: sodium.to_base64(signature),
+      fileHash: sodium.to_base64(fileHash),
     })
   );
   formData.append("encryptedFile", new Blob([encryptedFile]));
@@ -176,6 +184,8 @@ export async function ReceiveFile(fileData) {
     opk_id,
     encryptedAesKey,
     spkPublicKey,
+    signature,
+    fileHash,
   } = JSON.parse(metadata);
 
   console.log("File id:", file_id, "file_name:", file_name, "type:", file_type);
@@ -198,6 +208,29 @@ export async function ReceiveFile(fileData) {
   // 🚀 Use arrayBuffer instead of text
   const buffer = await response.arrayBuffer();
   const encryptedFile = new Uint8Array(buffer);
+
+  //Verify that the signature is valid
+  const fileHashBytes = sodium.from_base64(fileHash);
+
+  //Check if the hash is the same
+  const computedHash = sodium.crypto_generichash(32, encryptedFile);
+  if (!sodium.memcmp(fileHashBytes, computedHash)) {
+    throw new Error("File hash does not match the expected hash");
+  }
+
+  const signatureBytes = sodium.from_base64(signature);
+  const ikPublicKeyBytes = sodium.from_base64(ikPublicKey);
+  const isValidSignature = sodium.crypto_sign_verify_detached(
+    signatureBytes,
+    fileHashBytes,
+    ikPublicKeyBytes
+  );
+
+  if (!isValidSignature) {
+    throw new Error("Invalid signature for the received file");
+  } else{
+    console.log("Signature is valid for the received file.");
+  }
 
   console.log("Encrypted file bytes length:", encryptedFile.length);
 
