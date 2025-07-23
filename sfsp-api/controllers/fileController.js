@@ -228,30 +228,6 @@ exports.sendFile = [
   },
 ];
 
-exports.getAccessLogs = async (req, res) => {
-  const { fileId, userId } = req.body;
-
-  if (!fileId || !userId) {
-    return res.status(400).send("Missing fileId or userId");
-  }
-
-  try {
-    const response = await axios.post(
-      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/getAccessLogs`,
-      { fileId, userId },
-      { headers: { "Content-Type": "application/json" } }
-    );
-
-    if (response.status !== 200) {
-      return res.status(response.status).send("Error retrieving access logs");
-    }
-    res.json(response.data);
-  } catch (err) {
-    console.error("Error retrieving access logs:", err.message);
-    res.status(500).send("Error retrieving access logs");
-  }
-};
-
 exports.addAccesslog = async (req, res) => {
   const { file_id, user_id, action, message } = req.body;
   if (!file_id || !user_id || !action || !message) {
@@ -478,43 +454,116 @@ exports.updateFilePath = async (req, res) => {
   }
 };
 
-exports.sendByView = async (req, res) => {
-  uploud.single("encryptedFile"),
-    async (req, res) => {
-      try {
-        const { fileid, userId, recipientUserId, metadata } = req.body;
-        const encryptedFile = req.file?.buffer;
+exports.sendByView = [
+  upload.single("encryptedFile"),
+  async (req, res) => {
+    try {
+      const { fileid, userId, recipientUserId, metadata } = req.body;
+      const encryptedFile = req.file?.buffer;
 
-        if (!fileid || !userId || !recipientUserId || !encryptedFile) {
-          return res
-            .status(400)
-            .send("Missing file id, user ids or encrypted file");
-        }
-
-        const formData = new FormData();
-        formData.append("fileid", fileid);
-        formData.append("userId", userId);
-        formData.append("recipientUserId", recipientUserId);
-        formData.append("metadata", metadata); // should still be JSON string
-        formData.append("encryptedFile", encryptedFile, {
-          filename: "encrypted.bin",
-          contentType: "application/octet-stream",
-        });
-
-        const response = await axios.post(
-          `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/sendByView`,
-          formData,
-          { headers: formData.getHeaders() }
-        );
-
-        if (response.status !== 200) {
-          return res.status(response.status).send("Error from Go service");
-        }
-
-        res.status(200).json({ message: "File sent successfully via view" });
-      } catch (err) {
-        console.error("Error sending file by view:", err.message);
-        res.status(500).send("Failed to send file by view");
+      if (!fileid || !userId || !recipientUserId || !encryptedFile) {
+        return res
+          .status(400)
+          .send("Missing file id, user ids or encrypted file");
       }
+
+      const formData = new FormData();
+      formData.append("fileid", fileid);
+      formData.append("userId", userId);
+      formData.append("recipientUserId", recipientUserId);
+      formData.append("metadata", metadata); // should still be JSON string
+      formData.append("encryptedFile", encryptedFile, {
+        filename: "encrypted.bin",
+        contentType: "application/octet-stream",
+      });
+
+      const response = await axios.post(
+        `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/sendByView`,
+        formData,
+        { headers: formData.getHeaders() }
+      );
+
+      if (response.status !== 200) {
+        return res.status(response.status).send("Error from Go service");
+      }
+
+      res.status(200).json({ message: "File sent successfully for view-only access" });
+    } catch (err) {
+      console.error("Error sending file by view:", err.message);
+      res.status(500).send("Failed to send file by view");
     }
+  }
+];
+
+exports.getSharedViewFiles = async (req, res) => {
+  const { userId } = req.body;
+
+  if (!userId) {
+    return res.status(400).send("Missing userId");
+  }
+
+  try {
+    const response = await axios.post(
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/getSharedViewFiles`,
+      { userId },
+      { headers: { "Content-Type": "application/json" } }
+    );
+
+    if (response.status !== 200) {
+      return res.status(response.status).send("Error retrieving shared view files");
+    }
+
+    res.json(response.data);
+  } catch (err) {
+    console.error("Error retrieving shared view files:", err.message);
+    res.status(500).send("Error retrieving shared view files");
+  }
+};
+
+exports.getViewFileAccessLogs = async (req, res) => {
+  const { fileId, userId } = req.body;
+
+  if (!fileId || !userId) {
+    return res.status(400).send("Missing fileId or userId");
+  }
+
+  try {
+    const response = await axios.post(
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/getViewFileAccessLogs`,
+      { fileId, userId },
+      { headers: { "Content-Type": "application/json" } }
+    );
+
+    if (response.status !== 200) {
+      return res.status(response.status).send("Error retrieving view file access logs");
+    }
+    res.json(response.data);
+  } catch (err) {
+    console.error("Error retrieving view file access logs:", err.message);
+    res.status(500).send("Error retrieving view file access logs");
+  }
+};
+
+exports.revokeViewAccess = async (req, res) => {
+  const { fileId, userId, recipientId } = req.body;
+
+  if (!fileId || !userId || !recipientId) {
+    return res.status(400).send("Missing fileId, userId or recipientId");
+  }
+
+  try {
+    const response = await axios.post(
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/revokeViewAccess`,
+      { fileId, userId },
+      { headers: { "Content-Type": "application/json" } }
+    );
+
+    if (response.status !== 200) {
+      return res.status(response.status).send("Error revoking view access");
+    }
+    res.json({ message: "View access revoked successfully" });
+  } catch (err) {
+    console.error("Error revoking view access:", err.message);
+    res.status(500).send("Error revoking view access");
+  }
 };

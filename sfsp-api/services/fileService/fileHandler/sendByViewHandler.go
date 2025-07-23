@@ -4,239 +4,275 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
 )
 
 func SendByViewHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	// Parse multipart form data
+	err := r.ParseMultipartForm(50 << 20) // allow up to 50 MB
+	if err != nil {
+		log.Println("Failed to parse multipart form:", err)
+		http.Error(w, "Invalid multipart form", http.StatusBadRequest)
 		return
 	}
 
+	fileID := r.FormValue("fileid")
+	userID := r.FormValue("userId")
+	recipientID := r.FormValue("recipientUserId")
+	metadataJSON := r.FormValue("metadata")
+
+	if fileID == "" || userID == "" || recipientID == "" || metadataJSON == "" {
+		http.Error(w, "Missing required form fields", http.StatusBadRequest)
+		return
+	}
+
+	// Verify user owns the file
+	var ownerID string
+	err = DB.QueryRow("SELECT owner_id FROM files WHERE id = $1", fileID).Scan(&ownerID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "File not found", http.StatusNotFound)
+			return
+		}
+		log.Println("Database error:", err)
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+
+	if ownerID != userID {
+		http.Error(w, "Unauthorized: You don't own this file", http.StatusForbidden)
+		return
+	}
+
+	// Retrieve binary file
+	file, _, err := r.FormFile("encryptedFile")
+	if err != nil {
+		log.Println("Failed to get encrypted file from form:", err)
+		http.Error(w, "Missing encrypted file", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	fileBytes, err := io.ReadAll(file)
+	if err != nil {
+		log.Println("Failed to read encrypted file:", err)
+		http.Error(w, "Failed to read uploaded file", http.StatusInternalServerError)
+		return
+	}
+
+	log.Println("Received encrypted file for view sharing, len:", len(fileBytes))
+
+	// Upload to OwnCloud in a view-only specific path
+	targetPath := fmt.Sprintf("files/%s/shared_view", userID)
+	sharedFileKey := fmt.Sprintf("%s_%s", fileID, recipientID)
+	if err := owncloud.UploadFile(targetPath, sharedFileKey, fileBytes); err != nil {
+		log.Println("OwnCloud upload failed:", err)
+		http.Error(w, "Failed to store encrypted file", http.StatusInternalServerError)
+		return
+	}
+
+	// Check if already shared with this recipient
+	var existingID string
+	err = DB.QueryRow(`
+		SELECT id FROM shared_files_view 
+		WHERE sender_id = $1 AND recipient_id = $2 AND file_id = $3 AND revoked = FALSE
+	`, userID, recipientID, fileID).Scan(&existingID)
+
+	if err == nil {
+		// Already shared, update the metadata
+		_, err = DB.Exec(`
+			UPDATE shared_files_view 
+			SET metadata = $1, shared_at = CURRENT_TIMESTAMP, expires_at = $2
+			WHERE id = $3
+		`, metadataJSON, time.Now().Add(48*time.Hour), existingID)
+		if err != nil {
+			log.Println("Failed to update shared file:", err)
+			http.Error(w, "Failed to update shared file", http.StatusInternalServerError)
+			return
+		}
+	} else if err == sql.ErrNoRows {
+		// Insert new shared file record
+		_, err = DB.Exec(`
+			INSERT INTO shared_files_view (sender_id, recipient_id, file_id, metadata, expires_at)
+			VALUES ($1, $2, $3, $4, $5)
+		`, userID, recipientID, fileID, metadataJSON, time.Now().Add(48*time.Hour))
+		if err != nil {
+			log.Println("Failed to insert shared file view:", err)
+			http.Error(w, "Failed to track shared file", http.StatusInternalServerError)
+			return
+		}
+	} else {
+		log.Println("Database error:", err)
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+
+	// Mark file as allowing view sharing
+	_, err = DB.Exec("UPDATE files SET allow_view_sharing = TRUE WHERE id = $1", fileID)
+	if err != nil {
+		log.Println("Failed to update file view sharing flag:", err)
+	}
+
+	// Add access log for sharing action
+	_, err = DB.Exec(`
+		INSERT INTO access_logs (file_id, user_id, action, message, view_only)
+		VALUES ($1, $2, $3, $4, $5)
+	`, fileID, userID, "shared_view", fmt.Sprintf("File shared with user %s for view-only access", recipientID), true)
+	if err != nil {
+		log.Println("Failed to log sharing action:", err)
+	}
+
+	// Respond
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "File shared for view-only access successfully",
+	})
+	log.Println("File shared for view-only access successfully")
+}
+
+func RevokeViewAccessHandler(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		FileID          string                 `json:"fileId"`
-		UserID          string                 `json:"userId"`
-		RecipientUserID string                 `json:"recipientUserId"`
-		EncryptedFile   string                 `json:"encryptedFile"`
-		EncryptedAESKey string                 `json:"encryptedAesKey"`
-		EKPublicKey     string                 `json:"ekPublicKey"`
-		Metadata        map[string]interface{} `json:"metadata"`
+		FileID      string `json:"fileId"`
+		UserID      string `json:"userId"`
+		RecipientID string `json:"recipientId"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		log.Printf("Error decoding request: %v", err)
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 
-	if req.FileID == "" || req.UserID == "" || req.RecipientUserID == "" {
+	if req.FileID == "" || req.UserID == "" || req.RecipientID == "" {
 		http.Error(w, "Missing required fields", http.StatusBadRequest)
 		return
 	}
 
-	fileID, err := uuid.Parse(req.FileID)
-	if err != nil {
-		http.Error(w, "Invalid file ID format", http.StatusBadRequest)
-		return
-	}
-	senderID, err := uuid.Parse(req.UserID)
-	if err != nil {
-		http.Error(w, "Invalid sender ID format", http.StatusBadRequest)
-		return
-	}
-	recipientID, err := uuid.Parse(req.RecipientUserID)
-	if err != nil {
-		http.Error(w, "Invalid recipient ID format", http.StatusBadRequest)
-		return
-	}
-
-	tx, err := DB.Begin()
-	if err != nil {
-		log.Printf("Error starting transaction: %v", err)
-		http.Error(w, "Database error", http.StatusInternalServerError)
-		return
-	}
-	defer tx.Rollback()
-
-	var ownerID, fileName string
-	err = tx.QueryRow("SELECT owner_id, file_name FROM files WHERE file_id = $1", fileID).Scan(&ownerID, &fileName)
+	// Verify user owns the file
+	var ownerID string
+	err := DB.QueryRow("SELECT owner_id FROM files WHERE id = $1", req.FileID).Scan(&ownerID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			http.Error(w, "File Not Found", http.StatusNotFound)
+			http.Error(w, "File not found", http.StatusNotFound)
 			return
 		}
-		log.Printf("Error checking file ownership: %v", err)
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}
+
 	if ownerID != req.UserID {
-		http.Error(w, "Unauthorized: You can only share files you own", http.StatusForbidden)
+		http.Error(w, "Unauthorized", http.StatusForbidden)
 		return
 	}
 
-	var recipientExists bool
-	err = tx.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE id = $1)", recipientID).Scan(&recipientExists)
+	// Revoke access
+	result, err := DB.Exec(`
+		UPDATE shared_files_view 
+		SET revoked = TRUE, revoked_at = CURRENT_TIMESTAMP, access_granted = FALSE
+		WHERE sender_id = $1 AND recipient_id = $2 AND file_id = $3 AND revoked = FALSE
+	`, req.UserID, req.RecipientID, req.FileID)
+
 	if err != nil {
-		log.Printf("Error checking recipient existence: %v", err)
-		http.Error(w, "Database error", http.StatusInternalServerError)
-		return
-	}
-	if !recipientExists {
-		http.Error(w, "Recipient not found", http.StatusNotFound)
+		log.Println("Failed to revoke access:", err)
+		http.Error(w, "Failed to revoke access", http.StatusInternalServerError)
 		return
 	}
 
-	metadataJSON, err := json.Marshal(req.Metadata)
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		http.Error(w, "No active sharing found to revoke", http.StatusNotFound)
+		return
+	}
+
+	// Add access log
+	_, err = DB.Exec(`
+		INSERT INTO access_logs (file_id, user_id, action, message, view_only)
+		VALUES ($1, $2, $3, $4, $5)
+	`, req.FileID, req.UserID, "revoked_view", fmt.Sprintf("View access revoked for user %s", req.RecipientID), true)
 	if err != nil {
-		log.Printf("Error marshalling metadata: %v", err)
-		http.Error(w, "Invalid metadata format", http.StatusBadRequest)
-		return
+		log.Println("Failed to log revoke action:", err)
 	}
 
-	viewSharedID := uuid.New()
-	expiresAt := time.Now().Add(30 * 24 * time.Hour)
-
-	_, err = tx.Exec(`INSERT INTO view_only_shares (id, sender_id, recipient_id, file_id, encrypted_file_key, x3dh_epheral_pubkey, expires_at, metadata)
-			   VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-		viewSharedID, senderID, recipientID, fileID, req.EncryptedFile, req.EncryptedAESKey, expiresAt, metadataJSON)
-	if err != nil {
-		log.Printf("Error inserting view-only share: %v", err)
-		http.Error(w, "Database error", http.StatusInternalServerError)
-		return
-	}
-
-	_, err = tx.Exec(`INSERT INTO received_files (recipient_id, sender_id, file_id, expires_at, metadata, permission_type)
-			   VALUES ($1, $2, $3, $4, $5, $6)`,
-		recipientID, senderID, fileID, expiresAt, metadataJSON, "view_only")
-	if err != nil {
-		log.Printf("Error inserting received file: %v", err)
-		http.Error(w, "Failed to add to received files", http.StatusInternalServerError)
-		return
-	}
-
-	if err = shareAccessLogsWithRecipient(tx, fileID, viewSharedID); err != nil {
-		log.Printf("Error sharing access logs: %v", err)
-		http.Error(w, "Failed to share access logs", http.StatusInternalServerError)
-		return
-	}
-
-	if err = createNotification(tx, senderID, recipientID, fileName, fileID); err != nil {
-		log.Printf("Error inserting notification: %v", err)
-		http.Error(w, "Failed to create notification", http.StatusInternalServerError)
-		return
-	}
-
-	if err = addAccessLog(tx, fileID, senderID, "shared_view_only", fmt.Sprintf("File shared with view-only access to user %s", recipientID)); err != nil {
-		log.Printf("Error adding access log: %v", err)
-		http.Error(w, "Failed to add access log", http.StatusInternalServerError)
-		return
-	}
-
-	if err = tx.Commit(); err != nil {
-		log.Printf("Error committing transaction: %v", err)
-		http.Error(w, "Database error", http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{
-		"message":  "File shared with view-only access successfully",
-		"sharedId": viewSharedID.String(),
+		"message": "View access revoked successfully",
 	})
 }
 
-func createNotification(tx *sql.Tx, senderID, recipientID uuid.UUID, fileName string, fileID uuid.UUID) error {
-	notificationID := uuid.New()
-	_, err := tx.Exec(`INSERT INTO notifications (id, type, "from", "to", file_name, file_id, message, status)
-			   VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-		notificationID, "view_share_request", senderID, recipientID, fileName, fileID,
-		"You have received a view-only file share", "pending")
-	return err
-}
-
-func addAccessLog(tx *sql.Tx, fileID, userID uuid.UUID, action, message string) error {
-	_, err := tx.Exec(`INSERT INTO access_logs (file_id, user_id, action, message)
-			   VALUES ($1, $2, $3, $4)`,
-		fileID, userID, action, message)
-	return err
-}
-
-func shareAccessLogsWithRecipient(tx *sql.Tx, fileID uuid.UUID, viewShareID uuid.UUID) error {
-	rows, err := tx.Query(`
-		SELECT id FROM access_logs 
-		WHERE file_id = $1 
-		ORDER BY timestamp DESC`, fileID)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var accessLogID uuid.UUID
-		if err := rows.Scan(&accessLogID); err != nil {
-			return err
-		}
-
-		_, err = tx.Exec(`
-			INSERT INTO shared_access_logs (view_share_id, access_log_id)
-			VALUES ($1, $2)`,
-			viewShareID, accessLogID)
-		if err != nil {
-			return err
-		}
-	}
-
-	return rows.Err()
-}
-
-func ViewOnlyDownloadHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
+func GetSharedViewFilesHandler(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		FileID string `json:"fileId"`
 		UserID string `json:"userId"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		log.Printf("Error decoding request: %v", err)
-		http.Error(w, "Invalid request format", http.StatusBadRequest)
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 
-	var isViewOnly bool
-	err := DB.QueryRow(`
-		SELECT EXISTS(
-			SELECT 1 FROM view_only_shares 
-			WHERE file_id = $1 AND recipient_id = $2 AND is_active = true
-		)`, req.FileID, req.UserID).Scan(&isViewOnly)
+	if req.UserID == "" {
+		http.Error(w, "Missing userId", http.StatusBadRequest)
+		return
+	}
+
+	rows, err := DB.Query(`
+		SELECT svf.id, svf.sender_id, svf.file_id, svf.metadata, svf.shared_at, svf.expires_at,
+			   f.file_name, f.file_type, f.file_size, f.description
+		FROM shared_files_view svf
+		JOIN files f ON svf.file_id = f.id
+		WHERE svf.recipient_id = $1 AND svf.revoked = FALSE AND svf.access_granted = TRUE
+		AND (svf.expires_at IS NULL OR svf.expires_at > CURRENT_TIMESTAMP)
+		ORDER BY svf.shared_at DESC
+	`, req.UserID)
+
 	if err != nil {
-		log.Printf("Error checking view-only status: %v", err)
+		log.Println("Failed to get shared view files:", err)
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}
+	defer rows.Close()
 
-	if isViewOnly {
-		fileID, _ := uuid.Parse(req.FileID)
-		userID, _ := uuid.Parse(req.UserID)
-
-		_, err = DB.Exec(`
-			INSERT INTO access_logs (file_id, user_id, action, message)
-			VALUES ($1, $2, $3, $4)`,
-			fileID, userID, "download_blocked", "Download blocked - view-only access")
+	var files []map[string]interface{}
+	for rows.Next() {
+		var (
+			shareID, senderID, fileID, fileName, fileType, description string
+			fileSize                                                   int64
+			metadata                                                   string
+			sharedAt                                                   time.Time
+			expiresAtPtr                                               *time.Time
+		)
+		err := rows.Scan(
+			&shareID, &senderID, &fileID, &metadata,
+			&sharedAt, &expiresAtPtr, &fileName, &fileType,
+			&fileSize, &description,
+		)
 		if err != nil {
-			log.Printf("Error adding access log: %v", err)
+			log.Println("Failed to scan row:", err)
+			continue
 		}
 
-		http.Error(w, "Download not allowed for view-only files", http.StatusForbidden)
-		return
+		file := map[string]interface{}{
+			"share_id":    shareID,
+			"sender_id":   senderID,
+			"file_id":     fileID,
+			"metadata":    metadata,
+			"shared_at":   sharedAt,
+			"file_name":   fileName,
+			"file_type":   fileType,
+			"file_size":   fileSize,
+			"description": description,
+			"view_only":   true,
+		}
+		if expiresAtPtr != nil {
+			file["expires_at"] = *expiresAtPtr
+		}
+
+		files = append(files, file)
 	}
 
-	http.Error(w, "Please use the regular download endpoint for full-access files", http.StatusBadRequest)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(files)
 }
