@@ -139,6 +139,7 @@ export default function MyFiles() {
             : "",
           shared: false,
           starred: false,
+          viewOnly: f.viewOnly || false, // Add viewOnly property
         }));
       console.log(
         "FileType:",
@@ -157,6 +158,10 @@ export default function MyFiles() {
   }, []);
 
   const handleDownload = async (file) => {
+    if (file.viewOnly) {
+      alert("This file is view-only and cannot be downloaded.");
+      return;
+    }
     const { encryptionKey, userId } = useEncryptionStore.getState();
     if (!encryptionKey) {
       alert("Missing encryption key");
@@ -299,6 +304,25 @@ export default function MyFiles() {
   };
 
   const handlePreview = async (file) => {
+    if (file.viewOnly) {
+      // Use ReceiveViewFile for view-only files
+      try {
+        const content = await ReceiveViewFile(file);
+        let previewContent = {};
+        if (file.type === "image" || file.type === "video" || file.type === "audio") {
+          previewContent.url = URL.createObjectURL(new Blob([content.decrypted]));
+        } else if (file.type === "pdf") {
+          previewContent.url = URL.createObjectURL(new Blob([content.decrypted], { type: "application/pdf" }));
+        } else if (["txt", "json", "csv"].includes(file.type)) {
+          previewContent.text = new TextDecoder().decode(content.decrypted).slice(0, 1000);
+        }
+        setPreviewContent(previewContent);
+        setPreviewFile(file);
+      } catch (err) {
+        alert("Failed to preview view-only file: " + err.message);
+      }
+      return;
+    }
     console.log("Inside handlePreview");
     if (file.type === "folder") {
       setPreviewContent({

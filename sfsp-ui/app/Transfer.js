@@ -40,7 +40,7 @@ function ed25519PubToCurve(pubEd25519, sodium) {
   return sodium.crypto_sign_ed25519_pk_to_curve25519(pubEd25519);
 }
 
-export async function SendFile(fileMetadata, recipientUserId, fileid, sendViewUrl) {
+export async function SendFile(fileMetadata, recipientUserId, fileid, isViewOnly = false) {
   const sodium = await getSodium();
   const { userId, encryptionKey } = useEncryptionStore.getState();
 
@@ -143,29 +143,136 @@ export async function SendFile(fileMetadata, recipientUserId, fileid, sendViewUr
       ekPublicKey: sodium.to_base64(EK.publicKey),
       opk_id: recipientKeys.opk.opk_id,
       encryptedAesKey: sodium.to_base64(encryptedAesKey),
+      viewOnly: isViewOnly,
     })
   );
   formData.append("encryptedFile", new Blob([encryptedFile]));
 
-  if (sendViewUrl) {
-    console.log("Sending file via view URL:", sendViewUrl);
-    console.log("FormData contents:", formData);
-    const res = await fetch(sendViewUrl, {
-      method: "POST",
-      body: formData,
-    });
-    if (!res.ok) throw new Error("Failed to send file via view");
-    console.log("File sent successfully via view URL");
-    console.log("Response:", await res.json());
-    return;
-  }
+  const endpoint = isViewOnly
+    ? "http://localhost:5000/api/files/sendByView"
+    : "http://localhost:5000/api/files/send";
 
-  const res = await fetch("http://localhost:5000/api/files/send", {
+  const res = await fetch(endpoint, {
     method: "POST",
     body: formData,
   });
 
   if (!res.ok) throw new Error("Failed to send file");
+}
+
+export async function ReceiveViewFile(fileData) {
+  const { share_id, file_id, file_name, file_type, metadata, sender_id } = fileData;
+  const {
+    ikPublicKey,
+    ekPublicKey,
+    fileNonce,
+    keyNonce,
+    opk_id,
+    encryptedAesKey,
+    spkPublicKey,
+  } = JSON.parse(metadata);
+
+  console.log("Receiving view-only file:", file_name);
+
+  // Download using view file endpoint
+  const response = await fetch(
+    "http://localhost:5000/api/files/downloadViewFile",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId,
+        fileId: file_id,
+        shareId: share_id
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    if (response.status === 403) {
+      throw new Error("Access has been revoked or expired");
+    }
+    throw new Error("Failed to retrieve view-only file");
+  }
+
+  // Check if this is view-only
+  const isViewOnly = response.headers.get("x-view-only") === "true";
+
+  if (!isViewOnly) {
+    throw new Error("File is not marked as view-only");
+  }
+
+  const buffer = await response.arrayBuffer();
+  const encryptedFile = new Uint8Array(buffer);
+
+  // Decrypt the file (same process as ReceiveFile)
+  const ikPrivKey = userKeys.identity_private_key;
+  const spkPrivKey = userKeys.signedpk_private_key;
+  const opkMatch = userKeys.oneTimepks_private.find(
+    (opk) => opk.opk_id === opk_id
+  );
+  if (!opkMatch) throw new Error("Matching OPK not found");
+
+  const spkPrivKeyCurve = sodium.crypto_sign_ed25519_sk_to_curve25519(spkPrivKey);
+  const ikPrivKeyCurve = sodium.crypto_sign_ed25519_sk_to_curve25519(ikPrivKey);
+  const opkPrivKey = opkMatch.private_key;
+
+  const senderIkCurve = sodium.crypto_sign_ed25519_pk_to_curve25519(
+    sodium.from_base64(ikPublicKey)
+  );
+  const senderSpkCurve = sodium.crypto_sign_ed25519_pk_to_curve25519(
+    sodium.from_base64(spkPublicKey)
+  );
+
+  const DH1 = sodium.crypto_scalarmult(spkPrivKeyCurve, senderIkCurve);
+  const DH2 = sodium.crypto_scalarmult(ikPrivKeyCurve, sodium.from_base64(ekPublicKey));
+  const DH3 = sodium.crypto_scalarmult(spkPrivKeyCurve, sodium.from_base64(ekPublicKey));
+  const DH4 = sodium.crypto_scalarmult(opkPrivKey, sodium.from_base64(ekPublicKey));
+
+  const combinedDH = concatUint8Arrays([DH1, DH2, DH3, DH4]);
+  const sharedKey = sodium.crypto_generichash(32, combinedDH);
+
+  // Decrypt AES key
+  const aesKey = sodium.crypto_secretbox_open_easy(
+    sodium.from_base64(encryptedAesKey),
+    sodium.from_base64(keyNonce),
+    sharedKey
+  );
+  if (!aesKey) throw new Error("Failed to decrypt AES key");
+  // Decrypt actual file
+  const decryptedFile = sodium.crypto_secretbox_open_easy(
+    encryptedFile,
+    sodium.from_base64(fileNonce),
+    aesKey
+  );
+  if (!decryptedFile) throw new Error("Failed to decrypt file");
+  console.log("Decrypted view-only file, length:", decryptedFile.length);
+  // Re-encrypt for local storage
+  const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
+  const ciphertext = sodium.crypto_secretbox_easy(
+    decryptedFile,
+    nonce,
+    encryptionKey
+  );
+  const formData = new FormData();
+  formData.append("userId", userId);
+  formData.append("fileName", file_name);
+  formData.append("fileType", file_type);
+  formData.append("fileDescription", "Received view-only file");
+  formData.append("fileTags", JSON.stringify(["received", "view-only"]));
+  formData.append("path", `files/${userId}`);
+  formData.append(
+    "nonce",
+    sodium.to_base64(nonce, sodium.base64_variants.ORIGINAL)
+  );
+  // Encrypted file as binary Blob
+  formData.append("encryptedFile", new Blob([ciphertext]), file_name);
+  const res = await fetch("http://localhost:5000/api/files/upload", {
+    method: "POST",
+    body: formData,
+  });
+  if (!res.ok) throw new Error("Upload failed");
+  console.log("View-only file received and stored successfully.");
 }
 
 export async function ReceiveFile(fileData) {

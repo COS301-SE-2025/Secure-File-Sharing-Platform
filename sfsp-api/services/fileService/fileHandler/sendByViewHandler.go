@@ -83,7 +83,8 @@ func SendByViewHandler(w http.ResponseWriter, r *http.Request) {
 		WHERE sender_id = $1 AND recipient_id = $2 AND file_id = $3 AND revoked = FALSE
 	`, userID, recipientID, fileID).Scan(&existingID)
 
-	if err == nil {
+	switch err {
+	case nil:
 		// Already shared, update the metadata
 		_, err = DB.Exec(`
 			UPDATE shared_files_view 
@@ -95,7 +96,7 @@ func SendByViewHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Failed to update shared file", http.StatusInternalServerError)
 			return
 		}
-	} else if err == sql.ErrNoRows {
+	case sql.ErrNoRows:
 		// Insert new shared file record
 		_, err = DB.Exec(`
 			INSERT INTO shared_files_view (sender_id, recipient_id, file_id, metadata, expires_at)
@@ -106,7 +107,7 @@ func SendByViewHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Failed to track shared file", http.StatusInternalServerError)
 			return
 		}
-	} else {
+	default:
 		log.Println("Database error:", err)
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return

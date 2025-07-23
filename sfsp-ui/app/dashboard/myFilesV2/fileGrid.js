@@ -255,9 +255,11 @@ export function FileGrid({
 
           <button
             onClick={() => {
-              onDownload(menuFile);
+              if (!menuFile.viewOnly) onDownload(menuFile);
               setMenuFile(null);
             }}
+            disabled={menuFile.viewOnly}
+            title={menuFile.viewOnly ? "Download disabled for view-only files" : "Download"}
             className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 dark:hover:bg-blue-200"
           >
             <Download className="h-4 w-4" /> Download
