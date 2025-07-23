@@ -573,6 +573,15 @@ export default function MyFiles() {
             onClick={handlePreview}
             onDoubleClick={handleOpenFullView}
             onMoveFile={handleMoveFile}
+            onEnterFolder={(folderName) =>
+              setCurrentPath(
+                currentPath ? `${currentPath}/${folderName}` : folderName
+              )
+            }
+            currentPath={currentPath}
+            onGoBack={() =>
+              setCurrentPath(currentPath.split("/").slice(0, -1).join("/"))
+            }
           />
         )}
 

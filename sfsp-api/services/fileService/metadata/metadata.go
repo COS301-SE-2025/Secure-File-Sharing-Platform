@@ -174,7 +174,7 @@ func GetUserFileCountHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var count int
-	err := DB.QueryRow(`SELECT COUNT(*) FROM files WHERE owner_id = $1`, req.UserID).Scan(&count)
+	err := DB.QueryRow(`SELECT COUNT(*) FROM files WHERE owner_id = $1 AND file_type != 'folder'`, req.UserID).Scan(&count)
 	if err != nil {
 		log.Println("PostgreSQL user count error:", err)
 		http.Error(w, "Failed to retrieve file count", http.StatusInternalServerError)
