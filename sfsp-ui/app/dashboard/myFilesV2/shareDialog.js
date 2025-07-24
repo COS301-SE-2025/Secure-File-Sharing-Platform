@@ -80,8 +80,13 @@ export function ShareDialog({ open, onOpenChange, file }) {
         console.log("Recipient Id is:", recipientId);
         console.log("FileId", file.id);
 
+        /*  if (thefileisviewonly) {
+           // If the file is view-only, we need to handle that case
+           await SendFile(file, recipientId, file.id, true);
+         } */
+
         // Send the file (Temporarily using SendByView function)
-        await SendFile(file, recipientId, file.id, sendviewurl);
+        await SendFile(file, recipientId, file.id);
 
         // Log file access
         await fetch("http://localhost:5000/api/files/addAccesslog", {

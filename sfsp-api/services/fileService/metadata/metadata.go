@@ -1,12 +1,13 @@
 package metadata
 
 import (
-	"encoding/json"
-	"net/http"
-	"log"
-	"fmt"
-	"time"
 	"database/sql"
+	"encoding/json"
+	"fmt"
+	"log"
+	"net/http"
+	"time"
+
 	"github.com/lib/pq"
 )
 
@@ -24,7 +25,7 @@ type MetadataQueryRequest struct {
 
 func GetUserFilesHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 	log.Println("Inside User files handler")
 	var req MetadataQueryRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -58,9 +59,9 @@ w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 	for rows.Next() {
 		var (
 			id, fileName, fileType, description, tags string
-			fileSize                                   int64
-			createdAt                                  time.Time
-			cid                                        string
+			fileSize                                  int64
+			createdAt                                 time.Time
+			cid                                       string
 		)
 		err := rows.Scan(&id, &fileName, &fileType, &fileSize, &description, &tags, &createdAt, &cid)
 		if err != nil {
@@ -69,14 +70,14 @@ w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		}
 
 		files = append(files, map[string]interface{}{
-			"fileId":     id,
-			"fileName":   fileName,
-			"fileType":   fileType,
-			"fileSize":   fileSize,
+			"fileId":      id,
+			"fileName":    fileName,
+			"fileType":    fileType,
+			"fileSize":    fileSize,
 			"description": description,
-			"tags":       tags,
-			"createdAt":  createdAt,
-			"cid":       cid,
+			"tags":        tags,
+			"createdAt":   createdAt,
+			"cid":         cid,
 		})
 		count++
 	}
@@ -160,7 +161,6 @@ func ListFileMetadataHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(files)
 }
 
-
 func GetUserFileCountHandler(w http.ResponseWriter, r *http.Request) {
 	var req MetadataQueryRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -195,7 +195,6 @@ type AddReceivedFileRequest struct {
 	IdentityKeyPublic   string                 `json:"identityKeyPublic"`
 	Metadata            map[string]interface{} `json:"metadata"` // optional
 }
-
 
 func AddReceivedFileHandler(w http.ResponseWriter, r *http.Request) {
 	var req AddReceivedFileRequest
@@ -268,9 +267,9 @@ func GetPendingFilesHandler(w http.ResponseWriter, r *http.Request) {
 
 	for rows.Next() {
 		var (
-			id, senderID, fileID string
+			id, senderID, fileID  string
 			receivedAt, expiresAt time.Time
-			metadataJSON string
+			metadataJSON          string
 		)
 
 		if err := rows.Scan(&id, &senderID, &fileID, &receivedAt, &expiresAt, &metadataJSON); err != nil {
@@ -300,7 +299,6 @@ func GetPendingFilesHandler(w http.ResponseWriter, r *http.Request) {
 		"data": pendingFiles,
 	})
 }
-
 
 func AddSentFileHandler(w http.ResponseWriter, r *http.Request) {
 	type SentFileRequest struct {
@@ -376,10 +374,10 @@ func GetSentFilesHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		sentFile := map[string]interface{}{
-			"id":        id,
-			"recipientId":          recipientID,
-			"fileId":               fileID,
-			"sentAt":               sentAt,
+			"id":          id,
+			"recipientId": recipientID,
+			"fileId":      fileID,
+			"sentAt":      sentAt,
 		}
 
 		sentFiles = append(sentFiles, sentFile)
@@ -500,13 +498,12 @@ var InsertReceivedFile = func(db *sql.DB, recipientId, senderId, fileId, metadat
 	`, recipientId, senderId, fileId, expiresAt, metadataJson)
 
 	if err != nil {
-		return fmt.Errorf("failed to insert received file: %w", err)
 		fmt.Println("Failed to inster received file into the received files table")
+		return fmt.Errorf("failed to insert received file: %w", err)
 	}
 
 	return nil
 }
-
 
 var InsertSentFile = func(db *sql.DB, senderId, recipientId, fileId, metadataJson string) error {
 	var metadata map[string]interface{}
@@ -533,7 +530,6 @@ var InsertSentFile = func(db *sql.DB, senderId, recipientId, fileId, metadataJso
 
 	return nil
 }
-
 
 type AddTagsRequest struct {
 	FileID string   `json:"fileId"`
@@ -637,7 +633,7 @@ func AddDescriptionHandler(w http.ResponseWriter, r *http.Request) {
 
 func UpdateFilePathHandler(w http.ResponseWriter, r *http.Request) {
 	type UpdatePathRequest struct {
-		FileID string `json:"fileId"`
+		FileID  string `json:"fileId"`
 		NewPath string `json:"newPath"`
 	}
 

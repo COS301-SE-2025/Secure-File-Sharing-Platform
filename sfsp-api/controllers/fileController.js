@@ -471,7 +471,7 @@ exports.sendByView = [
       formData.append("fileid", fileid);
       formData.append("userId", userId);
       formData.append("recipientUserId", recipientUserId);
-      formData.append("metadata", metadata); // should still be JSON string
+      formData.append("metadata", metadata);
       formData.append("encryptedFile", encryptedFile, {
         filename: "encrypted.bin",
         contentType: "application/octet-stream",
@@ -513,7 +513,7 @@ exports.getSharedViewFiles = async (req, res) => {
       return res.status(response.status).send("Error retrieving shared view files");
     }
 
-    res.json(response.data);
+    res.status(200).json(response.data);
   } catch (err) {
     console.error("Error retrieving shared view files:", err.message);
     res.status(500).send("Error retrieving shared view files");
@@ -537,7 +537,7 @@ exports.getViewFileAccessLogs = async (req, res) => {
     if (response.status !== 200) {
       return res.status(response.status).send("Error retrieving view file access logs");
     }
-    res.json(response.data);
+    res.status(200).json(response.data);
   } catch (err) {
     console.error("Error retrieving view file access logs:", err.message);
     res.status(500).send("Error retrieving view file access logs");
@@ -554,7 +554,7 @@ exports.revokeViewAccess = async (req, res) => {
   try {
     const response = await axios.post(
       `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/revokeViewAccess`,
-      { fileId, userId },
+      { fileId, userId, recipientId },
       { headers: { "Content-Type": "application/json" } }
     );
 

@@ -277,3 +277,50 @@ func GetSharedViewFilesHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(files)
 }
+
+func GetViewFileAccessLogs(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		FileID string `json:"fileId"`
+		UserID string `json:"userId"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	rows, err := DB.Query(`
+		SELECT id, action, message, timestamp
+		FROM access_logs
+		WHERE file_id = $1 AND user_id = $2 AND view_only = TRUE
+		ORDER BY timestamp DESC
+		`, req.FileID, req.UserID)
+
+	if err != nil {
+		log.Println("Failed to query access logs", err)
+		http.Error(w, "Database Error", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var logs []map[string]interface{}
+	for rows.Next() {
+		var id, action, message string
+		var timestamp time.Time
+
+		if err := rows.Scan(&id, &action, &message, &timestamp); err != nil {
+			log.Println("Failed to scan access log:", err)
+			continue
+		}
+
+		logs = append(logs, map[string]interface{}{
+			"id":        id,
+			"action":    action,
+			"message":   message,
+			"timestamp": timestamp,
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(logs)
+}

@@ -69,13 +69,16 @@ func main() {
 	http.HandleFunc("/getPendingFiles", metadata.GetPendingFilesHandler)
 	http.HandleFunc("/deleteFile", fileHandler.DeleteFileHandler)
 	http.HandleFunc("/sendFile", fileHandler.SendFileHandler)
-	http.HandleFunc("/sendByView", fileHandler.SendByViewHandler)
-	http.HandleFunc("/revokeViewAccess", fileHandler.RevokeViewAccessHandler)
-	http.HandleFunc("/getSharedViewFiles", fileHandler.GetSharedViewFilesHandler)
 	http.HandleFunc("/addTags", metadata.AddTagsHandler)
 	http.HandleFunc("/addUser", metadata.AddUserHandler)
 	http.HandleFunc("/removeTags", metadata.RemoveTagsFromFileHandler)
 	http.HandleFunc("/downloadSentFile", fileHandler.DownloadSentFile)
+
+	// view files endpoints newly added
+	http.HandleFunc("/sendByView", fileHandler.SendByViewHandler)
+	http.HandleFunc("/revokeViewAccess", fileHandler.RevokeViewAccessHandler)
+	http.HandleFunc("/getSharedViewFiles", fileHandler.GetSharedViewFilesHandler)
+	http.HandleFunc("/getViewFileAccessLogs", fileHandler.GetViewFileAccessLogs)
 
 	//test from here
 	http.HandleFunc("/addSentFiles", metadata.AddSentFileHandler)
