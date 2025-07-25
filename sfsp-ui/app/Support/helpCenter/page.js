@@ -1,8 +1,8 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { Search,FileText,Shield,Users,Settings,BookOpen,ChevronLeft,ChevronRight,MessageCircle,HelpCircle,ArrowRight,ChevronDown,ChevronUp,Star,Clock,Zap } from 'lucide-react';
-import { helpSections } from './helpSections'; // Import the help sections data
+import { Search,ChevronLeft,ChevronRight,MessageCircle,HelpCircle,ArrowRight,ChevronDown,ChevronUp,Star,Clock,Zap } from 'lucide-react';
+import { helpSections } from './helpSections';
 
     const HelpCenter = () => {
     const [searchQuery, setSearchQuery] = useState('');
