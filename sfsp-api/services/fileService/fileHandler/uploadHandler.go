@@ -19,6 +19,8 @@ import (
 	"github.com/lib/pq"
 	"database/sql"
 	"strings"
+	"crypto/sha256"
+	"encoding/hex"
 	//"bytes"
 )
 
@@ -102,6 +104,10 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	hasher := sha256.New()
+    multiWriter := io.MultiWriter(encWriter, hasher)
+    countingWriter = &CountingWriter{w: multiWriter}
+
 	// Encrypt file in background
 	go func() {
 		defer encWriter.Close()
@@ -147,11 +153,12 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Update file size and CID
+	fileHash := hex.EncodeToString(hasher.Sum(nil))
 	encryptedSize := countingWriter.Count
 	fullCID := strings.TrimSuffix(uploadPath, "/") + "/" + fileName
 	_, err = DB.Exec(`
-		UPDATE files SET file_size = $1, cid = $2 WHERE id = $3
-	`, encryptedSize, fullCID, fileID)
+		UPDATE files SET file_size = $1, cid = $2, file_hash = $3 WHERE id = $4
+	`, encryptedSize, fullCID, fileHash, fileID)
 	if err != nil {
 		log.Println("Failed to update file metadata:", err)
 		http.Error(w, "Failed to update file metadata", http.StatusInternalServerError)

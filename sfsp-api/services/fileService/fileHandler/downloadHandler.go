@@ -11,6 +11,9 @@ import (
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto"
 	"database/sql"
 	"io"
+	"crypto/sha256"
+	"encoding/hex"
+	"bytes"
 	//_ "github.com/lib/pq" // PostgreSQL driver
 )
 
@@ -106,11 +109,11 @@ func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Println("Got request:", req.UserID, req.FileId)
 
-	var fileName, nonce string
+	var fileName, nonce, fileHash string
 	err := DB.QueryRow(`
-		SELECT file_name, nonce FROM files
+		SELECT file_name, nonce, file_hash FROM files
 		WHERE owner_id = $1 AND id = $2
-	`, req.UserID, req.FileId).Scan(&fileName, &nonce)
+	`, req.UserID, req.FileId).Scan(&fileName, &nonce, &fileHash)
 
 	if err != nil {
 		log.Println("Failed to retrieve file metadata:", err)
@@ -128,6 +131,28 @@ func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer stream.Close()
 
+	hasher := sha256.New()
+    buffer := &bytes.Buffer{}
+    tee := io.TeeReader(stream, hasher)
+
+	// Copy encrypted data into buffer while hashing
+    if _, err := io.Copy(buffer, tee); err != nil {
+	    log.Println("Failed to read and hash encrypted stream:", err)
+	    http.Error(w, "File read failed", http.StatusInternalServerError)
+	    return
+    }
+
+	// Compare hash
+	computedHash := hex.EncodeToString(hasher.Sum(nil))
+	if computedHash != fileHash {
+		log.Printf("Hash mismatch: expected %s, got %s", fileHash, computedHash)
+		http.Error(w, "File integrity check failed", http.StatusConflict)
+		return
+	}
+
+	log.Println("File integrity check passed, hash:", computedHash)
+	log.Println("File hash matches:", fileHash)
+
 	// 🔐 Decrypt while streaming
 	aesKey := os.Getenv("AES_KEY")
 	if len(aesKey) != 32 {
@@ -135,7 +160,7 @@ func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	decryptedReader, err := crypto.DecryptStream(stream, aesKey)
+	decryptedReader, err := crypto.DecryptStream(buffer, aesKey)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Decryption setup failed: %v", err), http.StatusInternalServerError)
 		return
