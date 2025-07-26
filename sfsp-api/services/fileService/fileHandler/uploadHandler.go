@@ -5,7 +5,7 @@ import (
 	//"database/sql"
 	//"encoding/base64"
 	"encoding/json"
-	"fmt"
+	//"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -19,7 +19,7 @@ import (
 	"github.com/lib/pq"
 	"database/sql"
 	"strings"
-	"bytes"
+	//"bytes"
 )
 
 // type UploadRequest struct {
@@ -40,14 +40,25 @@ func SetPostgreClient(db *sql.DB) {
 	DB = db
 }
 
+type CountingWriter struct {
+	w     io.Writer
+	Count int64
+}
+
+func (cw *CountingWriter) Write(p []byte) (int, error) {
+	n, err := cw.w.Write(p)
+	cw.Count += int64(n)
+	return n, err
+}
+
 func UploadHandler(w http.ResponseWriter, r *http.Request) {
-	err := r.ParseMultipartForm(2 << 30) // already safe thanks to API layer
+	err := r.ParseMultipartForm(2 << 30) // Allow up to 2GB (frontend/API should still validate size)
 	if err != nil {
 		http.Error(w, "Failed to parse multipart form", http.StatusBadRequest)
-		fmt.Println("Failed to parse multipart form:", err)
 		return
 	}
 
+	// Extract fields
 	userId := r.FormValue("userId")
 	fileName := r.FormValue("fileName")
 	fileType := r.FormValue("fileType")
@@ -61,7 +72,6 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	if userId == "" || fileName == "" || nonce == "" {
 		http.Error(w, "Missing required fields", http.StatusBadRequest)
-		fmt.Println("Missing required fields")
 		return
 	}
 
@@ -70,54 +80,38 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 	if tagsRaw != "" {
 		if err := json.Unmarshal([]byte(tagsRaw), &tags); err != nil {
 			http.Error(w, "Invalid fileTags JSON", http.StatusBadRequest)
-			fmt.Println("Invalid tags JSON")
 			return
 		}
 	}
 
-	// Read file part
+	// Get uploaded file
 	srcFile, _, err := r.FormFile("encryptedFile")
 	if err != nil {
 		http.Error(w, "Missing encrypted file", http.StatusBadRequest)
-		fmt.Println("Missing encrypted file")
 		return
 	}
 	defer srcFile.Close()
 
-	// Save upload to temp file
-	tmpFile, err := os.CreateTemp("", "upload-*.bin")
-	if err != nil {
-		http.Error(w, "Failed to create temp file", http.StatusInternalServerError)
-		return
-	}
-	defer os.Remove(tmpFile.Name()) // Clean up
-	defer tmpFile.Close()
+	// Create pipe and counting wrapper
+	encReader, encWriter := io.Pipe()
+	countingWriter := &CountingWriter{w: encWriter}
 
-	// Stream uploaded file to temp file
-	written, err := io.Copy(tmpFile, srcFile)
-	if err != nil {
-		http.Error(w, "Failed to save uploaded file", http.StatusInternalServerError)
-		fmt.Println("Failed to stream uploaded file:", err)
-		return
-	}
-
-	// Encrypt file contents
 	aesKey := os.Getenv("AES_KEY")
 	if len(aesKey) != 32 {
 		http.Error(w, "Invalid AES key", http.StatusInternalServerError)
 		return
 	}
 
-	encBuf := &bytes.Buffer{}
-tmpFile.Seek(0, io.SeekStart) // rewind
-err = crypto.EncryptStream(tmpFile, encBuf, aesKey)
-if err != nil {
-	log.Println("Encryption error:", err)
-	http.Error(w, "Encryption failed", http.StatusInternalServerError)
-	return
-}
+	// Encrypt file in background
+	go func() {
+		defer encWriter.Close()
+		if err := crypto.EncryptStream(srcFile, countingWriter, aesKey); err != nil {
+			log.Println("Encryption error:", err)
+			encWriter.CloseWithError(err)
+		}
+	}()
 
-	// Insert user (if needed)
+	// Ensure user exists
 	_, err = DB.Exec(`
 		INSERT INTO users (id)
 		SELECT $1
@@ -129,45 +123,42 @@ if err != nil {
 		return
 	}
 
-	// Insert metadata
+	// Insert metadata placeholder to get file ID
 	var fileID string
 	err = DB.QueryRow(`
 		INSERT INTO files (
 			owner_id, file_name, file_type, file_size, cid, nonce, description, tags, created_at
-		) VALUES ($1, $2, $3, $4, '', $5, $6, $7, $8)
+		) VALUES ($1, $2, $3, 0, '', $4, $5, $6, $7)
 		RETURNING id
-	`, userId, fileName, fileType, written, nonce, description, pq.Array(tags), time.Now()).Scan(&fileID)
-
+	`, userId, fileName, fileType, nonce, description, pq.Array(tags), time.Now()).Scan(&fileID)
 	if err != nil {
 		log.Println("PostgreSQL insert error:", err)
 		http.Error(w, "Metadata storage failed", http.StatusInternalServerError)
 		return
 	}
 
-	// Upload encrypted file to ownCloud
+	// Upload encrypted stream to ownCloud
 	pathForUpload := "files/" + userId
-	err = owncloud.UploadFile(pathForUpload, fileID, encBuf.Bytes())
+	err = owncloud.UploadFileStream(pathForUpload, fileID, encReader)
 	if err != nil {
-		log.Println("OwnCloud upload failed:", err)
+		log.Println("OwnCloud stream upload failed:", err)
 		http.Error(w, "File upload failed", http.StatusInternalServerError)
 		return
 	}
 
-	// Update CID
-	var fullCID string
-	if uploadPath != "" {
-		fullCID = strings.TrimSuffix(uploadPath, "/") + "/" + fileName
-	} else {
-		fullCID = fileName
-	}
-	_, err = DB.Exec(`UPDATE files SET cid = $1 WHERE id = $2`, fullCID, fileID)
+	// Update file size and CID
+	encryptedSize := countingWriter.Count
+	fullCID := strings.TrimSuffix(uploadPath, "/") + "/" + fileName
+	_, err = DB.Exec(`
+		UPDATE files SET file_size = $1, cid = $2 WHERE id = $3
+	`, encryptedSize, fullCID, fileID)
 	if err != nil {
-		log.Println("Failed to update file CID:", err)
-		http.Error(w, "Failed to update file CID", http.StatusInternalServerError)
+		log.Println("Failed to update file metadata:", err)
+		http.Error(w, "Failed to update file metadata", http.StatusInternalServerError)
 		return
 	}
 
-	// Respond
+	// ✅ Respond
 	log.Println("File uploaded successfully:", fileID)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{

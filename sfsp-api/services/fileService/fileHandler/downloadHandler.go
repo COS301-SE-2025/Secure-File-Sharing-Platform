@@ -10,6 +10,7 @@ import (
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto"
 	"database/sql"
+	"io"
 	//_ "github.com/lib/pq" // PostgreSQL driver
 )
 
@@ -119,40 +120,36 @@ func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("Found file:", fileName, "nonce:", nonce)
 
-	//fmt.Println("File ID is: ",fileID)
-
-	data, err := owncloud.DownloadFile(req.FileId, req.UserID)
+	// 🔁 Stream encrypted file from ownCloud
+	stream, err := owncloud.DownloadFileStream(req.FileId, req.UserID)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Download failed: %v", err), http.StatusInternalServerError)
-		//fmt.Println("Download Failed")
 		return
 	}
+	defer stream.Close()
 
-	log.Println("Downloaded encrypted data, len:", len(data))
-
+	// 🔐 Decrypt while streaming
 	aesKey := os.Getenv("AES_KEY")
 	if len(aesKey) != 32 {
 		http.Error(w, "Invalid AES key", http.StatusInternalServerError)
 		return
 	}
 
-	
-    log.Println("Decrypting...")
-	plain, err := crypto.DecryptBytes(data, aesKey)
+	decryptedReader, err := crypto.DecryptStream(stream, aesKey)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Decryption failed: %v", err), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Decryption setup failed: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	//base64Data := base64.StdEncoding.EncodeToString(plain)
+	// 📤 Stream plaintext file to client
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("X-File-Name", fileName)
+	w.Header().Set("X-Nonce", nonce)
 
-	//fmt.Println("FileContent is: ",base64Data)
-
-	log.Println("Returning binary response:", len(plain))
-    w.Header().Set("Content-Type", "application/octet-stream")
-    w.Header().Set("X-File-Name", fileName)
-    w.Header().Set("X-Nonce", nonce)
-    w.Write(plain)
+	if _, err := io.Copy(w, decryptedReader); err != nil {
+		log.Println("Failed to stream decrypted file:", err)
+		http.Error(w, "Streaming failed", http.StatusInternalServerError)
+	}
 }
 
 type DownloadSentRequest struct {
@@ -173,16 +170,20 @@ func DownloadSentFile(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("Downloading file from path:", req.FilePath)
 
-	data, err := owncloud.DownloadSentFile(req.FilePath)
+	// Use streaming download
+	stream, err := owncloud.DownloadSentFileStream(req.FilePath)
 	if err != nil {
 		log.Println("Download Failed:", err)
 		http.Error(w, fmt.Sprintf("Download failed: %v", err), http.StatusInternalServerError)
 		return
 	}
-
-	log.Println("Downloaded sent file, len:", len(data))
+	defer stream.Close()
 
 	w.Header().Set("Content-Type", "application/octet-stream")
-	w.Write(data)
-}
 
+	// Stream file directly to client
+	if _, err := io.Copy(w, stream); err != nil {
+		log.Println("Failed to stream file to response:", err)
+		http.Error(w, "Failed to stream file", http.StatusInternalServerError)
+	}
+}
