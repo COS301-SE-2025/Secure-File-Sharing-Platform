@@ -20,6 +20,16 @@ export default function NotificationDropdown() {
     }
   }, [dropdownOpen]);
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!dropdownOpen) {
+        fetchNotifications();
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [dropdownOpen]);
+
   const fetchNotifications = async () => {
     const token = localStorage.getItem("token");
     if (!token) return;
@@ -34,9 +44,9 @@ export default function NotificationDropdown() {
 
       try {
         const res = await axios.post('http://localhost:5000/api/notifications/get', {
-          userId: profileResult.data.id, // optionally use state/context for userId
+          userId: profileResult.data.id,
         });
-        
+
         // if (res.data.success) {
         //   setNotifications(res.data.notifications);
         // }
