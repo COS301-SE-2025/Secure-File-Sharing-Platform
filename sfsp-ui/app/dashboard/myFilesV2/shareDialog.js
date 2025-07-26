@@ -17,18 +17,29 @@ export function ShareDialog({ open, onOpenChange, file }) {
   const [allowDownload, setAllowDownload] = useState(true);
 
   const addRecipient = () => {
-    if (newEmail && shareWith.every((r) => r.email !== newEmail)) {
-      setShareWith([...shareWith, { email: newEmail, permission: "view" }]);
-      setNewEmail("");
+    const isValidEmail = /\S+@\S+\.\S+/.test(newEmail);
+    const alreadyAdded = shareWith.some((r) => r.email === newEmail);
 
-      //get file, recipientUserId, filePath, fileid
-      console.log("File is", file);
-      console.log("Recipient email is: ", newEmail);
-      //we have file id
-      //we have file path
-      //we have the file
-      //just need the id
+    if (!newEmail.trim()) {
+      alert("Please enter an email address.");
+      return;
     }
+
+    if (!isValidEmail) {
+      alert("Please enter a valid email address.");
+      return;
+    }
+
+    if (alreadyAdded) {
+      alert("This email is already added.");
+      return;
+    }
+
+    setShareWith([...shareWith, { email: newEmail, permission: "view" }]);
+    setNewEmail("");
+
+    console.log("File is", file);
+    console.log("Recipient email is: ", newEmail);
   };
 
   const updatePermission = (email, permission) => {
@@ -46,6 +57,11 @@ export function ShareDialog({ open, onOpenChange, file }) {
   };
 
   const sendInvite = async () => {
+
+    if (shareWith.length === 0) {
+      alert("Please add at least one email before sending.");
+      return;
+    }
 
     onOpenChange(false); //close dialogue first
 
@@ -102,7 +118,7 @@ export function ShareDialog({ open, onOpenChange, file }) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            type: "file_share_request", 
+            type: "file_share_request",
             fromEmail: senderEmail,
             toEmail: email,
             file_name: file.name,
