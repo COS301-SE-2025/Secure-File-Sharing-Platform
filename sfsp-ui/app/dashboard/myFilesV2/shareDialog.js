@@ -46,6 +46,9 @@ export function ShareDialog({ open, onOpenChange, file }) {
   };
 
   const sendInvite = async () => {
+
+    onOpenChange(false); //close dialogue first
+
     try {
       const token = localStorage.getItem("token");
       if (!token) return;
@@ -110,66 +113,11 @@ export function ShareDialog({ open, onOpenChange, file }) {
 
       }
 
-      onOpenChange(false);
     } catch (err) {
       console.error("Failed to send file to recipients:", err);
     }
   };
 
-  // const sendInvite = async () => {
-  //   try {
-  //     for (const recipient of shareWith) {
-  //       const email = recipient.email;
-
-  //       // Fetch recipient user ID by email
-  //       const response = await fetch(
-  //         `http://localhost:5000/api/users/getUserId/${email}`
-  //       );
-  //       if (!response.ok) {
-  //         console.warn(`User ID not found for email: ${email}`);
-  //         continue;
-  //       }
-
-  //       const json = await response.json(); // You must parse the JSON to access recipientId
-  //       const recipientId = json.data.id;
-  //       console.log("Recipient Id is: ", recipientId);
-
-  //       console.log("FileId", file.id);
-  //       await SendFile(file, recipientId, file.id);
-
-  //       const token = localStorage.getItem("token");
-  //       if (!token) return;
-
-  //       try {
-  //         const profileRes = await fetch("http://localhost:5000/api/users/profile", {
-  //           headers: { Authorization: `Bearer ${token}` },
-  //         });
-
-  //         const profileResult = await profileRes.json();
-  //         if (!profileRes.ok) throw new Error(profileResult.message || "Failed to fetch profile");
-
-  //         await fetch("http://localhost:5000/api/files/addAccesslog", {
-  //           method: "POST",
-  //           headers: { "Content-Type": "application/json" },
-  //           body: JSON.stringify({
-  //             file_id: file.id,
-  //             user_id: profileResult.data.id,
-  //             action: "shared",
-  //             message: `User ${profileResult.data.email} has shared the file with ${email}`,
-  //           }),
-  //         });
-
-
-  //       } catch (err) {
-  //         console.error("Failed to fetch user profile:", err.message);
-  //       }
-  //     }
-
-  //     onOpenChange(false);
-  //   } catch (err) {
-  //     console.error("Failed to send file to recipients:", err);
-  //   }
-  // };
 
   if (!open || !file) return null;
 
