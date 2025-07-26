@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState, useEffect,useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Trash2, Undo2 } from 'lucide-react';
 import { useEncryptionStore } from '@/app/SecureKeyStorage';
 
@@ -26,10 +26,17 @@ export default function TrashPage() {
       const data = await res.json();
       console.log(data);
 
-      const deletedFiles = data.filter(file => {
-        const tags = parseTagString(file.tags);
-        return tags.includes('deleted') && tags.some(tag => tag.startsWith('deleted_time:'));
-      });
+      // const deletedFiles = data.filter(file => {
+      //   const tags = parseTagString(file.tags);
+      //   return tags.includes('deleted') && tags.some(tag => tag.startsWith('deleted_time:'));
+      // });
+
+      const deletedFiles = Array.isArray(data)
+        ? data.filter(file => {
+          const tags = parseTagString(file.tags);
+          return tags.includes('deleted') && tags.some(tag => tag.startsWith('deleted_time:'));
+        })
+        : [];
 
       console.log(deletedFiles);
 
@@ -54,7 +61,7 @@ export default function TrashPage() {
     } finally {
       setLoading(false);
     }
-  },[userId]);
+  }, [userId]);
 
   const handleRestore = async (fileId) => {
     try {
@@ -162,7 +169,7 @@ export default function TrashPage() {
         }
       }
 
-      fetchTrashedFiles(); 
+      fetchTrashedFiles();
     } catch (err) {
       console.error("Failed to clear trash:", err);
       alert("An error occurred while clearing the trash.");
