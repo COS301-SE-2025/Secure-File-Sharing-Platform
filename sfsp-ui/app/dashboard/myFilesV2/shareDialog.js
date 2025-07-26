@@ -16,22 +16,29 @@ export function ShareDialog({ open, onOpenChange, file }) {
   const [allowComments, setAllowComments] = useState(true);
   const [allowDownload, setAllowDownload] = useState(true);
 
+  const [toast, setToast] = useState({ message: "", visible: false });
+
+  const showToast = (message) => {
+    setToast({ message, visible: true });
+    setTimeout(() => setToast({ message: "", visible: false }), 3000);
+  };
+
   const addRecipient = () => {
     const isValidEmail = /\S+@\S+\.\S+/.test(newEmail);
     const alreadyAdded = shareWith.some((r) => r.email === newEmail);
 
     if (!newEmail.trim()) {
-      alert("Please enter an email address.");
+      showToast("Please enter an email address.");
       return;
     }
 
     if (!isValidEmail) {
-      alert("Please enter a valid email address.");
+      showToast("Please enter a valid email address.");
       return;
     }
 
     if (alreadyAdded) {
-      alert("This email is already added.");
+      showToast("This email is already added.");
       return;
     }
 
@@ -52,14 +59,10 @@ export function ShareDialog({ open, onOpenChange, file }) {
     setShareWith(shareWith.filter((r) => r.email !== email));
   };
 
-  const copyLink = () => {
-    navigator.clipboard.writeText("https://example.com/shared/" + file?.id);
-  };
-
   const sendInvite = async () => {
 
     if (shareWith.length === 0) {
-      alert("Please add at least one email before sending.");
+      showToast("Please add at least one email before sending.");
       return;
     }
 
@@ -152,7 +155,7 @@ export function ShareDialog({ open, onOpenChange, file }) {
               onChange={(e) => setNewEmail(e.target.value)}
               onKeyPress={(e) => e.key === "Enter" && addRecipient()}
             />
-            <button onClick={addRecipient} className="bg-gray-100 p-2 rounded">
+            <button onClick={addRecipient} className="bg-gray-400 p-2 rounded">
               <Plus className="h-4 w-4" />
             </button>
           </div>
@@ -258,6 +261,12 @@ export function ShareDialog({ open, onOpenChange, file }) {
           </button>
         </div>
       </div>
+      {toast.visible && (
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 
+                  bg-red-100 text-red-700 px-4 py-2 rounded shadow-lg z-50">
+          {toast.message}
+        </div>
+      )}
     </div>
   );
 }
