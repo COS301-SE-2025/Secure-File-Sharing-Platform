@@ -3,7 +3,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { FileIcon, Download, Share, Folder, FileText, Image, Video, Star, MoreVertical, } from 'lucide-react';
+import { FileIcon, Download, Share, Folder, FileText, Image, Video, Star, MoreVertical, X } from 'lucide-react';
 
 export function FileList({
   files,
@@ -12,6 +12,7 @@ export function FileList({
   onViewActivity,
   onDownload,
   onDelete,
+  onRevokeViewAccess,
 }) {
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const [menuFile, setMenuFile] = useState(null);
@@ -191,6 +192,19 @@ export function FileList({
           </button>
 
           <hr />
+
+          {/* Revoke View Access Button - Only show for files that have been shared with view-only access */}
+          {menuFile.allow_view_sharing && (
+            <button
+              onClick={() => {
+                onRevokeViewAccess(menuFile);
+                setMenuFile(null);
+              }}
+              className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 flex items-center gap-2 dark:hover:bg-red-200 dark:text-red-600"
+            >
+              <X className="h-4 w-4" /> Revoke View Access
+            </button>
+          )}
 
           <button
             onClick={() => handleDelete(menuFile)}

@@ -449,6 +449,73 @@ export default function MyFiles() {
     setIsActivityOpen(true);
   };
 
+  const handleRevokeViewAccess = async (file) => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        alert("Please log in to revoke access");
+        return;
+      }
+
+      // Get user profile to get userId
+      const profileRes = await fetch("http://localhost:5000/api/users/profile", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const profileResult = await profileRes.json();
+      if (!profileRes.ok) {
+        alert("Failed to get user profile");
+        return;
+      }
+
+      const userId = profileResult.data.id;
+
+      // Get shared view files to find recipients
+      const sharedFilesRes = await fetch("http://localhost:5000/api/files/getViewAccess", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+
+      if (!sharedFilesRes.ok) {
+        alert("Failed to get shared files");
+        return;
+      }
+
+      const sharedFiles = await sharedFilesRes.json();
+      const fileShares = sharedFiles.filter(share => share.file_id === file.id);
+
+      if (fileShares.length === 0) {
+        alert("No view-only shares found for this file");
+        return;
+      }
+
+      // For now, revoke access for all recipients of this file
+      // In a more sophisticated implementation, you might want to show a list of recipients
+      for (const share of fileShares) {
+        const revokeRes = await fetch("http://localhost:5000/api/files/revokeViewAccess", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fileId: file.id,
+            userId: userId,
+            recipientId: share.recipient_id
+          }),
+        });
+
+        if (!revokeRes.ok) {
+          console.error(`Failed to revoke access for recipient ${share.recipient_id}`);
+        }
+      }
+
+      alert("View access revoked successfully");
+      fetchFiles(); // Refresh the file list
+    } catch (err) {
+      console.error("Error revoking view access:", err);
+      alert("Failed to revoke view access");
+    }
+  };
+
   const renderBreadcrumbs = () => {
     const segments = currentPath ? currentPath.split("/") : [];
     const crumbs = [
@@ -557,6 +624,7 @@ export default function MyFiles() {
             onViewActivity={openActivityDialog}
             onDownload={handleDownload}
             onDelete={fetchFiles}
+            onRevokeViewAccess={handleRevokeViewAccess}
             onClick={handlePreview}
             onDoubleClick={handleOpenFullView}
             onMoveFile={handleMoveFile}
@@ -578,6 +646,7 @@ export default function MyFiles() {
             onViewActivity={openActivityDialog}
             onDownload={handleDownload}
             onDelete={fetchFiles}
+            onRevokeViewAccess={handleRevokeViewAccess}
             onClick={handlePreview}
             onDoubleClick={handleOpenFullView}
             onMoveFile={handleMoveFile}

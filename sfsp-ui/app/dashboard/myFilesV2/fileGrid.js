@@ -2,21 +2,22 @@
 
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   FileIcon,
   Download,
   Share,
-  Star,
   Folder,
   FileText,
   Image,
   Video,
+  Star,
   MoreVertical,
+  FileCode,
   Music,
   Volume2,
   Headphones,
-  FileCode,
+  X,
 } from "lucide-react";
 
 export function FileGrid({
@@ -26,6 +27,7 @@ export function FileGrid({
   onViewActivity,
   onDownload,
   onDelete,
+  onRevokeViewAccess,
   onClick,
   onDoubleClick,
   onMoveFile,
@@ -288,6 +290,19 @@ export function FileGrid({
           </button>
 
           <hr />
+
+          {/* Revoke View Access Button - Only show for files that have been shared with view-only access */}
+          {menuFile.allow_view_sharing && onRevokeViewAccess && (
+            <button
+              onClick={() => {
+                onRevokeViewAccess(menuFile);
+                setMenuFile(null);
+              }}
+              className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 flex items-center gap-2 dark:hover:bg-red-200 dark:text-red-600"
+            >
+              <X className="h-4 w-4" /> Revoke View Access
+            </button>
+          )}
 
           <button
             onClick={() => handleDelete(menuFile)}

@@ -12,7 +12,7 @@ import {
 export default function DashboardHomePage() {
   const [fileCount, setFileCount] = useState(0);
   const [trashCount, setTrashCount] = useState(0);
-    const [activityLogs, setActivityLogs] = useState([]);
+  const [activityLogs, setActivityLogs] = useState([]);
   const [loadingLogs, setLoadingLogs] = useState(true);
   const [notifications, setNotifications] = useState([]);
 
