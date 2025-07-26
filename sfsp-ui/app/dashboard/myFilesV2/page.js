@@ -400,7 +400,25 @@ export default function MyFiles() {
         </div>
 
         {/*File */}
-        {viewMode === "grid" ? (
+        {filteredFiles.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-96 text-center text-gray-700 dark:text-gray-500 dark:text-gray-400  rounded-lg p-10">
+            <svg
+              className="w-16 h-16 mb-4 text-gray-500 dark:text-gray-300"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.5}
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M3 7l1.664-1.664A2 2 0 016.586 5H17.41a2 2 0 011.414.586L21 7m-18 0v10a2 2 0 002 2h14a2 2 0 002-2V7m-18 0h18"
+              />
+            </svg>
+            <h2 className="text-lg font-semibold">No files found</h2>
+            <p className="text-sm text-gray-400">Upload or create folders to get started</p>
+          </div>
+        ) : viewMode === "grid" ? (
           <FileGrid
             files={filteredFiles}
             onShare={openShareDialog}
@@ -423,6 +441,7 @@ export default function MyFiles() {
             onDoubleClick={handleOpenFullView}
           />
         )}
+
 
         {/* Dialogs */}
         <UploadDialog
