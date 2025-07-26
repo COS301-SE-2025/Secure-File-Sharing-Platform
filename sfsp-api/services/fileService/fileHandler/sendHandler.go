@@ -8,13 +8,14 @@ import (
 	"net/http"
 	"time"
 	"io"
-
+	"os"
+	"bytes"
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/metadata"
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
 )
 
 func SendFileHandler(w http.ResponseWriter, r *http.Request) {
-	err := r.ParseMultipartForm(50 << 20)
+	err := r.ParseMultipartForm(50 << 20) // 50 MB buffer, should match frontend config
 	if err != nil {
 		log.Println("Failed to parse multipart form:", err)
 		http.Error(w, "Invalid multipart form", http.StatusBadRequest)
@@ -31,32 +32,50 @@ func SendFileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	file, _, err := r.FormFile("encryptedFile")
+	// 🔹 Step 1: Get file part
+	srcFile, _, err := r.FormFile("encryptedFile")
 	if err != nil {
 		log.Println("Failed to get encrypted file:", err)
 		http.Error(w, "Missing encrypted file", http.StatusBadRequest)
 		return
 	}
-	defer file.Close()
+	defer srcFile.Close()
 
-	fileBytes, err := io.ReadAll(file)
+	// 🔹 Step 2: Write to temporary buffer (avoids full in-memory)
+	tmpFile, err := os.CreateTemp("", "send-*.bin")
 	if err != nil {
-		log.Println("Failed to read encrypted file:", err)
-		http.Error(w, "Failed to read file", http.StatusInternalServerError)
+		http.Error(w, "Failed to create temp file", http.StatusInternalServerError)
+		return
+	}
+	defer os.Remove(tmpFile.Name())
+	defer tmpFile.Close()
+
+	written, err := io.Copy(tmpFile, srcFile)
+	if err != nil {
+		http.Error(w, "Failed to stream uploaded file", http.StatusInternalServerError)
+		log.Println("Failed to copy to temp file:", err)
+		return
+	}
+	log.Printf("Streamed %d bytes for sending\n", written)
+
+	// 🔹 Step 3: Upload to ownCloud
+	targetPath := fmt.Sprintf("files/%s/sent", userID)
+
+	tmpFile.Seek(0, io.SeekStart)
+	buf := &bytes.Buffer{}
+	if _, err := io.Copy(buf, tmpFile); err != nil {
+		log.Println("Failed to read temp file for final upload:", err)
+		http.Error(w, "Internal file read error", http.StatusInternalServerError)
 		return
 	}
 
-	log.Println("Received encrypted file, len:", len(fileBytes))
-	log.Println("Metadata JSON:", metadataJSON)
-
-	targetPath := fmt.Sprintf("files/%s/sent", userID)
-	if err := owncloud.UploadFile(targetPath, fileID, fileBytes); err != nil {
+	if err := owncloud.UploadFile(targetPath, fileID, buf.Bytes()); err != nil {
 		log.Println("OwnCloud upload failed:", err)
 		http.Error(w, "Failed to store encrypted file", http.StatusInternalServerError)
 		return
 	}
 
-    
+	// 🔹 Step 4: DB metadata
 	receivedID, err := metadata.InsertReceivedFile(
 		DB,
 		recipientID,
@@ -64,8 +83,8 @@ func SendFileHandler(w http.ResponseWriter, r *http.Request) {
 		fileID,
 		metadataJSON,
 		time.Now().Add(48*time.Hour),
-	); 
-    if err != nil {
+	)
+	if err != nil {
 		log.Println("Failed to insert received file:", err)
 		http.Error(w, "Failed to track received file", http.StatusInternalServerError)
 		return
@@ -82,12 +101,14 @@ func SendFileHandler(w http.ResponseWriter, r *http.Request) {
 		// Not fatal
 	}
 
+	// ✅ Respond
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{
-		"message":         "File sent successfully",
-		"receivedFileID":  receivedID,
+		"message":        "File sent successfully",
+		"receivedFileID": receivedID,
 	})
 
 	log.Println("File sent successfully")
 }
+
 
