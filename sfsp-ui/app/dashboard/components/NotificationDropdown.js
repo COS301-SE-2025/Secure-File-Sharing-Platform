@@ -98,6 +98,7 @@ export default function NotificationDropdown() {
           const fileData = res.data.fileData;
 
           await ReceiveFile(fileData);
+          location.reload();
           // setActiveFile(fileData); 
           // setShowPreviewModal(true);
         }
