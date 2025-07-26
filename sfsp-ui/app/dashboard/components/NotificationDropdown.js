@@ -36,9 +36,18 @@ export default function NotificationDropdown() {
         const res = await axios.post('http://localhost:5000/api/notifications/get', {
           userId: profileResult.data.id, // optionally use state/context for userId
         });
+        
+        // if (res.data.success) {
+        //   setNotifications(res.data.notifications);
+        // }
+
         if (res.data.success) {
-          setNotifications(res.data.notifications);
+          const sorted = res.data.notifications.sort(
+            (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
+          );
+          setNotifications(sorted);
         }
+
       } catch (error) {
         console.error('Failed to fetch notifications:', error);
       }
@@ -62,31 +71,31 @@ export default function NotificationDropdown() {
   };
 
   const respondToShareRequest = async (id, status) => {
-  try {
-    const res = await axios.post('http://localhost:5000/api/notifications/respond', {
-      id,
-      status,
-    });
+    try {
+      const res = await axios.post('http://localhost:5000/api/notifications/respond', {
+        id,
+        status,
+      });
 
-    if (res.data.success) {
-      // ✅ Update UI state
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, status, read: true } : n))
-      );
+      if (res.data.success) {
+        // ✅ Update UI state
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === id ? { ...n, status, read: true } : n))
+        );
 
-  
-      if (status === 'accepted' && res.data.fileData) {
-        const fileData = res.data.fileData;
 
-        await ReceiveFile(fileData);
-        // setActiveFile(fileData); 
-        // setShowPreviewModal(true);
+        if (status === 'accepted' && res.data.fileData) {
+          const fileData = res.data.fileData;
+
+          await ReceiveFile(fileData);
+          // setActiveFile(fileData); 
+          // setShowPreviewModal(true);
+        }
       }
+    } catch (error) {
+      console.error('Failed to respond to notification:', error);
     }
-  } catch (error) {
-    console.error('Failed to respond to notification:', error);
-  }
-};
+  };
 
   const clearNotification = async (id) => {
     try {
