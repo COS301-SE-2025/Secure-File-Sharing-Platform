@@ -80,7 +80,7 @@ export default function MyFiles() {
         return;
       }
 
-      console.log("Getting the users files");
+      console.log("Getting the user's files");
       const res = await fetch("http://localhost:5000/api/files/metadata", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -96,10 +96,13 @@ export default function MyFiles() {
         return;
       }
 
+      if (!Array.isArray(data)) {
+        data = [];
+      }
+
       const formatted = data
         .filter((f) => {
           const tags = f.tags ? f.tags.replace(/[{}]/g, "").split(",") : [];
-
           return (
             !tags.includes("deleted") &&
             !tags.some((tag) => tag.trim().startsWith("deleted_time:"))
@@ -358,21 +361,19 @@ export default function MyFiles() {
             {/* View Toggle */}
             <div className="flex items-center bg-white rounded-lg border p-1 dark:bg-gray-200">
               <button
-                className={`px-3 py-1 rounded ${
-                  viewMode === "grid"
-                    ? "bg-blue-500 text-white"
-                    : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
-                }`}
+                className={`px-3 py-1 rounded ${viewMode === "grid"
+                  ? "bg-blue-500 text-white"
+                  : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
+                  }`}
                 onClick={() => setViewMode("grid")}
               >
                 <Grid className="h-4 w-4" />
               </button>
               <button
-                className={`px-3 py-1 rounded ${
-                  viewMode === "list"
-                    ? "bg-blue-500 text-white"
-                    : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
-                }`}
+                className={`px-3 py-1 rounded ${viewMode === "list"
+                  ? "bg-blue-500 text-white"
+                  : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
+                  }`}
                 onClick={() => setViewMode("list")}
               >
                 <List className="h-4 w-4" />
