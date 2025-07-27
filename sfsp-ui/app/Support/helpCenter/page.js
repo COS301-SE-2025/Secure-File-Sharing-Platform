@@ -21,8 +21,10 @@ import { helpSections } from './helpSections';
     const filteredSections = helpSections.filter(
         (section) =>
         section.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        section.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
         section.items.some((item) =>
-            item.toLowerCase().includes(searchQuery.toLowerCase())
+            item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            item.details.toLowerCase().includes(searchQuery.toLowerCase())
         )
     );
 
