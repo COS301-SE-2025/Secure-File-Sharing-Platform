@@ -1,7 +1,7 @@
 // AccountSettings.jsx
 'use client';
 import { useEffect, useState } from 'react';
-import { Camera, Trash2, Sun, Moon, ChevronUp, ChevronDown } from 'lucide-react';
+import { PanelLeftClose, PanelLeftOpen, ArrowLeft, User, Shield, Bell, Palette, Camera, Trash2, Sun, Moon, ChevronUp, ChevronDown } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import axios from 'axios';
@@ -21,6 +21,8 @@ export default function AccountSettings() {
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [isCollapsed, setIsCollapsed] = useState(true);
+  const [isHovered, setIsHovered] = useState(false);
   const [avatarMessage, setAvatarMessage] = useState('');
   const [notificationSettings, setNotificationSettings] = useState({
     alerts: {
@@ -158,6 +160,30 @@ export default function AccountSettings() {
       setIsSaving(false);
     }
   };
+
+  // ------------------------------ Sidebar Collapse Logic ----------------------------------------
+  useEffect(() => {
+    const savedState = localStorage.getItem('settingsSidebarCollapsed');
+    if (savedState !== null) {
+      setIsCollapsed(JSON.parse(savedState));
+    }
+  }, []);
+
+  const toggleSidebar = () => {
+    const newState = !isCollapsed;
+    setIsCollapsed(newState);
+    localStorage.setItem('settingsSidebarCollapsed', JSON.stringify(newState));
+  };
+
+  const showExpanded = !isCollapsed || isHovered;
+
+  const tabsWithIcons = [
+    { name: 'MY ACCOUNT', icon: User },
+    { name: 'CHANGE PASSWORD', icon: Shield },
+    { name: 'NOTIFICATIONS', icon: Bell },
+  ];
+
+  // ------------------------------------Sidebar Toggle Logic------------------------------------
 
   const handleDateFormatChange = (value) => {
     setDateFormat(value);
@@ -572,48 +598,83 @@ export default function AccountSettings() {
   return (
     <div className="flex min-h-screen">
       {/* Sidebar */}
-      <div className="w-64 bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-white p-6 flex flex-col shadow-md min-h-screen">
+      <div 
+        className={`${
+          showExpanded ? 'w-64' : 'w-16'
+        } bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-white p-6 flex flex-col shadow-md min-h-screen transition-all duration-300 ease-in-out`}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
+        {/* Header Section */}
         <div className="flex items-center mb-8">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300"
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
+          {showExpanded ? (
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
-            <span className="text-lg font-semibold">Settings</span>
-          </button>
+              <ArrowLeft size={20} />
+              <span className="text-lg font-semibold">Settings</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="flex items-center justify-center w-full text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300"
+              title="Back to Dashboard"
+            >
+              <ArrowLeft size={20} />
+            </button>
+          )}
         </div>
 
-        <nav className="flex flex-col gap-2">
-          {tabs.map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => setActiveTab(tab)}
-              className={`py-2 px-4 text-left text-sm rounded-md transition-colors
-                ${
-                  activeTab === tab
-                    ? 'bg-blue-100 dark:bg-[#2A3548] text-blue-700 dark:text-white font-semibold'
-                    : 'text-gray-600 dark:text-gray-400 hover:bg-blue-300 dark:hover:bg-gray-700 hover:text-blue-700 dark:hover:text-white'
-                }`}
-            >
-              {tab}
-            </button>
-          ))}
+        {/* Navigation */}
+        <nav className="flex flex-col gap-2 flex-1">
+          {tabsWithIcons.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <div key={tab.name} className="relative group">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab(tab.name)}
+                  className={`py-2 px-4 text-left text-sm rounded-md transition-colors w-full flex items-center gap-3
+                    ${showExpanded ? '' : 'justify-center'}
+                    ${
+                      activeTab === tab.name
+                        ? 'bg-blue-100 dark:bg-[#2A3548] text-blue-700 dark:text-white font-semibold'
+                        : 'text-gray-600 dark:text-gray-400 hover:bg-blue-300 dark:hover:bg-gray-700 hover:text-blue-700 dark:hover:text-white'
+                    }`}
+                >
+                  <Icon size={18} />
+                  {showExpanded && <span>{tab.name}</span>}
+                </button>
+                
+                {/* Tooltip for collapsed state */}
+                {isCollapsed && !isHovered && (
+                  <div className="absolute left-full ml-2 top-1/2 transform -translate-y-1/2 bg-gray-900 dark:bg-gray-700 text-white text-xs px-2 py-1 rounded opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10">
+                    {tab.name}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </nav>
+
+        {/* Pin/Unpin Toggle Button */}
+        <div className="mt-auto pt-4 border-t border-gray-300 dark:border-gray-600">
+          <button
+            onClick={toggleSidebar}
+            className="flex items-center justify-center w-full p-3 rounded-lg hover:bg-blue-300 dark:hover:bg-gray-700 transition-colors"
+            title={isCollapsed ? 'Pin Sidebar Open' : 'Auto-Hide Sidebar'}
+          >
+            {isCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
+            {showExpanded && (
+              <span className="ml-2 text-sm">
+                {isCollapsed ? 'Pin Open' : 'Auto-Hide'}
+              </span>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Main Content */}
