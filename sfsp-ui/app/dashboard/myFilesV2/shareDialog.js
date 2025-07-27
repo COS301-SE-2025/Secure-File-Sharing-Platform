@@ -15,7 +15,6 @@ export function ShareDialog({ open, onOpenChange, file }) {
   const [linkAccess, setLinkAccess] = useState("restricted");
   const [allowComments, setAllowComments] = useState(true);
   const [allowDownload, setAllowDownload] = useState(true);
-  const sendviewurl = "http://localhost:5000/api/files/sendByView";
 
   const addRecipient = () => {
     if (newEmail && shareWith.every((r) => r.email !== newEmail)) {

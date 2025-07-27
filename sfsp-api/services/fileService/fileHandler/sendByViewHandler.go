@@ -224,7 +224,7 @@ func GetSharedViewFilesHandler(w http.ResponseWriter, r *http.Request) {
 			   f.file_name, f.file_type, f.file_size, f.description
 		FROM shared_files_view svf
 		JOIN files f ON svf.file_id = f.id
-		WHERE svf.recipient_id = $1 AND svf.revoked = FALSE AND svf.access_granted = TRUE
+		WHERE svf.recipient_id = $1 OR svf.sender_id = $1 AND svf.revoked = FALSE AND svf.access_granted = TRUE
 		AND (svf.expires_at IS NULL OR svf.expires_at > CURRENT_TIMESTAMP)
 		ORDER BY svf.shared_at DESC
 	`, req.UserID)
