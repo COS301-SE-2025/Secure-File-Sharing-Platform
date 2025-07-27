@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState, useEffect,useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Trash2, Undo2 } from 'lucide-react';
 import { useEncryptionStore } from '@/app/SecureKeyStorage';
 
@@ -14,6 +14,14 @@ export default function TrashPage() {
   const [trashedFiles, setTrashedFiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const userId = useEncryptionStore.getState().userId;
+  const [confirmClearOpen, setConfirmClearOpen] = useState(false);
+
+  const [toast, setToast] = useState({ message: "", visible: false });
+
+  const showToast = (message) => {
+    setToast({ message, visible: true });
+    setTimeout(() => setToast({ message: "", visible: false }), 3000);
+  };
 
   const fetchTrashedFiles = useCallback(async () => {
     try {
@@ -26,10 +34,17 @@ export default function TrashPage() {
       const data = await res.json();
       console.log(data);
 
-      const deletedFiles = data.filter(file => {
-        const tags = parseTagString(file.tags);
-        return tags.includes('deleted') && tags.some(tag => tag.startsWith('deleted_time:'));
-      });
+      // const deletedFiles = data.filter(file => {
+      //   const tags = parseTagString(file.tags);
+      //   return tags.includes('deleted') && tags.some(tag => tag.startsWith('deleted_time:'));
+      // });
+
+      const deletedFiles = Array.isArray(data)
+        ? data.filter(file => {
+          const tags = parseTagString(file.tags);
+          return tags.includes('deleted') && tags.some(tag => tag.startsWith('deleted_time:'));
+        })
+        : [];
 
       console.log(deletedFiles);
 
@@ -54,7 +69,7 @@ export default function TrashPage() {
     } finally {
       setLoading(false);
     }
-  },[userId]);
+  }, [userId]);
 
   const handleRestore = async (fileId) => {
     try {
@@ -119,7 +134,7 @@ export default function TrashPage() {
       fetchTrashedFiles();
     } catch (err) {
       console.error("Restore failed:", err);
-      alert("Failed to restore file.");
+      showToast("Failed to restore file.");
     }
   };
 
@@ -138,16 +153,16 @@ export default function TrashPage() {
         throw new Error("Permanent deletion failed");
       }
 
-      fetchTrashedFiles(); // Refresh the list
+      fetchTrashedFiles();
     } catch (err) {
       console.error("Delete failed:", err);
-      alert("Failed to permanently delete the file.");
+      showToast("Failed to permanently delete the file.");
     }
   };
 
   const handleClearTrash = async () => {
-    const confirm = window.confirm("Are you sure you want to permanently delete all files in the trash?");
-    if (!confirm) return;
+    // const confirm = window.confirm("Are you sure you want to permanently delete all files in the trash?");
+    // if (!confirm) return;
 
     try {
       for (const file of trashedFiles) {
@@ -162,10 +177,11 @@ export default function TrashPage() {
         }
       }
 
-      fetchTrashedFiles(); 
+      location.reload();
+
     } catch (err) {
       console.error("Failed to clear trash:", err);
-      alert("An error occurred while clearing the trash.");
+      showToast("An error occurred while clearing the trash.");
     }
   };
 
@@ -235,10 +251,37 @@ export default function TrashPage() {
       <button
         type="button"
         className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-        onClick={handleClearTrash}
+        onClick={() => setConfirmClearOpen(true)}
       >
         Clear Trash
       </button>
+      {confirmClearOpen && (
+        <div className="fixed inset-0 bg-black/50  flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl w-full max-w-md text-center">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              Confirm Delete
+            </h2>
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
+              Are you sure you want to permanently delete all files in the trash?
+            </p>
+            <div className="flex justify-center gap-4">
+              <button
+                onClick={handleClearTrash}
+                className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+              >
+                Yes, Delete All
+              </button>
+              <button
+                onClick={() => setConfirmClearOpen(false)}
+                className="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400 dark:bg-gray-700 dark:text-white"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+
   );
 }
