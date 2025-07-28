@@ -1,23 +1,67 @@
 'use client';
 
-import { useEffect,  useState } from 'react';
-import { FileText, Users, Clock, Download, Share, Edit, Eye, Trash2, Undo2, TrashIcon, UploadCloud, ListCheckIcon, AlertCircleIcon} from 'lucide-react';
+import { useEffect, useState, useCallback } from 'react';
+import { FileText, Users, Clock, TrashIcon, UploadCloud, ListCheckIcon, AlertCircleIcon } from 'lucide-react';
+import { UploadDialog } from "./myFilesV2/uploadDialog";
+import { useDashboardSearch } from "./components/DashboardSearchContext";
+import { FullViewModal } from "./myFilesV2/fullViewModal";
 import axios from 'axios';
-import {
-  useEncryptionStore,
-  getUserId,
-} from "@/app/SecureKeyStorage";
-//import { getSodium } from "@/app/lib/sodium";
+import { getSodium } from "@/app/lib/sodium";
+import { useEncryptionStore } from "@/app/SecureKeyStorage";
+
+// Helper functions
+
+function getFileType(mimeType) {
+  if (!mimeType) return "unknown";
+  if (mimeType.includes("pdf")) return "pdf";
+  if (mimeType.includes("image")) return "image";
+  if (mimeType.includes("video")) return "video";
+  if (mimeType.includes("audio")) return "audio";
+  if (mimeType.includes("application")) return "application";
+  if (mimeType.includes("zip") || mimeType.includes("rar")) return "archive";
+  if (mimeType.includes("spreadsheet") || mimeType.includes("excel") || mimeType.includes("sheet"))
+    return "excel";
+  if (mimeType.includes("presentation")) return "ppt";
+  if (mimeType.includes("word") || mimeType.includes("document")) return "word";
+  if (mimeType.includes("text")) return "txt";
+  if (mimeType.includes("json")) return "json";
+  if (mimeType.includes("csv")) return "csv";
+  if (mimeType.includes("html")) return "html";
+  return "file";
+}
+
+function formatFileSize(size) {
+  if (size < 1024) return `${size} B`;
+  else if (size < 1024 * 1024) return `${(size / 1024).toFixed(2)} KB`;
+  else if (size < 1024 * 1024 * 1024) return `${(size / (1024 * 1024)).toFixed(2)} MB`;
+  else return `${(size / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+
+function parseTagString(tagString = '') {
+  return tagString.replace(/[{}]/g, '').split(',').map(t => t.trim());
+}
 
 export default function DashboardHomePage() {
+  const [files, setFiles] = useState([]);
   const [fileCount, setFileCount] = useState(0);
-  const [trashCount, setTrashCount] = useState(0);
-    const [activityLogs, setActivityLogs] = useState([]);
-  const [loadingLogs, setLoadingLogs] = useState(true);
+  const [trashedFiles, setTrashedFiles] = useState([]);
+  const [recievedFiles, setRecievedFiles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const userId = useEncryptionStore.getState().userId;
+  const { search } = useDashboardSearch();
   const [notifications, setNotifications] = useState([]);
+  const [recentFiles, setRecentFiles] = useState([]);
+  const [viewerFile, setViewerFile] = useState(null);
+  const [viewerContent, setViewerContent] = useState(null);
 
-  const userId = useEncryptionStore.getState().userId;//again use the actual user ID from the auth system
-  // console.log("UserId is:", userId);
+  const filteredFiles = files.filter(
+    (file) =>
+      file &&
+      typeof file.name === "string" &&
+      file.name.toLowerCase().includes((search || "").toLowerCase())
+  );
+
   const formatTimestamp = (timestamp) => {
     const now = new Date();
     const time = new Date(timestamp);
@@ -28,30 +72,136 @@ export default function DashboardHomePage() {
     const hours = Math.floor(minutes / 60);
     if (hours < 24) return `${hours}h ago`;
     return `${Math.floor(hours / 24)}d ago`;
-};
+  };
 
-  useEffect(() => {
-  const fetchFileCount = async () => {
+  const fetchFiles = async () => {
     try {
-      const response = await axios.post('http://localhost:5000/api/files/getNumberOFFiles', {
-        userId,
+      if (!userId) {
+        console.error("Cannot fetch files: Missing userId in store.");
+        return;
+      }
+
+      const res = await fetch("http://localhost:5000/api/files/metadata", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
       });
 
-      const allFiles = response.data.files; // big number 
-      const activeFiles = allFiles.filter(
-         !file.tags.includes('deleted') || !file.tags.some(tag => tag.startsWith('deleted_time:'))); // deleted files filter 
-      setFileCount(activeFiles.length);
-    } catch (error) {
-      console.error("Failed to fetch file count:", error.message);
+      let data;
+      try {
+        data = await res.json();
+      } catch (e) {
+        const text = await res.text();
+        console.error("Failed to parse JSON:", text);
+        return;
+      }
+
+      const sortedFiles = data.sort(
+        (a, b) => new Date(b.date) - new Date(a.date)
+      );
+
+      setRecentFiles(sortedFiles.slice(0, 3));
+
+      const formatted = data
+        .filter((f) => {
+          const tags = f.tags ? f.tags.replace(/[{}]/g, "").split(",") : [];
+          return (
+            !tags.includes("deleted") &&
+            !tags.some((tag) => tag.trim().startsWith("deleted_time:"))
+          );
+        })
+        .map((f) => ({
+          id: f.fileId || "",
+          name: f.fileName || "Unnamed file",
+          size: formatFileSize(f.fileSize || 0),
+          type: getFileType(f.fileType || ""),
+          modified: f.createdAt ? new Date(f.createdAt).toLocaleDateString() : "",
+          shared: false,
+          starred: false,
+        }));
+
+      setFiles(formatted);
+    } catch (err) {
+      console.error("Failed to fetch files:", err);
     }
   };
 
-  fetchFileCount();
-}, [userId]);
+  const handleLoadFile = async (file) => {
+    if (!file?.fileName) {
+      alert("File name missing!");
+      return null;
+    }
+    const { encryptionKey, userId } = useEncryptionStore.getState();
+    if (!encryptionKey) {
+      alert("Missing encryption key");
+      return null;
+    }
 
+    const sodium = await getSodium();
 
-useEffect(() => {
-  const fetchRecentNotifications = async () => {
+    try {
+      const res = await fetch("http://localhost:5000/api/files/download", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          fileName: file.fileName,
+        }),
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Download failed: ${res.status} - ${errorText}`);
+      }
+
+      const buffer = await res.arrayBuffer();
+      const encryptedFile = new Uint8Array(buffer);
+
+      const nonceBase64 = res.headers.get("X-Nonce");
+      const fileName = res.headers.get("X-File-Name");
+
+      if (!nonceBase64 || !fileName) {
+        throw new Error("Missing nonce or fileName in response headers");
+      }
+
+      const decrypted = sodium.crypto_secretbox_open_easy(
+        encryptedFile,
+        sodium.from_base64(nonceBase64, sodium.base64_variants.ORIGINAL),
+        encryptionKey
+      );
+
+      if (!decrypted) {
+        throw new Error("Decryption failed");
+      }
+
+      return { fileName, decrypted };
+    } catch (err) {
+      console.error("Load file error:", err);
+      alert("Failed to load file");
+      return null;
+    }
+  };
+
+  const handleOpenFullView = async (file) => {
+    const result = await handleLoadFile(file);
+    if (!result) return;
+
+    let contentUrl = null;
+    let textFull = null;
+
+    if (file.type === "image" || file.type === "video" || file.type === "audio") {
+      contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
+    } else if (file.type === "pdf") {
+      contentUrl = URL.createObjectURL(new Blob([result.decrypted], { type: "application/pdf" }));
+    } else if (file.type === "txt" || file.type === "json" || file.type === "csv") {
+      textFull = new TextDecoder().decode(result.decrypted);
+    }
+
+    setViewerContent({ url: contentUrl, text: textFull });
+    setViewerFile(file);
+  };
+
+  const fetchNotifications = async () => {
     const token = localStorage.getItem("token");
     if (!token) return;
 
@@ -63,118 +213,127 @@ useEffect(() => {
       const profileResult = await profileRes.json();
       if (!profileRes.ok) throw new Error(profileResult.message || "Failed to fetch profile");
 
-      const res = await axios.post('http://localhost:5000/api/notifications/get', {
-        userId: profileResult.data.id,
+      try {
+        const res = await axios.post('http://localhost:5000/api/notifications/get', {
+          userId: profileResult.data.id,
+        });
+        if (res.data.success) {
+          setNotifications(res.data.notifications);
+        }
+      } catch (error) {
+        console.error('Failed to fetch notifications:', error);
+      }
+
+    } catch (err) {
+      console.error("Failed to fetch user profile:", err.message);
+    }
+  };
+
+  const markAsRead = async (id) => {
+    try {
+      const res = await axios.post('http://localhost:5000/api/notifications/markAsRead', { id });
+      if (res.data.success) {
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+        );
+      }
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error);
+    }
+  };
+
+  const respondToShareRequest = async (id, status) => {
+    try {
+      const res = await axios.post('http://localhost:5000/api/notifications/respond', {
+        id,
+        status,
       });
 
       if (res.data.success) {
-        setNotifications(res.data.notifications.slice(0, 5)); // Just 5 most recent
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === id ? { ...n, status, read: true } : n))
+        );
+
+        if (status === 'accepted' && res.data.fileData) {
+          const fileData = res.data.fileData;
+          await ReceiveFile(fileData);
+        }
       }
-    } catch (err) {
-      console.error("Error fetching notifications:", err);
-    }
-  };
-
-  fetchRecentNotifications();
-}, []);
-
-
-  useEffect(() => {
-  const fetchTrashCount = async () => {
-    try {
-      const response = await axios.post('http://localhost:5000/api/files/getNumberOFFiles', {
-        userId,
-      });
-
-      const allFiles = response.data.files; // big number 
-      const activeFiles = allFiles.filter(
-         file.tags.includes('deleted') || file.tags.some(tag => tag.startsWith('deleted_time:'))); // deleted files filter 
-      setTrashCount(activeFiles.length);
     } catch (error) {
-      console.error("Failed to fetch trash file count:", error.message);
+      console.error('Failed to respond to notification:', error);
     }
   };
 
-  fetchTrashCount();
-}, [userId]);
-
-    const handleFileUpload = async (event) => {
-      const file = event.target.files?.[0];
-      if (!file) return;
-
-      const { encryptionKey, userId } = useEncryptionStore.getState();
-      if (!encryptionKey || !userId) {
-        alert("Missing user ID or encryption key.");
-        return;
+  const clearNotification = async (id) => {
+    try {
+      const res = await axios.post('http://localhost:5000/api/notifications/clear', { id });
+      if (res.data.success) {
+        setNotifications((prev) => prev.filter((n) => n.id !== id));
       }
-
-      const sodium = await getSodium();
-      const fileBuffer = new Uint8Array(await file.arrayBuffer());
-      const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
-      const ciphertext = sodium.crypto_secretbox(fileBuffer, nonce, encryptionKey);
-
-      const formData = {
-        userId,
-        fileName: file.name,
-        fileType: file.type,
-        fileDescription: "User personal upload",
-        fileTags: ["personal"],
-        path: `files/${userId}`,
-        fileContent: sodium.to_base64(ciphertext),
-        nonce: sodium.to_base64(nonce),
-      };
-
-      try {
-        const res = await fetch("http://localhost:5000/api/files/upload", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(formData),
-        });
-
-        if (!res.ok) throw new Error("Upload failed");
-        alert("Upload successful");
-      } catch (err) {
-        console.error("Upload error:", err);
-        alert("Upload failed");
-      }
-    };
-
-
-
-  const iconMap = {
-    downloaded: Download,
-    shared: Share,
-    edited: Edit,
-    viewed: Eye,
-    deleted: Trash2,
-    created: Clock,
-    restored: Undo2,
+    } catch (error) {
+      console.error('Failed to clear notification:', error);
+    }
   };
 
-useEffect(() => {
-  const fetchRecentActivityLogs = async () => {
+  const fetchFilesMetadata = useCallback(async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/files/getAccesslog', {
+      const res = await fetch('http://localhost:5000/api/files/metadata', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: userId }), // or file_id depending on backend
+        body: JSON.stringify({ userId }),
       });
 
-      if (!res.ok) throw new Error('Failed to fetch logs');
+      const data = await res.json();
 
-      const logs = await res.json();
-      setActivityLogs(logs.slice(0, 5)); // show only latest 3
-    } catch (err) {
-      console.error('Error fetching logs:', err);
-      setActivityLogs([]);
+      // Separate active and deleted files
+      const activeFiles = data.filter(file => {
+        const tags = parseTagString(file.tags);
+        return !tags.includes('deleted');
+      });
+
+      const deletedFiles = data.filter(file => {
+        const tags = parseTagString(file.tags);
+        return tags.includes('deleted');
+      });
+
+      const recievedFiles = data.filter(file => {
+        const tags = parseTagString(file.tags);
+        return tags.includes('recieved_at');
+      });
+
+      // Format deleted files for UI
+      const formattedDeletedFiles = deletedFiles.map(file => {
+        const tags = parseTagString(file.tags);
+        const deletedTag = tags.find(tag => tag.startsWith('deleted_time:'));
+        const deletedAt = deletedTag
+          ? new Date(deletedTag.split(':').slice(1).join(':')).toLocaleString()
+          : 'Unknown';
+
+        return {
+          id: file.fileId,
+          name: file.fileName,
+          size: `${(file.fileSize / 1024 / 1024).toFixed(2)} MB`,
+          deletedAt,
+        };
+      });
+
+      setFileCount(activeFiles.length);
+      setTrashedFiles(formattedDeletedFiles);
+      setRecievedFiles(recievedFiles);
+    } catch (error) {
+      console.error("Failed to fetch files metadata:", error);
     } finally {
-      setLoadingLogs(false);
+      setLoading(false);
     }
-  };
+  }, [userId]);
 
-  fetchRecentActivityLogs();
-}, [userId]);
-
+  useEffect(() => {
+    if (userId) {
+      fetchFilesMetadata();
+      fetchFiles();
+      fetchNotifications();
+    }
+  }, [userId, fetchFilesMetadata]);
 
   const stats = [
     {
@@ -185,168 +344,219 @@ useEffect(() => {
     {
       icon: <Users className="text-green-600 dark:text-green-400" size={28} />,
       label: 'Shared with Me',
-      value: 68,
+      value: recievedFiles.length,
     },
     {
       icon: <TrashIcon className="text-purple-600 dark:text-purple-400" size={28} />,
       label: 'Trash',
-      value: trashCount,
+      value: trashedFiles.length,
     },
     {
       icon: <UploadCloud className="text-blue-600 dark:text-blue-400" size={28} />,
       label: 'Upload',
-      isUpload: true, // custom flag
+      isUpload: true,
     }
+  ];
 
-  ]
-  
+  return (
+    <div className="p-6 bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white">
+      <h1 className="text-2xl font-semibold mb-2 text-blue-500">Welcome!</h1>
+      <p className="text-gray-600 dark:text-gray-400 mb-7">
+        Here&apos;s an overview of your activity.
+      </p>
 
-  const recentFiles = [
-  { name: "report_Q3.pdf", date: "July 9, 2025" },
-  { name: "design_sketch.fig", date: "July 8, 2025" },
-  { name: "project_plan.docx", date: "July 5, 2025" },
-];
+      {/* Hidden File Upload Input */}
+      <input id="file-upload-input" type="file" hidden />
 
-  ;
-
- return (
-  
-  <div className="p-6 bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white">
-    <h1 className="text-2xl font-semibold mb-2 text-blue-500">Welcome!</h1>
-    <p className="text-gray-600 dark:text-gray-400 mb-7">
-      Here&apos;s an overview of your activity.
-    </p>
-
-    {/* STATS GRID */}
-    <input
-  id="file-upload-input"
-  type="file"
-  hidden
-  onChange={handleFileUpload}
-/>
-
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-       {stats.map((item, idx) => {
-            const CardContent = (
-              <>
-                <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-full">
-                  {item.icon}
-                </div>
-                <div>
-                  <p className="text-lg font-bold text-gray-500 dark:text-gray-400">{item.label}</p>
-                  <p className="text-xl font-bold">{item.value}</p>
-                </div>
-              </>
-            );
-
-            return item.isUpload ? (
-              <button
-                key={idx}
-                onClick={() => document.getElementById('file-upload-input')?.click()}
-                //change the color of the upload container                  !                  !
-                className="flex items-center gap-4 p-7 w-full text-left bg-blue-500 hover:bg-blue-600 text-white rounded-lg shadow transition-shadow"
-              >
-                {CardContent}
-              </button>
-            ) : (
-              <div
-                key={idx}
-                className="flex items-center gap-4 p-7 bg-gray-200 dark:bg-gray-800 rounded-lg shadow hover:shadow-lg transition-shadow"
-              >
-                {CardContent}
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+        {stats.map((item, idx) => {
+          const CardContent = (
+            <>
+              <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-full">
+                {item.icon}
               </div>
-            );
-          })}
+              <div>
+                <p className="text-lg font-bold text-gray-500 dark:text-gray-400">
+                  {item.label}
+                </p>
+                <p className="text-xl font-bold">{item.value}</p>
+              </div>
+            </>
+          );
 
-    </div>
-
-    <div className="flex justify-center">
-  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-12 w-full max-w-10xl">
-
-  {/* Notifications Box - Summarized */}
-    <div className="h-60 w-full lg:col-span-2 p-6 flex flex-col justify-start bg-gray-200 dark:bg-gray-800 rounded-lg shadow hover:shadow-lg transition-shadow overflow-hidden">
-      <div className="flex items-center gap-3 mb-3">
-        <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-full">
-          <ListCheckIcon className="text-blue-600 dark:text-blue-400" size={28} />
-        </div>
-        <div>
-          <p className="text-xl font-bold text-gray-500 dark:text-gray-400">Notifications</p>
-        </div>
+          return item.isUpload ? (
+            <button
+              key={idx}
+              onClick={() => setIsUploadOpen(true)}
+              className="flex items-center gap-4 p-7 w-full text-left
+                         bg-blue-600 hover:bg-blue-700
+                         text-white rounded-lg shadow transition-shadow"
+            >
+              {CardContent}
+            </button>
+          ) : (
+            <div
+              key={idx}
+              className="flex items-center gap-4 p-7
+                         bg-gray-200 dark:bg-gray-800
+                         rounded-lg shadow hover:shadow-lg transition-shadow"
+            >
+              {CardContent}
+            </div>
+          );
+        })}
       </div>
 
-      <div className="overflow-y-auto space-y-2 pr-1 text-sm text-gray-700 dark:text-gray-200">
-        {notifications.length === 0 ? (
-          <p>No new notifications</p>
-        ) : (
-          notifications.map((n) => (
-            <div key={n.id} className="flex items-start gap-2">
-              <FileText className="w-4 h-4 mt-1 text-blue-500" />
-              <div>
-                <p className="leading-tight">{n.message}</p>
-                <p className="text-xs text-gray-500">{formatTimestamp(n.timestamp)}</p>
+      <UploadDialog
+        open={isUploadOpen}
+        onOpenChange={setIsUploadOpen}
+        onUploadSuccess={fetchFiles}
+      />
+
+      {/* Notifications */}
+      <div className="flex justify-center">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-12 w-full max-w-10xl">
+          <div className="h-60 w-full lg:col-span-2 p-6 flex flex-col justify-start
+                          bg-gray-200 dark:bg-gray-800 rounded-lg shadow hover:shadow-lg
+                          transition-shadow overflow-hidden">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-full">
+                <ListCheckIcon className="text-blue-600 dark:text-blue-400" size={28} />
               </div>
+              <p className="text-xl font-bold text-gray-500 dark:text-gray-400">Notifications</p>
             </div>
+
+            <div className="overflow-y-auto space-y-2 pr-1 text-sm text-gray-700 dark:text-gray-200">
+              {notifications.length === 0 ? (
+                <p className="text-gray-500">No new notifications</p>
+              ) : (
+                notifications.map((n) => (
+                  <div
+                    key={n.id}
+                    className="flex items-start gap-2 p-2 bg-gray-50 dark:bg-gray-700 rounded"
+                  >
+                    <FileText className="w-4 h-4 mt-1 text-blue-500" />
+                    <div className="flex-1">
+                      <p className="leading-tight">{n.message}</p>
+                      <p className="text-xs text-gray-500">{formatTimestamp(n.timestamp)}</p>
+
+                      <div className="flex gap-2 mt-1">
+                        {!n.read && (
+                          <button
+                            onClick={() => markAsRead(n.id)}
+                            className="text-xs text-blue-500 hover:underline"
+                          >
+                            Mark as Read
+                          </button>
+                        )}
+
+                        {n.type === "share-request" && (
+                          <>
+                            <button
+                              onClick={() => respondToShareRequest(n.id, "accepted")}
+                              className="text-xs text-green-500 hover:underline"
+                            >
+                              Accept
+                            </button>
+                            <button
+                              onClick={() => respondToShareRequest(n.id, "declined")}
+                              className="text-xs text-red-500 hover:underline"
+                            >
+                              Decline
+                            </button>
+                          </>
+                        )}
+
+                        <button
+                          onClick={() => clearNotification(n.id)}
+                          className="text-xs text-gray-500 hover:underline"
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+         {/* Activity Logs (Static Data) */}
+<div
+  className="h-60 w-full lg:col-span-2 p-6 flex flex-col justify-start
+             bg-gray-200 dark:bg-gray-800 rounded-lg shadow hover:shadow-lg
+             transition-shadow overflow-hidden"
+>
+  <div className="flex items-center gap-3 mb-3">
+    <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-full">
+      <AlertCircleIcon className="text-green-600 dark:text-green-400" size={28} />
+    </div>
+    <p className="text-xl font-bold text-gray-500 dark:text-gray-400">Activity Logs</p>
+  </div>
+
+  <div className="overflow-y-auto space-y-2 pr-2 text-sm text-gray-700 dark:text-gray-200">
+    <div className="flex items-start gap-2">
+      <Clock className="w-4 h-4 mt-1 text-gray-600 dark:text-gray-300" />
+      <div>
+        <p className="text-sm leading-tight">Uploaded "report.pdf"</p>
+        <p className="text-xs text-gray-500">Today, 11:30 AM</p>
+      </div>
+    </div>
+    <div className="flex items-start gap-2">
+      <Clock className="w-4 h-4 mt-1 text-gray-600 dark:text-gray-300" />
+      <div>
+        <p className="text-sm leading-tight">Deleted "old_notes.txt"</p>
+        <p className="text-xs text-gray-500">Yesterday, 4:10 PM</p>
+      </div>
+    </div>
+  </div>
+</div>
+      </div>
+    </div>
+
+    {/* Recent Files */}
+    <div className="mt-12 max-w-5xl mx-auto">
+      <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-4">
+        Recent Files
+      </h2>
+
+      <ul className="bg-white dark:bg-gray-800 rounded-lg shadow divide-y divide-gray-200 dark:divide-gray-700">
+        {recentFiles.length === 0 ? (
+          <li className="p-4 text-gray-500">No recent files</li>
+        ) : (
+          recentFiles.map((file, index) => (
+            <li key={index} className="p-4 flex justify-between items-center">
+              <div>
+                <p className="text-lg font-medium text-gray-700 dark:text-gray-200">
+                  {file.fileName || file.name || "Unnamed File"}
+                </p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {formatTimestamp(file.date || file.createdAt)}
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  console.log("Open clicked, file object:", file);
+                  console.log("Open clicked, file.name:", file.name);
+                  handleOpenFullView(file);
+                }}
+                className="text-blue-500 hover:underline"
+              >
+                Open
+              </button>
+            </li>
           ))
         )}
-      </div>
+      </ul>
     </div>
 
-    {/* Activity Logs box - consistent styling */}
-    <div className="h-60 w-full lg:col-span-2 p-6 flex flex-col justify-start bg-gray-200 dark:bg-gray-800 rounded-lg shadow hover:shadow-lg transition-shadow overflow-hidden">
-      <div className="flex items-center gap-3 mb-3">
-        <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-full">
-          <AlertCircleIcon className="text-green-600 dark:text-green-400" size={28} />
-        </div>
-        <div>
-          <p className="text-xl font-bold text-gray-500 dark:text-gray-400">Activity Logs</p>
-        </div>
-      </div>
-
-      <div className="overflow-y-auto space-y-2 pr-2 text-sm text-gray-700 dark:text-gray-200">
-        {loadingLogs ? (
-          <p>Loading...</p>
-        ) : activityLogs.length === 0 ? (
-          <p>No recent activity.</p>
-        ) : (
-          activityLogs.slice(0, 3).map((log) => {
-            const Icon = iconMap[log.action] || Clock;
-            return (
-              <div key={log.id} className="flex items-start gap-2">
-                <Icon className="w-4 h-4 mt-1 text-gray-600 dark:text-gray-300" />
-                <div>
-                  <p className="text-sm leading-tight">{log.message}</p>
-                  <p className="text-xs text-gray-500">{new Date(log.timestamp).toLocaleString()}</p>
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
-    </div>
-
+    {viewerFile && (
+      <FullViewModal
+        file={viewerFile}
+        content={viewerContent}
+        onClose={() => setViewerFile(null)}
+      />
+    )}
   </div>
-</div>
-
-
-    {/* RECENT FILES SECTION */}
-  <div className="mt-12 max-w-5xl mx-auto">
-    <h2 className="text-2xl  font-semibold text-gray-800 dark:text-white mb-4">Recent Files</h2>
-    <ul className="bg-white dark:bg-gray-800 rounded-lg shadow divide-y divide-gray-200 dark:divide-gray-700">
-      {recentFiles.map((file, index) => (
-        <li key={index} className="p-4 flex justify-between items-center">
-          <div>
-            <p className="text-lg font-medium text-gray-700 dark:text-gray-200">{file.name}</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">{file.date}</p>
-          </div>
-          <button className="text-blue-500 hover:underline text-sm">Open</button>
-        </li>
-      ))}
-  </ul>
-</div>
-  </div>
-  
-
-);
-
-
-}
+)};
