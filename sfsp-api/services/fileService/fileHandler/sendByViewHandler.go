@@ -138,7 +138,6 @@ func RevokeViewAccessHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verify user owns the file
 	var ownerID string
 	err := DB.QueryRow("SELECT owner_id FROM files WHERE id = $1", req.FileID).Scan(&ownerID)
 	if err != nil {
@@ -174,7 +173,6 @@ func RevokeViewAccessHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Add access log
 	_, err = DB.Exec(`
 		INSERT INTO access_logs (file_id, user_id, action, message, view_only)
 		VALUES ($1, $2, $3, $4, $5)
@@ -358,7 +356,6 @@ func DownloadViewFileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Construct the file path in ownCloud
 	targetPath := fmt.Sprintf("files/%s/shared_view", senderID)
 	sharedFileKey := fmt.Sprintf("%s_%s", req.FileID, req.UserID)
 
@@ -372,7 +369,6 @@ func DownloadViewFileHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer stream.Close()
 
-	// Add access log
 	_, err = DB.Exec(`
 		INSERT INTO access_logs (file_id, user_id, action, message, view_only)
 		VALUES ($1, $2, $3, $4, $5)
@@ -381,13 +377,12 @@ func DownloadViewFileHandler(w http.ResponseWriter, r *http.Request) {
 		log.Println("Failed to log view action:", err)
 	}
 
-	// Set headers to indicate this is a view-only file
+	// view-only headers - I use this to diferentiate between normal share
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("X-View-Only", "true")
 	w.Header().Set("X-File-Id", req.FileID)
 	w.Header().Set("X-Share-Id", req.ShareID)
 
-	// Stream the file data directly to the client
 	if _, err := io.Copy(w, stream); err != nil {
 		log.Println("Failed to stream view file to response:", err)
 		http.Error(w, "Failed to stream view file", http.StatusInternalServerError)
