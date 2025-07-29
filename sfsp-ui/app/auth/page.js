@@ -324,6 +324,20 @@ export default function AuthPage() {
 
       localStorage.setItem("token", token.replace(/^Bearer\s/, ""));
       setMessage("User successfully registered!");
+
+      //add user to the postgres database using the rute for addUser in file routes
+      const addUserRes = await fetch("http://localhost:5000/api/files/addUser", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.id,
+        }),
+      });
+
+      if (!addUserRes.ok) {
+        console.error("Failed to add user to database");
+      }
+
       setTimeout(() => {
         router.push('/dashboard');
       }, 1000);
@@ -473,8 +487,8 @@ export default function AuthPage() {
                 setFieldErrors({});
               }}
               className={`cursor-pointer text-center pb-2 font-medium transition-all ${tab === "login"
-                  ? "text-blue-600 font-bold text-lg border-b-2 border-blue-600"
-                  : "text-gray-500 hover:text-blue-600"
+                ? "text-blue-600 font-bold text-lg border-b-2 border-blue-600"
+                : "text-gray-500 hover:text-blue-600"
                 }`}
             >
               Log In
@@ -486,8 +500,8 @@ export default function AuthPage() {
                 setFieldErrors({});
               }}
               className={`cursor-pointer text-center pb-2 font-medium transition-all ${tab === "signup"
-                  ? "text-blue-600 font-bold text-lg border-b-2 border-blue-600"
-                  : "text-gray-500 hover:text-blue-600"
+                ? "text-blue-600 font-bold text-lg border-b-2 border-blue-600"
+                : "text-gray-500 hover:text-blue-600"
                 }`}
             >
               Sign Up
@@ -498,8 +512,8 @@ export default function AuthPage() {
           {message && (
             <div
               className={`p-3 rounded-md text-sm mb-4 ${message.includes("successful")
-                  ? "bg-green-100 text-green-700"
-                  : "bg-red-100 text-red-700"
+                ? "bg-green-100 text-green-700"
+                : "bg-red-100 text-red-700"
                 }`}
             >
               {message}
@@ -692,7 +706,7 @@ export default function AuthPage() {
                   >
                     Password
                   </label>
-                  <div className="relative">
+                  <div className="relative flex items-center">
                     <input
                       id="password"
                       name="password"
@@ -715,10 +729,10 @@ export default function AuthPage() {
                         <EyeClosed className="h-5 w-5 text-gray-500 hover:text-gray-700" />
                       )}
                     </button>
-                    {fieldErrors.password && (
-                      <p className="text-red-500 text-sm mt-1">{fieldErrors.password}</p>
-                    )}
                   </div>
+                  {fieldErrors.password && (
+                    <p className="text-red-500 text-sm mt-1">{fieldErrors.password}</p>
+                  )}
                 </div>
                 <div>
                   <label

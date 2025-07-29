@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	//"encoding/base64"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"time"
@@ -14,9 +13,7 @@ import (
 )
 
 func SendFileHandler(w http.ResponseWriter, r *http.Request) {
-	// Parse multipart form data
-	log.Println("The sending got here")
-	err := r.ParseMultipartForm(50 << 20) // allow up to 50 MB
+	err := r.ParseMultipartForm(50 << 20) // 50 MB memory buffer (adjust as needed)
 	if err != nil {
 		log.Println("Failed to parse multipart form:", err)
 		http.Error(w, "Invalid multipart form", http.StatusBadRequest)
@@ -33,48 +30,40 @@ func SendFileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Retrieve binary file
+	// 🔹 Step 1: Stream file directly from form
 	file, _, err := r.FormFile("encryptedFile")
 	if err != nil {
-		log.Println("Failed to get encrypted file from form:", err)
+		log.Println("Failed to get encrypted file:", err)
 		http.Error(w, "Missing encrypted file", http.StatusBadRequest)
 		return
 	}
 	defer file.Close()
 
-	fileBytes, err := io.ReadAll(file)
-	if err != nil {
-		log.Println("Failed to read encrypted file:", err)
-		http.Error(w, "Failed to read uploaded file", http.StatusInternalServerError)
-		return
-	}
-
-	log.Println("Received encrypted file, len:", len(fileBytes))
-	log.Println("Metadata JSON:", metadataJSON)
-
-	// Upload to OwnCloud
+	// 🔹 Step 2: Upload via stream (no buffering in memory)
 	targetPath := fmt.Sprintf("files/%s/sent", userID)
-	if err := owncloud.UploadFile(targetPath, fileID, fileBytes); err != nil {
-		log.Println("OwnCloud upload failed:", err)
+	log.Println("Streaming file to ownCloud path:", targetPath)
+
+	if err := owncloud.UploadFileStream(targetPath, fileID, file); err != nil {
+		log.Println("OwnCloud stream upload failed:", err)
 		http.Error(w, "Failed to store encrypted file", http.StatusInternalServerError)
 		return
 	}
 
-	// Insert into received_files
-	if err := metadata.InsertReceivedFile(
+	// 🔹 Step 3: Track in database
+	receivedID, err := metadata.InsertReceivedFile(
 		DB,
 		recipientID,
 		userID,
 		fileID,
 		metadataJSON,
 		time.Now().Add(48*time.Hour),
-	); err != nil {
+	)
+	if err != nil {
 		log.Println("Failed to insert received file:", err)
 		http.Error(w, "Failed to track received file", http.StatusInternalServerError)
 		return
 	}
 
-	// Insert into sent_files
 	if err := metadata.InsertSentFile(
 		DB,
 		userID,
@@ -83,12 +72,14 @@ func SendFileHandler(w http.ResponseWriter, r *http.Request) {
 		metadataJSON,
 	); err != nil {
 		log.Println("Failed to insert sent file:", err)
+		// Not fatal
 	}
 
-	// Respond
+	// ✅ Final response
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{
-		"message": "File sent successfully",
+		"message":        "File sent successfully",
+		"receivedFileID": receivedID,
 	})
 	log.Println("File sent successfully")
 }

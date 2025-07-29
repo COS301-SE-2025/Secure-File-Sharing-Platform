@@ -174,7 +174,7 @@ func GetUserFileCountHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var count int
-	err := DB.QueryRow(`SELECT COUNT(*) FROM files WHERE owner_id = $1`, req.UserID).Scan(&count)
+	err := DB.QueryRow(`SELECT COUNT(*) FROM files WHERE owner_id = $1 AND file_type != 'folder'`, req.UserID).Scan(&count)
 	if err != nil {
 		log.Println("PostgreSQL user count error:", err)
 		http.Error(w, "Failed to retrieve file count", http.StatusInternalServerError)
@@ -471,7 +471,7 @@ func GetRecipientIDFromOPK(opkID string) (string, error) {
 	return userID, nil
 }
 
-var InsertReceivedFile = func(db *sql.DB, recipientId, senderId, fileId, metadataJson string, expiresAt time.Time) error {
+var InsertReceivedFile = func(db *sql.DB, recipientId, senderId, fileId, metadataJson string, expiresAt time.Time) (string, error) {
 	// Step 1: Ensure the recipient exists
 	var exists bool
 	err := db.QueryRow(`
@@ -481,28 +481,30 @@ var InsertReceivedFile = func(db *sql.DB, recipientId, senderId, fileId, metadat
 	`, recipientId).Scan(&exists)
 
 	if err != nil {
-		fmt.Println("Falied to check recipient")
-		return fmt.Errorf("failed to check recipient existence: %w", err)
+		fmt.Println("Failed to check recipient existence")
+		return "", fmt.Errorf("failed to check recipient existence: %w", err)
 	}
 
 	if !exists {
 		fmt.Println("Recipient does not exist")
-		return fmt.Errorf("recipient user with id %s does not exist", recipientId)
+		return "", fmt.Errorf("recipient user with id %s does not exist", recipientId)
 	}
 
-	// Step 2: Insert the received file
-	_, err = db.Exec(`
+	// Step 2: Insert the received file and return its ID
+	var receivedFileID string
+	err = db.QueryRow(`
 		INSERT INTO received_files (
 			recipient_id, sender_id, file_id, received_at, expires_at, metadata
 		) VALUES ($1, $2, $3, NOW(), $4, $5)
-	`, recipientId, senderId, fileId, expiresAt, metadataJson)
+		RETURNING id
+	`, recipientId, senderId, fileId, expiresAt, metadataJson).Scan(&receivedFileID)
 
 	if err != nil {
-		fmt.Println("Failed to inster received file into the received files table")
-		return fmt.Errorf("failed to insert received file: %w", err)
+		fmt.Println("Failed to insert received file into the received_files table")
+		return "", fmt.Errorf("failed to insert received file: %w", err)
 	}
 
-	return nil
+	return receivedFileID, nil
 }
 
 var InsertSentFile = func(db *sql.DB, senderId, recipientId, fileId, metadataJson string) error {

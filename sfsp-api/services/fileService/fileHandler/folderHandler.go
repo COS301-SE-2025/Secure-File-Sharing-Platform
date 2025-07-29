@@ -43,10 +43,10 @@ func CreateFolderHandler(w http.ResponseWriter, r *http.Request) {
 	// Construct full CID for folder path
 	var fullCID string
 	if req.ParentPath != "" {
-		fullCID = fmt.Sprintf("%s/%s", strings.TrimSuffix(req.ParentPath, "/"), req.FolderName)
-	} else {
-		fullCID = ""
-	}
+    fullCID = fmt.Sprintf("%s/%s", strings.TrimSuffix(req.ParentPath, "/"), req.FolderName)
+    } else {
+       fullCID = req.FolderName
+   }
 
 	// Insert folder metadata (no file content, just metadata)
 	var folderID string

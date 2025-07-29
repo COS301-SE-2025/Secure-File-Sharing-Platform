@@ -3,6 +3,9 @@ const axios = require('axios');
 class VaultController {
     constructor() {
         this.apiUrl = 'http://localhost:8443';
+        //for linux: http://127.0.0.1:8443
+        //orginal: http://localhost:8443
+
     }
 
     async healthCheck() {

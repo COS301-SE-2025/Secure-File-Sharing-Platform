@@ -73,21 +73,33 @@ export default function MyFiles() {
   const [viewerFile, setViewerFile] = useState(null);
   const [viewerContent, setViewerContent] = useState(null);
 
-  const isDirectChild = (path) => {
-    if (!path && !currentPath) return true;
-    if (!path || !currentPath) return false;
+  const normalizePath = (path) =>
+    path?.startsWith("files/") ? path.slice(6) : path || "";
 
-    const relative = path.replace(currentPath + "/", "");
-    return !relative.includes("/");
+  const isDirectChild = (rawPath) => {
+    const filePath = normalizePath(rawPath);
+    const base = currentPath || "";
+
+    if (base === "") {
+      return !filePath.includes("/");
+    }
+
+    const expectedPrefix = base.endsWith("/") ? base : base + "/";
+    if (!filePath.startsWith(expectedPrefix)) return false;
+
+    const remainder = filePath.slice(expectedPrefix.length);
+    return remainder !== "" && !remainder.includes("/");
   };
 
   const filteredVisibleFiles = files.filter((file) => {
     const name = file?.name?.toLowerCase() || "";
-    const path = file?.path || "";
+    const path = normalizePath(file?.path);
     const keyword = (search || "").toLowerCase();
 
     return (
-      name.includes(keyword) && path === currentPath && isDirectChild(path)
+      name.includes(keyword) &&
+      path?.startsWith(currentPath || "") &&
+      isDirectChild(path)
     );
   });
 
@@ -99,7 +111,7 @@ export default function MyFiles() {
         return;
       }
 
-      console.log("Getting the users files");
+      console.log("Getting the user's files");
       const res = await fetch("http://localhost:5000/api/files/metadata", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -114,14 +126,14 @@ export default function MyFiles() {
         console.error("Failed to parse JSON:", text);
         return;
       }
+
       if (!Array.isArray(data)) {
-        console.error("Unexpected data from server:", data);
-        return;
+        data = [];
       }
+
       const formatted = data
         .filter((f) => {
           const tags = f.tags ? f.tags.replace(/[{}]/g, "").split(",") : [];
-
           return (
             !tags.includes("deleted") &&
             !tags.some((tag) => tag.trim().startsWith("deleted_time:"))
@@ -176,7 +188,7 @@ export default function MyFiles() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId,
-          filename: file.name,
+          fileId: file.id,
         }),
       });
 
@@ -263,7 +275,7 @@ export default function MyFiles() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId,
-          filename: file.name,
+          fileId: file.id,
         }),
       });
 
@@ -422,11 +434,15 @@ export default function MyFiles() {
     }
   };
 
-  const handleMoveFile = async (file, newPath) => {
+  const handleMoveFile = async (file, destinationFolderPath) => {
+    const fullPath = destinationFolderPath
+      ? `files/${destinationFolderPath}/${file.name}`
+      : `files/${file.name}`; // for root-level
+
     const res = await fetch("http://localhost:5000/api/files/updateFilePath", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fileId: file.id, newPath }),
+      body: JSON.stringify({ fileId: file.id, newPath: fullPath }),
     });
 
     if (res.ok) {
@@ -559,21 +575,19 @@ export default function MyFiles() {
             {/* View Toggle */}
             <div className="flex items-center bg-white rounded-lg border p-1 dark:bg-gray-200">
               <button
-                className={`px-3 py-1 rounded ${
-                  viewMode === "grid"
-                    ? "bg-blue-500 text-white"
-                    : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
-                }`}
+                className={`px-3 py-1 rounded ${viewMode === "grid"
+                  ? "bg-blue-500 text-white"
+                  : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
+                  }`}
                 onClick={() => setViewMode("grid")}
               >
                 <Grid className="h-4 w-4" />
               </button>
               <button
-                className={`px-3 py-1 rounded ${
-                  viewMode === "list"
-                    ? "bg-blue-500 text-white"
-                    : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
-                }`}
+                className={`px-3 py-1 rounded ${viewMode === "list"
+                  ? "bg-blue-500 text-white"
+                  : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
+                  }`}
                 onClick={() => setViewMode("list")}
               >
                 <List className="h-4 w-4" />
@@ -612,11 +626,29 @@ export default function MyFiles() {
             </button>
           )}
         </div>
-        
+
         {renderBreadcrumbs()}
 
         {/*File */}
-        {viewMode === "grid" ? (
+        {filteredFiles.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-96 text-center text-gray-700 dark:text-gray-500 dark:text-gray-400  rounded-lg p-10">
+            <svg
+              className="w-16 h-16 mb-4 text-gray-500 dark:text-gray-300"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.5}
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M3 7l1.664-1.664A2 2 0 016.586 5H17.41a2 2 0 011.414.586L21 7m-18 0v10a2 2 0 002 2h14a2 2 0 002-2V7m-18 0h18"
+              />
+            </svg>
+            <h2 className="text-lg font-semibold">No files found</h2>
+            <p className="text-sm text-gray-400">Upload or create folders to get started</p>
+          </div>
+        ) : viewMode === "grid" ? (
           <FileGrid
             files={filteredVisibleFiles} // files filtered by currentPath
             onShare={openShareDialog}
@@ -650,8 +682,18 @@ export default function MyFiles() {
             onClick={handlePreview}
             onDoubleClick={handleOpenFullView}
             onMoveFile={handleMoveFile}
+            onEnterFolder={(folderName) =>
+              setCurrentPath(
+                currentPath ? `${currentPath}/${folderName}` : folderName
+              )
+            }
+            currentPath={currentPath}
+            onGoBack={() =>
+              setCurrentPath(currentPath.split("/").slice(0, -1).join("/"))
+            }
           />
         )}
+
 
         {/* Dialogs */}
         <UploadDialog
@@ -663,6 +705,7 @@ export default function MyFiles() {
         <CreateFolderDialog
           open={isCreateFolderOpen}
           onOpenChange={setIsCreateFolderOpen}
+          currentPath={currentPath}
         />
         <ShareDialog
           open={isShareOpen}
