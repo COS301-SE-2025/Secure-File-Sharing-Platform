@@ -40,7 +40,7 @@ function ed25519PubToCurve(pubEd25519, sodium) {
   return sodium.crypto_sign_ed25519_pk_to_curve25519(pubEd25519);
 }
 
-export async function SendFile(fileMetadata, recipientUserId, fileid, isViewOnly = false) {
+export async function SendFile(recipientUserId, fileid, isViewOnly = false) {
   const sodium = await getSodium();
   const { userId, encryptionKey } = useEncryptionStore.getState();
 
@@ -174,7 +174,7 @@ export async function SendFile(fileMetadata, recipientUserId, fileid, isViewOnly
 }
 
 export async function ReceiveViewFile(fileData) {
-  const { share_id, file_id, file_name, file_type, metadata, sender_id } = fileData;
+  const { share_id, file_id, file_name, file_type, metadata } = fileData;
   const {
     ikPublicKey,
     ekPublicKey,

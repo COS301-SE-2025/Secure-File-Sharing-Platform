@@ -108,11 +108,8 @@ export function ShareDialog({ open, onOpenChange, file }) {
         console.log("Recipient Id is:", recipientId);
         console.log("FileId", file.id);
 
-        // Determine if this is a view-only share
         const isViewOnly = recipient.permission === "view";
 
-        // Send the file with appropriate permissions
-        // send file returns a receivedFileID
         const receivedFileID = await SendFile(file, recipientId, file.id, isViewOnly);
         console.log("Received File ID in shared Dialog:", receivedFileID);
         // Log file access

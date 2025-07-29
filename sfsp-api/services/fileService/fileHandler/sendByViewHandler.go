@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"time"
@@ -13,7 +12,6 @@ import (
 )
 
 func SendByViewHandler(w http.ResponseWriter, r *http.Request) {
-	// Parse multipart form data
 	err := r.ParseMultipartForm(50 << 20) // allow up to 50 MB
 	if err != nil {
 		log.Println("Failed to parse multipart form:", err)
@@ -31,7 +29,6 @@ func SendByViewHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verify user owns the file
 	var ownerID string
 	err = DB.QueryRow("SELECT owner_id FROM files WHERE id = $1", fileID).Scan(&ownerID)
 	if err != nil {
@@ -49,7 +46,6 @@ func SendByViewHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Retrieve binary file
 	file, _, err := r.FormFile("encryptedFile")
 	if err != nil {
 		log.Println("Failed to get encrypted file from form:", err)
@@ -58,25 +54,14 @@ func SendByViewHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	fileBytes, err := io.ReadAll(file)
-	if err != nil {
-		log.Println("Failed to read encrypted file:", err)
-		http.Error(w, "Failed to read uploaded file", http.StatusInternalServerError)
-		return
-	}
-
-	log.Println("Received encrypted file for view sharing, len:", len(fileBytes))
-
-	// Upload to OwnCloud in a view-only specific path
 	targetPath := fmt.Sprintf("files/%s/shared_view", userID)
 	sharedFileKey := fmt.Sprintf("%s_%s", fileID, recipientID)
-	if err := owncloud.UploadFile(targetPath, sharedFileKey, fileBytes); err != nil {
+	if err := owncloud.UploadFileStream(targetPath, sharedFileKey, file); err != nil {
 		log.Println("OwnCloud upload failed:", err)
 		http.Error(w, "Failed to store encrypted file", http.StatusInternalServerError)
 		return
 	}
 
-	// Check if already shared with this recipient
 	var existingID string
 	err = DB.QueryRow(`
 		SELECT id FROM shared_files_view 
@@ -85,7 +70,6 @@ func SendByViewHandler(w http.ResponseWriter, r *http.Request) {
 
 	switch err {
 	case nil:
-		// Already shared, update the metadata
 		_, err = DB.Exec(`
 			UPDATE shared_files_view 
 			SET metadata = $1, shared_at = CURRENT_TIMESTAMP, expires_at = $2
@@ -97,7 +81,6 @@ func SendByViewHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	case sql.ErrNoRows:
-		// Insert new shared file record
 		_, err = DB.Exec(`
 			INSERT INTO shared_files_view (sender_id, recipient_id, file_id, metadata, expires_at)
 			VALUES ($1, $2, $3, $4, $5)
@@ -113,13 +96,11 @@ func SendByViewHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Mark file as allowing view sharing
 	_, err = DB.Exec("UPDATE files SET allow_view_sharing = TRUE WHERE id = $1", fileID)
 	if err != nil {
 		log.Println("Failed to update file view sharing flag:", err)
 	}
 
-	// Add access log for sharing action
 	_, err = DB.Exec(`
 		INSERT INTO access_logs (file_id, user_id, action, message, view_only)
 		VALUES ($1, $2, $3, $4, $5)
@@ -128,7 +109,6 @@ func SendByViewHandler(w http.ResponseWriter, r *http.Request) {
 		log.Println("Failed to log sharing action:", err)
 	}
 
-	// Respond
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{
 		"message": "File shared for view-only access successfully",
