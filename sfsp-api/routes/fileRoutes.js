@@ -31,6 +31,7 @@ router.patch('/updateFilePath', fileController.updateFilePath);
 router.post('/revokeViewAccess', fileController.revokeViewAccess);
 router.post('/getViewAccess', fileController.getSharedViewFiles);
 router.post('/sendByView', fileController.sendByView);
-router.post('/getViewAccesslogs', fileController.getViewFileAccessLogs)
+router.post('/getViewAccesslogs', fileController.getViewFileAccessLogs);
+router.post('/downloadViewFile', fileController.downloadViewFile);
 
 module.exports = router;

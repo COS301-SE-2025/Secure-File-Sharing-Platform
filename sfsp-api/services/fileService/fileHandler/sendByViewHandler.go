@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"time"
@@ -68,6 +69,7 @@ func SendByViewHandler(w http.ResponseWriter, r *http.Request) {
 		WHERE sender_id = $1 AND recipient_id = $2 AND file_id = $3 AND revoked = FALSE
 	`, userID, recipientID, fileID).Scan(&existingID)
 
+	var shareID string
 	switch err {
 	case nil:
 		_, err = DB.Exec(`
@@ -80,11 +82,13 @@ func SendByViewHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Failed to update shared file", http.StatusInternalServerError)
 			return
 		}
+		shareID = existingID
 	case sql.ErrNoRows:
-		_, err = DB.Exec(`
+		err = DB.QueryRow(`
 			INSERT INTO shared_files_view (sender_id, recipient_id, file_id, metadata, expires_at)
 			VALUES ($1, $2, $3, $4, $5)
-		`, userID, recipientID, fileID, metadataJSON, time.Now().Add(48*time.Hour))
+			RETURNING id
+		`, userID, recipientID, fileID, metadataJSON, time.Now().Add(48*time.Hour)).Scan(&shareID)
 		if err != nil {
 			log.Println("Failed to insert shared file view:", err)
 			http.Error(w, "Failed to track shared file", http.StatusInternalServerError)
@@ -112,8 +116,9 @@ func SendByViewHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{
 		"message": "File shared for view-only access successfully",
+		"shareId": shareID,
 	})
-	log.Println("File shared for view-only access successfully")
+	log.Println("File shared for view-only access successfully, shareId:", shareID)
 }
 
 func RevokeViewAccessHandler(w http.ResponseWriter, r *http.Request) {
@@ -303,4 +308,90 @@ func GetViewFileAccessLogs(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(logs)
+}
+
+func DownloadViewFileHandler(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		UserID  string `json:"userId"`
+		FileID  string `json:"fileId"`
+		ShareID string `json:"shareId"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	if req.UserID == "" || req.FileID == "" || req.ShareID == "" {
+		http.Error(w, "Missing required fields", http.StatusBadRequest)
+		return
+	}
+
+	// Verify the user has access to this view file
+	var senderID string
+	var metadata string
+	var revoked bool
+	var expiresAt time.Time
+	err := DB.QueryRow(`
+		SELECT sender_id, metadata, revoked, expires_at 
+		FROM shared_files_view 
+		WHERE id = $1 AND recipient_id = $2 AND file_id = $3
+	`, req.ShareID, req.UserID, req.FileID).Scan(&senderID, &metadata, &revoked, &expiresAt)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "View file access not found", http.StatusNotFound)
+			return
+		}
+		log.Println("Database error:", err)
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+
+	if revoked {
+		http.Error(w, "Access has been revoked", http.StatusForbidden)
+		return
+	}
+
+	if time.Now().After(expiresAt) {
+		http.Error(w, "Access has expired", http.StatusForbidden)
+		return
+	}
+
+	// Construct the file path in ownCloud
+	targetPath := fmt.Sprintf("files/%s/shared_view", senderID)
+	sharedFileKey := fmt.Sprintf("%s_%s", req.FileID, req.UserID)
+
+	// Download the file from ownCloud using streaming
+	fullPath := fmt.Sprintf("%s/%s", targetPath, sharedFileKey)
+	stream, err := owncloud.DownloadSentFileStream(fullPath)
+	if err != nil {
+		log.Println("Failed to download view file from ownCloud:", err)
+		http.Error(w, "Failed to retrieve view file", http.StatusInternalServerError)
+		return
+	}
+	defer stream.Close()
+
+	// Add access log
+	_, err = DB.Exec(`
+		INSERT INTO access_logs (file_id, user_id, action, message, view_only)
+		VALUES ($1, $2, $3, $4, $5)
+	`, req.FileID, req.UserID, "viewed", "View-only file accessed", true)
+	if err != nil {
+		log.Println("Failed to log view action:", err)
+	}
+
+	// Set headers to indicate this is a view-only file
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("X-View-Only", "true")
+	w.Header().Set("X-File-Id", req.FileID)
+	w.Header().Set("X-Share-Id", req.ShareID)
+
+	// Stream the file data directly to the client
+	if _, err := io.Copy(w, stream); err != nil {
+		log.Println("Failed to stream view file to response:", err)
+		http.Error(w, "Failed to stream view file", http.StatusInternalServerError)
+		return
+	}
+	log.Println("View file downloaded successfully for user:", req.UserID)
 }

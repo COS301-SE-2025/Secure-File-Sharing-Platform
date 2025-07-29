@@ -79,6 +79,7 @@ func main() {
 	http.HandleFunc("/revokeViewAccess", fileHandler.RevokeViewAccessHandler)
 	http.HandleFunc("/getSharedViewFiles", fileHandler.GetSharedViewFilesHandler)
 	http.HandleFunc("/getViewFileAccessLogs", fileHandler.GetViewFileAccessLogs)
+	http.HandleFunc("/downloadViewFile", fileHandler.DownloadViewFileHandler)
 
 	//test from here
 	http.HandleFunc("/addSentFiles", metadata.AddSentFileHandler)

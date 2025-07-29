@@ -489,7 +489,13 @@ exports.sendByView = [
         return res.status(response.status).send("Error from Go service");
       }
 
-      res.status(200).json({ message: "File sent successfully for view-only access" });
+      // Forward the shareId from the Go service response
+      const { shareId, message } = response.data;
+
+      res.status(200).json({ 
+        message: message || "File sent successfully for view-only access",
+        shareId 
+      });
     } catch (err) {
       console.error("Error sending file by view:", err.message);
       res.status(500).send("Failed to send file by view");
@@ -567,5 +573,53 @@ exports.revokeViewAccess = async (req, res) => {
   } catch (err) {
     console.error("Error revoking view access:", err.message);
     res.status(500).send("Error revoking view access");
+  }
+};
+
+exports.downloadViewFile = async (req, res) => {
+  const { userId, fileId, shareId } = req.body;
+
+  if (!userId || !fileId || !shareId) {
+    return res.status(400).send("Missing userId, fileId, or shareId");
+  }
+
+  try {
+    const response = await axios({
+      method: "post",
+      url: `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/downloadViewFile`,
+      data: { userId, fileId, shareId },
+      responseType: "arraybuffer",
+      headers: { "Content-Type": "application/json" },
+    });
+
+    // Forward the headers from the Go service
+    const viewOnly = response.headers["x-view-only"];
+    const fileIdHeader = response.headers["x-file-id"];
+    const shareIdHeader = response.headers["x-share-id"];
+
+    res.set({
+      "Content-Type": "application/octet-stream",
+      "X-View-Only": viewOnly,
+      "X-File-Id": fileIdHeader,
+      "X-Share-Id": shareIdHeader,
+    });
+
+    console.log(
+      "Streaming view file back to client:",
+      "fileId:",
+      fileId,
+      "shareId:",
+      shareId,
+      "length:",
+      response.data.length
+    );
+
+    res.send(Buffer.from(response.data));
+  } catch (err) {
+    console.error("Download view file error:", err.message);
+    if (err.response && err.response.status === 403) {
+      return res.status(403).send("Access has been revoked or expired");
+    }
+    return res.status(500).send("Download view file failed");
   }
 };

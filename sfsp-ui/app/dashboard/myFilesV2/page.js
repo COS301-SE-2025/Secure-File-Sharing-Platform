@@ -506,8 +506,6 @@ export default function MyFiles() {
         return;
       }
 
-      // For now, revoke access for all recipients of this file
-      // In a more sophisticated implementation, you might want to show a list of recipients
       for (const share of fileShares) {
         const revokeRes = await fetch("http://localhost:5000/api/files/revokeViewAccess", {
           method: "POST",
@@ -630,7 +628,7 @@ export default function MyFiles() {
         {renderBreadcrumbs()}
 
         {/*File */}
-        {filteredFiles.length === 0 ? (
+        {filteredVisibleFiles.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-96 text-center text-gray-700 dark:text-gray-500 dark:text-gray-400  rounded-lg p-10">
             <svg
               className="w-16 h-16 mb-4 text-gray-500 dark:text-gray-300"
