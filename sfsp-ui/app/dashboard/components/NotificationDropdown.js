@@ -87,11 +87,10 @@ export default function NotificationDropdown() {
         status,
       });
 
-      if (res.data.success) {
-        // ✅ Update UI state
-        setNotifications((prev) =>
-          prev.map((n) => (n.id === id ? { ...n, status, read: true } : n))
-        );
+    if (res.data.success) {
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, status, read: true } : n))
+      );
 
 
         if (status === 'accepted' && res.data.fileData) {

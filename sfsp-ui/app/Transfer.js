@@ -52,7 +52,7 @@ export async function SendFile(fileMetadata, recipientUserId, fileid) {
   const response = await fetch("http://localhost:5000/api/files/download", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userId, filename: fileMetadata.name }),
+    body: JSON.stringify({ userId, fileId: fileid }),
   });
   if (!response.ok) throw new Error("Failed to retrieve file content");
 
@@ -128,6 +128,12 @@ export async function SendFile(fileMetadata, recipientUserId, fileid) {
     sharedKey
   );
 
+  //Do the digital signature
+  const ikPrivateKey = userKeys.identity_private_key;
+
+  const fileHash = sodium.crypto_generichash(32, encryptedFile);
+  const signature = sodium.crypto_sign_detached(fileHash, ikPrivateKey);
+
   // 7️⃣ Use FormData to upload as binary
   const formData = new FormData();
   formData.append("fileid", fileid);
@@ -138,11 +144,13 @@ export async function SendFile(fileMetadata, recipientUserId, fileid) {
     JSON.stringify({
       fileNonce: sodium.to_base64(fileNonce),
       keyNonce: sodium.to_base64(keyNonce),
-      ikPublicKey: sodium.to_base64(userKeys.identity_public_key),
+      ikPublicKey: sodium.to_base64(userKeys.identity_public_key),//we already send ikPublicKey
       spkPublicKey: sodium.to_base64(userKeys.signedpk_public_key),
       ekPublicKey: sodium.to_base64(EK.publicKey),
       opk_id: recipientKeys.opk.opk_id,
       encryptedAesKey: sodium.to_base64(encryptedAesKey),
+      signature: sodium.to_base64(signature),
+      fileHash: sodium.to_base64(fileHash),
     })
   );
   formData.append("encryptedFile", new Blob([encryptedFile]));
@@ -153,6 +161,11 @@ export async function SendFile(fileMetadata, recipientUserId, fileid) {
   });
 
   if (!res.ok) throw new Error("Failed to send file");
+  const result = await res.json();
+  //if (!result.success) throw new Error(result.message || "File upload failed");
+  console.log("File sent successfully:", res);
+  console.log("Received File ID:", result.receivedFileID);
+  return result.receivedFileID;
 }
 
 export async function ReceiveFile(fileData) {
@@ -171,6 +184,8 @@ export async function ReceiveFile(fileData) {
     opk_id,
     encryptedAesKey,
     spkPublicKey,
+    signature,
+    fileHash,
   } = JSON.parse(metadata);
 
   console.log("File id:", file_id, "file_name:", file_name, "type:", file_type);
@@ -193,6 +208,29 @@ export async function ReceiveFile(fileData) {
   // 🚀 Use arrayBuffer instead of text
   const buffer = await response.arrayBuffer();
   const encryptedFile = new Uint8Array(buffer);
+
+  //Verify that the signature is valid
+  const fileHashBytes = sodium.from_base64(fileHash);
+
+  //Check if the hash is the same
+  const computedHash = sodium.crypto_generichash(32, encryptedFile);
+  if (!sodium.memcmp(fileHashBytes, computedHash)) {
+    throw new Error("File hash does not match the expected hash");
+  }
+
+  const signatureBytes = sodium.from_base64(signature);
+  const ikPublicKeyBytes = sodium.from_base64(ikPublicKey);
+  const isValidSignature = sodium.crypto_sign_verify_detached(
+    signatureBytes,
+    fileHashBytes,
+    ikPublicKeyBytes
+  );
+
+  if (!isValidSignature) {
+    throw new Error("Invalid signature for the received file");
+  } else{
+    console.log("Signature is valid for the received file.");
+  }
 
   console.log("Encrypted file bytes length:", encryptedFile.length);
 
@@ -244,6 +282,7 @@ export async function ReceiveFile(fileData) {
   if (!aesKey) throw new Error("Failed to decrypt AES key");
 
   // 🔓 Decrypt actual file
+  console.log("FileNonce is:", sodium.from_base64(fileNonce));
   const decryptedFile = sodium.crypto_secretbox_open_easy(
     encryptedFile,
     sodium.from_base64(fileNonce),
@@ -265,9 +304,9 @@ export async function ReceiveFile(fileData) {
   formData.append("userId", userId);
   formData.append("fileName", file_name);
   formData.append("fileType", file_type);
-  formData.append("fileDescription", "Received file");
+  formData.append("fileDescription", "");
   formData.append("fileTags", JSON.stringify(["received"]));
-  formData.append("path", `files/${userId}`);
+  formData.append("path", "");
   formData.append(
     "nonce",
     sodium.to_base64(nonce, sodium.base64_variants.ORIGINAL)

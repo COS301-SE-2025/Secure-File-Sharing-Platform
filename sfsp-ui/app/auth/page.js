@@ -324,6 +324,20 @@ export default function AuthPage() {
 
       localStorage.setItem("token", token.replace(/^Bearer\s/, ""));
       setMessage("User successfully registered!");
+
+      //add user to the postgres database using the rute for addUser in file routes
+      const addUserRes = await fetch("http://localhost:5000/api/files/addUser", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.id,
+        }),
+      });
+
+      if (!addUserRes.ok) {
+        console.error("Failed to add user to database");
+      }
+
       setTimeout(() => {
         router.push('/dashboard');
       }, 1000);

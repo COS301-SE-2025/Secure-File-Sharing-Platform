@@ -3,30 +3,27 @@ package crypto
 import (
 	"crypto/aes"
 	"crypto/cipher"
-	"errors"
+	"io"
+	"fmt"
 )
 
-var DecryptBytes = func(data []byte, key string) ([]byte, error) {
+func DecryptStream(input io.Reader, key string) (io.Reader, error) {
 	keyBytes := []byte(key)
 	if len(keyBytes) != 32 {
-		return nil, errors.New("AES key must be 32 bytes")
+		return nil, fmt.Errorf("AES key must be 32 bytes long")
 	}
 
-	if len(data) < aes.BlockSize {
-		return nil, errors.New("ciphertext too short")
+	// Read IV first
+	iv := make([]byte, aes.BlockSize)
+	if _, err := io.ReadFull(input, iv); err != nil {
+		return nil, fmt.Errorf("failed to read IV: %v", err)
 	}
-
-	iv := data[:aes.BlockSize]
-	ciphertext := data[aes.BlockSize:]
 
 	block, err := aes.NewCipher(keyBytes)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create cipher: %v", err)
 	}
 
 	stream := cipher.NewCFBDecrypter(block, iv)
-	decrypted := make([]byte, len(ciphertext))
-	stream.XORKeyStream(decrypted, ciphertext)
-
-	return decrypted, nil
+	return &cipher.StreamReader{S: stream, R: input}, nil
 }

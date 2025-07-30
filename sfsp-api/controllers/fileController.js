@@ -7,10 +7,10 @@ const FormData = require('form-data')
 const upload = multer();
 
 exports.downloadFile = async (req, res) => {
-  const { userId, filename } = req.body;
+  const { userId, fileId } = req.body;
 
-  if (!userId || !filename) {
-    return res.status(400).send("Missing userId or filename");
+  if (!userId || !fileId) {
+    return res.status(400).send("Missing userId or fileId");
   }
 
   try {
@@ -19,7 +19,7 @@ exports.downloadFile = async (req, res) => {
       url: `${
         process.env.FILE_SERVICE_URL || "http://localhost:8081"
       }/download`,
-      data: { userId, filename },
+      data: { userId, fileId },
       responseType: "arraybuffer",
       headers: { "Content-Type": "application/json" },
     });
@@ -206,7 +206,7 @@ exports.sendFile = [
       formData.append("fileid", fileid);
       formData.append("userId", userId);
       formData.append("recipientUserId", recipientUserId);
-      formData.append("metadata", metadata); // should still be JSON string
+      formData.append("metadata", metadata); // JSON string
       formData.append("encryptedFile", encryptedFile, {
         filename: "encrypted.bin",
         contentType: "application/octet-stream",
@@ -218,11 +218,13 @@ exports.sendFile = [
         { headers: formData.getHeaders() }
       );
 
-      if (goResponse.status !== 200) {
-        return res.status(goResponse.status).send("Error from Go service");
-      }
+      // ✅ Forward the receivedFileID from Go response
+      const { receivedFileID, message } = goResponse.data;
 
-      res.status(200).json({ message: "File sent successfully" });
+      res.status(200).json({
+        message: message || "File sent successfully",
+        receivedFileID, // ✅ Frontend can now reference the correct file
+      });
     } catch (err) {
       console.error("Error sending file:", err.message);
       res.status(500).send("Failed to send file");
@@ -397,3 +399,63 @@ exports.downloadSentFile = async (req, res) => {
     res.status(500).send("Error retrieving the sent file");
   }
 };
+
+exports.addDescription = async (req, res) => {
+  const { fileId, description } = req.body;
+
+  if (!fileId || !description) {
+    return res.status(400).send("Missing fileId or description");
+  }
+
+  try {
+    const response = await axios.post(
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/addDescription`,
+      { fileId, description },
+      { headers: { "Content-Type": "application/json" } }
+    );
+    res.status(response.status).send(response.data);
+  } catch (err) {
+    console.error("Add description error:", err.message);
+    res.status(500).send("Failed to add description to the file");
+  }
+};
+
+exports.createFolder = async (req, res) => {
+  const { userId, folderName, parentPath, description } = req.body;
+
+  if (!userId || !folderName) {
+    return res.status(400).send("Missing userId or folderName");
+  }
+
+  try {
+    const response = await axios.post(
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/createFolder`,
+      { userId, folderName, parentPath, description },
+      { headers: { "Content-Type": "application/json" } }
+    );
+    res.status(response.status).json(response.data);
+  } catch (err) {
+    console.error("Create folder error:", err.message);
+    res.status(500).send("Failed to create folder");
+  }
+};
+
+exports.updateFilePath = async (req, res) => {
+  const { fileId, newPath } = req.body;
+
+  if (!fileId || !newPath) {
+    return res.status(400).send("Missing fileId or newPath");
+  }
+
+  try {
+    const response = await axios.post(
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/updateFilePath`,
+      { fileId, newPath },
+      { headers: { "Content-Type": "application/json" } }
+    );
+    res.status(response.status).json(response.data);
+  } catch (err) {
+    console.error("Update file path error:", err.message);
+    res.status(500).send("Failed to update file path");
+  }
+}
