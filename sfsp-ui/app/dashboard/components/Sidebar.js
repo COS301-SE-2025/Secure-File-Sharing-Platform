@@ -129,7 +129,14 @@ export default function Sidebar() {
         showExpanded ? 'w-64' : 'w-16'
       } bg-gray-200 text-gray-800 dark:bg-gray-800 dark:text-white p-6 shadow-md hidden md:block relative transition-all duration-300 ease-in-out`}
       onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseLeave={() => {
+        setIsHovered(false);
+        // Close dropdowns when sidebar collapses
+        if (isCollapsed) {
+          setDropdownOpen(false);
+          setSettingsOpen(false);
+        }
+      }}
     >
       {/* Logo and Title */}
       {showExpanded && (
@@ -319,7 +326,7 @@ export default function Sidebar() {
             </div>
 
             {/* Settings Dropdown */}
-            <div className="relative" ref={dropdownRef}>
+            <div className="relative" ref={settingsDropdownRef}>
               <button
                 data-testid="settings-dropdown"
                 onClick={() => setSettingsOpen((prev) => !prev)}
