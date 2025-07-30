@@ -530,8 +530,8 @@ export default function MyFiles() {
               }
               className="self-start text-sm text-blue-600 hover:underline"
             >
-              ← Go Back to "
-              {currentPath.split("/").slice(0, -1).join("/") || "root"}"
+              ← Go Back to &quot;
+              {currentPath.split("/").slice(0, -1).join("/") || "root"}&quot;
             </button>
           )}
         </div>
