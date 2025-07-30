@@ -1,9 +1,23 @@
 //app/dashboard/myFilesV2/fileGrid.js
 
-'use client';
+"use client";
 
-import React, { useState, useRef, useEffect } from 'react';
-import { FileIcon, Download, Share, Star, Folder, FileText, Image, Video, MoreVertical, } from 'lucide-react';
+import React, { useState, useRef, useEffect } from "react";
+import {
+  FileIcon,
+  Download,
+  Share,
+  Star,
+  Folder,
+  FileText,
+  Image,
+  Video,
+  MoreVertical,
+  Music,
+  Volume2,
+  Headphones,
+  FileCode,
+} from "lucide-react";
 
 export function FileGrid({
   files,
@@ -13,21 +27,64 @@ export function FileGrid({
   onDownload,
   onDelete,
   onClick,
-  onDoubleClick
+  onDoubleClick,
+  onMoveFile,
+  onEnterFolder,
+  onGoBack,
+  currentPath,
 }) {
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const [menuFile, setMenuFile] = useState(null);
   const menuRef = useRef(null);
+  const [draggedFile, setDraggedFile] = useState(null);
 
   const iconMap = {
     folder: <Folder className="h-8 w-8 text-blue-500" />,
+    podcast: <Headphones className="h-8 w-8 text-pink-500" />,
     pdf: <FileText className="h-8 w-8 text-red-500" />,
-    document: <FileText className="h-8 w-8 text-red-500" />,
+    document: <FileText className="h-8 w-8 text-gray-500" />,
+    docx: <FileText className="h-8 w-8 text-gray-500" />,
+    txt: <FileText className="h-8 w-8 text-gray-400" />,
+    csv: <FileText className="h-8 w-8 text-green-600" />,
+    xls: <FileText className="h-8 w-8 text-green-600" />,
+    xlsx: <FileText className="h-8 w-8 text-green-600" />,
+    ppt: <FileText className="h-8 w-8 text-orange-500" />,
+    pptx: <FileText className="h-8 w-8 text-orange-500" />,
     image: <Image className="h-8 w-8 text-green-500" alt="" />,
+    png: <Image className="h-8 w-8 text-green-500" alt="" />,
+    jpg: <Image className="h-8 w-8 text-green-500" alt="" />,
+    jpeg: <Image className="h-8 w-8 text-green-500" alt="" />,
+    gif: <Image className="h-8 w-8 text-green-500" alt="" />,
+    svg: <Image className="h-8 w-8 text-green-500" alt="" />,
     video: <Video className="h-8 w-8 text-purple-500" />,
+    mp4: <Video className="h-8 w-8 text-purple-500" />,
+    mov: <Video className="h-8 w-8 text-purple-500" />,
+    avi: <Video className="h-8 w-8 text-purple-500" />,
+    mkv: <Video className="h-8 w-8 text-purple-500" />,
+    audio: <Music className="h-8 w-8 text-pink-500" />,
+    mp3: <Music className="h-8 w-8 text-pink-500" />,
+    wav: <Volume2 className="h-8 w-8 text-pink-500" />,
+    zip: <FileText className="h-8 w-8 text-yellow-500" />,
+    rar: <FileText className="h-8 w-8 text-yellow-500" />,
+    html: <FileText className="h-8 w-8 text-orange-400" />,
+    js: <FileText className="h-8 w-8 text-yellow-400" />,
+    jsx: <FileText className="h-8 w-8 text-yellow-400" />,
+    ts: <FileText className="h-8 w-8 text-blue-400" />,
+    tsx: <FileText className="h-8 w-8 text-blue-400" />,
+    json: <FileText className="h-8 w-8 text-lime-500" />,
+    xml: <FileText className="h-8 w-8 text-lime-500" />,
+    unknown: <FileText className="h-8 w-8 text-gray-300" />,
+    md: <FileCode className="h-8 w-8 text-cyan-600" />,
+    markdown: <FileCode className="h-8 w-8 text-cyan-600" />,
   };
 
-  const getIcon = (type) => iconMap[type] || <FileIcon className="h-8 w-8 text-gray-500" />;
+  const getIcon = (file) => {
+    if (file.type === "folder") {
+      console.log("Folder icon selected");
+      return <Folder className="h-8 w-8 text-blue-500" />;
+    }
+    return iconMap[file.type] || <FileIcon className="h-8 w-8 text-gray-500" />;
+  };
 
   const handleContextMenu = (e, file) => {
     e.preventDefault();
@@ -42,8 +99,8 @@ export function FileGrid({
   };
 
   useEffect(() => {
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
   }, []);
 
   const handleDelete = async (file) => {
@@ -67,12 +124,16 @@ export function FileGrid({
       if (!token) return;
 
       try {
-        const profileRes = await fetch("http://localhost:5000/api/users/profile", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const profileRes = await fetch(
+          "http://localhost:5000/api/users/profile",
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
 
         const profileResult = await profileRes.json();
-        if (!profileRes.ok) throw new Error(profileResult.message || "Failed to fetch profile");
+        if (!profileRes.ok)
+          throw new Error(profileResult.message || "Failed to fetch profile");
 
         await fetch("http://localhost:5000/api/files/addAccesslog", {
           method: "POST",
@@ -84,7 +145,6 @@ export function FileGrid({
             message: `User ${profileResult.data.email} deleted the file.`,
           }),
         });
-
       } catch (err) {
         console.error("Failed to fetch user profile:", err.message);
       }
@@ -92,12 +152,39 @@ export function FileGrid({
       if (onDelete) {
         onDelete(file);
       }
-
     } catch (err) {
       console.error("Delete failed:", err);
       alert("Failed to delete file");
     } finally {
       setMenuFile(null);
+    }
+  };
+
+  const handleDragStart = (e, file) => {
+    setDraggedFile(file);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e, folder) => {
+    if (
+      draggedFile &&
+      folder.type === "folder" &&
+      draggedFile.id !== folder.id
+    ) {
+      e.preventDefault(); // allows drop
+    }
+  };
+
+  const handleDrop = (e, folder) => {
+    e.preventDefault();
+    if (
+      draggedFile &&
+      folder.type === "folder" &&
+      draggedFile.id !== folder.id
+    ) {
+      const newPath = folder.cid || folder.path || folder.name;
+      onMoveFile?.(draggedFile, newPath); // <-- You will define this in your parent component
+      setDraggedFile(null);
     }
   };
 
@@ -107,17 +194,31 @@ export function FileGrid({
         {files.map((file) => (
           <div
             key={file.id}
+            draggable={file.type !== "folder"}
+            onDragStart={(e) => handleDragStart(e, file)}
+            onDragOver={(e) => handleDragOver(e, file)}
+            onDrop={(e) => handleDrop(e, file)}
             onClick={() => onClick && onClick(file)}
-            onDoubleClick={() => onDoubleClick && onDoubleClick(file)}
+            onDoubleClick={() => {
+              if (file.type === "folder") {
+                onEnterFolder?.(file.name);
+              } else {
+                onDoubleClick?.(file);
+              }
+            }}
             onContextMenu={(e) => handleContextMenu(e, file)}
             className="relative group bg-white rounded-lg border border-gray-300 p-4 hover:shadow-lg transition-shadow cursor-pointer dark:bg-gray-200 dark:hover:bg-blue-100"
           >
             <div className="flex items-center justify-between mb-3">
-              {getIcon(file.type)}
+              {getIcon(file)}
               <div className="flex items-center gap-1">
-                {file.starred && <Star className="h-4 w-4 text-yellow-500 fill-current" />}
+                {file.starred && (
+                  <Star className="h-4 w-4 text-yellow-500 fill-current" />
+                )}
                 {file.shared && (
-                  <span className="px-1 py-0.5 text-xs bg-gray-200 rounded">Shared</span>
+                  <span className="px-1 py-0.5 text-xs bg-gray-200 rounded">
+                    Shared
+                  </span>
                 )}
               </div>
             </div>

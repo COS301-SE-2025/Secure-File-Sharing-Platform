@@ -324,6 +324,20 @@ export default function AuthPage() {
 
       localStorage.setItem("token", token.replace(/^Bearer\s/, ""));
       setMessage("User successfully registered!");
+
+      //add user to the postgres database using the rute for addUser in file routes
+      const addUserRes = await fetch("http://localhost:5000/api/files/addUser", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.id,
+        }),
+      });
+
+      if (!addUserRes.ok) {
+        console.error("Failed to add user to database");
+      }
+
       setTimeout(() => {
         router.push('/dashboard');
       }, 1000);
@@ -697,34 +711,34 @@ export default function AuthPage() {
                   >
                     Password
                   </label>
-                    <div className="relative">
-                      <input
-                        id="password"
-                        name="password"
-                        type={showSignupPassword ? 'text' : 'password'}
-                        value={signupData.password}
-                        onChange={handleChange(setSignupData)}
-                        required
-                        className={`w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${
-                          fieldErrors.password ? 'border-red-500' : ''
-                        }`}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowSignupPassword(!showSignupPassword)}
-                        className="absolute inset-y-0 right-0 flex items-center pr-3"
-                        aria-label={showSignupPassword ? 'Hide password' : 'Show password'}
-                      >
-                        {showSignupPassword ? (
-                          <Eye className="h-5 w-5 text-gray-500 hover:text-gray-700" />
-                        ) : (
-                          <EyeClosed className="h-5 w-5 text-gray-500 hover:text-gray-700" />
-                        )}
-                      </button>
-                    {fieldErrors.password && (
-                      <p className="text-red-500 text-sm mt-1">{fieldErrors.password}</p>
-                    )}
+                  <div className="relative flex items-center">
+                    <input
+                      id="password"
+                      name="password"
+                      type={showSignupPassword ? 'text' : 'password'}
+                      value={signupData.password}
+                      onChange={handleChange(setSignupData)}
+                      required
+                      className={`w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${
+                        fieldErrors.password ? 'border-red-500' : ''
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowSignupPassword(!showSignupPassword)}
+                      className="absolute inset-y-0 right-0 flex items-center pr-3"
+                      aria-label={showSignupPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showSignupPassword ? (
+                        <Eye className="h-5 w-5 text-gray-500 hover:text-gray-700" />
+                      ) : (
+                        <EyeClosed className="h-5 w-5 text-gray-500 hover:text-gray-700" />
+                      )}
+                    </button>
                   </div>
+                  {fieldErrors.password && (
+                    <p className="text-red-500 text-sm mt-1">{fieldErrors.password}</p>
+                  )}
                 </div>
                 <div>
                   <label

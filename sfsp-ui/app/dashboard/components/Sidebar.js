@@ -6,17 +6,28 @@ import {useRef, useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import Image from 'next/image';
-import { FileText, Grid3X3, Users, Clock, Trash2, Settings, ChevronDown,LogOut,} from 'lucide-react';
+import { FileText, Grid3X3, Users, Clock, Trash2, Settings, ChevronDown, LogOut, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const dropdownRef = useRef(null);
+  const settingsDropdownRef = useRef(null);
+  const profileDropdownRef = useRef(null);
   const [user, setUser] = useState(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
+  const [isHovered, setIsHovered] = useState(false);
 
-  // Theme handling via next-themes
+  useEffect(() => {
+    const savedState = localStorage.getItem('sidebarCollapsed');
+    if (savedState !== null) {
+      setIsCollapsed(JSON.parse(savedState));
+    }
+  }, []);
+
+  const showExpanded = !isCollapsed || isHovered;
+
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -26,6 +37,17 @@ export default function Sidebar() {
 
   const toggleTheme = () => {
     setTheme(resolvedTheme === 'dark' ? 'light' : 'dark');
+  };
+
+  const toggleSidebar = () => {
+    const newState = !isCollapsed;
+    setIsCollapsed(newState);
+    localStorage.setItem('sidebarCollapsed', JSON.stringify(newState));
+    
+    if (!newState) {
+      setDropdownOpen(false);
+      setSettingsOpen(false);
+    }
   };
 
   // Load user profile
@@ -53,8 +75,12 @@ export default function Sidebar() {
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+      if (
+        (settingsDropdownRef.current && !settingsDropdownRef.current.contains(event.target)) &&
+        (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target))
+      ) {
         setSettingsOpen(false);
+        setDropdownOpen(false);
       }
     };
 
@@ -64,8 +90,11 @@ export default function Sidebar() {
     };
   }, []);
 
-
-  const handleLogout = () => {
+  const handleLogout = (e) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     router.push('/');
@@ -82,133 +111,256 @@ export default function Sidebar() {
       isActive
         ? 'text-black dark:text-white font-bold bg-blue-300 dark:bg-gray-700'
         : 'hover:bg-blue-300 dark:hover:bg-gray-700'
-    }`;
+    } ${isCollapsed && !isHovered ? 'justify-center tooltip-container' : ''}`;
   };
+
+  const navigationItems = [
+    { href: '/dashboard', icon: Grid3X3, label: 'Dashboard' },
+    { href: '/dashboard/myFilesV2', icon: FileText, label: 'My Files' },
+    { href: '/dashboard/sharedWithMe', icon: Users, label: 'Shared with Me' },
+    { href: '/dashboard/accessLogs', icon: Clock, label: 'Access Logs' },
+    { href: '/dashboard/trash', icon: Trash2, label: 'Trash' },
+  ];
 
   return (
     <aside
       data-testid="sidebar"
-      className="w-64 bg-gray-200 text-gray-800 dark:bg-gray-800 dark:text-white p-6 shadow-md hidden md:block relative"
+      className={`${
+        showExpanded ? 'w-64' : 'w-16'
+      } bg-gray-200 text-gray-800 dark:bg-gray-800 dark:text-white p-6 shadow-md hidden md:block relative transition-all duration-300 ease-in-out`}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => {
+        setIsHovered(false);
+        // Close dropdowns when sidebar collapses
+        if (isCollapsed) {
+          setDropdownOpen(false);
+          setSettingsOpen(false);
+        }
+      }}
     >
       {/* Logo and Title */}
-      <div className="flex items-center gap-3 mb-8">
-        <Image
-          src="/img/shield-emp-black.png"
-          alt="SecureShare Logo Light"
-          width={28}
-          height={28}
-          className="block dark:hidden"
-        />
-        <Image
-          src="/img/shield-emp-white.png"
-          alt="SecureShare Logo Dark"
-          width={28}
-          height={28}
-          className="hidden dark:block"
-        />
-        <span className="text-xl font-bold tracking-tight">SecureShare</span>
-      </div>
+      {showExpanded && (
+        <div className="flex items-center gap-3 mb-8">
+          <Image
+            src="/img/shield-emp-black.png"
+            alt="SecureShare Logo Light"
+            width={28}
+            height={28}
+            className="block dark:hidden"
+          />
+          <Image
+            src="/img/shield-emp-white.png"
+            alt="SecureShare Logo Dark"
+            width={28}
+            height={28}
+            className="hidden dark:block"
+          />
+          <span className="text-xl font-bold tracking-tight">SecureShare</span>
+        </div>
+      )}
+
+      {/* Collapsed Logo */}
+      {!showExpanded && (
+        <div className="flex justify-center mb-8">
+          <Image
+            src="/img/shield-emp-black.png"
+            alt="SecureShare Logo Light"
+            width={28}
+            height={28}
+            className="block dark:hidden"
+          />
+          <Image
+            src="/img/shield-emp-white.png"
+            alt="SecureShare Logo Dark"
+            width={28}
+            height={28}
+            className="hidden dark:block"
+          />
+        </div>
+      )}
 
       {/* Navigation */}
       <nav className="space-y-2">
-        <a href="/dashboard" className={linkClasses('/dashboard')}>
-          <Grid3X3 size={20} />
-          <span>Dashboard</span>
-        </a>
-        <a href="/dashboard/myFilesV2" className={linkClasses('/dashboard/myFilesV2')}>
-          <FileText size={20} />
-          <span>My Files</span>
-        </a>
-        <a href="/dashboard/sharedWithMe" className={linkClasses('/dashboard/sharedWithMe')}>
-          <Users size={20} />
-          <span>Shared with Me</span>
-        </a>
-        <a href="/dashboard/accessLogs" className={linkClasses('/dashboard/accessLogs')}>
-          <Clock size={20} />
-          <span>Access Logs</span>
-        </a>
-        <a href="/dashboard/trash" className={linkClasses('/dashboard/trash')}>
-          <Trash2 size={20} />
-          <span>Trash</span>
-        </a>
+        {navigationItems.map((item) => {
+          const Icon = item.icon;
+          return (
+            <div key={item.href} className="relative group">
+              <a 
+                href={item.href} 
+                className={linkClasses(item.href)}
+              >
+                <Icon size={20} />
+                {showExpanded && <span>{item.label}</span>}
+              </a>
+              {/* Tooltip for collapsed state */}
+              {isCollapsed && !isHovered && (
+                <div className="absolute left-full ml-2 top-1/2 transform -translate-y-1/2 bg-gray-900 dark:bg-gray-700 text-white text-xs px-2 py-1 rounded opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10">
+                  {item.label}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </nav>
 
-      {/* Bottom Profile + Settings */}
-      <div className="absolute bottom-6 left-6 right-6 flex flex-col gap-3">
-        {/* User Dropdown */}
-        <div className="relative">
-          <button
-            data-testid="profile-button"
-            className="flex items-center gap-3 p-3 w-full text-left rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-            onClick={() => setDropdownOpen((prev) => !prev)}
-          >
-            <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-bold overflow-hidden">
-              {user?.avatar_url ? (
-                <img
-                  src={user.avatar_url}
-                  alt="Avatar"
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                user?.username?.slice(0, 2).toUpperCase() || '??'
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium truncate">{user?.username || 'Loading...'}</div>
-              <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                {user?.email || ''}
-              </div>
-            </div>
-            <ChevronDown size={18} />
-          </button>
-
-          {dropdownOpen && (
-            <div className="mt-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg">
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-2 px-4 py-2 w-full text-left text-sm text-red-600 hover:bg-red-100 dark:hover:bg-gray-900 dark:text-red-400"
-              >
-                <LogOut size={16} />
-                Logout
-              </button>
-            </div>
+      {/* Bottom Section */}
+      <div className={`absolute bottom-6 ${showExpanded ? 'left-6 right-6' : 'left-2 right-2'} flex flex-col gap-3`}>
+        {/* Pin/Unpin Button */}
+        <button
+          onClick={toggleSidebar}
+          className="flex items-center justify-center p-3 rounded-lg hover:bg-blue-300 dark:hover:bg-gray-700 transition-colors border-t border-gray-300 dark:border-gray-600 pt-3"
+          title={isCollapsed ? 'Pin Sidebar Open' : 'Auto-Hide Sidebar'}
+        >
+          {isCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
+          {showExpanded && (
+            <span className="ml-2 text-sm">
+              {isCollapsed ? 'Pin Open' : 'Auto-Hide'}
+            </span>
           )}
-        </div>
+        </button>
 
-        {/* Settings Dropdown */}
-        <div className="relative" ref={dropdownRef}>
-          <button
-            data-testid="settings-dropdown"
-            onClick={() => setSettingsOpen((prev) => !prev)}
-            className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-blue-300 dark:hover:bg-gray-700 transition-colors"
-          >
-            <Settings size={20} />
-            <span>Settings</span>
-            <ChevronDown size={16} className="ml-auto" />
-          </button>
-
-          {settingsOpen && (
-            <div
-              data-testid="settings-dropdown"
-              className="absolute right-0 bottom-12 w-48 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg z-10"
+        {/* Collapsed Profile (shows all options in dropdown) */}
+        {isCollapsed && !isHovered && (
+          <div className="relative" ref={profileDropdownRef}>
+            <button
+              data-testid="profile-button"
+              className="flex items-center justify-center p-3 w-full rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              onClick={() => setDropdownOpen((prev) => !prev)}
             >
-              <a
-                href="../../Settings/accountSettings/"
-                className="block px-4 py-2 text-sm hover:bg-blue-300 dark:hover:bg-gray-600"
-              >
-                Account Settings
-              </a>
-              {mounted && (
-                <button
-                  onClick={toggleTheme}
-                  className="w-full text-left px-4 py-2 text-sm hover:bg-blue-300 dark:hover:bg-gray-600"
+              <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-bold overflow-hidden">
+                {user?.avatar_url ? (
+                  <img
+                    src={user.avatar_url}
+                    alt="Avatar"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  user?.username?.slice(0, 2).toUpperCase() || '??'
+                )}
+              </div>
+            </button>
+
+            {dropdownOpen && (
+              <div className="absolute left-0 bottom-16 w-48 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg z-20">
+                <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-600">
+                  <div className="text-sm font-medium truncate">{user?.username || 'Loading...'}</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                    {user?.email || ''}
+                  </div>
+                </div>
+                <a
+                  href="../../Settings/accountSettings/"
+                  className="block px-4 py-2 text-sm hover:bg-blue-300 dark:hover:bg-gray-600"
                 >
-                  {resolvedTheme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+                  Account Settings
+                </a>
+                {mounted && (
+                  <button
+                    onClick={toggleTheme}
+                    className="w-full text-left px-4 py-2 text-sm hover:bg-blue-300 dark:hover:bg-gray-600"
+                  >
+                    {resolvedTheme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+                  </button>
+                )}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    handleLogout(e);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 w-full text-left text-sm text-red-600 hover:bg-red-100 dark:hover:bg-gray-900 dark:text-red-400"
+                >
+                  <LogOut size={16} />
+                  Logout
                 </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Expanded Profile + Settings */}
+        {showExpanded && (
+          <>
+            {/* User Dropdown */}
+            <div className="relative" ref={profileDropdownRef}>
+              <button
+                data-testid="profile-button"
+                className="flex items-center gap-3 p-3 w-full text-left rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                onClick={() => setDropdownOpen((prev) => !prev)}
+              >
+                <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-bold overflow-hidden">
+                  {user?.avatar_url ? (
+                    <img
+                      src={user.avatar_url}
+                      alt="Avatar"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    user?.username?.slice(0, 2).toUpperCase() || '??'
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium truncate">{user?.username || 'Loading...'}</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                    {user?.email || ''}
+                  </div>
+                </div>
+                <ChevronDown size={18} />
+              </button>
+
+              {dropdownOpen && (
+                <div className="mt-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      handleLogout(e);
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 w-full text-left text-sm text-red-600 hover:bg-red-100 dark:hover:bg-gray-900 dark:text-red-400"
+                  >
+                    <LogOut size={16} />
+                    Logout
+                  </button>
+                </div>
               )}
             </div>
-          )}
-        </div>
+
+            {/* Settings Dropdown */}
+            <div className="relative" ref={settingsDropdownRef}>
+              <button
+                data-testid="settings-dropdown"
+                onClick={() => setSettingsOpen((prev) => !prev)}
+                className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-blue-300 dark:hover:bg-gray-700 transition-colors"
+              >
+                <Settings size={20} />
+                <span>Settings</span>
+                <ChevronDown size={16} className="ml-auto" />
+              </button>
+
+              {settingsOpen && (
+                <div
+                  data-testid="settings-dropdown"
+                  className="absolute right-0 bottom-12 w-48 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg z-10"
+                >
+                  <a
+                    href="../../Settings/accountSettings/"
+                    className="block px-4 py-2 text-sm hover:bg-blue-300 dark:hover:bg-gray-600"
+                  >
+                    Account Settings
+                  </a>
+                  {mounted && (
+                    <button
+                      onClick={toggleTheme}
+                      className="w-full text-left px-4 py-2 text-sm hover:bg-blue-300 dark:hover:bg-gray-600"
+                    >
+                      {resolvedTheme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </aside>
   );

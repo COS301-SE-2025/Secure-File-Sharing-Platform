@@ -1,9 +1,19 @@
 //app/dashboard/myFilesV2/fileList.js
 
-'use client';
+"use client";
 
-import React, { useState, useEffect, useRef } from 'react';
-import { FileIcon, Download, Share, Folder, FileText, Image, Video, Star, MoreVertical, } from 'lucide-react';
+import React, { useState, useEffect, useRef } from "react";
+import {
+  FileIcon,
+  Download,
+  Share,
+  Folder,
+  FileText,
+  Image,
+  Video,
+  Star,
+  MoreVertical,
+} from "lucide-react";
 
 export function FileList({
   files,
@@ -12,6 +22,12 @@ export function FileList({
   onViewActivity,
   onDownload,
   onDelete,
+  onClick,
+  onDoubleClick,
+  onMoveFile,
+  onEnterFolder,
+  onGoBack,
+  currentPath,
 }) {
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const [menuFile, setMenuFile] = useState(null);
@@ -25,8 +41,13 @@ export function FileList({
     video: <Video className="h-5 w-5 text-purple-500" />,
   };
 
-  const getIcon = (type) =>
-    iconMap[type] || <FileIcon className="h-5 w-5 text-gray-500" />;
+  const getIcon = (file) => {
+    if (file.type === "folder") {
+      console.log("Folder icon selected");
+      return <Folder className="h-5 w-5 text-blue-500" />;
+    }
+    return iconMap[file.type] || <FileIcon className="h-5 w-5 text-gray-500" />;
+  };
 
   const handleContextMenu = (e, file) => {
     e.preventDefault();
@@ -41,8 +62,8 @@ export function FileList({
   };
 
   useEffect(() => {
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
   }, []);
 
   const handleDelete = async (file) => {
@@ -66,12 +87,16 @@ export function FileList({
       if (!token) return;
 
       try {
-        const profileRes = await fetch("http://localhost:5000/api/users/profile", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const profileRes = await fetch(
+          "http://localhost:5000/api/users/profile",
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
 
         const profileResult = await profileRes.json();
-        if (!profileRes.ok) throw new Error(profileResult.message || "Failed to fetch profile");
+        if (!profileRes.ok)
+          throw new Error(profileResult.message || "Failed to fetch profile");
 
         await fetch("http://localhost:5000/api/files/addAccesslog", {
           method: "POST",
@@ -83,7 +108,6 @@ export function FileList({
             message: `User ${profileResult.data.email} deleted the file.`,
           }),
         });
-
       } catch (err) {
         console.error("Failed to fetch user profile:", err.message);
       }
@@ -96,6 +120,34 @@ export function FileList({
       alert("Failed to delete file");
     } finally {
       setMenuFile(null);
+    }
+  };
+
+  const handleDragStart = (e, file) => {
+    setDraggedFile(file);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e, folder) => {
+    if (
+      draggedFile &&
+      folder.type === "folder" &&
+      draggedFile.id !== folder.id
+    ) {
+      e.preventDefault(); // allows drop
+    }
+  };
+
+  const handleDrop = (e, folder) => {
+    e.preventDefault();
+    if (
+      draggedFile &&
+      folder.type === "folder" &&
+      draggedFile.id !== folder.id
+    ) {
+      const newPath = folder.cid || folder.path || folder.name;
+      onMoveFile?.(draggedFile, newPath); // <-- You will define this in your parent component
+      setDraggedFile(null);
     }
   };
 
@@ -114,13 +166,27 @@ export function FileList({
           {files.map((file) => (
             <tr
               key={file.id}
+              draggable={file.type !== "folder"}
+              onDragStart={(e) => handleDragStart(e, file)}
+              onDragOver={(e) => handleDragOver(e, file)}
+              onDrop={(e) => handleDrop(e, file)}
+              onClick={() => onClick && onClick(file)}
+              onDoubleClick={() => {
+                if (file.type === "folder") {
+                  onEnterFolder?.(file.name);
+                } else {
+                  onDoubleClick?.(file);
+                }
+              }}
               onContextMenu={(e) => handleContextMenu(e, file)}
               className="hover:bg-gray-200 cursor-pointer dark:hover:bg-blue-100"
             >
               <td className="p-2 flex items-center gap-2">
                 {getIcon(file.type)}
                 <span className="font-medium">{file.name}</span>
-                {file.starred && <Star className="h-4 w-4 text-yellow-500 fill-current" />}
+                {file.starred && (
+                  <Star className="h-4 w-4 text-yellow-500 fill-current" />
+                )}
               </td>
               <td className="p-2">{file.size}</td>
               <td className="p-2">{file.modified}</td>
