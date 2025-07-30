@@ -11,7 +11,8 @@ import { FileText, Grid3X3, Users, Clock, Trash2, Settings, ChevronDown, LogOut,
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const dropdownRef = useRef(null);
+  const settingsDropdownRef = useRef(null);
+  const profileDropdownRef = useRef(null);
   const [user, setUser] = useState(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -74,7 +75,10 @@ export default function Sidebar() {
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+      if (
+        (settingsDropdownRef.current && !settingsDropdownRef.current.contains(event.target)) &&
+        (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target))
+      ) {
         setSettingsOpen(false);
         setDropdownOpen(false);
       }
@@ -86,7 +90,11 @@ export default function Sidebar() {
     };
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = (e) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     router.push('/');
@@ -206,7 +214,7 @@ export default function Sidebar() {
 
         {/* Collapsed Profile (shows all options in dropdown) */}
         {isCollapsed && !isHovered && (
-          <div className="relative" ref={dropdownRef}>
+          <div className="relative" ref={profileDropdownRef}>
             <button
               data-testid="profile-button"
               className="flex items-center justify-center p-3 w-full rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
@@ -248,7 +256,11 @@ export default function Sidebar() {
                   </button>
                 )}
                 <button
-                  onClick={handleLogout}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    handleLogout(e);
+                  }}
                   className="flex items-center gap-2 px-4 py-2 w-full text-left text-sm text-red-600 hover:bg-red-100 dark:hover:bg-gray-900 dark:text-red-400"
                 >
                   <LogOut size={16} />
@@ -263,7 +275,7 @@ export default function Sidebar() {
         {showExpanded && (
           <>
             {/* User Dropdown */}
-            <div className="relative">
+            <div className="relative" ref={profileDropdownRef}>
               <button
                 data-testid="profile-button"
                 className="flex items-center gap-3 p-3 w-full text-left rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
@@ -292,7 +304,11 @@ export default function Sidebar() {
               {dropdownOpen && (
                 <div className="mt-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg">
                   <button
-                    onClick={handleLogout}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      handleLogout(e);
+                    }}
                     className="flex items-center gap-2 px-4 py-2 w-full text-left text-sm text-red-600 hover:bg-red-100 dark:hover:bg-gray-900 dark:text-red-400"
                   >
                     <LogOut size={16} />
