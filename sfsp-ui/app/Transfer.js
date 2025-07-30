@@ -48,6 +48,7 @@ export async function SendFile(recipientUserId, fileid, isViewOnly = false) {
   const userKeysRaw = await getUserKeysSecurely(encryptionKey);
   const userKeys = normalizeUserKeys(userKeysRaw, sodium);
 
+  console.log("[UI DEBUG]2️⃣ Download encrypted file as binary")
   // 2️⃣ Download encrypted file as binary
   const response = await fetch("http://localhost:5000/api/files/download", {
     method: "POST",
@@ -71,6 +72,7 @@ export async function SendFile(recipientUserId, fileid, isViewOnly = false) {
     encryptionKey
   );
 
+  console.log("[UI DEBUG]3️⃣ Get recipient's public keys")
   // 3️⃣ Get recipient's public keys
   const bundleRes = await fetch(
     `http://localhost:5000/api/users/public-keys/${recipientUserId}`
@@ -167,15 +169,16 @@ export async function SendFile(recipientUserId, fileid, isViewOnly = false) {
 
   if (!res.ok) throw new Error("Failed to send file");
   const result = await res.json();
+  console.log("[UI DEBUG] Now this is interesting ", response);
   //if (!result.success) throw new Error(result.message || "File upload failed");
   console.log("File sent successfully:", res);
-  
+
   if (isViewOnly) {
     console.log("View-only file share ID:", result.shareId);
     return result.shareId; // Return shareId for view-only files
   } else {
     console.log("Received File ID:", result.receivedFileID);
-    return result.receivedFileID; // Return receivedFileID for regular files
+    return result.receivedFileID;
   }
 }
 

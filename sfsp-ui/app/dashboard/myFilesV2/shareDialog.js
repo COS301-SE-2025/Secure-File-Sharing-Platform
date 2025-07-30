@@ -110,7 +110,7 @@ export function ShareDialog({ open, onOpenChange, file }) {
 
         const isViewOnly = recipient.permission === "view";
 
-        const receivedFileID = await SendFile(file, recipientId, file.id, isViewOnly);
+        const receivedFileID = await SendFile(recipientId, file.id, isViewOnly);
         console.log("Received File ID in shared Dialog:", receivedFileID);
         // Log file access
         await fetch("http://localhost:5000/api/files/addAccesslog", {
