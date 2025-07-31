@@ -1,6 +1,7 @@
 package fileHandler
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -223,7 +224,9 @@ func RespondToShareRequestHandler(w http.ResponseWriter, r *http.Request) {
 
 	//fetch the file id from the god damn notifications table
 	if req.Status == "accepted" {
-		var fileID, metadata, senderId, recipientId, receivedFileId string
+		var fileID, metadata, senderId, recipientId string
+		var receivedFileId sql.NullString
+		var isViewOnly = false
 
 		// Step 1: Get notification info
 		err := DB.QueryRow(`
@@ -242,12 +245,20 @@ func RespondToShareRequestHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Step 2: Get metadata from received_files
-		err = DB.QueryRow(`
-		SELECT metadata
-		FROM received_files
-		WHERE file_id = $1 AND recipient_id = $2 AND id = $3
-	`, fileID, recipientId, receivedFileId).Scan(&metadata)
+		if receivedFileId.Valid {
+			err = DB.QueryRow(`
+				SELECT metadata
+				FROM received_files
+				WHERE file_id = $1 AND recipient_id = $2 AND id = $3
+			`, fileID, recipientId, receivedFileId.String).Scan(&metadata)
+		} else {
+			isViewOnly = true
+			err = DB.QueryRow(`
+			SELECT metadata 
+			FROM shared_files_view
+			WHERE sender_id = $1 AND recipient_id = $2 AND file_id = $3
+		`, senderId, recipientId, fileID).Scan(&metadata)
+		}
 
 		if err != nil {
 			log.Printf("Error fetching received file metadata: %v", err)
@@ -279,7 +290,6 @@ func RespondToShareRequestHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// ✅ Respond
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": true,
@@ -293,6 +303,7 @@ func RespondToShareRequestHandler(w http.ResponseWriter, r *http.Request) {
 				"cid":          fileCID,
 				"file_size":    fileSize,
 				"metadata":     metadata,
+				"viewOnly":     isViewOnly,
 			},
 		})
 		return
@@ -385,6 +396,7 @@ func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
 		FileID         string `json:"file_id"`
 		Message        string `json:"message"`
 		ReceivedFileID string `json:"receivedFileID"`
+		ViewOnly       bool   `json:"viewOnly"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&notification); err != nil {
@@ -407,8 +419,6 @@ func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ReceivedFileID is optional for view-only files
-
 	if DB == nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]interface{}{
@@ -421,7 +431,7 @@ func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
 	var notificationID string
 	var err error
 
-	if notification.ReceivedFileID == "" {
+	if notification.ViewOnly || notification.ReceivedFileID == "" {
 		err = DB.QueryRow(`INSERT INTO notifications 
 			(type, "from", "to", file_name, file_id, message, status) 
 			VALUES ($1, $2, $3, $4, $5, $6, 'pending') RETURNING id`,

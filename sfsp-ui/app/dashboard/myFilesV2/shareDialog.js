@@ -135,6 +135,7 @@ export function ShareDialog({ open, onOpenChange, file }) {
             file_name: file.name,
             file_id: file.id,
             receivedFileID: receivedFileID,
+            viewOnly: isViewOnly,
             message: `${senderEmail} wants to share ${file.name} with you (${isViewOnly ? 'view-only' : 'download'})`,
           }),
         });
