@@ -482,81 +482,82 @@ export default function DashboardHomePage() {
             </div>
           </div>
 
-         {/* Activity Logs (Static Data) */}
-<div
-  className="h-60 w-full lg:col-span-2 p-6 flex flex-col justify-start
+          {/* Activity Logs (Static Data) */}
+          <div
+            className="h-60 w-full lg:col-span-2 p-6 flex flex-col justify-start
              bg-gray-200 dark:bg-gray-800 rounded-lg shadow hover:shadow-lg
              transition-shadow overflow-hidden"
->
-  <div className="flex items-center gap-3 mb-3">
-    <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-full">
-      <AlertCircleIcon className="text-green-600 dark:text-green-400" size={28} />
-    </div>
-    <p className="text-xl font-bold text-gray-500 dark:text-gray-400">Activity Logs</p>
-  </div>
-
-  <div className="overflow-y-auto space-y-2 pr-2 text-sm text-gray-700 dark:text-gray-200">
-    <div className="flex items-start gap-2">
-      <Clock className="w-4 h-4 mt-1 text-gray-600 dark:text-gray-300" />
-      <div>
-        <p className="text-sm leading-tight">Uploaded "report.pdf"</p>
-        <p className="text-xs text-gray-500">Today, 11:30 AM</p>
-      </div>
-    </div>
-    <div className="flex items-start gap-2">
-      <Clock className="w-4 h-4 mt-1 text-gray-600 dark:text-gray-300" />
-      <div>
-        <p className="text-sm leading-tight">Deleted "old_notes.txt"</p>
-        <p className="text-xs text-gray-500">Yesterday, 4:10 PM</p>
-      </div>
-    </div>
-  </div>
-</div>
-      </div>
-    </div>
-
-    {/* Recent Files */}
-    <div className="mt-12 max-w-5xl mx-auto">
-      <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-4">
-        Recent Files
-      </h2>
-
-      <ul className="bg-white dark:bg-gray-800 rounded-lg shadow divide-y divide-gray-200 dark:divide-gray-700">
-        {recentFiles.length === 0 ? (
-          <li className="p-4 text-gray-500">No recent files</li>
-        ) : (
-          recentFiles.map((file, index) => (
-            <li key={index} className="p-4 flex justify-between items-center">
-              <div>
-                <p className="text-lg font-medium text-gray-700 dark:text-gray-200">
-                  {file.fileName || file.name || "Unnamed File"}
-                </p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {formatTimestamp(file.date || file.createdAt)}
-                </p>
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-full">
+                <AlertCircleIcon className="text-green-600 dark:text-green-400" size={28} />
               </div>
-              <button
-                onClick={() => {
-                  console.log("Open clicked, file object:", file);
-                  console.log("Open clicked, file.name:", file.name);
-                  handleOpenFullView(file);
-                }}
-                className="text-blue-500 hover:underline"
-              >
-                Open
-              </button>
-            </li>
-          ))
-        )}
-      </ul>
-    </div>
+              <p className="text-xl font-bold text-gray-500 dark:text-gray-400">Activity Logs</p>
+            </div>
 
-    {viewerFile && (
-      <FullViewModal
-        file={viewerFile}
-        content={viewerContent}
-        onClose={() => setViewerFile(null)}
-      />
-    )}
-  </div>
-)};
+            <div className="overflow-y-auto space-y-2 pr-2 text-sm text-gray-700 dark:text-gray-200">
+              <div className="flex items-start gap-2">
+                <Clock className="w-4 h-4 mt-1 text-gray-600 dark:text-gray-300" />
+                <div>
+                  <p className="text-sm leading-tight">Uploaded "report.pdf"</p>
+                  <p className="text-xs text-gray-500">Today, 11:30 AM</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <Clock className="w-4 h-4 mt-1 text-gray-600 dark:text-gray-300" />
+                <div>
+                  <p className="text-sm leading-tight">Deleted "old_notes.txt"</p>
+                  <p className="text-xs text-gray-500">Yesterday, 4:10 PM</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Recent Files */}
+      <div className="mt-12 max-w-5xl mx-auto">
+        <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-4">
+          Recent Files
+        </h2>
+
+        <ul className="bg-white dark:bg-gray-800 rounded-lg shadow divide-y divide-gray-200 dark:divide-gray-700">
+          {recentFiles.length === 0 ? (
+            <li className="p-4 text-gray-500">No recent files</li>
+          ) : (
+            recentFiles.map((file, index) => (
+              <li key={index} className="p-4 flex justify-between items-center">
+                <div>
+                  <p className="text-lg font-medium text-gray-700 dark:text-gray-200">
+                    {file.fileName || file.name || "Unnamed File"}
+                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {formatTimestamp(file.date || file.createdAt)}
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    console.log("Open clicked, file object:", file);
+                    console.log("Open clicked, file.name:", file.name);
+                    handleOpenFullView(file);
+                  }}
+                  className="text-blue-500 hover:underline"
+                >
+                  Open
+                </button>
+              </li>
+            ))
+          )}
+        </ul>
+      </div>
+
+      {viewerFile && (
+        <FullViewModal
+          file={viewerFile}
+          content={viewerContent}
+          onClose={() => setViewerFile(null)}
+        />
+      )}
+    </div>
+  )
+};

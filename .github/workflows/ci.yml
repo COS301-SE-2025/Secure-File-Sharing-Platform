@@ -42,7 +42,8 @@ jobs:
 
     - name: Run Cypress Unit Tests
       working-directory: ./sfsp-ui
-      run: xvfb-run -a npx cypress run --component
+      run: |
+        xvfb-run -a npx cypress run --component
 
   sfsp-api:
     name: SFSP API
@@ -58,9 +59,16 @@ jobs:
         working-directory: ./sfsp-api
         run: npm ci
 
-      - name: Run API Tests
+      - name: Run API Tests with Coverage
         working-directory: ./sfsp-api
-        run: npm test
+        run: npm test -- --coverage
+        
+      - name: Upload API Coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          directory: ./sfsp-api/coverage/
+          flags: unittests,api
+          name: api-coverage
 
   sfsp-goservice:
     name: SFSP Go Service
@@ -88,9 +96,17 @@ jobs:
           OWNCLOUD_PASSWORD=admin
           EOF
 
-      - name: Run Go Tests
+      - name: Run Go Tests with Coverage
         working-directory: ./sfsp-api/services/fileService
-        run: go test ./UnitTests/... -v
+        run: |
+          go test ./UnitTests/... -v -coverprofile=coverage.txt -covermode=atomic
+          
+      - name: Upload Go Service Coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./sfsp-api/services/fileService/coverage.txt
+          flags: unittests,goservice
+          name: goservice-coverage
 
   sfsp-keyservice:
     name: SFSP Key Service
@@ -122,8 +138,15 @@ jobs:
           FLASK_ENV=development
           EOF
 
-      - name: Run Python Tests
+      - name: Run Python Tests with Coverage
         working-directory: ./sfsp-api/services/keyservice
         run: |
-          python run_tests.py
+          python -m pytest --cov=. --cov-report=xml
+          
+      - name: Upload Key Service Coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./sfsp-api/services/keyservice/coverage.xml
+          flags: unittests,keyservice
+          name: keyservice-coverage
 
