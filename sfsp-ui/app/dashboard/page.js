@@ -535,6 +535,7 @@ export default function DashboardHomePage() {
                   {formatTimestamp(file.date || file.createdAt)}
                 </p>
               </div>
+              
               <button
                 onClick={() => {
                   console.log("Open clicked, file object:", file);
