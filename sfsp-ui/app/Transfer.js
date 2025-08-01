@@ -203,7 +203,7 @@ export async function ReceiveFile(fileData) {
   } = JSON.parse(metadata);
 
   console.log("File id:", file_id, "file_name:", file_name, "type:", file_type);
-
+  console.log("User id:", userId);
   const path = `/files/${sender_id}/sent/${file_id}`;
   console.log("Downloading from path:", path);
 
@@ -215,9 +215,8 @@ export async function ReceiveFile(fileData) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId,
+          userId: userId,
           fileId: file_id,
-          shareId: share_id
         }),
       }
     );
@@ -242,6 +241,8 @@ export async function ReceiveFile(fileData) {
     if (!response.ok) throw new Error("Failed to retrieve encrypted file");
   }
 
+  console.log("[UI DEBUG] MANAGED TO MAKE REQUEST")
+
   // 🚀 Use arrayBuffer instead of text
   const buffer = await response.arrayBuffer();
   const encryptedFile = new Uint8Array(buffer);
@@ -254,6 +255,8 @@ export async function ReceiveFile(fileData) {
   if (!sodium.memcmp(fileHashBytes, computedHash)) {
     throw new Error("File hash does not match the expected hash");
   }
+
+  console.log("[UI DEBUG] SODIUM SOMEHOW WORKED")
 
   const signatureBytes = sodium.from_base64(signature);
   const ikPublicKeyBytes = sodium.from_base64(ikPublicKey);
@@ -269,7 +272,7 @@ export async function ReceiveFile(fileData) {
     console.log("Signature is valid for the received file.");
   }
 
-  console.log("Encrypted file bytes length:", encryptedFile.length);
+  console.log("[UI DEBUG] signatures are working")
 
   // 🔑 Derive shared secret using X3DH
   const ikPrivKey = userKeys.identity_private_key;
@@ -338,9 +341,9 @@ export async function ReceiveFile(fileData) {
   );
 
   const formData = new FormData();
-  let filetags = ["received"];
+  let fileTags = ["received"]; 
   if (viewOnly) {
-    filetags.push("view-only")
+    fileTags.push("view-only");
   }
   formData.append("userId", userId);
   formData.append("fileName", file_name);
@@ -356,8 +359,11 @@ export async function ReceiveFile(fileData) {
   // ⬇️ Encrypted file as binary Blob
   formData.append("encryptedFile", new Blob([ciphertext]), file_name);
 
+  console.log("About to upload with fileTags:", fileTags);
+  console.log("FormData fileTags:", formData.get("fileTags"));
+
   const res = await fetch("http://localhost:5000/api/files/upload", {
-    method: "POST",
+    method: "POST", 
     body: formData,
   });
 

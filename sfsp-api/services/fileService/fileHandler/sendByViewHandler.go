@@ -310,9 +310,8 @@ func GetViewFileAccessLogs(w http.ResponseWriter, r *http.Request) {
 
 func DownloadViewFileHandler(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		UserID  string `json:"userId"`
-		FileID  string `json:"fileId"`
-		ShareID string `json:"shareId"`
+		UserID string `json:"userId"`
+		FileID string `json:"fileId"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -320,21 +319,21 @@ func DownloadViewFileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.UserID == "" || req.FileID == "" || req.ShareID == "" {
+	if req.UserID == "" || req.FileID == "" {
 		http.Error(w, "Missing required fields", http.StatusBadRequest)
 		return
 	}
 
-	// Verify the user has access to this view file
 	var senderID string
+	var sharedID string
 	var metadata string
 	var revoked bool
 	var expiresAt time.Time
 	err := DB.QueryRow(`
-		SELECT sender_id, metadata, revoked, expires_at 
+		SELECT id, sender_id, metadata, revoked, expires_at 
 		FROM shared_files_view 
-		WHERE id = $1 AND recipient_id = $2 AND file_id = $3
-	`, req.ShareID, req.UserID, req.FileID).Scan(&senderID, &metadata, &revoked, &expiresAt)
+		WHERE recipient_id = $1 AND file_id = $2
+	`, req.UserID, req.FileID).Scan(&sharedID, &senderID, &metadata, &revoked, &expiresAt)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -346,7 +345,7 @@ func DownloadViewFileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if revoked {
+	if revoked || senderID == "" {
 		http.Error(w, "Access has been revoked", http.StatusForbidden)
 		return
 	}
@@ -359,7 +358,6 @@ func DownloadViewFileHandler(w http.ResponseWriter, r *http.Request) {
 	targetPath := fmt.Sprintf("files/%s/shared_view", senderID)
 	sharedFileKey := fmt.Sprintf("%s_%s", req.FileID, req.UserID)
 
-	// Download the file from ownCloud using streaming
 	fullPath := fmt.Sprintf("%s/%s", targetPath, sharedFileKey)
 	stream, err := owncloud.DownloadSentFileStream(fullPath)
 	if err != nil {
@@ -377,11 +375,10 @@ func DownloadViewFileHandler(w http.ResponseWriter, r *http.Request) {
 		log.Println("Failed to log view action:", err)
 	}
 
-	// view-only headers - I use this to diferentiate between normal share
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("X-View-Only", "true")
 	w.Header().Set("X-File-Id", req.FileID)
-	w.Header().Set("X-Share-Id", req.ShareID)
+	w.Header().Set("X-Share-Id", sharedID)
 
 	if _, err := io.Copy(w, stream); err != nil {
 		log.Println("Failed to stream view file to response:", err)

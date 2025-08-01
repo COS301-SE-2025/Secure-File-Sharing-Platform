@@ -492,9 +492,9 @@ exports.sendByView = [
       // Forward the shareId from the Go service response
       const { shareId, message } = response.data;
 
-      res.status(200).json({ 
+      res.status(200).json({
         message: message || "File sent successfully for view-only access",
-        shareId 
+        shareId
       });
     } catch (err) {
       console.error("Error sending file by view:", err.message);
@@ -577,17 +577,17 @@ exports.revokeViewAccess = async (req, res) => {
 };
 
 exports.downloadViewFile = async (req, res) => {
-  const { userId, fileId, shareId } = req.body;
+  const { userId, fileId } = req.body;
 
-  if (!userId || !fileId || !shareId) {
-    return res.status(400).send("Missing userId, fileId, or shareId");
+  if (!userId || !fileId) {
+    return res.status(400).send("Missing userId, fileId");
   }
 
   try {
     const response = await axios({
       method: "post",
       url: `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/downloadViewFile`,
-      data: { userId, fileId, shareId },
+      data: { userId, fileId },
       responseType: "arraybuffer",
       headers: { "Content-Type": "application/json" },
     });
@@ -609,7 +609,7 @@ exports.downloadViewFile = async (req, res) => {
       "fileId:",
       fileId,
       "shareId:",
-      shareId,
+      shareIdHeader,
       "length:",
       response.data.length
     );
