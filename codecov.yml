@@ -1,0 +1,52 @@
+codecov:
+  require_ci_to_pass: yes
+  token: 168ccafe-9b73-43dd-a32b-a41781410e82
+  branch: main       # Explicitly set the default branch
+
+coverage:
+  precision: 2
+  round: down
+  range: "70...100"
+  status:
+    project:
+      default:
+        # basic
+        target: auto
+        threshold: 5%
+        base: auto
+    patch:
+      default:
+        # basic
+        target: auto
+        threshold: 5%
+        base: auto
+
+parsers:
+  gcov:
+    branch_detection:
+      conditional: yes
+      loop: yes
+      method: no
+      macro: no
+
+comment:
+  layout: "reach,diff,flags,files,footer"
+  behavior: default
+  require_changes: no
+
+flags:
+  ui:
+    paths:
+      - sfsp-ui/
+  api:
+    paths:
+      - sfsp-api/
+    carryforward: true
+  goservice:
+    paths:
+      - sfsp-api/services/fileService/
+    carryforward: true
+  keyservice:
+    paths:
+      - sfsp-api/services/keyservice/
+    carryforward: true
