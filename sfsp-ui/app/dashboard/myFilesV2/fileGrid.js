@@ -18,6 +18,8 @@ import {
   Volume2,
   Headphones,
   X,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 
 export function FileGrid({
@@ -86,6 +88,16 @@ export function FileGrid({
       return <Folder className="h-8 w-8 text-blue-500" />;
     }
     return iconMap[file.type] || <FileIcon className="h-8 w-8 text-gray-500" />;
+  };
+
+  // Check if file is view-only (either from tags or viewOnly property)
+  const isViewOnly = (file) => {
+    return file.viewOnly || (file.fileTags && file.fileTags.includes("view-only")) || (file.tags && file.tags.includes("view-only"));
+  };
+
+  // Check if current user is the owner (assuming owner files don't have "received" tag)
+  const isOwner = (file) => {
+    return !file.tags || !file.tags.includes("received");
   };
 
   const handleContextMenu = (e, file) => {
@@ -212,7 +224,15 @@ export function FileGrid({
             className="relative group bg-white rounded-lg border border-gray-300 p-4 hover:shadow-lg transition-shadow cursor-pointer dark:bg-gray-200 dark:hover:bg-blue-100"
           >
             <div className="flex items-center justify-between mb-3">
-              {getIcon(file)}
+              <div className="relative">
+                {getIcon(file)}
+                {/* View-only indicator */}
+                {isViewOnly(file) && (
+                  <div className="absolute -top-1 -right-1 bg-blue-500 rounded-full p-1">
+                    <Eye className="h-3 w-3 text-white" />
+                  </div>
+                )}
+              </div>
               <div className="flex items-center gap-1">
                 {file.starred && (
                   <Star className="h-4 w-4 text-yellow-500 fill-current" />
@@ -224,21 +244,61 @@ export function FileGrid({
                 )}
               </div>
             </div>
+            
             <h3
               className="font-medium text-gray-900 text-sm mb-1 truncate"
               title={file.name}
             >
               {file.name}
             </h3>
+            
+            {/* File Type Badge */}
+            <div className="mb-2">
+              <span className={`px-2 py-1 rounded-full text-xs ${
+                isViewOnly(file) 
+                  ? 'bg-blue-100 text-blue-800 dark:bg-blue-200' 
+                  : 'bg-green-100 text-green-800 dark:bg-green-200'
+              }`}>
+                {isViewOnly(file) ? 'View Only' : 'Full Access'}
+              </span>
+            </div>
+            
             <div className="text-xs text-gray-500 space-y-1">
               <p>{file.size}</p>
               <p>Modified {file.modified}</p>
+            </div>
+
+            {/* Quick Actions - Show on hover */}
+            <div className="absolute bottom-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onShare(file);
+                }}
+                className="p-1 hover:bg-gray-100 rounded"
+                title="Share"
+              >
+                <Share className="h-3 w-3" />
+              </button>
+              
+              {!isViewOnly(file) && (
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDownload(file);
+                  }}
+                  className="p-1 hover:bg-gray-100 rounded"
+                  title="Download"
+                >
+                  <Download className="h-3 w-3" />
+                </button>
+              )}
             </div>
           </div>
         ))}
       </div>
 
-      {/* Menu */}
+      {/* Context Menu */}
       {menuFile && (
         <div
           ref={menuRef}
@@ -255,17 +315,29 @@ export function FileGrid({
             <Share className="h-4 w-4" /> Share
           </button>
 
-          <button
-            onClick={() => {
-              if (!menuFile.viewOnly) onDownload(menuFile);
-              setMenuFile(null);
-            }}
-            disabled={menuFile.viewOnly}
-            title={menuFile.viewOnly ? "Download disabled for view-only files" : "Download"}
-            className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 dark:hover:bg-blue-200"
-          >
-            <Download className="h-4 w-4" /> Download
-          </button>
+          {!isViewOnly(menuFile) && (
+            <button
+              onClick={() => {
+                onDownload(menuFile);
+                setMenuFile(null);
+              }}
+              className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 dark:hover:bg-blue-200"
+            >
+              <Download className="h-4 w-4" /> Download
+            </button>
+          )}
+
+          {isViewOnly(menuFile) && (
+            <button
+              onClick={() => {
+                alert("This file is view-only and cannot be downloaded");
+                setMenuFile(null);
+              }}
+              className="w-full text-left px-4 py-2 opacity-50 cursor-not-allowed flex items-center gap-2"
+            >
+              <Download className="h-4 w-4" /> Download (Disabled)
+            </button>
+          )}
 
           <hr />
 
@@ -291,16 +363,16 @@ export function FileGrid({
 
           <hr />
 
-          {/* Revoke View Access Button - Only show for files that have been shared with view-only access */}
-          {menuFile.allow_view_sharing && onRevokeViewAccess && (
+          {/* Revoke View Access Button - Show for view-only files or files with view sharing enabled */}
+          {(isViewOnly(menuFile) || menuFile.allow_view_sharing) && onRevokeViewAccess && (
             <button
               onClick={() => {
                 onRevokeViewAccess(menuFile);
                 setMenuFile(null);
               }}
-              className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 flex items-center gap-2 dark:hover:bg-red-200 dark:text-red-600"
+              className="w-full text-left px-4 py-2 hover:bg-orange-50 text-orange-600 flex items-center gap-2 dark:hover:bg-orange-200 dark:text-orange-600"
             >
-              <X className="h-4 w-4" /> Revoke View Access
+              <EyeOff className="h-4 w-4" /> Revoke View Access
             </button>
           )}
 

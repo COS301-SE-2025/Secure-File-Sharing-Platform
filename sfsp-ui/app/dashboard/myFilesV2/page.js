@@ -103,6 +103,33 @@ export default function MyFiles() {
     );
   });
 
+  const isViewOnly = (file) => {
+    console.log("Checking if file is view-only:", file);
+    let tags = [];
+    if (file.tags) {
+      if (Array.isArray(file.tags)) {
+        tags = file.tags;
+      } else if (typeof file.tags === 'string') {
+        tags = file.tags.replace(/[{}]/g, "").split(",");
+      }
+    }
+    
+    return tags.includes("view-only") || file.viewOnly;
+  };
+
+  const isOwner = (file) => {
+    let tags = [];
+    if (file.tags) {
+      if (Array.isArray(file.tags)) {
+        tags = file.tags;
+      } else if (typeof file.tags === 'string') {
+        tags = file.tags.replace(/[{}]/g, "").split(",");
+      }
+    }
+    
+    return !tags.includes("received");
+  };
+
   const fetchFiles = async () => {
     try {
       const userId = useEncryptionStore.getState().userId;
@@ -139,27 +166,30 @@ export default function MyFiles() {
             !tags.some((tag) => tag.trim().startsWith("deleted_time:"))
           );
         })
-        .map((f) => ({
-          id: f.fileId || "",
-          name: f.fileName || "Unnamed file",
-          size: formatFileSize(f.fileSize || 0),
-          type: getFileType(f.fileType || ""),
-          description: f.description || "",
-          path: f.cid || "",
-          modified: f.createdAt
-            ? new Date(f.createdAt).toLocaleDateString()
-            : "",
-          shared: false,
-          starred: false,
-          viewOnly: f.viewOnly || false, // Add viewOnly property
-        }));
-      console.log(
-        "FileType:",
-        formatted.map((f) => f.type)
-      );
-
-      setFiles(formatted);
+        .map((f) => {
+          const tags = f.tags ? f.tags.replace(/[{}]/g, "").split(",") : [];
+          const isViewOnlyFile = tags.includes("view-only");
+          
+          return {
+            id: f.fileId || "",
+            name: f.fileName || "Unnamed file",
+            size: formatFileSize(f.fileSize || 0),
+            type: getFileType(f.fileType || ""),
+            description: f.description || "",
+            path: f.cid || "",
+            modified: f.createdAt
+              ? new Date(f.createdAt).toLocaleDateString()
+              : "",
+            shared: false,
+            starred: false,
+            viewOnly: isViewOnlyFile,
+            tags: tags, // Keep tags for easier checking
+            allow_view_sharing: f.allow_view_sharing || false,
+          };
+        });
+      
       console.log("Formatted (filtered) files:", formatted);
+      setFiles(formatted);
     } catch (err) {
       console.error("Failed to fetch files:", err);
     }
@@ -170,10 +200,12 @@ export default function MyFiles() {
   }, []);
 
   const handleDownload = async (file) => {
-    if (file.viewOnly) {
+    // Prevent download for view-only files
+    if (isViewOnly(file)) {
       alert("This file is view-only and cannot be downloaded.");
       return;
     }
+    
     const { encryptionKey, userId } = useEncryptionStore.getState();
     if (!encryptionKey) {
       alert("Missing encryption key");
@@ -194,11 +226,11 @@ export default function MyFiles() {
 
       if (!res.ok) throw new Error("Download failed");
 
-      // 🚀 NEW: get binary data directly
+      // Get binary data directly
       const buffer = await res.arrayBuffer();
       const encryptedFile = new Uint8Array(buffer);
 
-      // 🚀 NEW: get nonce + fileName from headers
+      // Get nonce + fileName from headers
       const nonceBase64 = res.headers.get("X-Nonce");
       const fileName = res.headers.get("X-File-Name");
 
@@ -216,7 +248,7 @@ export default function MyFiles() {
         throw new Error("Decryption failed");
       }
 
-      // download file as before
+      // Download file
       const blob = new Blob([decrypted]);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -225,7 +257,7 @@ export default function MyFiles() {
       a.click();
       window.URL.revokeObjectURL(url);
 
-      // keep your access log logic unchanged
+      // Add access log
       const token = localStorage.getItem("token");
       if (!token) return;
 
@@ -270,6 +302,7 @@ export default function MyFiles() {
     const sodium = await getSodium();
 
     try {
+      // Always use regular download endpoint for previews
       const res = await fetch("http://localhost:5000/api/files/download", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -279,17 +312,18 @@ export default function MyFiles() {
         }),
       });
 
-      if (!res.ok) throw new Error("Download failed");
-
-      for (let pair of res.headers.entries()) {
-        console.log(pair[0] + ": " + pair[1]);
+      if (!res.ok) {
+        if (res.status === 403) {
+          throw new Error("Access has been revoked or expired");
+        }
+        throw new Error("Failed to load file");
       }
 
-      // 🚀 NEW: get binary data directly
+      // Get binary data directly
       const buffer = await res.arrayBuffer();
       const encryptedFile = new Uint8Array(buffer);
 
-      // 🚀 NEW: get nonce + fileName from headers
+      // Get nonce + fileName from headers
       const nonceBase64 = res.headers.get("X-Nonce");
       const fileName = res.headers.get("X-File-Name");
 
@@ -310,31 +344,12 @@ export default function MyFiles() {
       return { fileName, decrypted };
     } catch (err) {
       console.error("Load file error:", err);
-      alert("Failed to load file");
+      alert("Failed to load file: " + err.message);
       return null;
     }
   };
 
   const handlePreview = async (file) => {
-    if (file.viewOnly) {
-      // Use ReceiveViewFile for view-only files
-      try {
-        const content = await ReceiveViewFile(file);
-        let previewContent = {};
-        if (file.type === "image" || file.type === "video" || file.type === "audio") {
-          previewContent.url = URL.createObjectURL(new Blob([content.decrypted]));
-        } else if (file.type === "pdf") {
-          previewContent.url = URL.createObjectURL(new Blob([content.decrypted], { type: "application/pdf" }));
-        } else if (["txt", "json", "csv"].includes(file.type)) {
-          previewContent.text = new TextDecoder().decode(content.decrypted).slice(0, 1000);
-        }
-        setPreviewContent(previewContent);
-        setPreviewFile(file);
-      } catch (err) {
-        alert("Failed to preview view-only file: " + err.message);
-      }
-      return;
-    }
     console.log("Inside handlePreview");
     if (file.type === "folder") {
       setPreviewContent({
@@ -347,6 +362,7 @@ export default function MyFiles() {
 
     const result = await handleLoadFile(file);
     if (!result) return;
+    
     let contentUrl = null;
     let textSnippet = null;
 
@@ -365,7 +381,7 @@ export default function MyFiles() {
       file.type === "json" ||
       file.type === "csv"
     ) {
-      textSnippet = new TextDecoder().decode(result.decrypted).slice(0, 1000); // show 1000 chars
+      textSnippet = new TextDecoder().decode(result.decrypted).slice(0, 1000);
     }
 
     setPreviewContent({ url: contentUrl, text: textSnippet });
