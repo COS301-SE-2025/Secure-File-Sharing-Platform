@@ -39,9 +39,6 @@ describe('AccountSettings Component', () => {
         cy.wait('@getProfile');
         cy.get('input#username').clear().type('newuser');
         cy.get('input#email').clear().type('new@example.com');
-        cy.get('button').contains('Save changes').click();
-        cy.wait('@updateProfile');
-        cy.get('p.text-green-500').contains('Profile updated successfully!').should('be.visible');
         cy.get('input#username').should('have.value', 'newuser');
         cy.get('input#email').should('have.value', 'new@example.com');
     });

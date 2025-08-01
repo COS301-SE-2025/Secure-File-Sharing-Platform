@@ -120,19 +120,12 @@ exports.clearNotification = async (req, res) => {
 };
 
 exports.addNotification = async (req, res) => {
-    const { type, fromEmail, toEmail, file_name, file_id, message, receivedFileID } = req.body;
+    const { type, fromEmail, toEmail, file_name, file_id, message, receivedFileID, viewOnly } = req.body;
 
     if (!type || !fromEmail || !toEmail || !file_name || !file_id) {
         return res.status(400).json({
             success: false,
             error: "Missing required fields: type, fromEmail, toEmail, file_name, file_id"
-        });
-    }
-
-    if(!receivedFileID){
-        return res.status(400).json({
-            success: false,
-            error: "Received File ID is required"
         });
     }
 
@@ -186,7 +179,8 @@ exports.addNotification = async (req, res) => {
                 file_name,
                 file_id,
                 message,
-                receivedFileID
+                receivedFileID,
+                viewOnly
             },
             { headers: { "Content-Type": "application/json" } }
         );

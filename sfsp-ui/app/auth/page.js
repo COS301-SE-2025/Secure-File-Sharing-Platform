@@ -226,7 +226,7 @@ export default function AuthPage() {
     if (!name) {
       errors.name = "Name is required.";
     }
-    
+
     if (!email) {
       errors.email = "Email is required.";
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -505,11 +505,10 @@ export default function AuthPage() {
                 setMessage(null);
                 setFieldErrors({});
               }}
-              className={`cursor-pointer text-center pb-2 font-medium transition-all ${
-                tab === "login"
-                  ? "text-blue-600 font-bold text-lg border-b-2 border-blue-600"
-                  : "text-gray-500 hover:text-blue-600"
-              }`}
+              className={`cursor-pointer text-center pb-2 font-medium transition-all ${tab === "login"
+                ? "text-blue-600 font-bold text-lg border-b-2 border-blue-600"
+                : "text-gray-500 hover:text-blue-600"
+                }`}
             >
               Log In
             </div>
@@ -519,11 +518,10 @@ export default function AuthPage() {
                 setMessage(null);
                 setFieldErrors({});
               }}
-              className={`cursor-pointer text-center pb-2 font-medium transition-all ${
-                tab === "signup"
-                  ? "text-blue-600 font-bold text-lg border-b-2 border-blue-600"
-                  : "text-gray-500 hover:text-blue-600"
-              }`}
+              className={`cursor-pointer text-center pb-2 font-medium transition-all ${tab === "signup"
+                ? "text-blue-600 font-bold text-lg border-b-2 border-blue-600"
+                : "text-gray-500 hover:text-blue-600"
+                }`}
             >
               Sign Up
             </div>
@@ -532,11 +530,10 @@ export default function AuthPage() {
           {/* Messages */}
           {message && (
             <div
-              className={`p-3 rounded-md text-sm mb-4 ${
-                message.includes("successful")
-                  ? "bg-green-100 text-green-700"
-                  : "bg-red-100 text-red-700"
-              }`}
+              className={`p-3 rounded-md text-sm mb-4 ${message.includes("successful")
+                ? "bg-green-100 text-green-700"
+                : "bg-red-100 text-red-700"
+                }`}
             >
               {message}
             </div>
@@ -693,9 +690,8 @@ export default function AuthPage() {
                     value={signupData.name}
                     onChange={handleChange(setSignupData)}
                     required
-                    className={`w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${
-                      fieldErrors.name ? 'border-red-500' : ''
-                    }`}
+                    className={`w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${fieldErrors.name ? 'border-red-500' : ''
+                      }`}
                   />
                   {fieldErrors.name && (
                     <p className="text-red-500 text-sm mt-1">{fieldErrors.name}</p>
@@ -715,9 +711,8 @@ export default function AuthPage() {
                     value={signupData.email}
                     onChange={handleChange(setSignupData)}
                     required
-                    className={`w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${
-                      fieldErrors.email ? 'border-red-500' : ''
-                    }`}
+                    className={`w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${fieldErrors.email ? 'border-red-500' : ''
+                      }`}
                   />
                   {fieldErrors.email && (
                     <p className="text-red-500 text-sm mt-1">{fieldErrors.email}</p>
@@ -739,9 +734,8 @@ export default function AuthPage() {
                       onChange={handleChange(setSignupData)}
                       onFocus={() => setIsPasswordFocused(true)}
                       required
-                      className={`w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${
-                        fieldErrors.password ? 'border-red-500' : ''
-                      }`}
+                      className={`w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${fieldErrors.password ? 'border-red-500' : ''
+                        }`}
                     />
                     <button
                       type="button"

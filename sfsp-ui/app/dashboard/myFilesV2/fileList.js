@@ -12,7 +12,10 @@ import {
   Image,
   Video,
   Star,
-  MoreVertical,
+  MoreVertical, 
+  X,
+  Eye,
+  EyeOff
 } from "lucide-react";
 
 export function FileList({
@@ -28,6 +31,7 @@ export function FileList({
   onEnterFolder,
   onGoBack,
   currentPath,
+  onRevokeViewAccess,
 }) {
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const [menuFile, setMenuFile] = useState(null);
@@ -146,9 +150,19 @@ export function FileList({
       draggedFile.id !== folder.id
     ) {
       const newPath = folder.cid || folder.path || folder.name;
-      onMoveFile?.(draggedFile, newPath); // <-- You will define this in your parent component
+      onMoveFile?.(draggedFile, newPath);
       setDraggedFile(null);
     }
+  };
+
+  // Check if file is view-only (either from tags or viewOnly property)
+  const isViewOnly = (file) => {
+    return file.viewOnly || (file.tags && file.tags.includes("view-only"));
+  };
+
+  // Check if current user is the owner (assuming owner files don't have "received" tag)
+  const isOwner = (file) => {
+    return !file.tags || !file.tags.includes("received");
   };
 
   return (
@@ -159,6 +173,7 @@ export function FileList({
             <th className="text-left p-2">Name</th>
             <th className="text-left p-2">Size</th>
             <th className="text-left p-2">Modified</th>
+            <th className="text-left p-2">Type</th>
             <th className="text-left p-2">Actions</th>
           </tr>
         </thead>
@@ -182,21 +197,47 @@ export function FileList({
               className="hover:bg-gray-200 cursor-pointer dark:hover:bg-blue-100"
             >
               <td className="p-2 flex items-center gap-2">
-                {getIcon(file.type)}
+                {getIcon(file)}
                 <span className="font-medium">{file.name}</span>
                 {file.starred && (
                   <Star className="h-4 w-4 text-yellow-500 fill-current" />
                 )}
+                {isViewOnly(file) && (
+                  <Eye className="h-4 w-4 text-blue-500" title="View Only" />
+                )}
               </td>
               <td className="p-2">{file.size}</td>
               <td className="p-2">{file.modified}</td>
+              <td className="p-2">
+                <span className={`px-2 py-1 rounded-full text-xs ${
+                  isViewOnly(file) 
+                    ? 'bg-blue-100 text-blue-800 dark:bg-blue-200' 
+                    : 'bg-green-100 text-green-800 dark:bg-green-200'
+                }`}>
+                  {isViewOnly(file) ? 'View Only' : 'Full Access'}
+                </span>
+              </td>
               <td className="p-2 flex gap-2">
                 <button onClick={() => onShare(file)} title="Share">
                   <Share className="h-4 w-4" />
                 </button>
-                <button onClick={() => onDownload(file)} title="Download">
-                  <Download className="h-4 w-4" />
-                </button>
+                {!isViewOnly(file) && (
+                  <button 
+                    onClick={() => onDownload(file)}
+                    title="Download"
+                  >
+                    <Download className="h-4 w-4" />
+                  </button>
+                )}
+                {isViewOnly(file) && (
+                  <button 
+                    onClick={() => alert("This file is view-only and cannot be downloaded")}
+                    title="Download disabled for view-only files"
+                    className="opacity-50 cursor-not-allowed"
+                  >
+                    <Download className="h-4 w-4" />
+                  </button>
+                )}
               </td>
             </tr>
           ))}
@@ -220,15 +261,29 @@ export function FileList({
             <Share className="h-4 w-4" /> Share
           </button>
 
-          <button
-            onClick={() => {
-              onDownload(menuFile);
-              setMenuFile(null);
-            }}
-            className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 dark:hover:bg-blue-200"
-          >
-            <Download className="h-4 w-4" /> Download
-          </button>
+          {!isViewOnly(menuFile) && (
+            <button
+              onClick={() => {
+                onDownload(menuFile);
+                setMenuFile(null);
+              }}
+              className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 dark:hover:bg-blue-200"
+            >
+              <Download className="h-4 w-4" /> Download
+            </button>
+          )}
+
+          {isViewOnly(menuFile) && (
+            <button
+              onClick={() => {
+                alert("This file is view-only and cannot be downloaded");
+                setMenuFile(null);
+              }}
+              className="w-full text-left px-4 py-2 opacity-50 cursor-not-allowed flex items-center gap-2"
+            >
+              <Download className="h-4 w-4" /> Download (Disabled)
+            </button>
+          )}
 
           <hr />
 
@@ -253,6 +308,19 @@ export function FileList({
           </button>
 
           <hr />
+
+          {/* Revoke View Access Button - Only show for view-only files owned by current user */}
+          {isViewOnly(menuFile) && isOwner(menuFile) && (
+            <button
+              onClick={() => {
+                onRevokeViewAccess(menuFile);
+                setMenuFile(null);
+              }}
+              className="w-full text-left px-4 py-2 hover:bg-orange-50 text-orange-600 flex items-center gap-2 dark:hover:bg-orange-200 dark:text-orange-600"
+            >
+              <EyeOff className="h-4 w-4" /> Revoke View Access
+            </button>
+          )}
 
           <button
             onClick={() => handleDelete(menuFile)}

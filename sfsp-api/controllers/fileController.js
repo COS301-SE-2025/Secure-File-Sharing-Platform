@@ -16,9 +16,8 @@ exports.downloadFile = async (req, res) => {
   try {
     const response = await axios({
       method: "post",
-      url: `${
-        process.env.FILE_SERVICE_URL || "http://localhost:8081"
-      }/download`,
+      url: `${process.env.FILE_SERVICE_URL || "http://localhost:8081"
+        }/download`,
       data: { userId, fileId },
       responseType: "arraybuffer",
       headers: { "Content-Type": "application/json" },
@@ -58,7 +57,7 @@ exports.downloadFile = async (req, res) => {
 exports.getMetaData = async (req, res) => {
   const userId = req.body.userId;
   console.log("📦 Received metadata request:", req.body);
-  
+
   if (!userId) {
     return res.status(400).send("User ID is required");
   }
@@ -141,8 +140,7 @@ exports.getNumberOfFiles = async (req, res) => {
 
   try {
     const response = await axios.post(
-      `${
-        process.env.FILE_SERVICE_URL || "http://localhost:8081"
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"
       }/getNumberOfFiles`,
       { userId },
       { headers: { "Content-Type": "application/json" } }
@@ -312,8 +310,7 @@ exports.softDeleteFile = async (req, res) => {
 
   try {
     const response = await axios.post(
-      `${
-        process.env.FILE_SERVICE_URL || "http://localhost:8081"
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"
       }/softDeleteFile`,
       { fileId },
       { headers: { "Content-Type": "application/json" } }
@@ -372,9 +369,8 @@ exports.downloadSentFile = async (req, res) => {
   try {
     const response = await axios({
       method: "post",
-      url: `${
-        process.env.FILE_SERVICE_URL || "http://localhost:8081"
-      }/downloadSentFile`,
+      url: `${process.env.FILE_SERVICE_URL || "http://localhost:8081"
+        }/downloadSentFile`,
       data: { filepath },
       responseType: "arraybuffer", // ⭐ CRITICAL to handle binary
       headers: { "Content-Type": "application/json" },
@@ -458,4 +454,172 @@ exports.updateFilePath = async (req, res) => {
     console.error("Update file path error:", err.message);
     res.status(500).send("Failed to update file path");
   }
-}
+};
+
+exports.sendByView = [
+  upload.single("encryptedFile"),
+  async (req, res) => {
+    try {
+      const { fileid, userId, recipientUserId, metadata } = req.body;
+      const encryptedFile = req.file?.buffer;
+
+      if (!fileid || !userId || !recipientUserId || !encryptedFile) {
+        return res
+          .status(400)
+          .send("Missing file id, user ids or encrypted file");
+      }
+
+      const formData = new FormData();
+      formData.append("fileid", fileid);
+      formData.append("userId", userId);
+      formData.append("recipientUserId", recipientUserId);
+      formData.append("metadata", metadata);
+      formData.append("encryptedFile", encryptedFile, {
+        filename: "encrypted.bin",
+        contentType: "application/octet-stream",
+      });
+
+      const response = await axios.post(
+        `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/sendByView`,
+        formData,
+        { headers: formData.getHeaders() }
+      );
+
+      if (response.status !== 200) {
+        return res.status(response.status).send("Error from Go service");
+      }
+
+      // Forward the shareId from the Go service response
+      const { shareId, message } = response.data;
+
+      res.status(200).json({
+        message: message || "File sent successfully for view-only access",
+        shareId
+      });
+    } catch (err) {
+      console.error("Error sending file by view:", err.message);
+      res.status(500).send("Failed to send file by view");
+    }
+  }
+];
+
+exports.getSharedViewFiles = async (req, res) => {
+  const { userId } = req.body;
+
+  if (!userId) {
+    return res.status(400).send("Missing userId");
+  }
+
+  try {
+    const response = await axios.post(
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/getSharedViewFiles`,
+      { userId },
+      { headers: { "Content-Type": "application/json" } }
+    );
+
+    if (response.status !== 200) {
+      return res.status(response.status).send("Error retrieving shared view files");
+    }
+
+    res.status(200).json(response.data);
+  } catch (err) {
+    console.error("Error retrieving shared view files:", err.message);
+    res.status(500).send("Error retrieving shared view files");
+  }
+};
+
+exports.getViewFileAccessLogs = async (req, res) => {
+  const { fileId, userId } = req.body;
+
+  if (!fileId || !userId) {
+    return res.status(400).send("Missing fileId or userId");
+  }
+
+  try {
+    const response = await axios.post(
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/getViewFileAccessLogs`,
+      { fileId, userId },
+      { headers: { "Content-Type": "application/json" } }
+    );
+
+    if (response.status !== 200) {
+      return res.status(response.status).send("Error retrieving view file access logs");
+    }
+    res.status(200).json(response.data);
+  } catch (err) {
+    console.error("Error retrieving view file access logs:", err.message);
+    res.status(500).send("Error retrieving view file access logs");
+  }
+};
+
+exports.revokeViewAccess = async (req, res) => {
+  const { fileId, userId, recipientId } = req.body;
+
+  if (!fileId || !userId || !recipientId) {
+    return res.status(400).send("Missing fileId, userId or recipientId");
+  }
+
+  try {
+    const response = await axios.post(
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/revokeViewAccess`,
+      { fileId, userId, recipientId },
+      { headers: { "Content-Type": "application/json" } }
+    );
+
+    if (response.status !== 200) {
+      return res.status(response.status).send("Error revoking view access");
+    }
+    res.json({ message: "View access revoked successfully" });
+  } catch (err) {
+    console.error("Error revoking view access:", err.message);
+    res.status(500).send("Error revoking view access");
+  }
+};
+
+exports.downloadViewFile = async (req, res) => {
+  const { userId, fileId } = req.body;
+
+  if (!userId || !fileId) {
+    return res.status(400).send("Missing userId, fileId");
+  }
+
+  try {
+    const response = await axios({
+      method: "post",
+      url: `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/downloadViewFile`,
+      data: { userId, fileId },
+      responseType: "arraybuffer",
+      headers: { "Content-Type": "application/json" },
+    });
+
+    // Forward the headers from the Go service
+    const viewOnly = response.headers["x-view-only"];
+    const fileIdHeader = response.headers["x-file-id"];
+    const shareIdHeader = response.headers["x-share-id"];
+
+    res.set({
+      "Content-Type": "application/octet-stream",
+      "X-View-Only": viewOnly,
+      "X-File-Id": fileIdHeader,
+      "X-Share-Id": shareIdHeader,
+    });
+
+    console.log(
+      "Streaming view file back to client:",
+      "fileId:",
+      fileId,
+      "shareId:",
+      shareIdHeader,
+      "length:",
+      response.data.length
+    );
+
+    res.send(Buffer.from(response.data));
+  } catch (err) {
+    console.error("Download view file error:", err.message);
+    if (err.response && err.response.status === 403) {
+      return res.status(403).send("Access has been revoked or expired");
+    }
+    return res.status(500).send("Download view file failed");
+  }
+};
