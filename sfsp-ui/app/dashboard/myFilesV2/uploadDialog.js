@@ -182,7 +182,6 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess, currentFolde
             className="hidden"
           />
 
-          {/* NEW: Cloud Upload buttons */}
           <div className="flex justify-center gap-4 mt-4">
             <button
               type="button"

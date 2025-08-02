@@ -223,79 +223,95 @@ export function FileGrid({
             onContextMenu={(e) => handleContextMenu(e, file)}
             className="relative group bg-white rounded-lg border border-gray-300 p-4 hover:shadow-lg transition-shadow cursor-pointer dark:bg-gray-200 dark:hover:bg-blue-100"
           >
-            <div className="flex items-center justify-between mb-3">
-              <div className="relative">
-                {getIcon(file)}
-                {/* View-only indicator */}
-                {isViewOnly(file) && (
-                  <div className="absolute -top-1 -right-1 bg-blue-500 rounded-full p-1">
-                    <Eye className="h-3 w-3 text-white" />
-                  </div>
-                )}
+            {/* FOLDER DESIGN */}
+            {file.type === "folder" ? (
+              <div className="flex flex-col items-center text-center space-y-2">
+                <div className="relative">
+                  <Folder className="h-20 w-20 text-blue-500" />
+                </div>
+                <h3 className="text-base font-bold text-gray-900 truncate" title={file.name}>
+                  {file.name}
+                </h3>
               </div>
-              <div className="flex items-center gap-1">
-                {file.starred && (
-                  <Star className="h-4 w-4 text-yellow-500 fill-current" />
-                )}
-                {file.shared && (
-                  <span className="px-1 py-0.5 text-xs bg-gray-200 rounded">
-                    Shared
-                  </span>
-                )}
-              </div>
-            </div>
-            
-            <h3
-              className="font-medium text-gray-900 text-sm mb-1 truncate"
-              title={file.name}
-            >
-              {file.name}
-            </h3>
-            
-            {/* File Type Badge */}
-            <div className="mb-2">
-              <span className={`px-2 py-1 rounded-full text-xs ${
-                isViewOnly(file) 
-                  ? 'bg-blue-100 text-blue-800 dark:bg-blue-200' 
-                  : 'bg-green-100 text-green-800 dark:bg-green-200'
-              }`}>
-                {isViewOnly(file) ? 'View Only' : 'Full Access'}
-              </span>
-            </div>
-            
-            <div className="text-xs text-gray-500 space-y-1">
-              <p>{file.size}</p>
-              <p>Modified {file.modified}</p>
-            </div>
+            ) : (
+              // FILE DESIGN
+              <>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="relative">
+                    {getIcon(file)}
 
-            {/* Quick Actions - Show on hover */}
-            <div className="absolute bottom-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onShare(file);
-                }}
-                className="p-1 hover:bg-gray-100 rounded"
-                title="Share"
-              >
-                <Share className="h-3 w-3" />
-              </button>
-              
-              {!isViewOnly(file) && (
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDownload(file);
-                  }}
-                  className="p-1 hover:bg-gray-100 rounded"
-                  title="Download"
+                    {/* View-only indicator */}
+                    {isViewOnly(file) && (
+                      <div className="absolute -top-1 -right-1 bg-blue-500 rounded-full p-1">
+                        <Eye className="h-3 w-3 text-white" />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-1">
+                    {file.starred && (
+                      <Star className="h-4 w-4 text-yellow-500 fill-current" />
+                    )}
+                    {file.shared && (
+                      <span className="px-1 py-0.5 text-xs bg-gray-200 rounded">Shared</span>
+                    )}
+                  </div>
+                </div>
+
+                <h3
+                  className="font-medium text-gray-900 text-sm mb-1 truncate"
+                  title={file.name}
                 >
-                  <Download className="h-3 w-3" />
-                </button>
-              )}
-            </div>
+                  {file.name}
+                </h3>
+
+                <div className="mb-2">
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs ${isViewOnly(file)
+                        ? "bg-blue-100 text-blue-800 dark:bg-blue-200"
+                        : "bg-green-100 text-green-800 dark:bg-green-200"
+                      }`}
+                  >
+                    {isViewOnly(file) ? "View Only" : "Full Access"}
+                  </span>
+                </div>
+
+                <div className="text-xs text-gray-500 space-y-1">
+                  <p>{file.size}</p>
+                  <p>Modified {file.modified}</p>
+                </div>
+
+                {/* Quick Actions on Hover */}
+                <div className="absolute bottom-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onShare(file);
+                    }}
+                    className="p-1 hover:bg-gray-100 rounded dark:text-black"
+                    title="Share"
+                  >
+                    <Share className="h-3 w-3" />
+                  </button>
+
+                  {!isViewOnly(file) && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDownload(file);
+                      }}
+                      className="p-1 hover:bg-gray-100 rounded dark:text-black"
+                      title="Download"
+                    >
+                      <Download className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         ))}
+
       </div>
 
       {/* Context Menu */}
