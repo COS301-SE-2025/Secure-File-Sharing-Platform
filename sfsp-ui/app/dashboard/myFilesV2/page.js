@@ -113,7 +113,7 @@ export default function MyFiles() {
         tags = file.tags.replace(/[{}]/g, "").split(",");
       }
     }
-    
+
     return tags.includes("view-only") || file.viewOnly;
   };
 
@@ -126,7 +126,7 @@ export default function MyFiles() {
         tags = file.tags.replace(/[{}]/g, "").split(",");
       }
     }
-    
+
     return !tags.includes("received");
   };
 
@@ -169,7 +169,7 @@ export default function MyFiles() {
         .map((f) => {
           const tags = f.tags ? f.tags.replace(/[{}]/g, "").split(",") : [];
           const isViewOnlyFile = tags.includes("view-only");
-          
+
           return {
             id: f.fileId || "",
             name: f.fileName || "Unnamed file",
@@ -187,7 +187,7 @@ export default function MyFiles() {
             allow_view_sharing: f.allow_view_sharing || false,
           };
         });
-      
+
       console.log("Formatted (filtered) files:", formatted);
       setFiles(formatted);
     } catch (err) {
@@ -205,7 +205,7 @@ export default function MyFiles() {
       alert("This file is view-only and cannot be downloaded.");
       return;
     }
-    
+
     const { encryptionKey, userId } = useEncryptionStore.getState();
     if (!encryptionKey) {
       alert("Missing encryption key");
@@ -362,7 +362,7 @@ export default function MyFiles() {
 
     const result = await handleLoadFile(file);
     if (!result) return;
-    
+
     let contentUrl = null;
     let textSnippet = null;
 
@@ -549,27 +549,49 @@ export default function MyFiles() {
   const renderBreadcrumbs = () => {
     const segments = currentPath ? currentPath.split("/") : [];
     const crumbs = [
-      { name: "Root", path: "" },
+      { name: "All files", path: "" },
       ...segments.map((seg, i) => ({
         name: seg,
         path: segments.slice(0, i + 1).join("/"),
       })),
     ];
 
+    const currentDirName = segments[segments.length - 1] || "All files";
+
     return (
-      <nav className="mb-4 text-sm text-gray-700 dark:text-gray-200">
-        {crumbs.map((crumb, i) => (
-          <span key={crumb.path}>
-            <button
-              onClick={() => setCurrentPath(crumb.path)}
-              className="text-blue-600 hover:underline"
+      <div className="mb-6">
+        {/* Breadcrumbs */}
+        <nav className="mb-2 text-xs text-gray-500 dark:text-gray-400">
+          {crumbs.map((crumb, i) => (
+            <span key={crumb.path}>
+              <button
+                onClick={() => setCurrentPath(crumb.path)}
+                className="hover:underline"
+              >
+                {crumb.name || "All files"}
+              </button>
+              {i < crumbs.length - 1 && <span className="mx-1">/</span>}
+            </span>
+          ))}
+        </nav>
+
+        {/* Curr Folder */}
+        <div className="flex items-center space-x-2">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            {currentDirName}
+          </h1>
+          <button className="p-1">
+            <svg
+              className="w-5 h-5 text-gray-500 dark:text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              viewBox="0 0 24 24"
             >
-              {crumb.name || "Root"}
-            </button>
-            {i < crumbs.length - 1 && <span className="mx-1">/</span>}
-          </span>
-        ))}
-      </nav>
+            </svg>
+          </button>
+        </div>
+      </div>
     );
   };
 
@@ -636,7 +658,7 @@ export default function MyFiles() {
               className="self-start text-sm text-blue-600 hover:underline"
             >
               ← Go Back to &quot;
-              {currentPath.split("/").slice(0, -1).join("/") || "root"}&quot;
+              {currentPath.split("/").slice(0, -1).join("/") || "All files"}&quot;
             </button>
           )}
         </div>
