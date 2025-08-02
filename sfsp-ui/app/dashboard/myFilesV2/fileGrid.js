@@ -212,7 +212,11 @@ export function FileGrid({
             onDragStart={(e) => handleDragStart(e, file)}
             onDragOver={(e) => handleDragOver(e, file)}
             onDrop={(e) => handleDrop(e, file)}
-            onClick={() => onClick && onClick(file)}
+            onClick={() => {
+              if (file.type !== "folder") {
+                onClick?.(file);
+              }
+            }}
             onDoubleClick={() => {
               if (file.type === "folder") {
                 onEnterFolder?.(file.name);
@@ -343,10 +347,10 @@ export function FileGrid({
               setMenuFile(null);
             }}
             className={`w-full text-left px-4 py-2 flex items-center gap-2 ${menuFile?.type === "folder"
-                ? "hidden"
-                : isViewOnly(menuFile)
-                  ? "opacity-50 cursor-not-allowed"
-                  : "hover:bg-gray-100 dark:hover:bg-blue-200"
+              ? "hidden"
+              : isViewOnly(menuFile)
+                ? "opacity-50 cursor-not-allowed"
+                : "hover:bg-gray-100 dark:hover:bg-blue-200"
               }`}
             disabled={menuFile?.type !== "folder" && isViewOnly(menuFile)}
           >
