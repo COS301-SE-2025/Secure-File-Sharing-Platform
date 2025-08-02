@@ -813,7 +813,7 @@ export default function AuthPage() {
                         className={`w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${
                           fieldErrors.confirmPassword ? 'border-red-500' : ''
                         } ${!allPasswordRequirementsMet ? 'bg-gray-100 cursor-not-allowed opacity-50' : ''}`}
-                        placeholder={!allPasswordRequirementsMet ? 'Complete password requirements first' : ''}
+                        placeholder={!allPasswordRequirementsMet ? 'Enter password' : ''}
                       />
                       <button
                         type="button"
