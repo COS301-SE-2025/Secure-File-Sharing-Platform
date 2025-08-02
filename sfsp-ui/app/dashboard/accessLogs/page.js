@@ -4,13 +4,6 @@ import { useState } from 'react';
 import { Eye, Download, Share2, Edit } from 'lucide-react';
 import { useDashboardSearch } from '@/app/dashboard/components/DashboardSearchContext';
 
-const logs = [
-  { user: 'John Smith', email: 'john@example.com', action: 'viewed', file: 'Project Proposal.docx', date: 'Today at 10:15 AM' },
-  { user: 'Jane Cooper', email: 'jane@example.com', action: 'downloaded', file: 'Q4 Financial Report.pdf', date: 'Today at 9:22 AM' },
-  { user: 'Robert Fox', email: 'robert@example.com', action: 'shared', file: 'Logo Design.png', date: 'Yesterday at 4:30 PM' },
-  { user: 'John Smith', email: 'john@example.com', action: 'modified', file: 'Meeting Notes.txt', date: 'Yesterday at 2:15 PM' },
-];
-
 export default function AccessLogsPage() {
   const {search} = useDashboardSearch();
   const [dateFilter, setDateFilter] = useState('Last 7 days');
