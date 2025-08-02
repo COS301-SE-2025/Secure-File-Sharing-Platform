@@ -361,6 +361,16 @@ export function FileGrid({
 
           <button
             onClick={() => {
+              onClick?.(menuFile); // Or onPreview?.(menuFile) if you have a dedicated preview handler
+              setMenuFile(null);
+            }}
+            className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 dark:hover:bg-blue-200"
+          >
+            <Eye className="h-4 w-4" /> Preview
+          </button>
+
+          <button
+            onClick={() => {
               onViewDetails(menuFile);
               setMenuFile(null);
             }}
