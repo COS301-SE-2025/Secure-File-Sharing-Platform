@@ -561,7 +561,7 @@ export default function MyFiles() {
     return (
       <div className="mb-6">
         {/* Breadcrumbs */}
-        <nav className="mb-2 text-xs text-gray-500 dark:text-gray-400">
+        <nav className="mb-2 text-s text-gray-500 dark:text-gray-400">
           {crumbs.map((crumb, i) => (
             <span key={crumb.path}>
               <button
@@ -648,7 +648,7 @@ export default function MyFiles() {
             </button>
           </div>
         </div>
-        {/* Back Button */}
+        {/* Back Button
         <div className="flex flex-col space-y-2 mb-4">
           {currentPath && (
             <button
@@ -661,7 +661,7 @@ export default function MyFiles() {
               {currentPath.split("/").slice(0, -1).join("/") || "All files"}&quot;
             </button>
           )}
-        </div>
+        </div> */}
 
         {renderBreadcrumbs()}
 
