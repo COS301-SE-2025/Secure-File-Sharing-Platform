@@ -6,6 +6,7 @@ import React, { useState, useRef } from "react";
 import { Upload, X, File } from "lucide-react";
 import { useEncryptionStore } from "@/app/SecureKeyStorage";
 import { getSodium } from "@/app/lib/sodium";
+import Image from 'next/image';
 
 export function UploadDialog({ open, onOpenChange, onUploadSuccess, currentFolderPath }) {
   const [dragActive, setDragActive] = useState(false);
@@ -32,6 +33,14 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess, currentFolde
     const files = Array.from(e.target.files || []);
     setUploadFiles((prev) => [...prev, ...files]);
     e.target.value = null;
+  };
+
+  const handleGoogleDriveUpload = () => {
+
+  };
+
+  const handleDropboxUpload = () => {
+
   };
 
   const removeFile = (index) => {
@@ -152,9 +161,8 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess, currentFolde
         </h2>
 
         <div
-          className={`border-2 border-dashed p-8 text-center rounded-lg cursor-pointer ${
-            dragActive ? "border-blue-500 bg-blue-50" : "border-gray-300"
-          }`}
+          className={`border-2 border-dashed p-8 text-center rounded-lg cursor-pointer ${dragActive ? "border-blue-500 bg-blue-50" : "border-gray-300"
+            }`}
           onDragEnter={handleDrag}
           onDragLeave={handleDrag}
           onDragOver={handleDrag}
@@ -173,6 +181,38 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess, currentFolde
             onChange={handleFileSelect}
             className="hidden"
           />
+
+          <div className="flex justify-center gap-4 mt-4">
+            <button
+              type="button"
+              onClick={handleGoogleDriveUpload}
+              className="flex items-center gap-2 border px-3 py-2 rounded text-sm hover:bg-gray-100"
+            >
+              <Image
+                src="/img/google.png"
+                alt="Google Drive"
+                width={20}
+                height={20}
+                className="h-5 w-5"
+              />
+              Google Drive
+            </button>
+
+            <button
+              type="button"
+              onClick={handleDropboxUpload}
+              className="flex items-center gap-2 border px-3 py-2 rounded text-sm hover:bg-gray-100"
+            >
+              <Image
+                src="/img/dropbox.png"
+                alt="Dropbox"
+                width={20}
+                height={20}
+                className="h-5 w-5"
+              />
+              Dropbox
+            </button>
+          </div>
         </div>
 
         {uploadFiles.length > 0 && (

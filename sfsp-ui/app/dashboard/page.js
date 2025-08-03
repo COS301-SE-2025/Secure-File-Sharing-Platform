@@ -494,7 +494,7 @@ export default function DashboardHomePage() {
             </div>
           </div>
 
-          {/* Activity Logs (Static Data) */}
+        {/* Activity Logs (Static Data) */}
           <div
             className="h-60 w-full lg:col-span-2 p-6 flex flex-col justify-start
              bg-gray-200 dark:bg-gray-800 rounded-lg shadow hover:shadow-lg
@@ -584,3 +584,4 @@ export default function DashboardHomePage() {
     </div>
   )
 };
+

@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { X, Copy, Mail, Link, Plus, UserPlus, Globe, Lock } from "lucide-react";
+import { X, Copy, Mail, Link, Plus, UserPlus, Globe, Lock, Eye } from "lucide-react";
 import {
   SendFile,
   ReceiveFile,
@@ -108,9 +108,9 @@ export function ShareDialog({ open, onOpenChange, file }) {
         console.log("Recipient Id is:", recipientId);
         console.log("FileId", file.id);
 
-        // Send the file
-        // send file returns a receivedFileID
-        const receivedFileID = await SendFile(file, recipientId, file.id);
+        const isViewOnly = recipient.permission === "view";
+
+        const receivedFileID = await SendFile(recipientId, file.id, isViewOnly);
         console.log("Received File ID in shared Dialog:", receivedFileID);
         // Log file access
         await fetch("http://localhost:5000/api/files/addAccesslog", {
@@ -119,8 +119,8 @@ export function ShareDialog({ open, onOpenChange, file }) {
           body: JSON.stringify({
             file_id: file.id,
             user_id: senderId,
-            action: "shared",
-            message: `User ${senderEmail} has shared the file with ${email}`,
+            action: isViewOnly ? "shared_view" : "shared",
+            message: `User ${senderEmail} has shared the file with ${email} (${isViewOnly ? 'view-only' : 'download'})`,
           }),
         });
 
@@ -134,8 +134,9 @@ export function ShareDialog({ open, onOpenChange, file }) {
             toEmail: email,
             file_name: file.name,
             file_id: file.id,
-            receivedFileID : receivedFileID,
-            message: `${senderEmail} wants to share ${file.name} with you`,
+            receivedFileID: receivedFileID,
+            viewOnly: isViewOnly,
+            message: `${senderEmail} wants to share ${file.name} with you (${isViewOnly ? 'view-only' : 'download'})`,
           }),
         });
         showStatusToast(`File: ${file.name} successfully shared to ${email}!`, "success");
@@ -185,9 +186,8 @@ export function ShareDialog({ open, onOpenChange, file }) {
                         onChange={(e) => updatePermission(r.email, e.target.value)}
                         className="text-sm px-2 py-1 border rounded"
                       >
-                        <option value="view">Download</option>
-                        {/* <option value="comment">Comment</option>
-                          <option value="edit">Edit</option> */}
+                        <option value="download">Download</option>
+                        <option value="view">View Only</option>
                       </select>
                       <button
                         onClick={() => removeRecipient(r.email)}

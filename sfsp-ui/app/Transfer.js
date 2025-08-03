@@ -40,7 +40,7 @@ function ed25519PubToCurve(pubEd25519, sodium) {
   return sodium.crypto_sign_ed25519_pk_to_curve25519(pubEd25519);
 }
 
-export async function SendFile(fileMetadata, recipientUserId, fileid) {
+export async function SendFile(recipientUserId, fileid, isViewOnly = false) {
   const sodium = await getSodium();
   const { userId, encryptionKey } = useEncryptionStore.getState();
 
@@ -48,6 +48,7 @@ export async function SendFile(fileMetadata, recipientUserId, fileid) {
   const userKeysRaw = await getUserKeysSecurely(encryptionKey);
   const userKeys = normalizeUserKeys(userKeysRaw, sodium);
 
+  console.log("[UI DEBUG]2️⃣ Download encrypted file as binary")
   // 2️⃣ Download encrypted file as binary
   const response = await fetch("http://localhost:5000/api/files/download", {
     method: "POST",
@@ -71,6 +72,7 @@ export async function SendFile(fileMetadata, recipientUserId, fileid) {
     encryptionKey
   );
 
+  console.log("[UI DEBUG]3️⃣ Get recipient's public keys")
   // 3️⃣ Get recipient's public keys
   const bundleRes = await fetch(
     `http://localhost:5000/api/users/public-keys/${recipientUserId}`
@@ -151,21 +153,33 @@ export async function SendFile(fileMetadata, recipientUserId, fileid) {
       encryptedAesKey: sodium.to_base64(encryptedAesKey),
       signature: sodium.to_base64(signature),
       fileHash: sodium.to_base64(fileHash),
+      viewOnly: isViewOnly,
     })
   );
   formData.append("encryptedFile", new Blob([encryptedFile]));
 
-  const res = await fetch("http://localhost:5000/api/files/send", {
+  const endpoint = isViewOnly
+    ? "http://localhost:5000/api/files/sendByView"
+    : "http://localhost:5000/api/files/send";
+
+  const res = await fetch(endpoint, {
     method: "POST",
     body: formData,
   });
 
   if (!res.ok) throw new Error("Failed to send file");
   const result = await res.json();
+  console.log("[UI DEBUG] Now this is interesting ", response);
   //if (!result.success) throw new Error(result.message || "File upload failed");
   console.log("File sent successfully:", res);
-  console.log("Received File ID:", result.receivedFileID);
-  return result.receivedFileID;
+
+  if (isViewOnly) {
+    console.log("View-only file share ID:", result.shareId);
+    return result.shareId;
+  } else {
+    console.log("Received File ID:", result.receivedFileID);
+    return result.receivedFileID;
+  }
 }
 
 export async function ReceiveFile(fileData) {
@@ -175,7 +189,7 @@ export async function ReceiveFile(fileData) {
   const rawKeys = await getUserKeysSecurely(encryptionKey);
   const userKeys = normalizeUserKeys(rawKeys, sodium);
 
-  const { file_id, file_name, file_type, metadata, sender_id } = fileData;
+  const { file_id, file_name, file_type, metadata, sender_id, viewOnly } = fileData;
   const {
     ikPublicKey,
     ekPublicKey,
@@ -189,21 +203,45 @@ export async function ReceiveFile(fileData) {
   } = JSON.parse(metadata);
 
   console.log("File id:", file_id, "file_name:", file_name, "type:", file_type);
-
+  console.log("User id:", userId);
   const path = `/files/${sender_id}/sent/${file_id}`;
   console.log("Downloading from path:", path);
 
-  // 🚀 Download binary directly
-  const response = await fetch(
-    "http://localhost:5000/api/files/downloadSentFile",
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ filepath: path }),
-    }
-  );
+  let response = {};
+  if (viewOnly) {
+    response = await fetch(
+      "http://localhost:5000/api/files/downloadViewFile",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: userId,
+          fileId: file_id,
+        }),
+      }
+    );
 
-  if (!response.ok) throw new Error("Failed to retrieve encrypted file");
+    if (!response.ok) {
+      if (response.status === 403) {
+        throw new Error("Access has been revoked or expired");
+      }
+      throw new Error("Failed to retrieve view-only file");
+    }
+  } else {
+    // 🚀 Download binary directly
+    response = await fetch(
+      "http://localhost:5000/api/files/downloadSentFile",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filepath: path }),
+      }
+    );
+
+    if (!response.ok) throw new Error("Failed to retrieve encrypted file");
+  }
+
+  console.log("[UI DEBUG] MANAGED TO MAKE REQUEST")
 
   // 🚀 Use arrayBuffer instead of text
   const buffer = await response.arrayBuffer();
@@ -218,6 +256,8 @@ export async function ReceiveFile(fileData) {
     throw new Error("File hash does not match the expected hash");
   }
 
+  console.log("[UI DEBUG] SODIUM SOMEHOW WORKED")
+
   const signatureBytes = sodium.from_base64(signature);
   const ikPublicKeyBytes = sodium.from_base64(ikPublicKey);
   const isValidSignature = sodium.crypto_sign_verify_detached(
@@ -228,11 +268,11 @@ export async function ReceiveFile(fileData) {
 
   if (!isValidSignature) {
     throw new Error("Invalid signature for the received file");
-  } else{
+  } else {
     console.log("Signature is valid for the received file.");
   }
 
-  console.log("Encrypted file bytes length:", encryptedFile.length);
+  console.log("[UI DEBUG] signatures are working")
 
   // 🔑 Derive shared secret using X3DH
   const ikPrivKey = userKeys.identity_private_key;
@@ -301,11 +341,15 @@ export async function ReceiveFile(fileData) {
   );
 
   const formData = new FormData();
+  let fileTags = ["received"]; 
+  if (viewOnly) {
+    fileTags.push("view-only");
+  }
   formData.append("userId", userId);
   formData.append("fileName", file_name);
   formData.append("fileType", file_type);
   formData.append("fileDescription", "");
-  formData.append("fileTags", JSON.stringify(["received"]));
+  formData.append("fileTags", JSON.stringify(fileTags));
   formData.append("path", "");
   formData.append(
     "nonce",
@@ -315,8 +359,11 @@ export async function ReceiveFile(fileData) {
   // ⬇️ Encrypted file as binary Blob
   formData.append("encryptedFile", new Blob([ciphertext]), file_name);
 
+  console.log("About to upload with fileTags:", fileTags);
+  console.log("FormData fileTags:", formData.get("fileTags"));
+
   const res = await fetch("http://localhost:5000/api/files/upload", {
-    method: "POST",
+    method: "POST", 
     body: formData,
   });
 

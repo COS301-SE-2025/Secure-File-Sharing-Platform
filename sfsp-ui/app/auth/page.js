@@ -29,6 +29,14 @@ export default function AuthPage() {
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [showSignupPassword, setShowSignupPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+  const [passwordRequirements, setPasswordRequirements] = useState({
+    hasMinLength: false,
+    hasUppercase: false,
+    hasLowercase: false,
+    hasNumber: false,
+    hasSpecialChar: false,
+  });
 
   const [loginData, setLoginData] = useState({ email: "", password: "" });
   const [signupData, setSignupData] = useState({
@@ -47,6 +55,10 @@ export default function AuthPage() {
         [name]: value,
       }));
       
+      if (name === 'password' && setter === setSignupData) {
+        checkPasswordRequirements(value);
+      }
+      
       if (fieldErrors[name]) {
         setFieldErrors((prev) => ({
           ...prev,
@@ -55,6 +67,18 @@ export default function AuthPage() {
       }
     };
   }
+
+  const checkPasswordRequirements = (password) => {
+    setPasswordRequirements({
+      hasMinLength: password.length >= 8,
+      hasUppercase: /[A-Z]/.test(password),
+      hasLowercase: /[a-z]/.test(password),
+      hasNumber: /\d/.test(password),
+      hasSpecialChar: /[!@#$%^&*]/.test(password),
+    });
+  };
+
+  const allPasswordRequirementsMet = Object.values(passwordRequirements).every(req => req);
 
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
@@ -202,20 +226,15 @@ export default function AuthPage() {
     if (!name) {
       errors.name = "Name is required.";
     }
-    
+
     if (!email) {
       errors.email = "Email is required.";
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       errors.email = "Please enter a valid email address.";
     }
 
-    if (!password) {
-      errors.password = "Password is required.";
-    } else {
-      const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{8,}$/;
-      if (!passwordRegex.test(password)) {
-        errors.password = "Password must be at least 8 characters long and include at least one uppercase letter, one lowercase letter, one number, and one special character (!@#$%^&*).";
-      }
+    if (!allPasswordRequirementsMet) {
+      errors.password = "Please meet all password requirements.";
     }
 
     if (!confirmPassword) {
@@ -486,11 +505,10 @@ export default function AuthPage() {
                 setMessage(null);
                 setFieldErrors({});
               }}
-              className={`cursor-pointer text-center pb-2 font-medium transition-all ${
-                tab === "login"
-                  ? "text-blue-600 font-bold text-lg border-b-2 border-blue-600"
-                  : "text-gray-500 hover:text-blue-600"
-              }`}
+              className={`cursor-pointer text-center pb-2 font-medium transition-all ${tab === "login"
+                ? "text-blue-600 font-bold text-lg border-b-2 border-blue-600"
+                : "text-gray-500 hover:text-blue-600"
+                }`}
             >
               Log In
             </div>
@@ -500,11 +518,10 @@ export default function AuthPage() {
                 setMessage(null);
                 setFieldErrors({});
               }}
-              className={`cursor-pointer text-center pb-2 font-medium transition-all ${
-                tab === "signup"
-                  ? "text-blue-600 font-bold text-lg border-b-2 border-blue-600"
-                  : "text-gray-500 hover:text-blue-600"
-              }`}
+              className={`cursor-pointer text-center pb-2 font-medium transition-all ${tab === "signup"
+                ? "text-blue-600 font-bold text-lg border-b-2 border-blue-600"
+                : "text-gray-500 hover:text-blue-600"
+                }`}
             >
               Sign Up
             </div>
@@ -513,11 +530,10 @@ export default function AuthPage() {
           {/* Messages */}
           {message && (
             <div
-              className={`p-3 rounded-md text-sm mb-4 ${
-                message.includes("successful")
-                  ? "bg-green-100 text-green-700"
-                  : "bg-red-100 text-red-700"
-              }`}
+              className={`p-3 rounded-md text-sm mb-4 ${message.includes("successful")
+                ? "bg-green-100 text-green-700"
+                : "bg-red-100 text-red-700"
+                }`}
             >
               {message}
             </div>
@@ -674,9 +690,8 @@ export default function AuthPage() {
                     value={signupData.name}
                     onChange={handleChange(setSignupData)}
                     required
-                    className={`w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${
-                      fieldErrors.name ? 'border-red-500' : ''
-                    }`}
+                    className={`w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${fieldErrors.name ? 'border-red-500' : ''
+                      }`}
                   />
                   {fieldErrors.name && (
                     <p className="text-red-500 text-sm mt-1">{fieldErrors.name}</p>
@@ -696,9 +711,8 @@ export default function AuthPage() {
                     value={signupData.email}
                     onChange={handleChange(setSignupData)}
                     required
-                    className={`w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${
-                      fieldErrors.email ? 'border-red-500' : ''
-                    }`}
+                    className={`w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${fieldErrors.email ? 'border-red-500' : ''
+                      }`}
                   />
                   {fieldErrors.email && (
                     <p className="text-red-500 text-sm mt-1">{fieldErrors.email}</p>
@@ -718,10 +732,10 @@ export default function AuthPage() {
                       type={showSignupPassword ? 'text' : 'password'}
                       value={signupData.password}
                       onChange={handleChange(setSignupData)}
+                      onFocus={() => setIsPasswordFocused(true)}
                       required
-                      className={`w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${
-                        fieldErrors.password ? 'border-red-500' : ''
-                      }`}
+                      className={`w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${fieldErrors.password ? 'border-red-500' : ''
+                        }`}
                     />
                     <button
                       type="button"
@@ -736,6 +750,46 @@ export default function AuthPage() {
                       )}
                     </button>
                   </div>
+                  
+                  {/* Password Requirements Checklist */}
+                  {isPasswordFocused && signupData.password && (
+                    <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-100 rounded-md border">
+                      <p className="text-sm font-medium text-gray-700 mb-2">Password Requirements:</p>
+                      <div className="space-y-1">
+                        <div className={`flex items-center text-sm ${passwordRequirements.hasMinLength ? 'text-green-600' : 'text-gray-500'}`}>
+                          <div className={`w-4 h-4 rounded-full mr-2 flex items-center justify-center ${passwordRequirements.hasMinLength ? 'bg-green-500' : 'bg-gray-300'}`}>
+                            {passwordRequirements.hasMinLength && <span className="text-white text-xs">✓</span>}
+                          </div>
+                          At least 8 characters
+                        </div>
+                        <div className={`flex items-center text-sm ${passwordRequirements.hasUppercase ? 'text-green-600' : 'text-gray-500'}`}>
+                          <div className={`w-4 h-4 rounded-full mr-2 flex items-center justify-center ${passwordRequirements.hasUppercase ? 'bg-green-500' : 'bg-gray-300'}`}>
+                            {passwordRequirements.hasUppercase && <span className="text-white text-xs">✓</span>}
+                          </div>
+                          At least one uppercase letter
+                        </div>
+                        <div className={`flex items-center text-sm ${passwordRequirements.hasLowercase ? 'text-green-600' : 'text-gray-500'}`}>
+                          <div className={`w-4 h-4 rounded-full mr-2 flex items-center justify-center ${passwordRequirements.hasLowercase ? 'bg-green-500' : 'bg-gray-300'}`}>
+                            {passwordRequirements.hasLowercase && <span className="text-white text-xs">✓</span>}
+                          </div>
+                          At least lowercase letter
+                        </div>
+                        <div className={`flex items-center text-sm ${passwordRequirements.hasNumber ? 'text-green-600' : 'text-gray-500'}`}>
+                          <div className={`w-4 h-4 rounded-full mr-2 flex items-center justify-center ${passwordRequirements.hasNumber ? 'bg-green-500' : 'bg-gray-300'}`}>
+                            {passwordRequirements.hasNumber && <span className="text-white text-xs">✓</span>}
+                          </div>
+                          At least one number
+                        </div>
+                        <div className={`flex items-center text-sm ${passwordRequirements.hasSpecialChar ? 'text-green-600' : 'text-gray-500'}`}>
+                          <div className={`w-4 h-4 rounded-full mr-2 flex items-center justify-center ${passwordRequirements.hasSpecialChar ? 'bg-green-500' : 'bg-gray-300'}`}>
+                            {passwordRequirements.hasSpecialChar && <span className="text-white text-xs">✓</span>}
+                          </div>
+                          At least one special character (!@#$%^&*)
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
                   {fieldErrors.password && (
                     <p className="text-red-500 text-sm mt-1">{fieldErrors.password}</p>
                   )}
@@ -754,15 +808,18 @@ export default function AuthPage() {
                         type={showConfirmPassword ? 'text' : 'password'}
                         value={signupData.confirmPassword}
                         onChange={handleChange(setSignupData)}
+                        disabled={!allPasswordRequirementsMet}
                         required
                         className={`w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${
                           fieldErrors.confirmPassword ? 'border-red-500' : ''
-                        }`}
+                        } ${!allPasswordRequirementsMet ? 'bg-gray-100 cursor-not-allowed opacity-50' : ''}`}
+                        placeholder={!allPasswordRequirementsMet ? 'Enter password' : ''}
                       />
                       <button
                         type="button"
                         onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        className="absolute inset-y-0 right-0 flex items-center pr-3"
+                        disabled={!allPasswordRequirementsMet}
+                        className={`absolute inset-y-0 right-0 flex items-center pr-3 ${!allPasswordRequirementsMet ? 'opacity-50 cursor-not-allowed' : ''}`}
                         aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
                       >
                         {showConfirmPassword ? (

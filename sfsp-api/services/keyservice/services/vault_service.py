@@ -26,6 +26,7 @@ class VaultClient:
         path = f'userkeys/{encrypted_id}'
         try:
             self.client.secrets.kv.v2.create_or_update_secret(
+                mount_point='kv',
                 path=path,
                 secret={
                     'spk_private_key': spk_private_key,
@@ -43,7 +44,10 @@ class VaultClient:
     def read_private_key_bundle(self, encrypted_id):
         path = f'userkeys/{encrypted_id}'
         try:
-            read_response = self.client.secrets.kv.v2.read_secret_version(path=path)
+            read_response = self.client.secrets.kv.v2.read_secret_version(
+                mount_point='kv', 
+                path=path
+            )
             msg = f"ID: {encrypted_id[:8]}... key bundle retrieved successfully"
             logger.info(msg)
             return read_response['data']['data']
@@ -54,7 +58,10 @@ class VaultClient:
     def delete_private_key(self, encrypted_id):
         path = f'userkeys/{encrypted_id}'
         try:
-            self.client.secrets.kv.v2.delete_metadata_and_all_versions(path=path)
+            self.client.secrets.kv.v2.delete_metadata_and_all_versions(
+                mount_point='kv',
+                path=path
+            )
             msg = f"ID: {encrypted_id[:8]}... key bundle deleted successfully"
             logger.info(msg)
             return True

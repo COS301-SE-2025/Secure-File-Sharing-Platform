@@ -81,6 +81,7 @@ export function PreviewDrawer({
                       src={content.url}
                       alt="Preview"
                       className="w-full object-cover"
+                      onContextMenu={file.viewOnly ? (e) => e.preventDefault() : undefined}
                     />
                   </div>
                 ) : null;
@@ -90,6 +91,7 @@ export function PreviewDrawer({
                     controls
                     src={content.url}
                     className="w-full max-h-64 rounded"
+                    onContextMenu={file.viewOnly ? (e) => e.preventDefault() : undefined}
                   />
                 ) : null;
               case "audio":
