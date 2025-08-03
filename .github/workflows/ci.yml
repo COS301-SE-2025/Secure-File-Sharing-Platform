@@ -69,6 +69,7 @@ jobs:
           directory: ./sfsp-api/coverage/
           flags: unittests,api
           name: api-coverage
+          override_branch: main
 
   sfsp-goservice:
     name: SFSP Go Service
@@ -107,6 +108,7 @@ jobs:
           file: ./sfsp-api/services/fileService/coverage.txt
           flags: unittests,goservice
           name: goservice-coverage
+          override_branch: main
 
   sfsp-keyservice:
     name: SFSP Key Service
@@ -149,4 +151,5 @@ jobs:
           file: ./sfsp-api/services/keyservice/coverage.xml
           flags: unittests,keyservice
           name: keyservice-coverage
+          override_branch: main
 
