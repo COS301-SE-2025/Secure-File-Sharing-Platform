@@ -5,6 +5,8 @@ import { FileText, Users, Clock, TrashIcon, UploadCloud, ListCheckIcon, AlertCir
 import { UploadDialog } from "./myFilesV2/uploadDialog";
 import { useDashboardSearch } from "./components/DashboardSearchContext";
 import { FullViewModal } from "./myFilesV2/fullViewModal";
+import { PreviewDrawer } from "./myFilesV2/previewDrawer";
+
 import axios from 'axios';
 import { getSodium } from "@/app/lib/sodium";
 import { useEncryptionStore } from "@/app/SecureKeyStorage";
@@ -44,8 +46,8 @@ function parseTagString(tagString = '') {
 export default function DashboardHomePage() {
   const [files, setFiles] = useState([]);
   const [fileCount, setFileCount] = useState(0);
-  const [trashedFiles, setTrashedFiles] = useState([]);
-  const [recievedFiles, setRecievedFiles] = useState([]);
+  const [trashedFilesCount, setTrashedFilesCount] = useState([]);
+  const [receivedFilesCount, setReceivedFilesCount] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const userId = useEncryptionStore.getState().userId;
@@ -54,13 +56,9 @@ export default function DashboardHomePage() {
   const [recentFiles, setRecentFiles] = useState([]);
   const [viewerFile, setViewerFile] = useState(null);
   const [viewerContent, setViewerContent] = useState(null);
+  const [previewFile, setPreviewFile] = useState(null);
+  const [previewContent, setPreviewContent] = useState(null);
 
-  const filteredFiles = files.filter(
-    (file) =>
-      file &&
-      typeof file.name === "string" &&
-      file.name.toLowerCase().includes((search || "").toLowerCase())
-  );
 
   const formatTimestamp = (timestamp) => {
     const now = new Date();
@@ -143,10 +141,10 @@ export default function DashboardHomePage() {
       const res = await fetch("http://localhost:5000/api/files/download", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId,
-          fileName: file.fileName,
-        }),
+       body: JSON.stringify({
+  userId,
+  fileId: file.fileId || file.id, // ✅ Ensure correct field
+}),
       });
 
       if (!res.ok) {
@@ -200,6 +198,34 @@ export default function DashboardHomePage() {
     setViewerContent({ url: contentUrl, text: textFull });
     setViewerFile(file);
   };
+  const handleOpenPreview = async (rawFile) => {
+    const file = {
+      ...rawFile,
+      type: getFileType(rawFile.fileType || rawFile.type || ""),
+      name: rawFile.fileName || rawFile.name,
+      size: formatFileSize(rawFile.fileSize || rawFile.size || 0),
+    };
+
+    const result = await handleLoadFile(file);
+    if (!result) return;
+
+    let contentUrl = null;
+    let textFull = null;
+
+    if (file.type === "image" || file.type === "video" || file.type === "audio") {
+      contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
+    } else if (file.type === "pdf") {
+      contentUrl = URL.createObjectURL(new Blob([result.decrypted], { type: "application/pdf" }));
+    } else if (file.type === "txt" || file.type === "json" || file.type === "csv") {
+      textFull = new TextDecoder().decode(result.decrypted);
+    }
+
+    setPreviewContent({ url: contentUrl, text: textFull });
+    setPreviewFile(file);
+  };
+
+
+  
 
   const fetchNotifications = async () => {
     const token = localStorage.getItem("token");
@@ -296,30 +322,16 @@ export default function DashboardHomePage() {
         return tags.includes('deleted');
       });
 
-      const recievedFiles = data.filter(file => {
-        const tags = parseTagString(file.tags);
-        return tags.includes('recieved_at');
-      });
+	const receivedFiles = data.filter(file => {
+		const tags = parseTagString(file.tags);
+	return tags.includes("received");
+		});
 
-      // Format deleted files for UI
-      const formattedDeletedFiles = deletedFiles.map(file => {
-        const tags = parseTagString(file.tags);
-        const deletedTag = tags.find(tag => tag.startsWith('deleted_time:'));
-        const deletedAt = deletedTag
-          ? new Date(deletedTag.split(':').slice(1).join(':')).toLocaleString()
-          : 'Unknown';
-
-        return {
-          id: file.fileId,
-          name: file.fileName,
-          size: `${(file.fileSize / 1024 / 1024).toFixed(2)} MB`,
-          deletedAt,
-        };
-      });
-
+      
+ 
       setFileCount(activeFiles.length);
-      setTrashedFiles(formattedDeletedFiles);
-      setRecievedFiles(recievedFiles);
+      setTrashedFilesCount(deletedFiles.length);
+      setReceivedFilesCount(receivedFiles.length);
     } catch (error) {
       console.error("Failed to fetch files metadata:", error);
     } finally {
@@ -344,12 +356,12 @@ export default function DashboardHomePage() {
     {
       icon: <Users className="text-green-600 dark:text-green-400" size={28} />,
       label: 'Shared with Me',
-      value: recievedFiles.length,
+      value: receivedFilesCount,
     },
     {
       icon: <TrashIcon className="text-purple-600 dark:text-purple-400" size={28} />,
       label: 'Trash',
-      value: trashedFiles.length,
+      value: trashedFilesCount,
     },
     {
       icon: <UploadCloud className="text-blue-600 dark:text-blue-400" size={28} />,
@@ -482,82 +494,93 @@ export default function DashboardHomePage() {
             </div>
           </div>
 
-         {/* Activity Logs (Static Data) */}
-<div
-  className="h-60 w-full lg:col-span-2 p-6 flex flex-col justify-start
+          {/* Activity Logs (Static Data) */}
+          <div
+            className="h-60 w-full lg:col-span-2 p-6 flex flex-col justify-start
              bg-gray-200 dark:bg-gray-800 rounded-lg shadow hover:shadow-lg
              transition-shadow overflow-hidden"
->
-  <div className="flex items-center gap-3 mb-3">
-    <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-full">
-      <AlertCircleIcon className="text-green-600 dark:text-green-400" size={28} />
-    </div>
-    <p className="text-xl font-bold text-gray-500 dark:text-gray-400">Activity Logs</p>
-  </div>
-
-  <div className="overflow-y-auto space-y-2 pr-2 text-sm text-gray-700 dark:text-gray-200">
-    <div className="flex items-start gap-2">
-      <Clock className="w-4 h-4 mt-1 text-gray-600 dark:text-gray-300" />
-      <div>
-        <p className="text-sm leading-tight">Uploaded "report.pdf"</p>
-        <p className="text-xs text-gray-500">Today, 11:30 AM</p>
-      </div>
-    </div>
-    <div className="flex items-start gap-2">
-      <Clock className="w-4 h-4 mt-1 text-gray-600 dark:text-gray-300" />
-      <div>
-        <p className="text-sm leading-tight">Deleted "old_notes.txt"</p>
-        <p className="text-xs text-gray-500">Yesterday, 4:10 PM</p>
-      </div>
-    </div>
-  </div>
-</div>
-      </div>
-    </div>
-
-    {/* Recent Files */}
-    <div className="mt-12 max-w-5xl mx-auto">
-      <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-4">
-        Recent Files
-      </h2>
-
-      <ul className="bg-white dark:bg-gray-800 rounded-lg shadow divide-y divide-gray-200 dark:divide-gray-700">
-        {recentFiles.length === 0 ? (
-          <li className="p-4 text-gray-500">No recent files</li>
-        ) : (
-          recentFiles.map((file, index) => (
-            <li key={index} className="p-4 flex justify-between items-center">
-              <div>
-                <p className="text-lg font-medium text-gray-700 dark:text-gray-200">
-                  {file.fileName || file.name || "Unnamed File"}
-                </p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {formatTimestamp(file.date || file.createdAt)}
-                </p>
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-full">
+                <AlertCircleIcon className="text-green-600 dark:text-green-400" size={28} />
               </div>
-              
-              <button
-                onClick={() => {
-                  console.log("Open clicked, file object:", file);
-                  console.log("Open clicked, file.name:", file.name);
-                  handleOpenFullView(file);
-                }}
+              <p className="text-xl font-bold text-gray-500 dark:text-gray-400">Activity Logs</p>
+            </div>
+
+            <div className="overflow-y-auto space-y-2 pr-2 text-sm text-gray-700 dark:text-gray-200">
+              <div className="flex items-start gap-2">
+                <Clock className="w-4 h-4 mt-1 text-gray-600 dark:text-gray-300" />
+                <div>
+                  <p className="text-sm leading-tight">Uploaded "report.pdf"</p>
+                  <p className="text-xs text-gray-500">Today, 11:30 AM</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <Clock className="w-4 h-4 mt-1 text-gray-600 dark:text-gray-300" />
+                <div>
+                  <p className="text-sm leading-tight">Deleted "old_notes.txt"</p>
+                  <p className="text-xs text-gray-500">Yesterday, 4:10 PM</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Recent Files */}
+      <div className="mt-12 max-w-5xl mx-auto">
+        <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-4">
+          Recent Files
+        </h2>
+
+        <ul className="bg-white dark:bg-gray-800 rounded-lg shadow divide-y divide-gray-200 dark:divide-gray-700">
+          {recentFiles.length === 0 ? (
+            <li className="p-4 text-gray-500">No recent files</li>
+          ) : (
+            recentFiles.map((file, index) => (
+              <li key={index} className="p-4 flex justify-between items-center">
+                <div>
+                  <p className="text-lg font-medium text-gray-700 dark:text-gray-200">
+                    {file.fileName || file.name || "Unnamed File"}
+                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {formatTimestamp(file.date || file.createdAt)}
+                  </p>
+                </div>
+               <button
+                onClick={() => handleOpenPreview(file)}
                 className="text-blue-500 hover:underline"
               >
                 Open
               </button>
-            </li>
-          ))
-        )}
-      </ul>
-    </div>
 
-    {viewerFile && (
-      <FullViewModal
-        file={viewerFile}
-        content={viewerContent}
-        onClose={() => setViewerFile(null)}
+              </li>
+            ))
+          )}
+        </ul>
+      </div>
+      {viewerFile && (
+        <FullViewModal
+          file={viewerFile}
+          content={viewerContent}
+          onClose={() => setViewerFile(null)}
+        />
+      )}
+      {previewFile && (
+      <PreviewDrawer
+        file={previewFile}
+        content={previewContent}
+        onClose={() => setPreviewFile(null)}
+        onOpenFullView={(file) => {
+          setPreviewFile(null);
+          handleOpenFullView(file);
+        }}
+        onSaveDescription={async (id, description) => {
+          console.log("Save description for:", id, description);
+        }}
       />
-    )}
-  </div>
-)};
+)}
+
+    </div>
+  )
+};
