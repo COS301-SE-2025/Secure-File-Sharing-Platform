@@ -322,10 +322,10 @@ export default function DashboardHomePage() {
         return tags.includes('deleted');
       });
 
-	const receivedFiles = data.filter(file => {
-		const tags = parseTagString(file.tags);
-	return tags.includes("received");
-		});
+      const receivedFiles = data.filter(file => {
+        const tags = parseTagString(file.tags);
+      return tags.includes("received");
+        });
 
       
  
