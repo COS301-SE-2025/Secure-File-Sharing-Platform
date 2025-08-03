@@ -1,5 +1,7 @@
 codecov:
   require_ci_to_pass: yes
+  token: 168ccafe-9b73-43dd-a32b-a41781410e82
+  branch: main       # Explicitly set the default branch
 
 coverage:
   precision: 2

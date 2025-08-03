@@ -7,7 +7,7 @@
 <!-- [![Issue Tracking](https://img.shields.io/badge/Issue_Tracking-GitHub_Issues-yellow)](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/issues) -->
 [![GitHub issues](https://img.shields.io/github/issues/COS301-SE-2025/Secure-File-Sharing-Platform)](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/issues)
 [![Build Status](https://img.shields.io/badge/Build_Status-GitHub_Actions-brightgreen)](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/actions)
-[![codecov](https://codecov.io/gh/COS301-SE-2025/Secure-File-Sharing-Platform/branch/main/graph/badge.svg)](https://codecov.io/gh/COS301-SE-2025/Secure-File-Sharing-Platform)
+[![codecov](https://codecov.io/gh/COS301-SE-2025/Secure-File-Sharing-Platform/graph/badge.svg?token=JTZ22LJTCE)](https://codecov.io/gh/COS301-SE-2025/Secure-File-Sharing-Platform)
 ![Uptime status](https://img.shields.io/uptimerobot/status/m797015486-75c486778a8f87b141372bd7)
 
 [![Next.js](https://img.shields.io/badge/Frontend-Next.js-blue)]()
@@ -241,7 +241,7 @@ professional data.
 | DEMO             |PRESENTATION   |VIDEOS                         |
 |-|-|-|
 | Demo 1    |[Slides 1](https://docs.google.com/presentation/d/1NYigzK_orVRTq1-xzFEi3_q4I8YFSjS2/edit?usp=sharing&ouid=115159733836506972614&rtpof=true&sd=true) |[Video 1](https://drive.google.com/file/d/1VWgY5ylgEroEz-dKcx-yiCANAm-9K6k6/view?usp=sharing)    | 
-| Demo 2    | Not Available     |Not Available           | 
+| Demo 2    | [Slide 2](https://www.canva.com/design/DAGrfR50GOI/xcjBb7SHhIwkfGc55R_gOg/edit?utm_content=DAGrfR50GOI&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton) |[Video 2]( https://drive.google.com/file/d/1ySAkgAScgtPaQGUHeoMJCuogmPiSj4Eb/view?usp=sharing)  | 
 | Demo 3   |  Not Available    |Not Available           | 
 | Demo 4   |  Not Available    |Not Available           | 
 
