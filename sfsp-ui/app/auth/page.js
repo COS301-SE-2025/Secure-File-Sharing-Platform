@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
@@ -8,6 +8,7 @@ import Loader from '@/app/dashboard/components/Loader';
 import { getSodium } from "@/app/lib/sodium";
 import { EyeClosed, Eye } from 'lucide-react';
 import { v4 as uuidv4 } from "uuid";
+import GoogleOAuth from "@/lib/googleOAuth";
 //import * as sodium from 'libsodium-wrappers-sumo';
 import { generateLinearEasing } from "framer-motion";
 import {
@@ -46,6 +47,64 @@ export default function AuthPage() {
     confirmPassword: "",
     agreeToTerms: false,
   });
+
+  // Handle Google OAuth errors from URL parameters
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const error = urlParams.get('error');
+    
+    if (error) {
+      switch (error) {
+        case 'oauth_error':
+          setMessage('Google authentication was cancelled or failed. Please try again.');
+          break;
+        case 'missing_code':
+          setMessage('Google authentication failed. Missing authorization code.');
+          break;
+        case 'authentication_failed':
+          setMessage('Failed to authenticate with our servers. Please try again.');
+          break;
+        case 'oauth_init_failed':
+          setMessage('Failed to initiate Google authentication. Please check your internet connection.');
+          break;
+        default:
+          setMessage('An error occurred during Google authentication. Please try again.');
+      }
+      
+      // Clean up URL parameters
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+    }
+
+    // Check for Google auth errors from popup
+    const checkGoogleAuthError = () => {
+      const authError = localStorage.getItem('googleAuthError');
+      if (authError) {
+        localStorage.removeItem('googleAuthError');
+        switch (authError) {
+          case 'oauth_error':
+            setMessage('Google authentication was cancelled or failed. Please try again.');
+            break;
+          case 'missing_code':
+            setMessage('Google authentication failed. Missing authorization code.');
+            break;
+          case 'authentication_failed':
+            setMessage('Failed to authenticate with our servers. Please try again.');
+            break;
+          default:
+            setMessage('An error occurred during Google authentication. Please try again.');
+        }
+        setIsLoading(false);
+      }
+    };
+
+    // Check for errors on focus (when popup closes)
+    window.addEventListener('focus', checkGoogleAuthError);
+
+    return () => {
+      window.removeEventListener('focus', checkGoogleAuthError);
+    };
+  }, []);
 
   function handleChange(setter) {
     return (event) => {
@@ -368,6 +427,36 @@ export default function AuthPage() {
     }
   };
 
+  const handleGoogleAuth = async () => {
+    try {
+      setIsLoading(true);
+      setLoaderMessage("Redirecting to Google...");
+      
+      const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+      const redirectUri = 'http://localhost:3000/auth/google/callback';
+      const scope = 'openid email profile';
+      
+      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+        `client_id=${encodeURIComponent(clientId)}&` +
+        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+        `response_type=code&` +
+        `scope=${encodeURIComponent(scope)}&` +
+        `access_type=offline&` +
+        `prompt=consent`;
+
+      // Store current state to resume after redirect
+      localStorage.setItem('googleAuthInProgress', 'true');
+      
+      // Redirect to Google OAuth (not popup)
+      window.location.href = authUrl;
+
+    } catch (error) {
+      console.error('Google OAuth error:', error);
+      setMessage('Failed to initiate Google authentication. Please try again.');
+      setIsLoading(false);
+    }
+  };
+
   function setError(msg) {
     setMessage(msg);
     setIsLoading(false);
@@ -628,11 +717,9 @@ export default function AuthPage() {
                 {/* Google login button */}
                 <button
                   type="button"
-                  onClick={() => {
-                    //Replace this with Google OAuth logic
-                    window.location.href = "/api/auth/google";
-                  }}
-                  className="w-full flex items-center justify-center space-x-2 border dark:border-gray-400 border-gray-300 rounded-md py-2 hover:bg-gray-100 transition"
+                  onClick={handleGoogleAuth}
+                  disabled={isLoading}
+                  className="w-full flex items-center justify-center space-x-2 border dark:border-gray-400 border-gray-300 rounded-md py-2 hover:bg-gray-100 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <svg
                     className="w-5 h-5"
@@ -880,11 +967,9 @@ export default function AuthPage() {
                 {/* Google Sign Up button */}
                 <button
                   type="button"
-                  onClick={() => {
-                    // Replace with your actual Google signup route
-                    window.location.href = "/api/auth/google";
-                  }}
-                  className="w-full flex items-center justify-center space-x-2 border dark:border-gray-400 border-gray-300 rounded-md py-2 hover:bg-gray-100 transition"
+                  onClick={handleGoogleAuth}
+                  disabled={isLoading}
+                  className="w-full flex items-center justify-center space-x-2 border dark:border-gray-400 border-gray-300 rounded-md py-2 hover:bg-gray-100 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <svg
                     className="w-5 h-5"

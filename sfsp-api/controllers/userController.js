@@ -556,7 +556,104 @@ class UserController {
       console.error('Error in updateAvatarUrl:', error.message);
       res.status(500).json({ success: false, message: error.message });
     }
-  };
+  }
+
+  async googleAuth(req, res) {
+    try {
+      const { email, name, picture, google_id } = req.body;
+
+      if (!email || !google_id) {
+        return res.status(400).json({
+          success: false,
+          message: "Email and Google ID are required.",
+        });
+      }
+
+      // Check if user exists with this email
+      const { data: existingUser, error: checkError } = await supabase
+        .from("users")
+        .select("*")
+        .eq("email", email)
+        .single();
+
+      let user;
+      let isNewUser = false;
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        throw new Error("Database error: " + checkError.message);
+      }
+
+      if (existingUser) {
+        // User exists, update Google ID if not set
+        if (!existingUser.google_id) {
+          const { data: updatedUser, error: updateError } = await supabase
+            .from("users")
+            .update({ 
+              google_id: google_id,
+              avatar_url: picture || existingUser.avatar_url
+            })
+            .eq("id", existingUser.id)
+            .select()
+            .single();
+
+          if (updateError) {
+            throw new Error("Failed to update user with Google ID: " + updateError.message);
+          }
+          user = updatedUser;
+        } else {
+          user = existingUser;
+        }
+      } else {
+        // Create new user
+        isNewUser = true;
+        const { data: newUser, error: createError } = await supabase
+          .from("users")
+          .insert({
+            username: name || email.split('@')[0],
+            email: email,
+            password_hash: null, // No password for Google OAuth users
+            google_id: google_id,
+            avatar_url: picture,
+            is_verified: true, // Google accounts are pre-verified
+          })
+          .select()
+          .single();
+
+        if (createError) {
+          throw new Error("Failed to create user: " + createError.message);
+        }
+        user = newUser;
+
+        // Create default vault for new user
+        try {
+          await VaultController.createVault(user.id, "My Secure Vault", "Default vault created with your account.");
+        } catch (vaultError) {
+          console.warn("Failed to create default vault for Google user:", vaultError.message);
+        }
+      }
+
+      // Generate JWT token
+      const token = await userService.generateToken(user.id);
+
+      res.status(200).json({
+        success: true,
+        message: isNewUser ? "Account created successfully" : "Login successful",
+        token,
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          avatar_url: user.avatar_url,
+        },
+      });
+    } catch (error) {
+      console.error("Google OAuth error:", error.message);
+      res.status(500).json({
+        success: false,
+        message: error.message || "Google authentication failed",
+      });
+    }
+  }
 }
 
 module.exports = new UserController();
