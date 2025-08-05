@@ -223,44 +223,51 @@ exports.deleteFile = async (req, res) => {
   }
 };
 
+
 exports.sendFile = [
   upload.single("encryptedFile"),
   async (req, res) => {
     try {
-      const { fileid, userId, recipientUserId, metadata } = req.body;
+      const { fileid, fileId, userId, recipientUserId, metadata } = req.body;
       const encryptedFile = req.file?.buffer;
 
-      if (!fileid || !userId || !recipientUserId || !encryptedFile) {
+      const resolvedFileId = fileid || fileId;
+      if (!resolvedFileId || !userId || !recipientUserId || !encryptedFile) {
         return res
           .status(400)
-          .send("Missing file id, user ids or encrypted file");
+          .send("Missing fileId, userId, recipientUserId, or file data");
       }
 
+      // Ensure metadata is stringified JSON
+      const metadataJSON =
+        typeof metadata === "string" ? metadata : JSON.stringify(metadata || {});
+
+      // Forward to Go service as multipart
       const formData = new FormData();
-      formData.append("fileid", fileid);
+      formData.append("fileId", resolvedFileId);
       formData.append("userId", userId);
       formData.append("recipientUserId", recipientUserId);
-      formData.append("metadata", metadata); // JSON string
+      formData.append("metadata", metadataJSON);
+      formData.append("chunkIndex", "0");      // emulate single chunk
+      formData.append("totalChunks", "1");     // emulate single chunk
       formData.append("encryptedFile", encryptedFile, {
-        filename: "encrypted.bin",
+        filename: `${resolvedFileId}_chunk_0.bin`,
         contentType: "application/octet-stream",
       });
 
       const goResponse = await axios.post(
         `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/sendFile`,
         formData,
-        { headers: formData.getHeaders() }
+        { headers: formData.getHeaders(), maxBodyLength: Infinity }
       );
 
-      // ✅ Forward the receivedFileID from Go response
-      const { receivedFileID, message } = goResponse.data;
-
-      res.status(200).json({
+      const { receivedFileID, message } = goResponse.data || {};
+      res.status(goResponse.status).json({
         message: message || "File sent successfully",
-        receivedFileID, // ✅ Frontend can now reference the correct file
+        receivedFileID,
       });
     } catch (err) {
-      console.error("Error sending file:", err.message);
+      console.error("❌ Error sending file:", err.message);
       res.status(500).send("Failed to send file");
     }
   },
@@ -396,8 +403,9 @@ exports.removeFileTags = async (req, res) => {
   }
 };
 
+
 exports.downloadSentFile = async (req, res) => {
-  const filepath = req.body.filepath;
+  const { filepath } = req.body;
 
   if (!filepath) {
     return res.status(400).send("file path is required");
@@ -406,28 +414,21 @@ exports.downloadSentFile = async (req, res) => {
   try {
     const response = await axios({
       method: "post",
-      url: `${
-        process.env.FILE_SERVICE_URL || "http://localhost:8081"
-      }/downloadSentFile`,
-      data: { filepath },
-      responseType: "arraybuffer", // ⭐ CRITICAL to handle binary
+      url: `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/downloadSentFile`,
+      data: { filePath: filepath },
+      responseType: "stream", // ⭐ Key: stream instead of arraybuffer
       headers: { "Content-Type": "application/json" },
     });
 
-    console.log(
-      "Downloaded sent file from Go:",
-      filepath,
-      "length:",
-      response.data.length
-    );
+    res.setHeader("Content-Type", "application/octet-stream");
 
-    // pass binary directly to client
-    res.set({
-      "Content-Type": "application/octet-stream",
-      "Content-Length": response.data.length,
+    // Pipe Go backend stream directly to frontend
+    response.data.pipe(res);
+
+    // Optional: Log completion
+    response.data.on("end", () => {
+      console.log(`✅ Finished streaming sent file: ${filepath}`);
     });
-
-    res.send(Buffer.from(response.data));
   } catch (err) {
     console.error("Error retrieving the sent file:", err.message);
     res.status(500).send("Error retrieving the sent file");

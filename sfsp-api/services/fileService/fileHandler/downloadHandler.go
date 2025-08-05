@@ -155,7 +155,7 @@ func DownloadHandler(w http.ResponseWriter, r *http.Request) {
     if computedHash != fileHash {
         log.Printf("❌ Hash mismatch: expected %s, got %s", fileHash, computedHash)
     } else {
-        log.Println("✅ File integrity check passed, hash:", computedHash)
+        fmt.Println("✅ File integrity check passed, hash:", computedHash)
     }
 }
 
@@ -164,34 +164,39 @@ type DownloadSentRequest struct {
 	FilePath string `json:"filePath"`
 }
 
+
 func DownloadSentFile(w http.ResponseWriter, r *http.Request) {
-	var req DownloadSentRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
-		return
-	}
+    var req DownloadSentRequest
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+        return
+    }
 
-	if req.FilePath == "" {
-		http.Error(w, "Missing file path", http.StatusBadRequest)
-		return
-	}
+    if req.FilePath == "" {
+        http.Error(w, "Missing FilePath", http.StatusBadRequest)
+        return
+    }
 
-	log.Println("Downloading file from path:", req.FilePath)
+    log.Println("Downloading the sent file request:", req.FilePath)
 
-	// Use streaming download
-	stream, err := owncloud.DownloadSentFileStream(req.FilePath)
-	if err != nil {
-		log.Println("Download Failed:", err)
-		http.Error(w, fmt.Sprintf("Download failed: %v", err), http.StatusInternalServerError)
-		return
-	}
-	defer stream.Close()
+    // 3️⃣ Stream file from OwnCloud
+    stream, err := owncloud.DownloadSentFileStream(req.FilePath)
+    if err != nil {
+        log.Println("❌ OwnCloud download failed:", err)
+        http.Error(w, "Download failed", http.StatusInternalServerError)
+        return
+    }
+    defer stream.Close()
 
-	w.Header().Set("Content-Type", "application/octet-stream")
+    hasher := sha256.New()
+    tee := io.TeeReader(stream, hasher)
 
-	// Stream file directly to client
-	if _, err := io.Copy(w, stream); err != nil {
-		log.Println("Failed to stream file to response:", err)
-		http.Error(w, "Failed to stream file", http.StatusInternalServerError)
-	}
+    w.Header().Set("Content-Type", "application/octet-stream")
+    w.WriteHeader(http.StatusOK)
+
+    if _, err := io.Copy(w, tee); err != nil {
+	    log.Println("❌ Failed to stream file:", err)
+        return
+    }
 }
+

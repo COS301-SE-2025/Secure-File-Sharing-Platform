@@ -110,8 +110,8 @@ var DeleteFileTemp = func(filePath string) error {
 }
 
 var DownloadSentFileStream = func(filePath string) (io.ReadCloser, error) {
-	log.Println("Downloading (stream) from path:", filePath)
-
+	log.Println("=========================== inside here")
+	log.Println("Path is: ", filePath)
 	stream, err := client.ReadStream(filePath)
 	if err != nil {
 		log.Println("Failed to stream file:", err)
