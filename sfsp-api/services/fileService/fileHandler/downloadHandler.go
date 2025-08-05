@@ -6,14 +6,14 @@ import (
 	"fmt"
 	"net/http"
 	"log"
-	"os"
+	//"os"
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
-	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto"
+	//"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto"
 	"database/sql"
 	"io"
 	"crypto/sha256"
 	"encoding/hex"
-	"bytes"
+	//"bytes"
 	//_ "github.com/lib/pq" // PostgreSQL driver
 )
 
@@ -96,86 +96,69 @@ type DownloadDeps struct {
 // 	}
 // }
 
+
+
+
 func DownloadHandler(w http.ResponseWriter, r *http.Request) {
-	var req DownloadRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
-		return
-	}
-
-	if req.UserID == "" || req.FileId == "" {
-		http.Error(w, "Missing userId or fileId", http.StatusBadRequest)
-		return
-	}
-	log.Println("Got request:", req.UserID, req.FileId)
-
-	var fileName, nonce, fileHash string
-	err := DB.QueryRow(`
-		SELECT file_name, nonce, file_hash FROM files
-		WHERE owner_id = $1 AND id = $2
-	`, req.UserID, req.FileId).Scan(&fileName, &nonce, &fileHash)
-
-	if err != nil {
-		log.Println("Failed to retrieve file metadata:", err)
-		http.Error(w, "File not found", http.StatusNotFound)
-		return
-	}
-
-	log.Println("Found file:", fileName, "nonce:", nonce)
-
-	// 🔁 Stream encrypted file from ownCloud
-	stream, err := owncloud.DownloadFileStream(req.FileId, req.UserID)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Download failed: %v", err), http.StatusInternalServerError)
-		return
-	}
-	defer stream.Close()
-
-	hasher := sha256.New()
-    buffer := &bytes.Buffer{}
-    tee := io.TeeReader(stream, hasher)
-
-	// Copy encrypted data into buffer while hashing
-    if _, err := io.Copy(buffer, tee); err != nil {
-	    log.Println("Failed to read and hash encrypted stream:", err)
-	    http.Error(w, "File read failed", http.StatusInternalServerError)
-	    return
+    var req DownloadRequest
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+        return
     }
 
-	// Compare hash
-	computedHash := hex.EncodeToString(hasher.Sum(nil))
-	if computedHash != fileHash {
-		log.Printf("Hash mismatch: expected %s, got %s", fileHash, computedHash)
-		http.Error(w, "File integrity check failed", http.StatusConflict)
-		return
-	}
+    if req.UserID == "" || req.FileId == "" {
+        http.Error(w, "Missing userId or fileId", http.StatusBadRequest)
+        return
+    }
+    log.Println("Got download request:", req.UserID, req.FileId)
 
-	log.Println("File integrity check passed, hash:", computedHash)
-	log.Println("File hash matches:", fileHash)
+    var fileName, nonce, fileHash string
+    err := DB.QueryRow(`
+        SELECT file_name, nonce, file_hash FROM files
+        WHERE owner_id = $1 AND id = $2
+    `, req.UserID, req.FileId).Scan(&fileName, &nonce, &fileHash)
 
-	// 🔐 Decrypt while streaming
-	aesKey := os.Getenv("AES_KEY")
-	if len(aesKey) != 32 {
-		http.Error(w, "Invalid AES key", http.StatusInternalServerError)
-		return
-	}
+    if err != nil {
+        log.Println("❌ Failed to retrieve file metadata:", err)
+        http.Error(w, "File not found", http.StatusNotFound)
+        return
+    }
+    log.Println("✅ Found file:", fileName, "nonce:", nonce)
 
-	decryptedReader, err := crypto.DecryptStream(buffer, aesKey)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Decryption setup failed: %v", err), http.StatusInternalServerError)
-		return
-	}
+    // 🔁 Stream file directly from OwnCloud (no decryption for integrity-only mode)
+    stream, err := owncloud.DownloadFileStream(req.FileId)
+    if err != nil {
+        log.Println("❌ OwnCloud download failed:", err)
+        http.Error(w, "Download failed", http.StatusInternalServerError)
+        return
+    }
+    defer stream.Close()
 
-	// 📤 Stream plaintext file to client
-	w.Header().Set("Content-Type", "application/octet-stream")
-	w.Header().Set("X-File-Name", fileName)
-	w.Header().Set("X-Nonce", nonce)
+    // Prepare hash verification
+    hasher := sha256.New()
+    tee := io.TeeReader(stream, hasher)
 
-	if _, err := io.Copy(w, decryptedReader); err != nil {
-		log.Println("Failed to stream decrypted file:", err)
-		http.Error(w, "Streaming failed", http.StatusInternalServerError)
-	}
+    // Set headers to satisfy Node API expectations
+    w.Header().Set("Content-Type", "application/octet-stream")
+    w.Header().Set("X-File-Name", fileName)
+    w.Header().Set("X-Nonce", nonce) // still returned, even if unused
+    w.WriteHeader(http.StatusOK)
+
+    // Stream to client
+    if _, err := io.Copy(w, tee); err != nil {
+        log.Println("❌ Failed to stream file:", err)
+        return
+    }
+
+    // Verify integrity after streaming
+    computedHash := hex.EncodeToString(hasher.Sum(nil))
+    if computedHash != fileHash {
+        log.Printf("❌ Hash mismatch: expected %s, got %s", fileHash, computedHash)
+    } else {
+        log.Println("✅ File integrity check passed, hash:", computedHash)
+    }
 }
+
 
 type DownloadSentRequest struct {
 	FilePath string `json:"filePath"`
