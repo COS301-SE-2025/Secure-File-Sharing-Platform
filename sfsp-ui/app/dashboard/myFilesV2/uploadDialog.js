@@ -49,108 +49,115 @@ export function UploadDialog({
     setUploadFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const chunkSize = 5 * 1024 * 1024; // 5 MB per chunk
+ const chunkSize = 10 * 1024 * 1024; // 5MB per chunk
 
-  const uploadFilesHandler = async () => {
-    if (uploadFiles.length === 0) return;
-    setUploading(true);
-    setUploadProgress(0);
+const uploadFilesHandler = async () => {
+  if (uploadFiles.length === 0) return;
+  setUploading(true);
+  setUploadProgress(0);
 
-    const { encryptionKey, userId } = useEncryptionStore.getState();
-    if (!encryptionKey || !userId) {
-      alert("Missing user ID or encryption key.");
-      setUploading(false);
-      return;
-    }
-
-    const sodium = await getSodium();
-
-    // Upload in parallel for each file
-    await Promise.all(
-      uploadFiles.map(async (file) => {
-        const totalChunks = Math.ceil(file.size / chunkSize);
-
-        const compressedFile = await compressFile(file);
-
-        // Compute file hash (use file as a buffer)
-        const fileBuffer = new Uint8Array(await compressedFile.arrayBuffer());
-        const fileHash = sodium.crypto_generichash(32, fileBuffer);
-
-        try {
-          // Process each chunk
-          for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
-            const chunkStart = chunkIndex * chunkSize;
-            const chunkEnd = Math.min(
-              chunkStart + chunkSize,
-              fileBuffer.length
-            );
-            const chunk = fileBuffer.slice(chunkStart, chunkEnd);
-
-            // Encrypt chunk
-            const nonce = sodium.randombytes_buf(
-              sodium.crypto_secretbox_NONCEBYTES
-            );
-            const ciphertext = sodium.crypto_secretbox_easy(
-              chunk,
-              nonce,
-              encryptionKey
-            );
-
-            // Prepare form data for each chunk
-            const formData = new FormData();
-            formData.append("userId", userId);
-            formData.append("fileName", file.name);
-            formData.append("fileType", file.type);
-            formData.append("fileDescription", ""); // a user can add description later
-            formData.append("fileTags", JSON.stringify(["personal"]));
-            formData.append("path", currentFolderPath || "");
-            formData.append(
-              "fileHash",
-              sodium.to_base64(fileHash, sodium.base64_variants.ORIGINAL)
-            );
-            formData.append(
-              "nonce",
-              sodium.to_base64(nonce, sodium.base64_variants.ORIGINAL)
-            );
-            formData.append("chunkIndex", chunkIndex);
-            formData.append("totalChunks", totalChunks);
-
-            // ⬇️ Encrypted chunk as binary Blob
-            formData.append("encryptedFile", new Blob([ciphertext]), file.name);
-
-            // Send each chunk to the server
-            const res = await fetch(
-              "http://localhost:5000/api/files/uploadChunk",
-              {
-                method: "POST",
-                body: formData,
-              }
-            );
-
-            if (!res.ok)
-              throw new Error(`Upload failed for chunk ${chunkIndex + 1}`);
-
-            const uploadResult = await res.json();
-            console.log(uploadResult);
-
-            // Update the progress bar as chunks are uploaded
-            setUploadProgress((prev) =>
-              Math.round(((chunkIndex + 1) / totalChunks) * 100)
-            );
-          }
-        } catch (err) {
-          console.error(`Upload failed for ${file.name}:`, err);
-          alert(`Upload failed for ${file.name}`);
-        }
-      })
-    );
-
+  const { encryptionKey, userId } = useEncryptionStore.getState();
+  if (!encryptionKey || !userId) {
+    alert("Missing user ID or encryption key.");
     setUploading(false);
-    setUploadFiles([]);
-    setUploadProgress(0);
-    onOpenChange(false);
-    onUploadSuccess?.();
-  };
+    return;
+  }
+	console.log("Starting to upload a file");
+  const sodium = await getSodium();
+  const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
+
+  // Process each file in parallel
+  await Promise.all(
+    uploadFiles.map(async (file) => {
+      try {
+        // 1️⃣ Call startUpload to get fileId
+        const startRes = await fetch("http://localhost:5000/api/files/startUpload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fileName: file.name,
+            fileType: file.type,
+            userId,
+	    nonce: sodium.to_base64(nonce, sodium.base64_variants.ORIGINAL),
+            fileDescription: "",
+            fileTags: ["personal"],
+            path: currentFolderPath || "files",
+          }),
+        });
+
+        if (!startRes.ok) throw new Error("Failed to start upload");
+        const { fileId } = await startRes.json();
+
+        // 2️⃣ Compress file
+        const fileBuffer = new Uint8Array(await file.arrayBuffer());
+        const compressed = gzip(fileBuffer, { level: 9 });
+
+        // 3️⃣ Encrypt entire compressed file
+        //nonce is up there
+        const ciphertext = sodium.crypto_secretbox_easy(compressed, nonce, encryptionKey);
+
+        // 4️⃣ Compute SHA-256 hash of encrypted file
+        const hashBuffer = await crypto.subtle.digest("SHA-256", ciphertext.buffer);
+        const fileHash = Array.from(new Uint8Array(hashBuffer))
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join("");
+
+        // 5️⃣ Chunk encrypted file
+        const totalChunks = Math.ceil(ciphertext.length / chunkSize);
+        let uploadedChunks = 0;
+
+        // 6️⃣ Upload all chunks in parallel
+        const chunkUploadPromises = Array.from({ length: totalChunks }, (_, chunkIndex) => {
+          const start = chunkIndex * chunkSize;
+          const end = Math.min(start + chunkSize, ciphertext.length);
+          const chunk = ciphertext.slice(start, end);
+
+          const formData = new FormData();
+          formData.append("fileId", fileId);                          
+          formData.append("userId", userId);
+          formData.append("fileName", file.name);
+          formData.append("fileType", file.type || "application/octet-stream");
+          formData.append("fileDescription", "");
+          formData.append("fileTags", JSON.stringify(["personal"]));
+          formData.append("path", currentFolderPath || "files");
+          formData.append("fileHash", fileHash);
+          formData.append(
+            "nonce",
+            sodium.to_base64(nonce, sodium.base64_variants.ORIGINAL)
+          );
+          formData.append("chunkIndex", chunkIndex.toString());
+          formData.append("totalChunks", totalChunks.toString());
+          formData.append("encryptedFile", new Blob([chunk]), file.name);
+
+          return fetch("http://localhost:5000/api/files/upload", {
+            method: "POST",
+            body: formData,
+          })
+            .then((res) => {
+              if (!res.ok) throw new Error(`Chunk ${chunkIndex} failed`);
+              return res.json();
+            })
+            .then(() => {
+              uploadedChunks++;
+              setUploadProgress(Math.round((uploadedChunks / totalChunks) * 100));
+            });
+        });
+
+        await Promise.all(chunkUploadPromises);
+        console.log(`${file.name} uploaded successfully`);
+      } catch (err) {
+        console.error(`Upload failed for ${file.name}:`, err);
+        alert(`Upload failed for ${file.name}`);
+      }
+    })
+  );
+
+  setUploading(false);
+  setUploadFiles([]);
+  setUploadProgress(0);
+  onOpenChange(false);
+  onUploadSuccess?.();
+};
 
   const compressFile = async (file) => {
     const fileBuffer = new Uint8Array(await file.arrayBuffer());

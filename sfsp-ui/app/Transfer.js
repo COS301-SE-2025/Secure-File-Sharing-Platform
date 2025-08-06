@@ -40,15 +40,17 @@ function ed25519PubToCurve(pubEd25519, sodium) {
   return sodium.crypto_sign_ed25519_pk_to_curve25519(pubEd25519);
 }
 
+
 export async function SendFile(recipientUserId, fileid, isViewOnly = false) {
+  const chunkSize = 5 * 1024 * 1024; // 5 MB per chunk
   const sodium = await getSodium();
   const { userId, encryptionKey } = useEncryptionStore.getState();
 
-  // 1️⃣ Get and normalize keys
+  // 1️⃣ Get and normalize user keys
   const userKeysRaw = await getUserKeysSecurely(encryptionKey);
   const userKeys = normalizeUserKeys(userKeysRaw, sodium);
 
-  console.log("[UI DEBUG]2️⃣ Download encrypted file as binary")
+  console.log("[UI DEBUG] 2️⃣ Download encrypted file as binary");
   // 2️⃣ Download encrypted file as binary
   const response = await fetch("http://localhost:5000/api/files/download", {
     method: "POST",
@@ -60,25 +62,19 @@ export async function SendFile(recipientUserId, fileid, isViewOnly = false) {
   const buffer = await response.arrayBuffer();
   const encryptedLocalFile = new Uint8Array(buffer);
 
-  // 🔓 Decrypt local
+  // 🔓 Decrypt local file
   const nonceHeader = response.headers.get("x-nonce");
-  console.log("Received x-nonce header:", nonceHeader);
   const decrypted = sodium.crypto_secretbox_open_easy(
     encryptedLocalFile,
-    sodium.from_base64(
-      response.headers.get("x-nonce"),
-      sodium.base64_variants.ORIGINAL
-    ),
+    sodium.from_base64(nonceHeader, sodium.base64_variants.ORIGINAL),
     encryptionKey
   );
 
-  console.log("[UI DEBUG]3️⃣ Get recipient's public keys")
-  // 3️⃣ Get recipient's public keys
+  console.log("[UI DEBUG] 3️⃣ Fetch recipient's public keys");
   const bundleRes = await fetch(
     `http://localhost:5000/api/users/public-keys/${recipientUserId}`
   );
   if (!bundleRes.ok) throw new Error("Recipient key bundle not found");
-
   const { data: recipientKeys } = await bundleRes.json();
 
   // 4️⃣ Derive X3DH shared key
@@ -113,74 +109,71 @@ export async function SendFile(recipientUserId, fileid, isViewOnly = false) {
   const combinedDH = concatUint8Arrays([DH1, DH2, DH3, DH4]);
   const sharedKey = sodium.crypto_generichash(32, combinedDH);
 
-  // 5️⃣ Encrypt the file
+  // 5️⃣ Encrypt file with new AES key
   const aesKey = sodium.crypto_secretbox_keygen();
   const fileNonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
-  const encryptedFile = sodium.crypto_secretbox_easy(
-    decrypted,
-    fileNonce,
-    aesKey
-  );
+  const encryptedFile = sodium.crypto_secretbox_easy(decrypted, fileNonce, aesKey);
 
   // 6️⃣ Encrypt AES key with shared key
   const keyNonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
-  const encryptedAesKey = sodium.crypto_secretbox_easy(
-    aesKey,
-    keyNonce,
-    sharedKey
-  );
+  const encryptedAesKey = sodium.crypto_secretbox_easy(aesKey, keyNonce, sharedKey);
 
-  //Do the digital signature
+  // 7️⃣ Compute file hash & signature
   const ikPrivateKey = userKeys.identity_private_key;
-
   const fileHash = sodium.crypto_generichash(32, encryptedFile);
   const signature = sodium.crypto_sign_detached(fileHash, ikPrivateKey);
 
-  // 7️⃣ Use FormData to upload as binary
-  const formData = new FormData();
-  formData.append("fileid", fileid);
-  formData.append("userId", userId);
-  formData.append("recipientUserId", recipientUserId);
-  formData.append(
-    "metadata",
-    JSON.stringify({
-      fileNonce: sodium.to_base64(fileNonce),
-      keyNonce: sodium.to_base64(keyNonce),
-      ikPublicKey: sodium.to_base64(userKeys.identity_public_key),//we already send ikPublicKey
-      spkPublicKey: sodium.to_base64(userKeys.signedpk_public_key),
-      ekPublicKey: sodium.to_base64(EK.publicKey),
-      opk_id: recipientKeys.opk.opk_id,
-      encryptedAesKey: sodium.to_base64(encryptedAesKey),
-      signature: sodium.to_base64(signature),
-      fileHash: sodium.to_base64(fileHash),
-      viewOnly: isViewOnly,
-    })
-  );
-  formData.append("encryptedFile", new Blob([encryptedFile]));
-
-  const endpoint = isViewOnly
-    ? "http://localhost:5000/api/files/sendByView"
-    : "http://localhost:5000/api/files/send";
-
-  const res = await fetch(endpoint, {
-    method: "POST",
-    body: formData,
+  // 8️⃣ Build metadata JSON (sent with every chunk)
+  const metadataJSON = JSON.stringify({
+    fileNonce: sodium.to_base64(fileNonce),
+    keyNonce: sodium.to_base64(keyNonce),
+    ikPublicKey: sodium.to_base64(userKeys.identity_public_key),
+    spkPublicKey: sodium.to_base64(userKeys.signedpk_public_key),
+    ekPublicKey: sodium.to_base64(EK.publicKey),
+    opk_id: recipientKeys.opk.opk_id,
+    encryptedAesKey: sodium.to_base64(encryptedAesKey),
+    signature: sodium.to_base64(signature),
+    fileHash: sodium.to_base64(fileHash),
+    viewOnly: isViewOnly,
   });
 
-  if (!res.ok) throw new Error("Failed to send file");
-  const result = await res.json();
-  console.log("[UI DEBUG] Now this is interesting ", response);
-  //if (!result.success) throw new Error(result.message || "File upload failed");
-  console.log("File sent successfully:", res);
+  // 9️⃣ Chunk and upload
+  const totalChunks = Math.ceil(encryptedFile.length / chunkSize);
 
-  if (isViewOnly) {
-    console.log("View-only file share ID:", result.shareId);
-    return result.shareId;
-  } else {
-    console.log("Received File ID:", result.receivedFileID);
-    return result.receivedFileID;
+  for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+    const start = chunkIndex * chunkSize;
+    const end = Math.min(start + chunkSize, encryptedFile.length);
+    const chunk = encryptedFile.slice(start, end);
+
+    const formData = new FormData();
+    formData.append("fileid", fileid);
+    formData.append("userId", userId);
+    formData.append("recipientUserId", recipientUserId);
+    formData.append("metadata", metadataJSON);
+    formData.append("chunkIndex", chunkIndex);
+    formData.append("totalChunks", totalChunks);
+    formData.append("encryptedFile", new Blob([chunk]), `chunk_${chunkIndex}.bin`);
+
+    const endpoint = isViewOnly
+      ? "http://localhost:5000/api/files/sendByView"
+      : "http://localhost:5000/api/files/send";
+
+    const res = await fetch(endpoint, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!res.ok) throw new Error(`Chunk ${chunkIndex + 1} upload failed`);
+
+    const result = await res.json();
+    if (chunkIndex === totalChunks - 1) {
+      console.log("🎉 File sent successfully:", result);
+      return isViewOnly ? result.shareId : result.receivedFileID;
+    }
   }
 }
+
+
 
 export async function ReceiveFile(fileData) {
   const { userId, encryptionKey } = useEncryptionStore.getState();
@@ -202,88 +195,60 @@ export async function ReceiveFile(fileData) {
     fileHash,
   } = JSON.parse(metadata);
 
-  console.log("File id:", file_id, "file_name:", file_name, "type:", file_type);
-  console.log("User id:", userId);
   const path = `/files/${sender_id}/sent/${file_id}`;
-  console.log("Downloading from path:", path);
+  const endpoint = viewOnly
+    ? "http://localhost:5000/api/files/downloadViewFile"
+    : "http://localhost:5000/api/files/downloadSentFile";
 
-  let response = {};
-  if (viewOnly) {
-    response = await fetch(
-      "http://localhost:5000/api/files/downloadViewFile",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: userId,
-          fileId: file_id,
-        }),
-      }
-    );
+  // 1️⃣ Stream download
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(viewOnly ? { userId, fileId: file_id } : { filepath: path }),
+  });
 
-    if (!response.ok) {
-      if (response.status === 403) {
-        throw new Error("Access has been revoked or expired");
-      }
-      throw new Error("Failed to retrieve view-only file");
-    }
-  } else {
-    // 🚀 Download binary directly
-    response = await fetch(
-      "http://localhost:5000/api/files/downloadSentFile",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filepath: path }),
-      }
-    );
-
-    if (!response.ok) throw new Error("Failed to retrieve encrypted file");
+  if (!response.ok) {
+    if (response.status === 403) throw new Error("Access has been revoked or expired");
+    throw new Error("Failed to retrieve encrypted file");
   }
 
-  console.log("[UI DEBUG] MANAGED TO MAKE REQUEST")
+  const reader = response.body.getReader();
+  const chunks = [];
+  let totalLength = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    totalLength += value.length;
+  }
 
-  // 🚀 Use arrayBuffer instead of text
-  const buffer = await response.arrayBuffer();
-  const encryptedFile = new Uint8Array(buffer);
+  const encryptedFile = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const chunk of chunks) {
+    encryptedFile.set(chunk, offset);
+    offset += chunk.length;
+  }
 
-  //Verify that the signature is valid
+  // 2️⃣ Verify file hash & signature
   const fileHashBytes = sodium.from_base64(fileHash);
-
-  //Check if the hash is the same
   const computedHash = sodium.crypto_generichash(32, encryptedFile);
   if (!sodium.memcmp(fileHashBytes, computedHash)) {
-    throw new Error("File hash does not match the expected hash");
+    throw new Error("File hash does not match expected hash");
   }
-
-  console.log("[UI DEBUG] SODIUM SOMEHOW WORKED")
 
   const signatureBytes = sodium.from_base64(signature);
   const ikPublicKeyBytes = sodium.from_base64(ikPublicKey);
-  const isValidSignature = sodium.crypto_sign_verify_detached(
-    signatureBytes,
-    fileHashBytes,
-    ikPublicKeyBytes
-  );
-
-  if (!isValidSignature) {
+  if (!sodium.crypto_sign_verify_detached(signatureBytes, fileHashBytes, ikPublicKeyBytes)) {
     throw new Error("Invalid signature for the received file");
-  } else {
-    console.log("Signature is valid for the received file.");
   }
 
-  console.log("[UI DEBUG] signatures are working")
-
-  // 🔑 Derive shared secret using X3DH
+  // 3️⃣ Derive shared secret with X3DH
   const ikPrivKey = userKeys.identity_private_key;
   const spkPrivKey = userKeys.signedpk_private_key;
-  const opkMatch = userKeys.oneTimepks_private.find(
-    (opk) => opk.opk_id === opk_id
-  );
+  const opkMatch = userKeys.oneTimepks_private.find((opk) => opk.opk_id === opk_id);
   if (!opkMatch) throw new Error("Matching OPK not found");
 
-  const spkPrivKeyCurve =
-    sodium.crypto_sign_ed25519_sk_to_curve25519(spkPrivKey);
+  const spkPrivKeyCurve = sodium.crypto_sign_ed25519_sk_to_curve25519(spkPrivKey);
   const ikPrivKeyCurve = sodium.crypto_sign_ed25519_sk_to_curve25519(ikPrivKey);
   const opkPrivKey = opkMatch.private_key;
 
@@ -295,25 +260,14 @@ export async function ReceiveFile(fileData) {
   );
 
   const DH1 = sodium.crypto_scalarmult(spkPrivKeyCurve, senderIkCurve);
-  const DH2 = sodium.crypto_scalarmult(
-    ikPrivKeyCurve,
-    sodium.from_base64(ekPublicKey)
-  );
-  const DH3 = sodium.crypto_scalarmult(
-    spkPrivKeyCurve,
-    sodium.from_base64(ekPublicKey)
-  );
-  const DH4 = sodium.crypto_scalarmult(
-    opkPrivKey,
-    sodium.from_base64(ekPublicKey)
-  );
+  const DH2 = sodium.crypto_scalarmult(ikPrivKeyCurve, sodium.from_base64(ekPublicKey));
+  const DH3 = sodium.crypto_scalarmult(spkPrivKeyCurve, sodium.from_base64(ekPublicKey));
+  const DH4 = sodium.crypto_scalarmult(opkPrivKey, sodium.from_base64(ekPublicKey));
 
   const combinedDH = concatUint8Arrays([DH1, DH2, DH3, DH4]);
   const sharedKey = sodium.crypto_generichash(32, combinedDH);
 
-  console.log("Shared key derived.");
-
-  // 🔓 Decrypt AES key
+  // 4️⃣ Decrypt AES key and file
   const aesKey = sodium.crypto_secretbox_open_easy(
     sodium.from_base64(encryptedAesKey),
     sodium.from_base64(keyNonce),
@@ -321,8 +275,6 @@ export async function ReceiveFile(fileData) {
   );
   if (!aesKey) throw new Error("Failed to decrypt AES key");
 
-  // 🔓 Decrypt actual file
-  console.log("FileNonce is:", sodium.from_base64(fileNonce));
   const decryptedFile = sodium.crypto_secretbox_open_easy(
     encryptedFile,
     sodium.from_base64(fileNonce),
@@ -330,42 +282,57 @@ export async function ReceiveFile(fileData) {
   );
   if (!decryptedFile) throw new Error("Failed to decrypt file");
 
-  console.log("Decrypted file, length:", decryptedFile.length);
-
-  // 🔐 Re-encrypt for local storage
+  // 5️⃣ Re-encrypt for local storage
   const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
-  const ciphertext = sodium.crypto_secretbox_easy(
-    decryptedFile,
-    nonce,
-    encryptionKey
-  );
+  const ciphertext = sodium.crypto_secretbox_easy(decryptedFile, nonce, encryptionKey);
 
-  const formData = new FormData();
-  let fileTags = ["received"]; 
-  if (viewOnly) {
-    fileTags.push("view-only");
-  }
-  formData.append("userId", userId);
-  formData.append("fileName", file_name);
-  formData.append("fileType", file_type);
-  formData.append("fileDescription", "");
-  formData.append("fileTags", JSON.stringify(fileTags));
-  formData.append("path", "");
-  formData.append(
-    "nonce",
-    sodium.to_base64(nonce, sodium.base64_variants.ORIGINAL)
-  );
-
-  // ⬇️ Encrypted file as binary Blob
-  formData.append("encryptedFile", new Blob([ciphertext]), file_name);
-
-  console.log("About to upload with fileTags:", fileTags);
-  console.log("FormData fileTags:", formData.get("fileTags"));
-
-  const res = await fetch("http://localhost:5000/api/files/upload", {
-    method: "POST", 
-    body: formData,
+  // 6️⃣ Start upload session
+  const startRes = await fetch("http://localhost:5000/api/files/startUpload", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      fileName: file_name,
+      fileType: file_type,
+      userId,
+      nonce: sodium.to_base64(nonce, sodium.base64_variants.ORIGINAL),
+      fileDescription: "",
+      fileTags: viewOnly ? ["received", "view-only"] : ["received"],
+      path: "files",
+    }),
   });
+  if (!startRes.ok) throw new Error("Failed to start upload");
+  const { fileId } = await startRes.json();
 
-  if (!res.ok) throw new Error("Upload failed");
+  // 7️⃣ Chunk + parallel upload
+  const chunkSize = 5 * 1024 * 1024;
+  const totalChunks = Math.ceil(ciphertext.length / chunkSize);
+  await Promise.all(
+    Array.from({ length: totalChunks }, (_, chunkIndex) => {
+      const start = chunkIndex * chunkSize;
+      const end = Math.min(start + chunkSize, ciphertext.length);
+      const chunk = ciphertext.slice(start, end);
+
+      const formData = new FormData();
+      formData.append("fileId", fileId);
+      formData.append("userId", userId);
+      formData.append("fileName", file_name);
+      formData.append("fileType", file_type || "application/octet-stream");
+      formData.append("fileDescription", "");
+      formData.append("fileTags", JSON.stringify(viewOnly ? ["received", "view-only"] : ["received"]));
+      formData.append("path", "files");
+      formData.append(
+        "fileHash",
+        Array.from(fileHashBytes).map((b) => b.toString(16).padStart(2, "0")).join("")
+      );
+      formData.append("nonce", sodium.to_base64(nonce, sodium.base64_variants.ORIGINAL));
+      formData.append("chunkIndex", chunkIndex.toString());
+      formData.append("totalChunks", totalChunks.toString());
+      formData.append("encryptedFile", new Blob([chunk]), file_name);
+
+      return fetch("http://localhost:5000/api/files/upload", { method: "POST", body: formData });
+    })
+  );
+
+  console.log(`✅ File ${file_name} received and uploaded locally as ${fileId}`);
 }
+

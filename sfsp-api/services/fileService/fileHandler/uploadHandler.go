@@ -46,6 +46,8 @@ func (cw *CountingWriter) Write(p []byte) (int, error) {
 
 
 
+
+
 func UploadHandler(w http.ResponseWriter, r *http.Request) {
     log.Println("==== New Upload Request ====")
 
@@ -66,19 +68,24 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
     tagsRaw := r.FormValue("fileTags")
     chunkIndexStr := r.FormValue("chunkIndex")
     totalChunksStr := r.FormValue("totalChunks")
+    fileID := r.FormValue("fileId") // ✅ new
     uploadPath := r.FormValue("path")
     if uploadPath == "" {
         uploadPath = "files"
     }
 
-    log.Printf("📦 Parsed form: userId=%s, fileName=%s, fileHash=%s, chunk=%s/%s",
-        userId, fileName, fileHash, chunkIndexStr, totalChunksStr)
+    log.Printf("📦 Parsed form: userId=%s, fileName=%s, fileHash=%s, chunk=%s/%s, fileId=%s",
+        userId, fileName, fileHash, chunkIndexStr, totalChunksStr, fileID)
 
     // 3️⃣ Validate required fields
     if userId == "" || fileName == "" || fileHash == "" || nonce == "" {
         log.Println("❌ Missing required fields")
         http.Error(w, "Missing required fields", http.StatusBadRequest)
         return
+    }
+
+    if nonce == "" {
+    log.Println("❌ Missing nonce")
     }
 
     // 4️⃣ Parse integers
@@ -112,33 +119,32 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
     }
     defer srcFile.Close()
     log.Println("✅ Received chunk file:", header.Filename)
+    log.Println("When uploading the nonce is:", nonce)
 
-    // 7️⃣ If first chunk, insert metadata now to get fileID
-    var fileID string
-    if chunkIndex == 0 {
-        log.Println("📝 Inserting initial metadata row...")
-        err = DB.QueryRow(`
-            INSERT INTO files (owner_id, file_name, file_type, file_hash, nonce, description, tags, cid, file_size, created_at)
-            VALUES ($1,$2,$3,'',$4,$5,$6,'',0,$7)
-            RETURNING id
-        `, userId, fileName, fileType, nonce, description, pq.Array(tags), time.Now()).Scan(&fileID)
-        if err != nil {
-            log.Println("❌ DB insert error:", err)
-            http.Error(w, "Failed to create file metadata", http.StatusInternalServerError)
-            return
-        }
-        log.Println("✅ File metadata created, fileID:", fileID)
-    } else {
-        // Query the last fileID for this user/fileName
-        err = DB.QueryRow(`SELECT id FROM files WHERE owner_id=$1 AND file_name=$2 ORDER BY created_at DESC LIMIT 1`, userId, fileName).Scan(&fileID)
-        if err != nil {
-            log.Println("❌ Failed to retrieve existing fileID for chunk:", err)
-            http.Error(w, "File session not found", http.StatusBadRequest)
+    // 7️⃣ Handle fileID and DB row
+    if fileID == "" {
+        if chunkIndex == 0 {
+            // Insert metadata and get fileID
+            log.Println("📝 Creating new file metadata row...")
+            err = DB.QueryRow(`
+                INSERT INTO files (owner_id, file_name, file_type, file_hash, nonce, description, tags, cid, file_size, created_at)
+                VALUES ($1,$2,$3,'',$4,$5,$6,'',0,$7)
+                RETURNING id
+            `, userId, fileName, fileType, nonce, description, pq.Array(tags), time.Now()).Scan(&fileID)
+            if err != nil {
+                log.Println("❌ DB insert error:", err)
+                http.Error(w, "Failed to create file metadata", http.StatusInternalServerError)
+                return
+            }
+            log.Println("✅ File metadata created, fileID:", fileID)
+        } else {
+            log.Println("❌ Missing fileId for non-first chunk")
+            http.Error(w, "fileId is required for parallel upload", http.StatusBadRequest)
             return
         }
     }
 
-    // 8️⃣ Upload chunk to OwnCloud temp folder using fileID
+    // 8️⃣ Upload chunk to OwnCloud temp folder
     chunkFileName := fmt.Sprintf("%s_chunk_%d", fileID, chunkIndex)
     log.Println("⬆️  Uploading chunk to OwnCloud temp:", chunkFileName)
     if err := owncloud.UploadFileStream("temp", chunkFileName, srcFile); err != nil {
@@ -151,55 +157,62 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
     if chunkIndex != totalChunks-1 {
         w.Header().Set("Content-Type", "application/json")
         json.NewEncoder(w).Encode(map[string]string{
-            "message": fmt.Sprintf("Chunk %d uploaded", chunkIndex),
+            "message":  fmt.Sprintf("Chunk %d uploaded", chunkIndex),
             "fileHash": fileHash,
+            "fileId":   fileID,
         })
         return
     }
 
-    // 🔟 Last chunk → start merge
-    finalReader, finalWriter := io.Pipe()
-    go func() {
-        defer finalWriter.Close()
-        hasher := sha256.New()
-        countingWriter := &CountingWriter{w: io.MultiWriter(finalWriter, hasher)}
+    // 🔟 Last chunk → merge using low-memory streaming
+    log.Println("🔗 Starting file merge (streaming)...")
 
-        for i := 0; i < totalChunks; i++ {
-            chunkPath := fmt.Sprintf("temp/%s_chunk_%d", fileID, i)
-            log.Println("🔄 Merging chunk:", chunkPath)
-            reader, err := owncloud.DownloadFileStreamTemp(chunkPath)
-            if err != nil {
-                finalWriter.CloseWithError(err)
-                return
-            }
-            _, err = io.Copy(countingWriter, reader)
-            reader.Close()
-            if err != nil {
-                finalWriter.CloseWithError(err)
-                return
-            }
-            owncloud.DeleteFileTemp(chunkPath)
-        }
-
-        fileHashHex := hex.EncodeToString(hasher.Sum(nil))
-        log.Println("🔗 Final file hash:", fileHashHex)
-        log.Printf("📦 Final merged size: %d bytes", countingWriter.Count)
-
-        _, err = DB.Exec(`
-            UPDATE files SET file_hash=$1, file_size=$2, cid=$3 WHERE id=$4
-        `, fileHashHex, countingWriter.Count, uploadPath+"/"+fileID, fileID)
-        if err != nil {
-            log.Println("❌ DB update error:", err)
-        } else {
-            log.Println("✅ File metadata updated with final size and hash")
-        }
-    }()
-
-    // 1️⃣1️⃣ Stream merged file to OwnCloud final folder
-    if err := owncloud.UploadFileStream("files", fileID, finalReader); err != nil {
+    // Open writer to final OwnCloud file
+    writer, err := owncloud.CreateFileStream("files", fileID)
+    if err != nil {
         log.Println("❌ OwnCloud final upload failed:", err)
         http.Error(w, "File assembly failed", http.StatusInternalServerError)
         return
+    }
+    defer writer.Close()
+
+    hasher := sha256.New()
+    countingWriter := &CountingWriter{w: io.MultiWriter(writer, hasher)}
+
+    for i := 0; i < totalChunks; i++ {
+        chunkPath := fmt.Sprintf("temp/%s_chunk_%d", fileID, i)
+        log.Println("🔄 Merging chunk:", chunkPath)
+
+        reader, err := owncloud.DownloadFileStreamTemp(chunkPath)
+        if err != nil {
+            log.Println("❌ Failed to open chunk:", err)
+            http.Error(w, "Chunk merge failed", http.StatusInternalServerError)
+            return
+        }
+
+        if _, err := io.Copy(countingWriter, reader); err != nil {
+            reader.Close()
+            log.Println("❌ Failed to copy chunk:", err)
+            http.Error(w, "Chunk merge failed", http.StatusInternalServerError)
+            return
+        }
+        reader.Close()
+
+        // Delete temp chunk after successful copy
+        owncloud.DeleteFileTemp(chunkPath)
+    }
+
+    fileHashHex := hex.EncodeToString(hasher.Sum(nil))
+    log.Println("🔗 Final file hash:", fileHashHex)
+    log.Printf("📦 Final merged size: %d bytes", countingWriter.Count)
+
+    _, err = DB.Exec(`
+        UPDATE files SET file_hash=$1, file_size=$2, cid=$3 WHERE id=$4
+    `, fileHashHex, countingWriter.Count, uploadPath+"/"+fileID, fileID)
+    if err != nil {
+        log.Println("❌ DB update error:", err)
+    } else {
+        log.Println("✅ File metadata updated with final size and hash")
     }
 
     log.Println("🎉 File uploaded successfully:", fileID)
@@ -210,3 +223,55 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
     })
 }
 
+type StartUploadRequest struct {
+    UserID          string   `json:"userId"`
+    FileName        string   `json:"fileName"`
+    FileType        string   `json:"fileType"`
+    FileDescription string   `json:"fileDescription"`
+    FileTags        []string `json:"fileTags"`
+    Path            string   `json:"path"`
+    Nonce           string   `json:"nonce"`
+}
+
+func StartUploadHandler(w http.ResponseWriter, r *http.Request) {
+    log.Println("==== Start Upload Request ====")
+
+    
+    var req StartUploadRequest
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        log.Println("❌ Invalid JSON:", err)
+        http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+        return
+    }
+
+    log.Println("userId is :", req.UserID)
+    log.Println("Filename is :", req.FileName)
+    log.Println("fileType is :", req.FileType)
+    log.Println("description is: ", req.FileDescription)
+
+    if req.UserID == "" || req.FileName == "" {
+        http.Error(w, "Missing userId or fileName", http.StatusBadRequest)
+        return
+    }
+
+    // Insert initial metadata with empty hash and size 0
+    log.Println("Made it to inserting file metadata in the database")
+    var fileID string
+    err := DB.QueryRow(`
+        INSERT INTO files (owner_id, file_name, file_type, file_hash, nonce, description, tags, cid, file_size, created_at)
+        VALUES ($1,$2,$3,'',$4,$5,$6,$7,0,$8)
+        RETURNING id
+    `, req.UserID, req.FileName, req.FileType,req.Nonce ,req.FileDescription, pq.Array(req.FileTags), req.Path, time.Now()).Scan(&fileID)
+    if err != nil {
+        log.Println("❌ DB insert error:", err)
+        http.Error(w, "Failed to start upload", http.StatusInternalServerError)
+        return
+    }
+
+    log.Println("✅ Upload started, fileID:", fileID)
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(map[string]string{
+        "message": "Upload session started",
+        "fileId":  fileID,
+    })
+}

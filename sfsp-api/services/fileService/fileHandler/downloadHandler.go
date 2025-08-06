@@ -99,6 +99,7 @@ type DownloadDeps struct {
 
 
 
+
 func DownloadHandler(w http.ResponseWriter, r *http.Request) {
     var req DownloadRequest
     if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -112,20 +113,20 @@ func DownloadHandler(w http.ResponseWriter, r *http.Request) {
     }
     log.Println("Got download request:", req.UserID, req.FileId)
 
-    var fileName, nonce, fileHash string
+    var fileName, nonce, fileHash, cid string
     err := DB.QueryRow(`
-        SELECT file_name, nonce, file_hash FROM files
+        SELECT file_name, nonce, file_hash, cid FROM files
         WHERE owner_id = $1 AND id = $2
-    `, req.UserID, req.FileId).Scan(&fileName, &nonce, &fileHash)
-
+    `, req.UserID, req.FileId).Scan(&fileName, &nonce, &fileHash, &cid)
     if err != nil {
         log.Println("❌ Failed to retrieve file metadata:", err)
         http.Error(w, "File not found", http.StatusNotFound)
         return
     }
-    log.Println("✅ Found file:", fileName, "nonce:", nonce)
 
-    // 🔁 Stream file directly from OwnCloud (no decryption for integrity-only mode)
+    log.Println("✅ Found file:", fileName, "nonce:", nonce, "cid:", cid)
+
+    // 🔁 Stream file from OwnCloud final location
     stream, err := owncloud.DownloadFileStream(req.FileId)
     if err != nil {
         log.Println("❌ OwnCloud download failed:", err)
@@ -134,28 +135,33 @@ func DownloadHandler(w http.ResponseWriter, r *http.Request) {
     }
     defer stream.Close()
 
-    // Prepare hash verification
+    // Hash verification while streaming
     hasher := sha256.New()
     tee := io.TeeReader(stream, hasher)
 
-    // Set headers to satisfy Node API expectations
+    log.Println("Filename is:", fileName)
+    log.Println("Nonce is: ",nonce)
+
+    // HTTP headers for browser & Node client
     w.Header().Set("Content-Type", "application/octet-stream")
+    w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, fileName))
     w.Header().Set("X-File-Name", fileName)
-    w.Header().Set("X-Nonce", nonce) // still returned, even if unused
+    w.Header().Set("X-Nonce", nonce)
     w.WriteHeader(http.StatusOK)
 
-    // Stream to client
-    if _, err := io.Copy(w, tee); err != nil {
+    // Stream file to client with buffer
+    buf := make([]byte, 32*1024)
+    if _, err := io.CopyBuffer(w, tee, buf); err != nil {
         log.Println("❌ Failed to stream file:", err)
         return
     }
 
-    // Verify integrity after streaming
+    // Verify hash at the end
     computedHash := hex.EncodeToString(hasher.Sum(nil))
     if computedHash != fileHash {
         log.Printf("❌ Hash mismatch: expected %s, got %s", fileHash, computedHash)
     } else {
-        fmt.Println("✅ File integrity check passed, hash:", computedHash)
+        log.Println("✅ File integrity check passed, hash:", computedHash)
     }
 }
 
@@ -163,6 +169,7 @@ func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 type DownloadSentRequest struct {
 	FilePath string `json:"filePath"`
 }
+
 
 
 func DownloadSentFile(w http.ResponseWriter, r *http.Request) {
@@ -177,26 +184,28 @@ func DownloadSentFile(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    log.Println("Downloading the sent file request:", req.FilePath)
+    log.Println("Downloading sent file (stream):", req.FilePath)
 
-    // 3️⃣ Stream file from OwnCloud
     stream, err := owncloud.DownloadSentFileStream(req.FilePath)
     if err != nil {
-        log.Println("❌ OwnCloud download failed:", err)
+        log.Println("OwnCloud download failed:", err)
         http.Error(w, "Download failed", http.StatusInternalServerError)
         return
     }
     defer stream.Close()
 
-    hasher := sha256.New()
-    tee := io.TeeReader(stream, hasher)
-
     w.Header().Set("Content-Type", "application/octet-stream")
     w.WriteHeader(http.StatusOK)
 
+    hasher := sha256.New()
+    tee := io.TeeReader(stream, hasher)
+
     if _, err := io.Copy(w, tee); err != nil {
-	    log.Println("❌ Failed to stream file:", err)
+        log.Println("Failed to stream sent file:", err)
         return
     }
+
+    computedHash := hex.EncodeToString(hasher.Sum(nil))
+    log.Println("Sent file streamed successfully, you should watch Delicious in Dungeon. Hash:", computedHash)
 }
 

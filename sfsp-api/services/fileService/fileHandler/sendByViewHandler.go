@@ -8,117 +8,180 @@ import (
 	"log"
 	"net/http"
 	"time"
-
+	"strconv"
+	"encoding/hex"
+	"crypto/sha256"
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
 )
 
+
 func SendByViewHandler(w http.ResponseWriter, r *http.Request) {
-	err := r.ParseMultipartForm(50 << 20)
-	if err != nil {
-		log.Println("Failed to parse multipart form:", err)
-		http.Error(w, "Invalid multipart form", http.StatusBadRequest)
-		return
-	}
+    log.Println("==== New SendByView Request ====")
 
-	fileID := r.FormValue("fileid")
-	userID := r.FormValue("userId")
-	recipientID := r.FormValue("recipientUserId")
-	metadataJSON := r.FormValue("metadata")
+    err := r.ParseMultipartForm(50 << 20) 
+    if err != nil {
+        log.Println("Failed to parse multipart form:", err)
+        http.Error(w, "Invalid multipart form", http.StatusBadRequest)
+        return
+    }
 
-	if fileID == "" || userID == "" || recipientID == "" || metadataJSON == "" {
-		http.Error(w, "Missing required form fields", http.StatusBadRequest)
-		return
-	}
+    fileID := r.FormValue("fileid")
+    userID := r.FormValue("userId")
+    recipientID := r.FormValue("recipientUserId")
+    metadataJSON := r.FormValue("metadata")
+    chunkIndexStr := r.FormValue("chunkIndex")
+    totalChunksStr := r.FormValue("totalChunks")
 
-	var ownerID string
-	err = DB.QueryRow("SELECT owner_id FROM files WHERE id = $1", fileID).Scan(&ownerID)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			http.Error(w, "File not found", http.StatusNotFound)
-			return
-		}
-		log.Println("Database error:", err)
-		http.Error(w, "Database error", http.StatusInternalServerError)
-		return
-	}
+    if fileID == "" || userID == "" || recipientID == "" || metadataJSON == "" {
+        http.Error(w, "Missing required form fields", http.StatusBadRequest)
+        return
+    }
 
-	if ownerID != userID {
-		http.Error(w, "Unauthorized: You don't own this file", http.StatusForbidden)
-		return
-	}
+    chunkIndex, err := strconv.Atoi(chunkIndexStr)
+    if err != nil {
+        http.Error(w, "Invalid chunkIndex", http.StatusBadRequest)
+        return
+    }
+    totalChunks, err := strconv.Atoi(totalChunksStr)
+    if err != nil {
+        http.Error(w, "Invalid totalChunks", http.StatusBadRequest)
+        return
+    }
 
-	file, _, err := r.FormFile("encryptedFile")
-	if err != nil {
-		log.Println("Failed to get encrypted file from form:", err)
-		http.Error(w, "Missing encrypted file", http.StatusBadRequest)
-		return
-	}
-	defer file.Close()
+    var ownerID string
+    err = DB.QueryRow("SELECT owner_id FROM files WHERE id = $1", fileID).Scan(&ownerID)
+    if err != nil {
+        if err == sql.ErrNoRows {
+            http.Error(w, "File not found", http.StatusNotFound)
+            return
+        }
+        log.Println("Database error:", err)
+        http.Error(w, "Database error", http.StatusInternalServerError)
+        return
+    }
 
-	targetPath := fmt.Sprintf("files/%s/shared_view", userID)
-	sharedFileKey := fmt.Sprintf("%s_%s", fileID, recipientID)
-	if err := owncloud.UploadFileStream(targetPath, sharedFileKey, file); err != nil {
-		log.Println("OwnCloud upload failed:", err)
-		http.Error(w, "Failed to store encrypted file", http.StatusInternalServerError)
-		return
-	}
+    if ownerID != userID {
+        http.Error(w, "Unauthorized: You don't own this file", http.StatusForbidden)
+        return
+    }
 
-	var existingID string
-	err = DB.QueryRow(`
-		SELECT id FROM shared_files_view 
-		WHERE sender_id = $1 AND recipient_id = $2 AND file_id = $3 AND revoked = FALSE
-	`, userID, recipientID, fileID).Scan(&existingID)
+    file, _, err := r.FormFile("encryptedFile")
+    if err != nil {
+        log.Println("Failed to get encrypted file chunk:", err)
+        http.Error(w, "Missing encrypted file chunk", http.StatusBadRequest)
+        return
+    }
+    defer file.Close()
 
-	var shareID string
-	switch err {
-	case nil:
-		_, err = DB.Exec(`
-			UPDATE shared_files_view 
-			SET metadata = $1, shared_at = CURRENT_TIMESTAMP, expires_at = $2
-			WHERE id = $3
-		`, metadataJSON, time.Now().Add(48*time.Hour), existingID)
-		if err != nil {
-			log.Println("Failed to update shared file:", err)
-			http.Error(w, "Failed to update shared file", http.StatusInternalServerError)
-			return
-		}
-		shareID = existingID
-	case sql.ErrNoRows:
-		err = DB.QueryRow(`
-			INSERT INTO shared_files_view (sender_id, recipient_id, file_id, metadata, expires_at)
-			VALUES ($1, $2, $3, $4, $5)
-			RETURNING id
-		`, userID, recipientID, fileID, metadataJSON, time.Now().Add(48*time.Hour)).Scan(&shareID)
-		if err != nil {
-			log.Println("Failed to insert shared file view:", err)
-			http.Error(w, "Failed to track shared file", http.StatusInternalServerError)
-			return
-		}
-	default:
-		log.Println("Database error:", err)
-		http.Error(w, "Database error", http.StatusInternalServerError)
-		return
-	}
+    tempChunkName := fmt.Sprintf("%s_chunk_%d", fileID, chunkIndex)
+    if err := owncloud.UploadFileStream("temp", tempChunkName, file); err != nil {
+        log.Println("OwnCloud temp chunk upload failed:", err)
+        http.Error(w, "Chunk upload failed", http.StatusInternalServerError)
+        return
+    }
 
-	_, err = DB.Exec("UPDATE files SET allow_view_sharing = TRUE WHERE id = $1", fileID)
-	if err != nil {
-		log.Println("Failed to update file view sharing flag:", err)
-	}
+    if chunkIndex != totalChunks-1 {
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(map[string]string{
+            "message": fmt.Sprintf("Chunk %d uploaded", chunkIndex),
+            "fileId":  fileID,
+        })
+        return
+    }
 
-	_, err = DB.Exec(`
-		INSERT INTO access_logs (file_id, user_id, action, message, view_only)
-		VALUES ($1, $2, $3, $4, $5)
-	`, fileID, userID, "shared_view", fmt.Sprintf("File shared with user %s for view-only access", recipientID), true)
-	if err != nil {
-		log.Println("Failed to log sharing action:", err)
-	}
+    sharedFileKey := fmt.Sprintf("%s_%s", fileID, recipientID)
+    targetPath := fmt.Sprintf("files/%s/shared_view", userID)
+    log.Printf("🔗 Merging chunks into shared_view path: %s/%s", targetPath, sharedFileKey)
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		"message": "File shared for view-only access successfully",
-		"shareId": shareID,
-	})
-	log.Println("File shared for view-only access successfully, shareId:", shareID)
+    finalReader, finalWriter := io.Pipe()
+    go func() {
+        defer finalWriter.Close()
+
+        for i := 0; i < totalChunks; i++ {
+            chunkPath := fmt.Sprintf("temp/%s_chunk_%d", fileID, i)
+            reader, err := owncloud.DownloadFileStreamTemp(chunkPath)
+            if err != nil {
+                log.Println("Failed to download temp chunk:", err)
+                finalWriter.CloseWithError(err)
+                return
+            }
+
+            if _, err := io.Copy(finalWriter, reader); err != nil {
+                log.Println("Failed to copy chunk to final writer:", err)
+                reader.Close()
+                finalWriter.CloseWithError(err)
+                return
+            }
+            reader.Close()
+            owncloud.DeleteFileTemp(chunkPath)
+        }
+
+        log.Println("Finished merging chunks for view-only share:", sharedFileKey)
+    }()
+
+    if err := owncloud.UploadFileStream(targetPath, sharedFileKey, finalReader); err != nil {
+        log.Println("OwnCloud final upload failed:", err)
+        http.Error(w, "Failed to store encrypted file", http.StatusInternalServerError)
+        return
+    }
+
+    var existingID string
+    err = DB.QueryRow(`
+        SELECT id FROM shared_files_view 
+        WHERE sender_id = $1 AND recipient_id = $2 AND file_id = $3 AND revoked = FALSE
+    `, userID, recipientID, fileID).Scan(&existingID)
+
+    var shareID string
+    switch err {
+    case nil:
+        _, err = DB.Exec(`
+            UPDATE shared_files_view 
+            SET metadata = $1, shared_at = CURRENT_TIMESTAMP, expires_at = $2
+            WHERE id = $3
+        `, metadataJSON, time.Now().Add(48*time.Hour), existingID)
+        if err != nil {
+            log.Println("Failed to update shared file:", err)
+            http.Error(w, "Failed to update shared file", http.StatusInternalServerError)
+            return
+        }
+        shareID = existingID
+    case sql.ErrNoRows:
+        err = DB.QueryRow(`
+            INSERT INTO shared_files_view (sender_id, recipient_id, file_id, metadata, expires_at)
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING id
+        `, userID, recipientID, fileID, metadataJSON, time.Now().Add(48*time.Hour)).Scan(&shareID)
+        if err != nil {
+            log.Println("Failed to insert shared file view:", err)
+            http.Error(w, "Failed to track shared file", http.StatusInternalServerError)
+            return
+        }
+    default:
+        log.Println("Database error:", err)
+        http.Error(w, "Database error", http.StatusInternalServerError)
+        return
+    }
+
+    _, err = DB.Exec("UPDATE files SET allow_view_sharing = TRUE WHERE id = $1", fileID)
+    if err != nil {
+        log.Println("Failed to update file view sharing flag:", err)
+    }
+
+    _, err = DB.Exec(`
+        INSERT INTO access_logs (file_id, user_id, action, message, view_only)
+        VALUES ($1, $2, $3, $4, $5)
+    `, fileID, userID, "shared_view",
+        fmt.Sprintf("File shared with user %s for view-only access", recipientID), true)
+    if err != nil {
+        log.Println("Failed to log sharing action:", err)
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(map[string]string{
+        "message": "File shared for view-only access successfully",
+        "shareId": shareID,
+    })
+    log.Println("File shared for view-only access successfully, shareId:", shareID)
 }
 
 func RevokeViewAccessHandler(w http.ResponseWriter, r *http.Request) {
@@ -308,82 +371,90 @@ func GetViewFileAccessLogs(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(logs)
 }
 
+
 func DownloadViewFileHandler(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		UserID string `json:"userId"`
-		FileID string `json:"fileId"`
-	}
+    var req struct {
+        UserID string `json:"userId"`
+        FileID string `json:"fileId"`
+    }
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
-		return
-	}
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        http.Error(w, "Invalid JSON", http.StatusBadRequest)
+        return
+    }
 
-	if req.UserID == "" || req.FileID == "" {
-		http.Error(w, "Missing required fields", http.StatusBadRequest)
-		return
-	}
+    if req.UserID == "" || req.FileID == "" {
+        http.Error(w, "Missing required fields", http.StatusBadRequest)
+        return
+    }
 
-	var senderID string
-	var sharedID string
-	var metadata string
-	var revoked bool
-	var expiresAt time.Time
-	err := DB.QueryRow(`
-		SELECT id, sender_id, metadata, revoked, expires_at 
-		FROM shared_files_view 
-		WHERE recipient_id = $1 AND file_id = $2
-	`, req.UserID, req.FileID).Scan(&sharedID, &senderID, &metadata, &revoked, &expiresAt)
+    var senderID, sharedID, metadata string
+    var revoked bool
+    var expiresAt time.Time
 
-	if err != nil {
-		if err == sql.ErrNoRows {
-			http.Error(w, "View file access not found", http.StatusNotFound)
-			return
-		}
-		log.Println("Database error:", err)
-		http.Error(w, "Database error", http.StatusInternalServerError)
-		return
-	}
+    err := DB.QueryRow(`
+        SELECT id, sender_id, metadata, revoked, expires_at 
+        FROM shared_files_view 
+        WHERE recipient_id = $1 AND file_id = $2
+    `, req.UserID, req.FileID).Scan(&sharedID, &senderID, &metadata, &revoked, &expiresAt)
 
-	if revoked || senderID == "" {
-		http.Error(w, "Access has been revoked", http.StatusForbidden)
-		return
-	}
+    if err != nil {
+        if err == sql.ErrNoRows {
+            http.Error(w, "View file access not found", http.StatusNotFound)
+        } else {
+            log.Println("Database error:", err)
+            http.Error(w, "Database error", http.StatusInternalServerError)
+        }
+        return
+    }
 
-	if time.Now().After(expiresAt) {
-		http.Error(w, "Access has expired", http.StatusForbidden)
-		return
-	}
+    if revoked || senderID == "" {
+        http.Error(w, "Access has been revoked", http.StatusForbidden)
+        return
+    }
 
-	targetPath := fmt.Sprintf("files/%s/shared_view", senderID)
-	sharedFileKey := fmt.Sprintf("%s_%s", req.FileID, req.UserID)
+    if time.Now().After(expiresAt) {
+        http.Error(w, "Access has expired", http.StatusForbidden)
+        return
+    }
 
-	fullPath := fmt.Sprintf("%s/%s", targetPath, sharedFileKey)
-	stream, err := owncloud.DownloadSentFileStream(fullPath)
-	if err != nil {
-		log.Println("Failed to download view file from ownCloud:", err)
-		http.Error(w, "Failed to retrieve view file", http.StatusInternalServerError)
-		return
-	}
-	defer stream.Close()
+    targetPath := fmt.Sprintf("files/%s/shared_view", senderID)
+    sharedFileKey := fmt.Sprintf("%s_%s", req.FileID, req.UserID)
+    fullPath := fmt.Sprintf("%s/%s", targetPath, sharedFileKey)
+    log.Println("Downloading view file (stream):", fullPath)
 
-	_, err = DB.Exec(`
-		INSERT INTO access_logs (file_id, user_id, action, message, view_only)
-		VALUES ($1, $2, $3, $4, $5)
-	`, req.FileID, req.UserID, "viewed", "View-only file accessed", true)
-	if err != nil {
-		log.Println("Failed to log view action:", err)
-	}
+    stream, err := owncloud.DownloadSentFileStream(fullPath)
+    if err != nil {
+        log.Println("Failed to download view file from OwnCloud:", err)
+        http.Error(w, "Failed to retrieve view file", http.StatusInternalServerError)
+        return
+    }
+    defer stream.Close()
 
-	w.Header().Set("Content-Type", "application/octet-stream")
-	w.Header().Set("X-View-Only", "true")
-	w.Header().Set("X-File-Id", req.FileID)
-	w.Header().Set("X-Share-Id", sharedID)
+    _, err = DB.Exec(`
+        INSERT INTO access_logs (file_id, user_id, action, message, view_only)
+        VALUES ($1, $2, $3, $4, $5)
+    `, req.FileID, req.UserID, "viewed", "View-only file accessed", true)
+    if err != nil {
+        log.Println("Failed to log view-only access:", err)
+    }
 
-	if _, err := io.Copy(w, stream); err != nil {
-		log.Println("Failed to stream view file to response:", err)
-		http.Error(w, "Failed to stream view file", http.StatusInternalServerError)
-		return
-	}
-	log.Println("View file downloaded successfully for user:", req.UserID)
+    // 5️⃣ Stream to client (fast & memory-safe)
+    w.Header().Set("Content-Type", "application/octet-stream")
+    w.Header().Set("X-View-Only", "true")
+    w.Header().Set("X-File-Id", req.FileID)
+    w.Header().Set("X-Share-Id", sharedID)
+    w.WriteHeader(http.StatusOK)
+
+    hasher := sha256.New()
+    tee := io.TeeReader(stream, hasher)
+
+    if _, err := io.Copy(w, tee); err != nil {
+        log.Println(" Failed to stream view-only file:", err)
+        return
+    }
+
+    log.Println("View-only file streamed successfully for user:", req.UserID)
+    log.Printf("File hash: %s\n", hex.EncodeToString(hasher.Sum(nil)))
 }
+

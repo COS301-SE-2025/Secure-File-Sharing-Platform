@@ -7,7 +7,8 @@ const upload = multer({ limits: { fileSize: 2 * 1024 * 1024 * 1024 } }); // 2GB
 
 router.post('/download', fileController.downloadFile);
 router.post('/downloadSentFile', fileController.downloadSentFile);
-router.post('/metadata', fileController.getMetaData)
+router.post('/metadata', fileController.getMetaData);
+router.post("/startUpload", fileController.startUpload);
 router.post('/upload', upload.single("encryptedFile"), fileController.uploadChunk);
 router.post('/getNumberOFFiles', fileController.getNumberOfFiles);
 // access logs endpoints

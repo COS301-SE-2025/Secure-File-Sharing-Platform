@@ -76,6 +76,37 @@ var UploadFileStream = func(path, filename string, reader io.Reader) error {
     return nil
 }
 
+
+var CreateFileStream = func(path, filename string) (io.WriteCloser, error) {
+    // Clean path
+    cleanFolder := strings.TrimLeft(path, "/")
+    fullPath := cleanFolder + "/" + filename
+    log.Println("Create streaming upload to WebDAV:", fullPath)
+
+    // Ensure folder exists
+    if err := client.MkdirAll(cleanFolder, 0755); err != nil {
+        return nil, fmt.Errorf("mkdir failed: %w", err)
+    }
+
+    // Create pipe
+    pr, pw := io.Pipe()
+
+    // Launch goroutine to stream to WebDAV
+    go func() {
+        defer pr.Close()
+        err := client.WriteStream(fullPath, pr, 0644)
+        if err != nil {
+            log.Println("❌ Stream write failed:", err)
+            pr.CloseWithError(err)
+            return
+        }
+        log.Println("✅ Finished streaming to OwnCloud:", fullPath)
+    }()
+
+    // Return the writer side to caller
+    return pw, nil
+}
+
 var DownloadFileStream = func(fileId string) (io.ReadCloser, error) {
 	path := fmt.Sprintf("files/%s", fileId)
 	return client.ReadStream(path)
@@ -85,7 +116,7 @@ var DownloadFileStreamTemp = func(Path string) (io.ReadCloser, error) {
 	cleanPath := strings.TrimLeft(Path, "/")
 	fmt.Println("CleanPath is: ", cleanPath)
 	log.Println("Downloading (stream) from path:", cleanPath)
-	return client.ReadStream(Path)
+	return client.ReadStream(cleanPath)
 }
 
 var DeleteFile = func(fileId, userID string) error {
