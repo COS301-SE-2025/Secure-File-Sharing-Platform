@@ -489,7 +489,6 @@ export default function MyFiles() {
         return;
       }
 
-      // Get user profile to get userId
       const profileRes = await fetch("http://localhost:5000/api/users/profile", {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -502,7 +501,6 @@ export default function MyFiles() {
 
       const userId = profileResult.data.id;
 
-      // Get shared view files to find recipients
       const sharedFilesRes = await fetch("http://localhost:5000/api/files/getViewAccess", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -539,7 +537,7 @@ export default function MyFiles() {
       }
 
       alert("View access revoked successfully");
-      fetchFiles(); // Refresh the file list
+      fetchFiles();
     } catch (err) {
       console.error("Error revoking view access:", err);
       alert("Failed to revoke view access");

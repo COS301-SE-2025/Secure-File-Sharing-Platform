@@ -89,5 +89,8 @@ func main() {
 	http.HandleFunc("/createFolder", fileHandler.CreateFolderHandler)
 	http.HandleFunc("/updateFilePath", metadata.UpdateFilePathHandler)
 
+	//changeMethod
+	http.HandleFunc("/changeMethod", fileHandler.ChangeShareMethod)
+
 	log.Fatal(http.ListenAndServe(":8081", nil))
 }

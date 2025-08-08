@@ -92,12 +92,40 @@ export function FileGrid({
 
   // Check if file is view-only (either from tags or viewOnly property)
   const isViewOnly = (file) => {
-    return file.viewOnly || (file.fileTags && file.fileTags.includes("view-only")) || (file.tags && file.tags.includes("view-only"));
+    if (file.viewOnly) return true;
+    
+    // Handle fileTags as array or string
+    if (file.fileTags) {
+      if (Array.isArray(file.fileTags)) {
+        return file.fileTags.includes("view-only");
+      } else if (typeof file.fileTags === 'string') {
+        return file.fileTags.includes("view-only");
+      }
+    }
+    
+    // Handle tags as array or string
+    if (file.tags) {
+      if (Array.isArray(file.tags)) {
+        return file.tags.includes("view-only");
+      } else if (typeof file.tags === 'string') {
+        return file.tags.includes("view-only");
+      }
+    }
+    
+    return false;
   };
 
   // Check if current user is the owner (assuming owner files don't have "received" tag)
   const isOwner = (file) => {
-    return !file.tags || !file.tags.includes("received");
+    if (!file.tags) return true;
+    
+    if (Array.isArray(file.tags)) {
+      return !file.tags.includes("received");
+    } else if (typeof file.tags === 'string') {
+      return !file.tags.includes("received");
+    }
+    
+    return true;
   };
 
   const handleContextMenu = (e, file) => {
@@ -364,7 +392,7 @@ export function FileGrid({
           <hr />
 
           {/* Revoke View Access Button - Show for view-only files or files with view sharing enabled */}
-          {(isViewOnly(menuFile) || menuFile.allow_view_sharing) && onRevokeViewAccess && (
+          {(isViewOnly(menuFile) || menuFile.allow_view_sharing) && isOwner(menuFile) && onRevokeViewAccess && (
             <button
               onClick={() => {
                 onRevokeViewAccess(menuFile);
