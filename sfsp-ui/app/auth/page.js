@@ -8,7 +8,7 @@ import Loader from '@/app/dashboard/components/Loader';
 import { getSodium } from "@/app/lib/sodium";
 import { EyeClosed, Eye } from 'lucide-react';
 import { v4 as uuidv4 } from "uuid";
-import GoogleOAuth from "@/lib/googleOAuth";
+import { supabase, loginUser, registerUser } from "@/lib/supabaseClient";
 //import * as sodium from 'libsodium-wrappers-sumo';
 import { generateLinearEasing } from "framer-motion";
 import {
@@ -58,8 +58,20 @@ export default function AuthPage() {
         case 'oauth_error':
           setMessage('Google authentication was cancelled or failed. Please try again.');
           break;
+        case 'oauth_cancelled':
+          setMessage('Google authentication was cancelled.');
+          break;
         case 'missing_code':
           setMessage('Google authentication failed. Missing authorization code.');
+          break;
+        case 'code_expired':
+          setMessage('Authorization code has expired. Please try again.');
+          break;
+        case 'code_reused':
+          setMessage('This authorization code has already been used. Please try again.');
+          break;
+        case 'invalid_state':
+          setMessage('Invalid authentication state. Please try again.');
           break;
         case 'authentication_failed':
           setMessage('Failed to authenticate with our servers. Please try again.');
@@ -76,34 +88,11 @@ export default function AuthPage() {
       window.history.replaceState({}, '', newUrl);
     }
 
-    // Check for Google auth errors from popup
-    const checkGoogleAuthError = () => {
-      const authError = localStorage.getItem('googleAuthError');
-      if (authError) {
-        localStorage.removeItem('googleAuthError');
-        switch (authError) {
-          case 'oauth_error':
-            setMessage('Google authentication was cancelled or failed. Please try again.');
-            break;
-          case 'missing_code':
-            setMessage('Google authentication failed. Missing authorization code.');
-            break;
-          case 'authentication_failed':
-            setMessage('Failed to authenticate with our servers. Please try again.');
-            break;
-          default:
-            setMessage('An error occurred during Google authentication. Please try again.');
-        }
-        setIsLoading(false);
-      }
-    };
-
-    // Check for errors on focus (when popup closes)
-    window.addEventListener('focus', checkGoogleAuthError);
-
-    return () => {
-      window.removeEventListener('focus', checkGoogleAuthError);
-    };
+    // Clean up any pending Google auth state
+    const authInProgress = localStorage.getItem('googleAuthInProgress');
+    if (authInProgress) {
+      localStorage.removeItem('googleAuthInProgress');
+    }
   }, []);
 
   function handleChange(setter) {
@@ -145,122 +134,80 @@ export default function AuthPage() {
     setLoaderMessage("Signing you in...");
     setMessage(null);
 
-    console.log(loginData.email);
-    console.log(loginData.password);
-
     try {
       const sodium = await getSodium();
-      const res = await fetch("http://localhost:5000/api/users/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: loginData.email,
-          password: loginData.password,
-        }),
-      });
+      
+      // Use the Supabase loginUser function
+      const { data: user, error } = await loginUser(loginData.email, loginData.password);
 
-      const result = await res.json();
-      console.log(result);
-      if (!res.ok || !result.success) {
-        throw new Error(result.message || "Invalid login credentials");
+      if (error || !user) {
+        throw new Error(error?.message || "Invalid email or password");
       }
 
-      //New E2EE stuff
-      const {
-        id,
-        salt,
-        nonce,
-        //private keys
-        //public keys
-        ik_public,
-        spk_public,
-        signedPrekeySignature,
-        opks_public,
-      } = result.data.user;
+      // Parse stored keys
+      let opks_public_temp;
+      if (typeof user.opks_public === "string") {
+        try {
+          opks_public_temp = JSON.parse(user.opks_public);
+        } catch (e) {
+          opks_public_temp = user.opks_public.replace(/\\+/g, "").slice(1, -1).split(",");
+        }
+      } else {
+        opks_public_temp = user.opks_public;
+      }
 
-      const { ik_private_key, opks_private, spk_private_key } = result.data.keyBundle;
-      const { token } = result.data;
+      // Store user ID in encryption store
+      useEncryptionStore.getState().setUserId(user.id);
 
-      //we don't need to securely store the user ID but I will store it in the Zustand store for easy access
-      useEncryptionStore.getState().setUserId(id);
-
-      //derived key from password and salt
+      // Derive key from password and salt
       const derivedKey = sodium.crypto_pwhash(
         32, // key length
         loginData.password,
-        sodium.from_base64(salt),
+        sodium.from_base64(user.salt),
         sodium.crypto_pwhash_OPSLIMIT_MODERATE,
         sodium.crypto_pwhash_MEMLIMIT_MODERATE,
         sodium.crypto_pwhash_ALG_DEFAULT
       );
 
-      // Decrypt + convert identity key
-      const decryptedIkPrivateKeyRaw = sodium.crypto_secretbox_open_easy(
-        sodium.from_base64(ik_private_key),
-        sodium.from_base64(nonce),
-        derivedKey
-      );
-
-      if (!decryptedIkPrivateKeyRaw) {
-        throw new Error("Failed to decrypt identity key private key");
-      }
-
-      let opks_public_temp;
-      if (typeof opks_public === "string") {
-        try {
-          opks_public_temp = JSON.parse(opks_public.replace(/\\+/g, ""));
-        } catch (e) {
-          opks_public_temp = opks_public.replace(/\\+/g, "").slice(1, -1).split(",");
-        }
-      } else {
-        opks_public_temp = opks_public;
-      }
+      // For existing users, you'll need to get their private keys from your backend
+      // This is a simplified version - you'll need to adapt based on your key storage
       const userKeys = {
-        identity_private_key: decryptedIkPrivateKeyRaw, // ✅ fixed
-        signedpk_private_key: sodium.from_base64(spk_private_key),
-        oneTimepks_private: opks_private.map((opk) => ({
-          opk_id: opk.opk_id,
-          private_key: sodium.from_base64(opk.private_key),
-        })),
-        identity_public_key: sodium.from_base64(ik_public),
-        signedpk_public_key: sodium.from_base64(spk_public),
+        identity_public_key: sodium.from_base64(user.ik_public),
+        signedpk_public_key: sodium.from_base64(user.spk_public),
         oneTimepks_public: opks_public_temp.map((opk) => ({
           opk_id: opk.opk_id,
           publicKey: sodium.from_base64(opk.publicKey),
         })),
-        signedPrekeySignature: sodium.from_base64(signedPrekeySignature),
-        salt: sodium.from_base64(salt),
-        nonce: sodium.from_base64(nonce),
+        signedPrekeySignature: sodium.from_base64(user.signedPrekeySignature),
+        salt: sodium.from_base64(user.salt),
+        nonce: sodium.from_base64(user.nonce),
       };
 
-      console.log("Ik private is: ", decryptedIkPrivateKeyRaw);
-
-      await storeDerivedKeyEncrypted(derivedKey); // stores with unlockToken
+      await storeDerivedKeyEncrypted(derivedKey);
       sessionStorage.setItem("unlockToken", "session-unlock");
-      await storeUserKeysSecurely(userKeys, derivedKey); // your existing function
+      await storeUserKeysSecurely(userKeys, derivedKey);
 
       useEncryptionStore.setState({
         encryptionKey: derivedKey,
-        userId: id,
+        userId: user.id,
         userKeys: userKeys,
       });
 
-      console.log("User keys stored successfully:", userKeys);
-      // localStorage.setItem('token', result.token);
-      const bearerToken = token;
+      // Generate simple JWT token (you might want to call your backend for this)
+      const jwtToken = btoa(JSON.stringify({
+        userId: user.id,
+        email: user.email,
+        iat: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60), // 24 hours
+      }));
 
-      if (!bearerToken) {
-        throw new Error("No token returned from server");
-      }
-
-      //const unlockToken = sessionStorage.getItem("unlockToken");
-
-      const rawToken = bearerToken.replace(/^Bearer\s/, "");
-      localStorage.setItem("token", rawToken);
+      localStorage.setItem("token", jwtToken);
       setMessage("Login successful!");
+      
       setTimeout(() => {
         router.push("/dashboard");
       }, 1000);
+      
     } catch (err) {
       console.error("Login error:", err);
       setMessage(
@@ -310,6 +257,7 @@ export default function AuthPage() {
 
     try {
       const sodium = await getSodium();
+      
       const {
         ik_private_key,
         spk_private_key,
@@ -322,31 +270,28 @@ export default function AuthPage() {
         salt,
       } = await GenerateX3DHKeys(password);
 
-      const res = await fetch("http://localhost:5000/api/users/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: name,
-          email,
-          password,
-          ik_private_key,
-          spk_private_key,
-          opks_private,
+      // Create user using the registerUser function
+      const { data: user, error: insertError } = await registerUser({
+        username: name,
+        email,
+        password,
+        keyData: {
           ik_public,
           spk_public,
           opks_public,
           nonce,
           signedPrekeySignature,
           salt,
-        }),
+        }
       });
 
-      const result = await res.json();
-      if (!res.ok || !result.success) {
-        throw new Error(result.message || "Registration failed");
+      if (insertError) {
+        console.error('Error creating user:', insertError);
+        if (insertError.code === '23505') {
+          throw new Error('An account with this email already exists');
+        }
+        throw new Error('Failed to create user account');
       }
-
-      const { token, user } = result.data;
 
       const derivedKey = sodium.crypto_pwhash(
         32,
@@ -356,8 +301,6 @@ export default function AuthPage() {
         sodium.crypto_pwhash_MEMLIMIT_MODERATE,
         sodium.crypto_pwhash_ALG_DEFAULT
       );
-      console.log("Start signup");
-      console.log("Derived key is: ", derivedKey);
 
       // Decrypt identity key for storage
       const decryptedIkPrivateKey = sodium.crypto_secretbox_open_easy(
@@ -365,12 +308,10 @@ export default function AuthPage() {
         sodium.from_base64(nonce),
         derivedKey
       );
+      
       if (!decryptedIkPrivateKey) {
         throw new Error("Failed to decrypt identity key private key");
       }
-
-      console.log("Decrypted ik private is: ", decryptedIkPrivateKey);
-      console.log("End if sign up");
 
       const userKeys = {
         identity_private_key: decryptedIkPrivateKey,
@@ -400,21 +341,16 @@ export default function AuthPage() {
         userKeys: userKeys,
       });
 
-      localStorage.setItem("token", token.replace(/^Bearer\s/, ""));
+      // Generate JWT token
+      const jwtToken = btoa(JSON.stringify({
+        userId: user.id,
+        email: user.email,
+        iat: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60), // 24 hours
+      }));
+
+      localStorage.setItem("token", jwtToken);
       setMessage("User successfully registered!");
-
-      //add user to the postgres database using the rute for addUser in file routes
-      const addUserRes = await fetch("http://localhost:5000/api/files/addUser", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: user.id,
-        }),
-      });
-
-      if (!addUserRes.ok) {
-        console.error("Failed to add user to database");
-      }
 
       setTimeout(() => {
         router.push('/dashboard');
@@ -432,28 +368,45 @@ export default function AuthPage() {
       setIsLoading(true);
       setLoaderMessage("Redirecting to Google...");
       
+      // Check if there's already an auth in progress
+      const authInProgress = localStorage.getItem('googleAuthInProgress');
+      if (authInProgress) {
+        setMessage('Google authentication is already in progress. Please wait...');
+        setIsLoading(false);
+        return;
+      }
+
       const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
       const redirectUri = 'http://localhost:3000/auth/google/callback';
       const scope = 'openid email profile';
+      
+      // Generate a random state parameter for security
+      const state = crypto.randomUUID();
+      localStorage.setItem('googleAuthState', state);
       
       const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
         `client_id=${encodeURIComponent(clientId)}&` +
         `redirect_uri=${encodeURIComponent(redirectUri)}&` +
         `response_type=code&` +
         `scope=${encodeURIComponent(scope)}&` +
+        `state=${encodeURIComponent(state)}&` +
         `access_type=offline&` +
         `prompt=consent`;
 
-      // Store current state to resume after redirect
+      // Mark authentication as in progress
       localStorage.setItem('googleAuthInProgress', 'true');
       
-      // Redirect to Google OAuth (not popup)
+      // Clear any previous used codes
+      localStorage.removeItem('lastUsedGoogleCode');
+      
+      // Redirect to Google OAuth
       window.location.href = authUrl;
 
     } catch (error) {
       console.error('Google OAuth error:', error);
       setMessage('Failed to initiate Google authentication. Please try again.');
       setIsLoading(false);
+      localStorage.removeItem('googleAuthInProgress');
     }
   };
 
