@@ -193,14 +193,22 @@ export default function AuthPage() {
         userKeys: userKeys,
       });
 
-      // Generate simple JWT token (you might want to call your backend for this)
-      const jwtToken = btoa(JSON.stringify({
-        userId: user.id,
-        email: user.email,
-        iat: Math.floor(Date.now() / 1000),
-        exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60), // 24 hours
-      }));
+      // Generate proper JWT token via backend API
+      const jwtResponse = await fetch('/api/auth/generate-jwt', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId: user.id, email: user.email }),
+      });
 
+      if (!jwtResponse.ok) {
+        const errorData = await jwtResponse.json();
+        console.error('JWT generation failed:', errorData);
+        throw new Error('Failed to generate authentication token');
+      }
+
+      const { token: jwtToken } = await jwtResponse.json();
       localStorage.setItem("token", jwtToken);
       setMessage("Login successful!");
       
@@ -341,14 +349,22 @@ export default function AuthPage() {
         userKeys: userKeys,
       });
 
-      // Generate JWT token
-      const jwtToken = btoa(JSON.stringify({
-        userId: user.id,
-        email: user.email,
-        iat: Math.floor(Date.now() / 1000),
-        exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60), // 24 hours
-      }));
+      // Generate proper JWT token via backend API
+      const jwtResponse = await fetch('/api/auth/generate-jwt', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId: user.id, email: user.email }),
+      });
 
+      if (!jwtResponse.ok) {
+        const errorData = await jwtResponse.json();
+        console.error('JWT generation failed:', errorData);
+        throw new Error('Failed to generate authentication token');
+      }
+
+      const { token: jwtToken } = await jwtResponse.json();
       localStorage.setItem("token", jwtToken);
       setMessage("User successfully registered!");
 
@@ -380,7 +396,6 @@ export default function AuthPage() {
       const redirectUri = 'http://localhost:3000/auth/google/callback';
       const scope = 'openid email profile';
       
-      // Generate a random state parameter for security
       const state = crypto.randomUUID();
       localStorage.setItem('googleAuthState', state);
       
@@ -393,13 +408,10 @@ export default function AuthPage() {
         `access_type=offline&` +
         `prompt=consent`;
 
-      // Mark authentication as in progress
       localStorage.setItem('googleAuthInProgress', 'true');
       
-      // Clear any previous used codes
       localStorage.removeItem('lastUsedGoogleCode');
       
-      // Redirect to Google OAuth
       window.location.href = authUrl;
 
     } catch (error) {
@@ -428,19 +440,16 @@ export default function AuthPage() {
     console.log("SPK private", spk.privateKey);
     console.log("SPK public", spk.publicKey);
 
-    // Sign the SPK public key using the Ed25519 identity key should be 64 bits, all of the above
     const spkSignature = sodium.crypto_sign_detached(
       spk.publicKey,
       ik.privateKey
     );
 
-    // One-Time PreKeys (X25519)
     const opks = Array.from({ length: 10 }, () => ({
       opk_id: crypto.randomUUID(),
       keypair: sodium.crypto_box_keypair(),
     }));
 
-    // Derive encryption key from password
     const salt = sodium.randombytes_buf(sodium.crypto_pwhash_SALTBYTES);
     console.log("Salt is: ", salt)
     const derivedKey = sodium.crypto_pwhash(
@@ -454,7 +463,6 @@ export default function AuthPage() {
 
     console.log("Derivedkey is: ", derivedKey);
 
-    // Encrypt identity private key
     const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
     console.log("Nonce is:", nonce);
     const encryptedIK = sodium.crypto_secretbox_easy(
@@ -471,7 +479,6 @@ export default function AuthPage() {
     console.log("End key generation");
 
     return {
-      // Public
       ik_public: sodium.to_base64(ik.publicKey),
       spk_public: sodium.to_base64(spk.publicKey),
       signedPrekeySignature: sodium.to_base64(spkSignature),
@@ -480,15 +487,13 @@ export default function AuthPage() {
         publicKey: sodium.to_base64(opk.keypair.publicKey),
       })),
 
-      // Private (encrypted where appropriate)
-      ik_private_key: sodium.to_base64(encryptedIK), // 🔐 encrypted
-      spk_private_key: sodium.to_base64(spk.privateKey), // not encrypted
+      ik_private_key: sodium.to_base64(encryptedIK),
+      spk_private_key: sodium.to_base64(spk.privateKey),
       opks_private: opks.map((opk) => ({
         opk_id: opk.opk_id,
         private_key: sodium.to_base64(opk.keypair.privateKey),
       })),
 
-      // Crypto parameters
       salt: sodium.to_base64(salt),
       nonce: sodium.to_base64(nonce),
     };

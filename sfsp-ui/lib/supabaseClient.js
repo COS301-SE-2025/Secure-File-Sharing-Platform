@@ -38,7 +38,6 @@ export async function loginUser(email, password) {
         return { data: null, error: { message: 'Invalid email or password' } };
     }
     
-    // Check if user signed up with Google (no password)
     if (!data.password && data.google_id) {
         return { data: null, error: { message: 'This account was created with Google. Please use "Continue with Google" to sign in.' } };
     }
@@ -47,7 +46,6 @@ export async function loginUser(email, password) {
         return { data: null, error: { message: 'Invalid email or password' } };
     }
     
-    // Verify password using bcrypt
     const isValidPassword = await verifyPassword(password, data.password);
     if (!isValidPassword) {
         return { data: null, error: { message: 'Invalid email or password' } };
@@ -81,7 +79,7 @@ export async function createGoogleUser(googleUser, keyData) {
         {
             email: googleUser.email,
             username: googleUser.name,
-            password: null, // Google users don't have passwords
+            password: null,
             google_id: googleUser.id,
             avatar_url: googleUser.picture,
             is_verified: googleUser.verified_email,
