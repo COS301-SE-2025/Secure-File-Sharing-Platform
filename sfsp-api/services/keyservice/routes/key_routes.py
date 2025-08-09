@@ -30,6 +30,7 @@ def health_check():
 
 @key_bp.route('/store-key', methods=['POST'])
 def store_private_key():
+    print("Inside the store_private key function")
     vault = get_vault_client()
     if not vault:
         return jsonify({'status': 'error', 'error': 'Vault client not initialized'}), 500
@@ -61,7 +62,7 @@ def store_private_key():
         success = vault.write_private_key_bundle(
             encrypted_id, spk_private_key, ik_private_key, opks_private
         )
-
+        print("Return from store")
         if success:
             return jsonify({
                 'status': 'success',
@@ -75,6 +76,7 @@ def store_private_key():
             }), 500
 
     except Exception as e:
+        print("Inside the exception as e")
         current_app.logger.error(f"Error in store_private_key: {e}")
         return jsonify({
             'status': 'error',
