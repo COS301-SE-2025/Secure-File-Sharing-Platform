@@ -60,12 +60,28 @@ describe('CreateFolderDialog Component', () => {
     cy.get('@onOpenChange').should('have.been.calledWith', false);
   });
 
+
   it('does not create folder if input is empty when Enter pressed', () => {
     const onOpenChange = cy.stub().as('onOpenChange');
     cy.mount(<CreateFolderDialog open={true} onOpenChange={onOpenChange} />);
 
     cy.get('input#folder-name').type('{enter}');
     cy.get('@onOpenChange').should('not.have.been.called');
+  });
+
+  it('logs error and does not call onOpenChange if userId missing', () => {
+    cy.stub(require('@/app/SecureKeyStorage').useEncryptionStore.getState(), 'userId').value(undefined);
+
+    const onOpenChange = cy.stub().as('onClose');
+    cy.mount(<CreateFolderDialog open={true} onOpenChange={onOpenChange} />);
+
+    cy.spy(console, 'error').as('consoleError');
+
+    cy.get('input#folder-name').type('Test Folder');
+    cy.contains('Create Folder').click();
+
+    cy.get('@consoleError').should('have.been.calledWith', 'Missing user ID');
+    cy.get('@onClose').should('not.have.been.called');
   });
 
 });
