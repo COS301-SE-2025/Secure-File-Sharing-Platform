@@ -9,12 +9,10 @@ import { useEncryptionStore, storeUserKeysSecurely, storeDerivedKeyEncrypted,} f
 import Loader from '@/app/dashboard/components/Loader';
 
 export default function GoogleCallbackPage() {
-    const router = useRouter();
-    const [isLoading, setIsLoading] = useState(true);
-    const [message, setMessage] = useState('Processing Google authentication...');
-    const [isMounted, setIsMounted] = useState(false);
-
-    useEffect(() => {
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(true);
+  const [message, setMessage] = useState('Processing Google authentication...');
+  const [isMounted, setIsMounted] = useState(false);    useEffect(() => {
         setIsMounted(true);
     }, []);
 
@@ -336,19 +334,18 @@ export default function GoogleCallbackPage() {
         };
     }
 
-    return (
-        <div className="min-h-screen bg-white flex items-center justify-center">
-        {!isMounted ? (
-            <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading...</p>
-            </div>
-        ) : (
-            <div className="text-center">
-            <Loader message={message} />
-            <p className="mt-4 text-gray-600">{message}</p>
-            </div>
-        )}
+  return (
+    <div className="min-h-screen bg-white flex items-center justify-center">
+      {!isMounted ? (
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
         </div>
-    );
+      ) : (
+        <div className="text-center">
+          <Loader message={message} />
+        </div>
+      )}
+    </div>
+  );
 }
