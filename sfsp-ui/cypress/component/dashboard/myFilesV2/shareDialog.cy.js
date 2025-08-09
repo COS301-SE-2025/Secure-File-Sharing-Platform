@@ -37,4 +37,34 @@ describe("<ShareDialog />", () => {
 
     cy.contains("This email is already added.").should("be.visible");
   });
+
+  it("removes a recipient", () => {
+    cy.mount(<ShareDialog open={true} onOpenChange={onOpenChange} file={file} />);
+    cy.get('input[placeholder="Enter email addresses"]').type("remove@example.com");
+    cy.get("button.bg-gray-400").click();
+
+    cy.contains("remove@example.com").should("exist");
+    cy.get("button.p-1").click(); // remove button
+
+    cy.contains("remove@example.com").should("not.exist");
+  });
+
+  it("closes dialog on cancel button click", () => {
+    cy.mount(<ShareDialog open={true} onOpenChange={onOpenChange} file={file} />);
+    cy.contains("Cancel").click();
+    cy.get("@onOpenChange").should("have.been.calledWith", false);
+  });
+  
+  it("updates permission for a recipient", () => {
+    cy.mount(<ShareDialog open={true} onOpenChange={onOpenChange} file={file} />);
+    cy.get('input[placeholder="Enter email addresses"]').type("permtest@example.com");
+    cy.get("button.bg-gray-400").click();
+
+    cy.get("select").select("download");
+    cy.get("select").should("have.value", "download");
+
+    cy.get("select").select("view");
+    cy.get("select").should("have.value", "view");
+  });
+
 });
