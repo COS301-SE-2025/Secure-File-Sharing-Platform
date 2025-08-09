@@ -2,9 +2,12 @@
 const axios = require("axios");
 require("dotenv").config();
 const multer = require("multer");
-const FormData = require('form-data')
+const FormData = require("form-data");
+const path = require("path");
+const fs = require("fs");
 
-const upload = multer();
+const upload = multer({ storage: multer.memoryStorage() });
+
 
 exports.downloadFile = async (req, res) => {
   const { userId, fileId } = req.body;
@@ -14,32 +17,35 @@ exports.downloadFile = async (req, res) => {
   }
 
   try {
+    // 🔹 Request Go service with streaming
     const response = await axios({
       method: "post",
-      url: `${process.env.FILE_SERVICE_URL || "http://localhost:8081"
-        }/download`,
+      url: `${
+        process.env.FILE_SERVICE_URL || "http://localhost:8081"
+      }/download`,
       data: { userId, fileId },
-      responseType: "arraybuffer",
       headers: { "Content-Type": "application/json" },
+      responseType: "stream", // ✅ Stream instead of arraybuffer
     });
 
     const fileName = response.headers["x-file-name"];
     const nonce = response.headers["x-nonce"];
 
+	  console.log("fileName is: ", fileName);
+	  console.log("Nounce is: ", nonce);
+
     if (!fileName || !nonce) {
-      console.error("Missing x-file-name or x-nonce headers from Go service");
-      return res
-        .status(500)
-        .send("Missing required file metadata from service");
+      console.error("❌ Missing x-file-name or x-nonce headers from Go service");
+      return res.status(500).send("Missing required file metadata from service");
     }
 
     console.log(
-      "Streaming binary back to client:",
+      "Streaming file to client:",
       fileName,
-      "length:",
-      response.data.length
+      "size unknown until complete"
     );
 
+    // 🔹 Pass headers to browser for filename + metadata
     res.set({
       "Access-Control-Expose-Headers": "X-File-Name, X-Nonce",
       "Content-Type": "application/octet-stream",
@@ -47,9 +53,22 @@ exports.downloadFile = async (req, res) => {
       "X-Nonce": nonce,
     });
 
-    res.send(Buffer.from(response.data));
+    // 🔹 Pipe stream from Go directly to client
+    response.data.pipe(res);
+
+    // Optional: handle stream errors
+    response.data.on("error", (err) => {
+      console.error("Stream error from Go service:", err);
+      res.end(); // close client connection
+    });
+
+    // Optional: log when finished
+    response.data.on("end", () => {
+      console.log("✅ File streamed to client successfully:", fileName);
+    });
+
   } catch (err) {
-    console.error("Download error:", err.message);
+    console.error("❌ Download error:", err.message);
     return res.status(500).send("Download failed");
   }
 };
@@ -82,54 +101,116 @@ exports.getMetaData = async (req, res) => {
   }
 };
 
-exports.uploadFile = [
-  upload.single("encryptedFile"),
-  async (req, res) => {
-    try {
-      const {
-        fileName,
-        fileType,
-        userId,
-        nonce,
-        fileDescription,
-        fileTags,
-        path: uploadPath,
-      } = req.body;
+exports.startUpload = async (req, res) => {
+  try {
+    const {
+      fileName,
+      fileType,
+      userId,
+      nonce,
+      fileDescription,
+      fileTags,
+      path: folderPath,
+    } = req.body;
 
-      if (!fileName || !req.file?.buffer) {
-        return res.status(400).send("Missing file name or file content");
-      }
+    console.log("Inside startUpload:", req.body);
 
-      if (!userId || !nonce) {
-        return res.status(400).send("Missing userId or nonce");
-      }
-
-      const formData = new FormData();
-      formData.append("fileName", fileName);
-      formData.append("fileType", fileType);
-      formData.append("userId", userId);
-      formData.append("nonce", nonce);
-      formData.append("fileDescription", fileDescription);
-      formData.append("fileTags", fileTags);
-      formData.append("path", uploadPath || "files");
-      formData.append("encryptedFile", req.file.buffer, fileName);
-
-      const response = await axios.post(
-        `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/upload`,
-        formData,
-        { headers: formData.getHeaders() } // 👈 important
-      );
-
-      res.status(201).json({
-        message: "File uploaded",
-        server: response.data,
-      });
-    } catch (err) {
-      console.error("Upload error:", err.message);
-      res.status(500).send("Upload failed");
+    if (!fileName || !userId) {
+      return res.status(400).send("Missing fileName or userId");
     }
-  },
-];
+
+    let tagsArray = [];
+    if (Array.isArray(fileTags)) {
+      tagsArray = fileTags;
+    } else if (typeof fileTags === "string" && fileTags.trim() !== "") {
+      tagsArray = [fileTags];
+    }
+
+    const response = await axios.post(
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/startUpload`,
+      {
+        fileName,
+        fileType: fileType || "",
+        userId,
+	nonce,
+        fileDescription: fileDescription || "",
+        fileTags: tagsArray,
+        path: folderPath || "files",
+      },
+      { headers: { "Content-Type": "application/json" } }
+    );
+
+    return res.status(response.status).json(response.data);
+  } catch (err) {
+    console.error("startUpload error:", err.message);
+    res.status(500).send("Failed to start upload");
+  }
+};
+
+exports.uploadChunk = async (req, res) => {
+  try {
+    const {
+      fileName,
+      fileType,
+      userId,
+      nonce,
+      fileHash,
+      fileDescription,
+      fileTags,
+      chunkIndex,
+      totalChunks,
+      fileId,          // ✅ New
+      path: folderPath,
+    } = req.body;
+
+    if (!fileName || !req.file?.buffer) {
+      return res.status(400).send("Missing file name or chunk data");
+    }
+
+    if (!userId || !nonce || !fileHash || !fileId) {
+      return res.status(400).send("Missing userId, nonce, fileHash, or fileId");
+    }
+
+    let tagsValue = "[]";
+    if (fileTags) {
+      if (typeof fileTags === "string") {
+        try {
+          JSON.parse(fileTags);
+          tagsValue = fileTags;
+        } catch {
+          tagsValue = JSON.stringify([fileTags]);
+        }
+      } else if (Array.isArray(fileTags)) {
+        tagsValue = JSON.stringify(fileTags);
+      }
+    }
+
+    const formData = new FormData();
+    formData.append("fileId", fileId);                     // ✅ Include fileId
+    formData.append("fileName", fileName);
+    formData.append("fileType", fileType || "application/octet-stream");
+    formData.append("userId", userId);
+    formData.append("nonce", nonce);
+    formData.append("fileHash", fileHash);
+    formData.append("fileDescription", fileDescription || "");
+    formData.append("fileTags", tagsValue);
+    formData.append("chunkIndex", chunkIndex);
+    formData.append("totalChunks", totalChunks);
+    formData.append("path", folderPath || "files");
+    formData.append("encryptedFile", req.file.buffer, { filename: fileName });
+
+    const goResponse = await axios.post(
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/upload`,
+      formData,
+      { headers: formData.getHeaders(), maxBodyLength: Infinity }
+    );
+
+    return res.status(goResponse.status).json(goResponse.data);
+  } catch (err) {
+    console.error("Upload error:", err.message);
+    res.status(500).send("Upload failed");
+  }
+};
 
 exports.getNumberOfFiles = async (req, res) => {
   const userId = req.body.userId;
@@ -140,7 +221,8 @@ exports.getNumberOfFiles = async (req, res) => {
 
   try {
     const response = await axios.post(
-      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"
+      `${
+        process.env.FILE_SERVICE_URL || "http://localhost:8081"
       }/getNumberOfFiles`,
       { userId },
       { headers: { "Content-Type": "application/json" } }
@@ -187,42 +269,50 @@ exports.deleteFile = async (req, res) => {
   }
 };
 
+
 exports.sendFile = [
   upload.single("encryptedFile"),
   async (req, res) => {
     try {
-      const { fileid, userId, recipientUserId, metadata } = req.body;
+      const {
+        fileid,
+        userId,
+        recipientUserId,
+        metadata,
+        chunkIndex,
+        totalChunks,
+      } = req.body;
       const encryptedFile = req.file?.buffer;
 
-      if (!fileid || !userId || !recipientUserId || !encryptedFile) {
-        return res
-          .status(400)
-          .send("Missing file id, user ids or encrypted file");
+      if (!fileid || !userId || !recipientUserId || !metadata || !encryptedFile) {
+        return res.status(400).send("Missing required fields or file chunk");
       }
 
+      // 🔹 Build FormData for Go backend
       const formData = new FormData();
       formData.append("fileid", fileid);
       formData.append("userId", userId);
       formData.append("recipientUserId", recipientUserId);
       formData.append("metadata", metadata); // JSON string
+      formData.append("chunkIndex", chunkIndex);
+      formData.append("totalChunks", totalChunks);
       formData.append("encryptedFile", encryptedFile, {
-        filename: "encrypted.bin",
+        filename: `chunk_${chunkIndex}.bin`,
         contentType: "application/octet-stream",
       });
 
+      // 🔹 Send to Go backend
       const goResponse = await axios.post(
         `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/sendFile`,
         formData,
-        { headers: formData.getHeaders() }
+        {
+          headers: formData.getHeaders(),
+          maxBodyLength: Infinity, // allow big chunks
+        }
       );
 
-      // ✅ Forward the receivedFileID from Go response
-      const { receivedFileID, message } = goResponse.data;
-
-      res.status(200).json({
-        message: message || "File sent successfully",
-        receivedFileID, // ✅ Frontend can now reference the correct file
-      });
+      // 🔹 Proxy response back to frontend
+      res.status(goResponse.status).json(goResponse.data);
     } catch (err) {
       console.error("Error sending file:", err.message);
       res.status(500).send("Failed to send file");
@@ -310,7 +400,8 @@ exports.softDeleteFile = async (req, res) => {
 
   try {
     const response = await axios.post(
-      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"
+      `${
+        process.env.FILE_SERVICE_URL || "http://localhost:8081"
       }/softDeleteFile`,
       { fileId },
       { headers: { "Content-Type": "application/json" } }
@@ -359,40 +450,52 @@ exports.removeFileTags = async (req, res) => {
   }
 };
 
+
+
 exports.downloadSentFile = async (req, res) => {
-  const filepath = req.body.filepath;
+  const { filepath } = req.body;
 
   if (!filepath) {
-    return res.status(400).send("file path is required");
+    return res.status(400).send("File path is required");
   }
 
   try {
+    // 🔹 1. Request Go service with streaming
     const response = await axios({
       method: "post",
-      url: `${process.env.FILE_SERVICE_URL || "http://localhost:8081"
-        }/downloadSentFile`,
-      data: { filepath },
-      responseType: "arraybuffer", // ⭐ CRITICAL to handle binary
+      url: `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/downloadSentFile`,
+      data: { filePath: filepath },
       headers: { "Content-Type": "application/json" },
+      responseType: "stream", // ⭐ Stream instead of buffering
     });
 
-    console.log(
-      "Downloaded sent file from Go:",
-      filepath,
-      "length:",
-      response.data.length
-    );
-
-    // pass binary directly to client
+    // 🔹 2. Forward headers
     res.set({
       "Content-Type": "application/octet-stream",
-      "Content-Length": response.data.length,
+      "Access-Control-Expose-Headers": "Content-Disposition",
+      "Content-Disposition": `attachment; filename="${filepath.split("/").pop()}"`,
     });
 
-    res.send(Buffer.from(response.data));
+    // 🔹 3. Pipe Go backend stream → frontend
+    response.data.pipe(res);
+
+    // Optional logging
+    response.data.on("end", () => {
+      console.log(`✅ Finished streaming sent file: ${filepath}`);
+    });
+
+    response.data.on("error", (err) => {
+      console.error("❌ Stream error from Go service:", err.message);
+      res.end(); // Close client connection
+    });
+
   } catch (err) {
-    console.error("Error retrieving the sent file:", err.message);
-    res.status(500).send("Error retrieving the sent file");
+    console.error("❌ Error retrieving sent file:", err.message);
+    if (!res.headersSent) {
+      res.status(500).send("Error retrieving the sent file");
+    } else {
+      res.end(); // Ensure connection closes
+    }
   }
 };
 
@@ -405,7 +508,9 @@ exports.addDescription = async (req, res) => {
 
   try {
     const response = await axios.post(
-      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/addDescription`,
+      `${
+        process.env.FILE_SERVICE_URL || "http://localhost:8081"
+      }/addDescription`,
       { fileId, description },
       { headers: { "Content-Type": "application/json" } }
     );
@@ -445,7 +550,9 @@ exports.updateFilePath = async (req, res) => {
 
   try {
     const response = await axios.post(
-      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/updateFilePath`,
+      `${
+        process.env.FILE_SERVICE_URL || "http://localhost:8081"
+      }/updateFilePath`,
       { fileId, newPath },
       { headers: { "Content-Type": "application/json" } }
     );
@@ -460,29 +567,49 @@ exports.sendByView = [
   upload.single("encryptedFile"),
   async (req, res) => {
     try {
-      const { fileid, userId, recipientUserId, metadata } = req.body;
+      const {
+        fileid,
+        userId,
+        recipientUserId,
+        metadata,
+        chunkIndex,
+        totalChunks,
+      } = req.body;
       const encryptedFile = req.file?.buffer;
 
-      if (!fileid || !userId || !recipientUserId || !encryptedFile) {
+      if (
+        !fileid ||
+        !userId ||
+        !recipientUserId ||
+        !metadata ||
+        !encryptedFile
+      ) {
         return res
           .status(400)
-          .send("Missing file id, user ids or encrypted file");
+          .send("Missing file id, user ids, metadata, or encrypted file chunk");
       }
 
+      // 🔹 Build FormData to forward to Go
       const formData = new FormData();
       formData.append("fileid", fileid);
       formData.append("userId", userId);
       formData.append("recipientUserId", recipientUserId);
       formData.append("metadata", metadata);
+      formData.append("chunkIndex", chunkIndex);
+      formData.append("totalChunks", totalChunks);
       formData.append("encryptedFile", encryptedFile, {
-        filename: "encrypted.bin",
+        filename: `chunk_${chunkIndex}.bin`,
         contentType: "application/octet-stream",
       });
 
+      // 🔹 Forward to Go service
       const response = await axios.post(
         `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/sendByView`,
         formData,
-        { headers: formData.getHeaders() }
+        {
+          headers: formData.getHeaders(),
+          maxBodyLength: Infinity, // allow large chunks
+        }
       );
 
       if (response.status !== 200) {
@@ -494,13 +621,13 @@ exports.sendByView = [
 
       res.status(200).json({
         message: message || "File sent successfully for view-only access",
-        shareId
+        shareId,
       });
     } catch (err) {
       console.error("Error sending file by view:", err.message);
       res.status(500).send("Failed to send file by view");
     }
-  }
+  },
 ];
 
 exports.getSharedViewFiles = async (req, res) => {
@@ -512,13 +639,17 @@ exports.getSharedViewFiles = async (req, res) => {
 
   try {
     const response = await axios.post(
-      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/getSharedViewFiles`,
+      `${
+        process.env.FILE_SERVICE_URL || "http://localhost:8081"
+      }/getSharedViewFiles`,
       { userId },
       { headers: { "Content-Type": "application/json" } }
     );
 
     if (response.status !== 200) {
-      return res.status(response.status).send("Error retrieving shared view files");
+      return res
+        .status(response.status)
+        .send("Error retrieving shared view files");
     }
 
     res.status(200).json(response.data);
@@ -537,13 +668,17 @@ exports.getViewFileAccessLogs = async (req, res) => {
 
   try {
     const response = await axios.post(
-      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/getViewFileAccessLogs`,
+      `${
+        process.env.FILE_SERVICE_URL || "http://localhost:8081"
+      }/getViewFileAccessLogs`,
       { fileId, userId },
       { headers: { "Content-Type": "application/json" } }
     );
 
     if (response.status !== 200) {
-      return res.status(response.status).send("Error retrieving view file access logs");
+      return res
+        .status(response.status)
+        .send("Error retrieving view file access logs");
     }
     res.status(200).json(response.data);
   } catch (err) {
@@ -561,7 +696,9 @@ exports.revokeViewAccess = async (req, res) => {
 
   try {
     const response = await axios.post(
-      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/revokeViewAccess`,
+      `${
+        process.env.FILE_SERVICE_URL || "http://localhost:8081"
+      }/revokeViewAccess`,
       { fileId, userId, recipientId },
       { headers: { "Content-Type": "application/json" } }
     );
@@ -576,11 +713,12 @@ exports.revokeViewAccess = async (req, res) => {
   }
 };
 
+
 exports.downloadViewFile = async (req, res) => {
   const { userId, fileId } = req.body;
 
   if (!userId || !fileId) {
-    return res.status(400).send("Missing userId, fileId");
+    return res.status(400).send("Missing userId or fileId");
   }
 
   try {
@@ -588,38 +726,44 @@ exports.downloadViewFile = async (req, res) => {
       method: "post",
       url: `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/downloadViewFile`,
       data: { userId, fileId },
-      responseType: "arraybuffer",
       headers: { "Content-Type": "application/json" },
+      responseType: "stream",
     });
 
-    // Forward the headers from the Go service
-    const viewOnly = response.headers["x-view-only"];
-    const fileIdHeader = response.headers["x-file-id"];
-    const shareIdHeader = response.headers["x-share-id"];
+    const viewOnly = response.headers["x-view-only"] || "true";
+    const fileIdHeader = response.headers["x-file-id"] || fileId;
+    const shareIdHeader = response.headers["x-share-id"] || "";
 
     res.set({
       "Content-Type": "application/octet-stream",
       "X-View-Only": viewOnly,
       "X-File-Id": fileIdHeader,
       "X-Share-Id": shareIdHeader,
+      "Access-Control-Expose-Headers": "X-View-Only, X-File-Id, X-Share-Id",
     });
 
     console.log(
-      "Streaming view file back to client:",
-      "fileId:",
-      fileId,
-      "shareId:",
-      shareIdHeader,
-      "length:",
-      response.data.length
+      `Streaming view-only file back to client -> fileId: ${fileIdHeader}, shareId: ${shareIdHeader}`
     );
 
-    res.send(Buffer.from(response.data));
+    response.data.pipe(res);
+
+    response.data.on("end", () => {
+      console.log(`Finished streaming view-only (You should watch fight club) file: ${fileIdHeader}`);
+    });
+
+    response.data.on("error", (err) => {
+      console.error("Stream error from Go service:", err.message);
+      res.end(); 
+    });
+
   } catch (err) {
     console.error("Download view file error:", err.message);
+
     if (err.response && err.response.status === 403) {
       return res.status(403).send("Access has been revoked or expired");
     }
     return res.status(500).send("Download view file failed");
   }
 };
+

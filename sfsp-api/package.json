@@ -15,6 +15,7 @@
       "dotenv/config"
     ]
   },
+  "type": "commonjs",
   "keywords": [],
   "author": "",
   "license": "ISC",

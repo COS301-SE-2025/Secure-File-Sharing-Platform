@@ -16,6 +16,7 @@ import { useEncryptionStore } from "@/app/SecureKeyStorage";
 import { getSodium } from "@/app/lib/sodium";
 import { PreviewDrawer } from "./previewDrawer";
 import { FullViewModal } from "./fullViewModal";
+import pako from "pako";
 
 function getFileType(mimeType) {
   if (!mimeType) return "unknown";
@@ -199,232 +200,198 @@ export default function MyFiles() {
     fetchFiles();
   }, []);
 
-  const handleDownload = async (file) => {
-    // Prevent download for view-only files
-    if (isViewOnly(file)) {
-      alert("This file is view-only and cannot be downloaded.");
-      return;
+
+const handleDownload = async (file) => {
+  if (isViewOnly(file)) {
+    alert("This file is view-only and cannot be downloaded.");
+    return;
+  }
+
+  const { encryptionKey, userId } = useEncryptionStore.getState();
+  if (!encryptionKey) {
+    alert("Missing encryption key");
+    return;
+  }
+
+  const sodium = await getSodium();
+
+  try {
+    const res = await fetch("http://localhost:5000/api/files/download", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, fileId: file.id }),
+    });
+
+    if (!res.ok) throw new Error("Download failed");
+
+    const nonceBase64 = res.headers.get("X-Nonce");
+    const fileName = res.headers.get("X-File-Name");
+    if (!nonceBase64 || !fileName) throw new Error("Missing nonce or filename");
+
+    const nonce = sodium.from_base64(nonceBase64, sodium.base64_variants.ORIGINAL);
+
+    // Convert to stream reader
+    const reader = res.body.getReader();
+    const chunks = [];
+    let totalLength = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      chunks.push(value);
+      totalLength += value.length;
     }
 
-    const { encryptionKey, userId } = useEncryptionStore.getState();
-    if (!encryptionKey) {
-      alert("Missing encryption key");
-      return;
+    // Merge chunks into single Uint8Array
+    const encryptedFile = new Uint8Array(totalLength);
+    let offset = 0;
+    for (const chunk of chunks) {
+      encryptedFile.set(chunk, offset);
+      offset += chunk.length;
     }
 
-    const sodium = await getSodium();
+    // Decrypt the file
+    const decrypted = sodium.crypto_secretbox_open_easy(encryptedFile, nonce, encryptionKey);
+    if (!decrypted) throw new Error("Decryption failed");
 
-    try {
-      const res = await fetch("http://localhost:5000/api/files/download", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId,
-          fileId: file.id,
-        }),
-      });
+    // Download file
+    const decompressed = pako.ungzip(decrypted);
+    const blob = new Blob([decompressed]);
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    a.click();
+    window.URL.revokeObjectURL(url);
 
-      if (!res.ok) throw new Error("Download failed");
+    console.log(`✅ Downloaded and decrypted ${fileName}`);
+  } catch (err) {
+    console.error("Download error:", err);
+    alert("Download failed");
+  }
+};
 
-      // Get binary data directly
-      const buffer = await res.arrayBuffer();
-      const encryptedFile = new Uint8Array(buffer);
+  
+const handleLoadFile = async (file) => {
+  const { encryptionKey, userId } = useEncryptionStore.getState();
+  if (!encryptionKey) {
+    alert("Missing encryption key");
+    return null;
+  }
 
-      // Get nonce + fileName from headers
-      const nonceBase64 = res.headers.get("X-Nonce");
-      const fileName = res.headers.get("X-File-Name");
+  const sodium = await getSodium();
 
-      if (!nonceBase64 || !fileName) {
-        throw new Error("Missing nonce or fileName in response headers");
+  try {
+    const res = await fetch("http://localhost:5000/api/files/download", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId,
+        fileId: file.id,
+      }),
+    });
+
+    if (!res.ok) {
+      if (res.status === 403) {
+        throw new Error("Access has been revoked or expired");
       }
-
-      const decrypted = sodium.crypto_secretbox_open_easy(
-        encryptedFile,
-        sodium.from_base64(nonceBase64, sodium.base64_variants.ORIGINAL),
-        encryptionKey
-      );
-
-      if (!decrypted) {
-        throw new Error("Decryption failed");
-      }
-
-      // Download file
-      const blob = new Blob([decrypted]);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = fileName;
-      a.click();
-      window.URL.revokeObjectURL(url);
-
-      // Add access log
-      const token = localStorage.getItem("token");
-      if (!token) return;
-
-      try {
-        const profileRes = await fetch(
-          "http://localhost:5000/api/users/profile",
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-
-        const profileResult = await profileRes.json();
-        if (!profileRes.ok)
-          throw new Error(profileResult.message || "Failed to fetch profile");
-
-        await fetch("http://localhost:5000/api/files/addAccesslog", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            file_id: file.id,
-            user_id: profileResult.data.id,
-            action: "downloaded",
-            message: `User ${profileResult.data.email} has downloaded the file.`,
-          }),
-        });
-      } catch (err) {
-        console.error("Failed to fetch user profile:", err.message);
-      }
-    } catch (err) {
-      console.error("Download error:", err);
-      alert("Download failed");
-    }
-  };
-
-  const handleLoadFile = async (file) => {
-    const { encryptionKey, userId } = useEncryptionStore.getState();
-    if (!encryptionKey) {
-      alert("Missing encryption key");
-      return null;
+      throw new Error("Failed to load file");
     }
 
-    const sodium = await getSodium();
-
-    try {
-      // Always use regular download endpoint for previews
-      const res = await fetch("http://localhost:5000/api/files/download", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId,
-          fileId: file.id,
-        }),
-      });
-
-      if (!res.ok) {
-        if (res.status === 403) {
-          throw new Error("Access has been revoked or expired");
-        }
-        throw new Error("Failed to load file");
-      }
-
-      // Get binary data directly
-      const buffer = await res.arrayBuffer();
-      const encryptedFile = new Uint8Array(buffer);
-
-      // Get nonce + fileName from headers
-      const nonceBase64 = res.headers.get("X-Nonce");
-      const fileName = res.headers.get("X-File-Name");
-
-      if (!nonceBase64 || !fileName) {
-        throw new Error("Missing nonce or fileName in response headers");
-      }
-
-      const decrypted = sodium.crypto_secretbox_open_easy(
-        encryptedFile,
-        sodium.from_base64(nonceBase64, sodium.base64_variants.ORIGINAL),
-        encryptionKey
-      );
-
-      if (!decrypted) {
-        throw new Error("Decryption failed");
-      }
-
-      return { fileName, decrypted };
-    } catch (err) {
-      console.error("Load file error:", err);
-      alert("Failed to load file: " + err.message);
-      return null;
-    }
-  };
-
-  const handlePreview = async (file) => {
-    console.log("Inside handlePreview");
-    if (file.type === "folder") {
-      setPreviewContent({
-        url: null,
-        text: "This is a folder. Double-click to open.",
-      });
-      setPreviewFile(file);
-      return;
+    const nonceBase64 = res.headers.get("X-Nonce");
+    const fileName = res.headers.get("X-File-Name");
+    if (!nonceBase64 || !fileName) {
+      throw new Error("Missing nonce or fileName in response headers");
     }
 
-    const result = await handleLoadFile(file);
-    if (!result) return;
+    const nonce = sodium.from_base64(nonceBase64, sodium.base64_variants.ORIGINAL);
 
-    let contentUrl = null;
-    let textSnippet = null;
+    // Use streaming reader to reduce memory spikes
+    const reader = res.body.getReader();
+    const chunks = [];
+    let totalLength = 0;
 
-    if (
-      file.type === "image" ||
-      file.type === "video" ||
-      file.type === "audio"
-    ) {
-      contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
-    } else if (file.type === "pdf") {
-      contentUrl = URL.createObjectURL(
-        new Blob([result.decrypted], { type: "application/pdf" })
-      );
-    } else if (
-      file.type === "txt" ||
-      file.type === "json" ||
-      file.type === "csv"
-    ) {
-      textSnippet = new TextDecoder().decode(result.decrypted).slice(0, 1000);
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      totalLength += value.length;
     }
 
-    setPreviewContent({ url: contentUrl, text: textSnippet });
+    // Merge all chunks into single Uint8Array
+    const encryptedFile = new Uint8Array(totalLength);
+    let offset = 0;
+    for (const chunk of chunks) {
+      encryptedFile.set(chunk, offset);
+      offset += chunk.length;
+    }
+
+    // Decrypt file
+    const decrypted = sodium.crypto_secretbox_open_easy(encryptedFile, nonce, encryptionKey);
+    if (!decrypted) throw new Error("Decryption failed");
+
+    const decompressed = pako.ungzip(decrypted);
+    return { fileName, decompressed };
+  } catch (err) {
+    console.error("Load file error:", err);
+    alert("Failed to load file: " + err.message);
+    return null;
+  }
+};
+
+  
+const handlePreview = async (file) => {
+  console.log("Inside handlePreview");
+  if (file.type === "folder") {
+    setPreviewContent({ url: null, text: "This is a folder. Double-click to open." });
     setPreviewFile(file);
-  };
+    return;
+  }
 
-  const handleOpenFullView = async (file) => {
-    if (file.type === "folder") {
-      setPreviewContent({
-        url: null,
-        text: "This is a folder. Double-click to open.",
-      });
-      setPreviewFile(file);
-      return;
-    }
+  const result = await handleLoadFile(file);
+  if (!result) return;
 
-    const result = await handleLoadFile(file);
-    if (!result) return;
+  let contentUrl = null;
+  let textSnippet = null;
 
-    let contentUrl = null;
-    let textFull = null;
+  if (file.type.startsWith("image") || file.type.startsWith("video") || file.type.startsWith("audio")) {
+    contentUrl = URL.createObjectURL(new Blob([result.decompressed]));
+  } else if (file.type === "pdf") {
+    contentUrl = URL.createObjectURL(new Blob([result.decompressed], { type: "application/pdf" }));
+  } else if (["txt", "json", "csv"].some((ext) => file.type.includes(ext))) {
+    textSnippet = new TextDecoder().decode(result.decrypted).slice(0, 1000);
+  }
 
-    if (
-      file.type === "image" ||
-      file.type === "video" ||
-      file.type === "audio"
-    ) {
-      contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
-    } else if (file.type === "pdf") {
-      contentUrl = URL.createObjectURL(
-        new Blob([result.decrypted], { type: "application/pdf" })
-      );
-    } else if (
-      file.type === "txt" ||
-      file.type === "json" ||
-      file.type === "csv"
-    ) {
-      textFull = new TextDecoder().decode(result.decrypted);
-    }
+  setPreviewContent({ url: contentUrl, text: textSnippet });
+  setPreviewFile(file);
+};
 
-    setViewerContent({ url: contentUrl, text: textFull });
-    setViewerFile(file);
-  };
+  
+const handleOpenFullView = async (file) => {
+  if (file.type === "folder") {
+    setPreviewContent({ url: null, text: "This is a folder. Double-click to open." });
+    setPreviewFile(file);
+    return;
+  }
+
+  const result = await handleLoadFile(file);
+  if (!result) return;
+
+  let contentUrl = null;
+  let textFull = null;
+
+  if (file.type.startsWith("image") || file.type.startsWith("video") || file.type.startsWith("audio")) {
+    contentUrl = URL.createObjectURL(new Blob([result.decompressed]));
+  } else if (file.type === "pdf") {
+    contentUrl = URL.createObjectURL(new Blob([result.decompressed], { type: "application/pdf" }));
+  } else if (["txt", "json", "csv"].some((ext) => file.type.includes(ext))) {
+    textFull = new TextDecoder().decode(result.decrypted);
+  }
+
+  setViewerContent({ url: contentUrl, text: textFull });
+  setViewerFile(file);
+};
 
   const handleUpdateDescription = async (fileId, description) => {
     try {
