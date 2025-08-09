@@ -1,6 +1,6 @@
 import React from 'react';
-import { FileList } from '../../app/dashboard/myFilesV2/fileList';
-import '../../app/globals.css';
+import { FileList } from '../../../../app/dashboard/myFilesV2/fileList';
+import '../../../../app/globals.css';
 
 describe('FileList Component', () => {
     const mockFiles = [
