@@ -1,6 +1,6 @@
 import React from 'react';
-import { ActivityLogsDialog } from '../../app/dashboard/myFilesV2/activityLogsDialog';
-import '../../app/globals.css';
+import { ActivityLogsDialog } from '../../../../app/dashboard/myFilesV2/activityLogsDialog';
+import '../../../../app/globals.css';
 
 describe('ActivityLogsDialog Component', () => {
     const fileMock = {
