@@ -256,8 +256,8 @@ const handleDownload = async (file) => {
     if (!decrypted) throw new Error("Decryption failed");
 
     // Download file
-    const decompressed = pako.ungzip(decrypted);
-    const blob = new Blob([decompressed]);
+    //const decompressed = pako.ungzip(decrypted);
+    const blob = new Blob([decrypted]);
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -331,8 +331,8 @@ const handleLoadFile = async (file) => {
     const decrypted = sodium.crypto_secretbox_open_easy(encryptedFile, nonce, encryptionKey);
     if (!decrypted) throw new Error("Decryption failed");
 
-    const decompressed = pako.ungzip(decrypted);
-    return { fileName, decompressed };
+    //const decompressed = pako.ungzip(decrypted);
+    return { fileName, decrypted };
   } catch (err) {
     console.error("Load file error:", err);
     alert("Failed to load file: " + err.message);
@@ -356,9 +356,9 @@ const handlePreview = async (file) => {
   let textSnippet = null;
 
   if (file.type.startsWith("image") || file.type.startsWith("video") || file.type.startsWith("audio")) {
-    contentUrl = URL.createObjectURL(new Blob([result.decompressed]));
+    contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
   } else if (file.type === "pdf") {
-    contentUrl = URL.createObjectURL(new Blob([result.decompressed], { type: "application/pdf" }));
+    contentUrl = URL.createObjectURL(new Blob([result.decrypted], { type: "application/pdf" }));
   } else if (["txt", "json", "csv"].some((ext) => file.type.includes(ext))) {
     textSnippet = new TextDecoder().decode(result.decrypted).slice(0, 1000);
   }
@@ -382,9 +382,9 @@ const handleOpenFullView = async (file) => {
   let textFull = null;
 
   if (file.type.startsWith("image") || file.type.startsWith("video") || file.type.startsWith("audio")) {
-    contentUrl = URL.createObjectURL(new Blob([result.decompressed]));
+    contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
   } else if (file.type === "pdf") {
-    contentUrl = URL.createObjectURL(new Blob([result.decompressed], { type: "application/pdf" }));
+    contentUrl = URL.createObjectURL(new Blob([result.decrypted], { type: "application/pdf" }));
   } else if (["txt", "json", "csv"].some((ext) => file.type.includes(ext))) {
     textFull = new TextDecoder().decode(result.decrypted);
   }
