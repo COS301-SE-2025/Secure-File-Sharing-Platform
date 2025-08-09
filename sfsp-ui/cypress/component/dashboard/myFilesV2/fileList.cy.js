@@ -89,11 +89,12 @@ describe('FileList Component', () => {
 
     it('renders the file table with headers', () => {
         cy.get('table').should('be.visible');
-        cy.get('thead tr th').should('have.length', 4);
+        cy.get('thead tr th').should('have.length', 5);
         cy.get('thead tr th').eq(0).should('contain.text', 'Name');
         cy.get('thead tr th').eq(1).should('contain.text', 'Size');
         cy.get('thead tr th').eq(2).should('contain.text', 'Modified');
-        cy.get('thead tr th').eq(3).should('contain.text', 'Actions');
+        cy.get('thead tr th').eq(3).should('contain.text', 'Type');
+        cy.get('thead tr th').eq(4).should('contain.text', 'Actions');
     });
 
     it('displays all files with correct data', () => {
