@@ -236,40 +236,42 @@ export default function GoogleCallbackPage() {
             });
             }
 
-            setMessage('Finalizing sign-in...');
+        setMessage('Finalizing sign-in...');
 
-            console.log('Generating JWT for user:', { id: user.id, email: user.email });
-            
-            const jwtResponse = await fetch('/api/auth/generate-jwt', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ userId: user.id, email: user.email }),
-            });
+        // Send MFA verification email
+        console.log('Sending MFA verification email...');
+        const verificationResponse = await fetch('/api/auth/send-verification', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            email: user.email, 
+            userId: user.id, 
+            userName: user.username || user.email 
+          }),
+        });
 
-            if (!jwtResponse.ok) {
-            const errorData = await jwtResponse.json();
-            console.error('JWT generation failed:', errorData);
-            throw new Error('Failed to generate authentication token');
-            }
+        if (!verificationResponse.ok) {
+          const errorData = await verificationResponse.json();
+          console.error('MFA verification email failed:', errorData);
+          throw new Error('Failed to send verification email. Please try again.');
+        }
 
-            const { token: jwtToken } = await jwtResponse.json();
-            console.log('JWT generated successfully');
-            localStorage.setItem('token', jwtToken);
+        console.log('MFA verification email sent successfully');
+        
+        // Store user ID in encryption store
+        useEncryptionStore.getState().setUserId(user.id);
 
-            useEncryptionStore.getState().setUserId(user.id);
+        // Clean up
+        localStorage.removeItem('googleAuthInProgress');
+        localStorage.removeItem('googleAuthState');
+        localStorage.removeItem('lastUsedGoogleCode');
 
-            localStorage.removeItem('googleAuthInProgress');
-            localStorage.removeItem('googleAuthState');
-            localStorage.removeItem('lastUsedGoogleCode');
-
-            setMessage('Sign-in successful!');
-            setTimeout(() => {
-            router.push('/dashboard');
-            }, 1000);
-
-        } catch (error) {
+        setMessage('Verification email sent! Check your inbox.');
+        setTimeout(() => {
+          router.push(`/auth/verify-email?email=${encodeURIComponent(user.email)}&userId=${user.id}`);
+        }, 2000);        } catch (error) {
             console.error('Google authentication error:', error);
             console.error('Error stack:', error.stack);
             setMessage(error.message || 'Authentication failed. Please try again.');

@@ -1,0 +1,68 @@
+import { NextResponse } from 'next/server';
+import { supabase } from '@/lib/supabaseClient';
+
+export async function POST(request) {
+    try {
+        const { userId, code } = await request.json();
+
+        if (!userId || !code) {
+            return NextResponse.json(
+                { error: 'userId and code are required' },
+                { status: 400 }
+            );
+        }
+
+        const { data: verificationData, error: fetchError } = await supabase
+        .from('verification_codes')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('code', code)
+        .eq('type', 'google_signin')
+        .eq('used', false)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+        if (fetchError || !verificationData) {
+            return NextResponse.json(
+                { error: 'Invalid verification code' },
+                { status: 400 }
+            );
+        }
+
+        const now = new Date();
+        const expiresAt = new Date(verificationData.expires_at);
+        
+        if (now > expiresAt) {
+            return NextResponse.json(
+                { error: 'Verification code has expired' },
+                { status: 400 }
+            );
+        }
+
+        const { error: updateError } = await supabase
+        .from('verification_codes')
+        .update({ used: true })
+        .eq('id', verificationData.id);
+
+        if (updateError) {
+            console.error('Failed to mark code as used:', updateError);
+            return NextResponse.json(
+                { error: 'Failed to verify code' },
+                { status: 500 }
+            );
+        }
+
+        return NextResponse.json({
+            success: true,
+            message: 'Verification successful'
+        });
+
+    } catch (error) {
+        console.error('Verify code error:', error);
+        return NextResponse.json(
+            { error: 'Internal server error' },
+            { status: 500 }
+        );
+    }
+}
