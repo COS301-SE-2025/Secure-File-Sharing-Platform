@@ -10,7 +10,7 @@ import Loader from '@/app/dashboard/components/Loader';
 
 export default function GoogleCallbackPage() {
     const router = useRouter();
-    const [ setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(true);
     const [message, setMessage] = useState('Processing Google authentication...');
     const [isMounted, setIsMounted] = useState(false);    useEffect(() => { setIsMounted(true); }, []);
 
