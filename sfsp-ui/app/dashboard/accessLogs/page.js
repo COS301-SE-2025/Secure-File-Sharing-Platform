@@ -1,20 +1,82 @@
 'use client';
 
-import { useState } from 'react';
-import { Eye, Download, Share2, Edit } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Eye, Download, Share2, Edit, Clock, Trash2 } from 'lucide-react';
 import { useDashboardSearch } from '@/app/dashboard/components/DashboardSearchContext';
-
-const logs = [
-  { user: 'John Smith', email: 'john@example.com', action: 'viewed', file: 'Project Proposal.docx', date: 'Today at 10:15 AM' },
-  { user: 'Jane Cooper', email: 'jane@example.com', action: 'downloaded', file: 'Q4 Financial Report.pdf', date: 'Today at 9:22 AM' },
-  { user: 'Robert Fox', email: 'robert@example.com', action: 'shared', file: 'Logo Design.png', date: 'Yesterday at 4:30 PM' },
-  { user: 'John Smith', email: 'john@example.com', action: 'modified', file: 'Meeting Notes.txt', date: 'Yesterday at 2:15 PM' },
-];
+import { useEncryptionStore } from '@/app/SecureKeyStorage';
 
 export default function AccessLogsPage() {
-  const {search} = useDashboardSearch();
+  const { search } = useDashboardSearch();
+  const [logs, setLogs] = useState([]);
   const [dateFilter, setDateFilter] = useState('Last 7 days');
   const [actionFilter, setActionFilter] = useState('All actions');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchAllLogs = async () => {
+      try {
+        const userId = useEncryptionStore.getState().userId;
+        if (!userId) {
+          console.error('Cannot fetch files: Missing userId in store.');
+          return;
+        }
+
+        // Step 1: Fetch all files
+        const filesRes = await fetch('http://localhost:5000/api/files/metadata', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId }),
+        });
+
+        let filesData = await filesRes.json();
+        if (!Array.isArray(filesData)) filesData = [];
+
+        // Filter out deleted files
+        const files = filesData.filter(f => {
+          const tags = f.tags ? f.tags.replace(/[{}]/g, '').split(',') : [];
+          return !tags.includes('deleted') && !tags.some(tag => tag.trim().startsWith('deleted_time:'));
+        });
+
+        // Step 2: Fetch logs for each file
+        const allLogs = [];
+        for (const file of files) {
+          try {
+            const logsRes = await fetch('http://localhost:5000/api/files/getAccesslog', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ file_id: file.fileId }),
+            });
+
+            if (!logsRes.ok) continue;
+            const fileLogs = await logsRes.json();
+
+            // Step 3: Attach file info to each log
+            const formatted = fileLogs
+              .filter(log => log.file_id === file.fileId)
+              .map(log => ({
+                user: (log.message?.split(' ') || [])[1] || 'unknown@example.com' || 'Unknown User',
+                email: log.message || 'unknown@example.com',
+                action: log.action?.toLowerCase() || '',
+                file: file.fileName || 'Unnamed file',
+                date: new Date(log.timestamp).toLocaleString(),
+              }));
+
+            allLogs.push(...formatted);
+          } catch (err) {
+            console.error(`Error fetching logs for file ${file.fileId}:`, err);
+          }
+        }
+
+        setLogs(allLogs);
+      } catch (err) {
+        console.error('Failed to fetch all logs:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAllLogs();
+  }, []);
 
   const filteredLogs = logs
     .filter((log) => actionFilter === 'All actions' || log.action === actionFilter.toLowerCase())
@@ -33,7 +95,8 @@ export default function AccessLogsPage() {
     <div className="p-6">
       <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow">
         <h1 className="text-2xl font-bold mb-2 text-blue-500">Access Logs</h1>
-        <p className="text-gray-600 dark:text-gray-400 pb-8"> Monitor who accessed, modified, or shared your files
+        <p className="text-gray-600 dark:text-gray-400 pb-8">
+          Monitor who accessed, modified, or shared your files
         </p>
 
         {/* Filters */}
@@ -67,41 +130,56 @@ export default function AccessLogsPage() {
 
         {/* Table */}
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-gray-500 dark:text-gray-400 border-b border-gray-300 dark:border-gray-700">
-                <th className="py-3">User</th>
-                <th className="py-3">Action</th>
-                <th className="py-3">File</th>
-                <th className="py-3">Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredLogs.map((log, idx) => (
-                <tr key={idx} className="border-b border-gray-200 dark:border-gray-700">
-                  <td className="py-4 flex items-center gap-3">
-                    <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-bold">
-                      {log.user[0]}
-                    </div>
-                    <div>
-                      <div className="font-medium">{log.user}</div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">{log.email}</div>
-                    </div>
-                  </td>
-                  <td className="py-4">
-                    <div className="flex items-center gap-2">
-                      {log.action === 'viewed' && <><Eye size={16} className="text-gray-500" /> Viewed</>}
-                      {log.action === 'downloaded' && <><Download size={16} className="text-blue-500" /> Downloaded</>}
-                      {log.action === 'shared' && <><Share2 size={16} className="text-green-500" /> Shared</>}
-                      {log.action === 'modified' && <><Edit size={16} className="text-yellow-500" /> Modified</>}
-                    </div>
-                  </td>
-                  <td className="py-4">{log.file}</td>
-                  <td className="py-4 text-gray-500 dark:text-gray-400">{log.date}</td>
+          {loading ? (
+            <p className="text-gray-500">Loading logs...</p>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-gray-500 dark:text-gray-400 border-b border-gray-300 dark:border-gray-700">
+                  <th className="py-3">User</th>
+                  <th className="py-3">Action</th>
+                  <th className="py-3">File</th>
+                  <th className="py-3">Date</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filteredLogs.map((log, idx) => (
+                  <tr key={idx} className="border-b border-gray-200 dark:border-gray-700">
+                    <td className="py-4 flex items-center gap-3">
+                      <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-bold">
+                        {log.user[0]}
+                      </div>
+                      <div>
+                        <div className="font-medium">{log.user}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">{log.email}</div>
+                      </div>
+                    </td>
+                    <td className="py-4">
+                      <div className="flex items-center gap-2">
+                        {/* const iconMap = {
+                            downloaded: Download,
+                            shared: Share,
+                            edited: Edit,
+                            viewed: Eye,
+                            deleted: Trash2,
+                            created: Clock,
+                            restored:Undo2,
+                          }; */}
+                        {log.action === 'downloaded' && <><Download size={16} className="text-blue-500" /> Downloaded</>}
+                        {log.action === 'shared' && <><Share2 size={16} className="text-green-500" /> Shared</>}
+                        {log.action === 'edited' && <><Edit size={16} className="text-green-500" /> Edit</>}
+                        {log.action === 'deleted' && <><Trash2 size={16} className="text-green-500" /> Trash</>}
+                        {log.action === 'created' && <><Clock size={16} className="text-yellow-500" /> Created</>}
+                        {log.action === 'restored' && <><Share2 size={16} className="text-green-500" /> Restored</>}
+                      </div>
+                    </td>
+                    <td className="py-4">{log.file}</td>
+                    <td className="py-4 text-gray-500 dark:text-gray-400">{log.date}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     </div>
