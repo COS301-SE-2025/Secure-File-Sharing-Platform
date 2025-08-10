@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileGrid } from '../../app/dashboard/myFilesV2/fileGrid';
+import { FileGrid } from '../../../../app/dashboard/myFilesV2/fileGrid';
 
 const mockFiles = [
   {

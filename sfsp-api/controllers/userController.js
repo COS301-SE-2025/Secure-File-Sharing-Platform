@@ -5,6 +5,7 @@ const VaultController = require("./vaultController");
 
 class UserController {
   async register(req, res) {
+	  console.log("I can get here");
     try {
       const { username, email, password } = req.body;
       const {
@@ -55,15 +56,15 @@ class UserController {
           spk_private_key,
           opks_private,
         });
-
         if (!vaultres || vaultres.error) {
+		console.log("Inside the if statement vaultres");
           return res.status(500).json({
             success: false,
             message: vaultres.error || "Failed to store private keys in vault.",
           });
         }
       }
-
+	    console.log("The is before the 201");
       return res.status(201).json({
         success: true,
         message: "User registered successfully.",

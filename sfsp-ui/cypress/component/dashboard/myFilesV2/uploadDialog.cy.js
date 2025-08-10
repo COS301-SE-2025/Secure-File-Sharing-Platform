@@ -1,7 +1,7 @@
 // cypress/component/uploadDialog
 
 import React from 'react';
-import { UploadDialog } from '../../app/dashboard/myFilesV2/uploadDialog';
+import { UploadDialog } from '../../../../app/dashboard/myFilesV2/uploadDialog';
 
 describe('<UploadDialog />', () => {
     const mockFile = new File(['hello'], 'test.txt', { type: 'text/plain' });
