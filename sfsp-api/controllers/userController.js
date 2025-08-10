@@ -551,7 +551,7 @@ class UserController {
         return res.status(400).json({ success: false, message: 'Avatar URL required (or null to remove)' });
       }
       
-      const updatedUrl = await userService.updateAvatarUrl(userId, avatar_url); // Call method on instance
+      const updatedUrl = await userService.updateAvatarUrl(userId, avatar_url);
       res.status(200).json({ success: true, data: { avatar_url: updatedUrl } });
     } catch (error) {
       console.error('Error in updateAvatarUrl:', error.message);
@@ -585,7 +585,6 @@ class UserController {
       }
 
       if (existingUser) {
-        // User exists, update Google ID if not set
         if (!existingUser.google_id) {
           const { data: updatedUser, error: updateError } = await supabase
             .from("users")
@@ -605,17 +604,16 @@ class UserController {
           user = existingUser;
         }
       } else {
-        // Create new user
         isNewUser = true;
         const { data: newUser, error: createError } = await supabase
           .from("users")
           .insert({
             username: name || email.split('@')[0],
             email: email,
-            password_hash: null, // No password for Google OAuth users
+            password_hash: null,
             google_id: google_id,
             avatar_url: picture,
-            is_verified: true, // Google accounts are pre-verified
+            is_verified: true,
           })
           .select()
           .single();
@@ -625,7 +623,6 @@ class UserController {
         }
         user = newUser;
 
-        // Create default vault for new user
         try {
           await VaultController.createVault(user.id, "My Secure Vault", "Default vault created with your account.");
         } catch (vaultError) {
@@ -633,7 +630,6 @@ class UserController {
         }
       }
 
-      // Generate JWT token
       const token = await userService.generateToken(user.id);
 
       res.status(200).json({

@@ -9,12 +9,11 @@ import { useEncryptionStore, storeUserKeysSecurely, storeDerivedKeyEncrypted,} f
 import Loader from '@/app/dashboard/components/Loader';
 
 export default function GoogleCallbackPage() {
-  const router = useRouter();
-  const [isLoading, setIsLoading] = useState(true);
-  const [message, setMessage] = useState('Processing Google authentication...');
-  const [isMounted, setIsMounted] = useState(false);    useEffect(() => {
-        setIsMounted(true);
-    }, []);
+    const router = useRouter();
+    const [ setIsLoading] = useState(true);
+    const [message, setMessage] = useState('Processing Google authentication...');
+    const [isMounted, setIsMounted] = useState(false);    useEffect(() => { setIsMounted(true); }, []);
+
 
     useEffect(() => {
         if (!isMounted) return;
@@ -238,39 +237,36 @@ export default function GoogleCallbackPage() {
 
         setMessage('Finalizing sign-in...');
 
-        // Send MFA verification email
         console.log('Sending MFA verification email...');
         const verificationResponse = await fetch('/api/auth/send-verification', {
-          method: 'POST',
-          headers: {
+        method: 'POST',
+        headers: {
             'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ 
+        },
+        body: JSON.stringify({ 
             email: user.email, 
             userId: user.id, 
             userName: user.username || user.email 
-          }),
+        }),
         });
 
         if (!verificationResponse.ok) {
-          const errorData = await verificationResponse.json();
-          console.error('MFA verification email failed:', errorData);
-          throw new Error('Failed to send verification email. Please try again.');
+        const errorData = await verificationResponse.json();
+        console.error('MFA verification email failed:', errorData);
+        throw new Error('Failed to send verification email. Please try again.');
         }
 
         console.log('MFA verification email sent successfully');
         
-        // Store user ID in encryption store
         useEncryptionStore.getState().setUserId(user.id);
 
-        // Clean up
         localStorage.removeItem('googleAuthInProgress');
         localStorage.removeItem('googleAuthState');
         localStorage.removeItem('lastUsedGoogleCode');
 
         setMessage('Verification email sent! Check your inbox.');
         setTimeout(() => {
-          router.push(`/auth/verify-email?email=${encodeURIComponent(user.email)}&userId=${user.id}`);
+            router.push(`/auth/verify-email?email=${encodeURIComponent(user.email)}&userId=${user.id}`);
         }, 2000);        } catch (error) {
             console.error('Google authentication error:', error);
             console.error('Error stack:', error.stack);
@@ -317,7 +313,7 @@ export default function GoogleCallbackPage() {
         const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
         const encryptedIK = sodium.crypto_secretbox_easy(ik.privateKey, nonce, derivedKey);
 
-        return {
+    return {
         ik_public: sodium.to_base64(ik.publicKey),
         spk_public: sodium.to_base64(spk.publicKey),
         signedPrekeySignature: sodium.to_base64(spkSignature),
@@ -336,18 +332,18 @@ export default function GoogleCallbackPage() {
         };
     }
 
-  return (
-    <div className="min-h-screen bg-white flex items-center justify-center">
-      {!isMounted ? (
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+    return (
+        <div className="min-h-screen bg-white flex items-center justify-center">
+        {!isMounted ? (
+            <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading...</p>
+            </div>
+        ) : (
+            <div className="text-center">
+            <Loader message={message} />
+            </div>
+        )}
         </div>
-      ) : (
-        <div className="text-center">
-          <Loader message={message} />
-        </div>
-      )}
-    </div>
-  );
+    );
 }

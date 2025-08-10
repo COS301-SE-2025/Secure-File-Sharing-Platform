@@ -23,7 +23,7 @@ export async function verifyPassword(password, hash) {
 
 /**
  * Generate a secure random password for Google users
- * @returns {string} - A secure random password
+ * @returns {string}
  */
 export function generateSecurePassword() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
