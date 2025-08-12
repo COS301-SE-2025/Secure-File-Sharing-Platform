@@ -623,3 +623,48 @@ exports.downloadViewFile = async (req, res) => {
     return res.status(500).send("Download view file failed");
   }
 };
+
+exports.changeShareMethod = [
+  upload.single("encryptedFile"),
+  async (req, res) =>{
+    try {
+      const { fileid, userId, recipientId, newShareMethod, metadata } = req.body;
+      const encryptedFile = req.file?.buffer;
+
+      if(!fileid || !userId || !recipientId || !newShareMethod || !encryptedFile) {
+        return res.status(400).send("Missing file id, user ids, new share method or encrypted file");
+      }
+
+      const formData = new FormData();
+      formData.append("fileid", fileid);
+      formData.append("userId", userId);
+      formData.append("recipientId", recipientId);
+      formData.append("newShareMethod", newShareMethod);
+      formData.append("metadata", JSON.stringify(metadata));
+      formData.append("encryptedFile", encryptedFile, {
+        filename: "encrypted.bin",
+        contentType: "application/octet-stream"
+      });
+
+      const response = await axios.post(
+        `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/changeShareMethod`,
+        formData,
+        { headers: formData.getHeaders() }
+      );
+
+      if (response.status !== 200) {
+        return res.status(response.status).send("Error changing share method");
+      }
+
+      const { shareId, message } = response.data;
+
+      res.status(200).json({
+        message: message || "File share method changed successfully",
+        shareId
+      });
+    } catch (error) {
+      console.error("Error changing share method:", error.message);
+      res.status(500).send("Error changing share method");
+    }
+  }
+];

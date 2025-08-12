@@ -90,7 +90,7 @@ func main() {
 	http.HandleFunc("/updateFilePath", metadata.UpdateFilePathHandler)
 
 	//changeMethod
-	http.HandleFunc("/changeMethod", fileHandler.ChangeShareMethod)
+	http.HandleFunc("/changeMethod", fileHandler.ChangeShareMethodHandler)
 
 	log.Fatal(http.ListenAndServe(":8081", nil))
 }

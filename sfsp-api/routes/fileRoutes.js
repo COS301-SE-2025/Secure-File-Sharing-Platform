@@ -33,5 +33,6 @@ router.post('/getViewAccess', fileController.getSharedViewFiles);
 router.post('/sendByView', fileController.sendByView);
 router.post('/getViewAccesslogs', fileController.getViewFileAccessLogs);
 router.post('/downloadViewFile', fileController.downloadViewFile);
+router.post('/changeShareMethod', fileController.changeShareMethod);
 
 module.exports = router;
