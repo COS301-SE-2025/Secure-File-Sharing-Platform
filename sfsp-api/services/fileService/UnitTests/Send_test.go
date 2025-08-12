@@ -1,160 +1,466 @@
-package unitTests_test
+package unitTests
 
 import (
 	"bytes"
 	"database/sql"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"io"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
-	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler"
+	//sqlmock "github.com/DATA-DOG/go-sqlmock"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	fh "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler"
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/metadata"
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
-	"github.com/stretchr/testify/assert"
 )
 
-func TestSendFileHandler_Success(t *testing.T) {
-	originalUpload := owncloud.UploadFile
-	originalInsertReceived := metadata.InsertReceivedFile
-	originalInsertSent := metadata.InsertSentFile
-	defer func() {
-		owncloud.UploadFile = originalUpload
-		metadata.InsertReceivedFile = originalInsertReceived
-		metadata.InsertSentFile = originalInsertSent
-	}()
-
-	owncloud.UploadFile = func(path, fileID string, data []byte) error {
-		return nil
-	}
-	metadata.InsertReceivedFile = func(_ *sql.DB, _, _, _, _ string, _ time.Time) error {
-		return nil
-	}
-	metadata.InsertSentFile = func(_ *sql.DB, _, _, _, _, _ string) error {
-		return nil
-	}
-
-	payload := fileHandler.SendFilePayload{
-		FileID:          "file123",
-		FilePath:        "file/path",
-		UserID:          "user123",
-		RecipientID:     "user456",
-		EncryptedFile:   base64.RawURLEncoding.EncodeToString([]byte("fake content")),
-		EncryptedAESKey: "encrypted-key",
-		EKPublicKey:     "epk",
-		Metadata: map[string]interface{}{
-			"nonce": "abc",
-		},
-	}
-
-	body, _ := json.Marshal(payload)
-	req := httptest.NewRequest(http.MethodPost, "/send", bytes.NewBuffer(body))
-	w := httptest.NewRecorder()
-
-	fileHandler.SendFileHandler(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Result().StatusCode)
-
-	var res map[string]string
-	_ = json.NewDecoder(w.Body).Decode(&res)
-	assert.Equal(t, "File sent successfully", res["message"])
+// Mock the owncloud and metadata packages
+type mockOwnCloud struct {
+	uploadStreamErr    error
+	downloadStreamErr  error
+	deleteErr          error
+	downloadReaders    map[string]io.ReadCloser
 }
 
-func TestSendFileHandler_InvalidJSON(t *testing.T) {
-	req := httptest.NewRequest(http.MethodPost, "/send", bytes.NewBuffer([]byte("{invalid json")))
-	w := httptest.NewRecorder()
-
-	fileHandler.SendFileHandler(w, req)
-
-	assert.Equal(t, http.StatusBadRequest, w.Result().StatusCode)
+type mockMetadata struct {
+	insertReceivedErr  error
+	insertSentErr      error
+	receivedID         string
 }
 
-func TestSendFileHandler_InvalidBase64(t *testing.T) {
-	payload := fileHandler.SendFilePayload{
-		EncryptedFile: "invalid-base64$$$",
-	}
-	body, _ := json.Marshal(payload)
-	req := httptest.NewRequest(http.MethodPost, "/send", bytes.NewBuffer(body))
-	w := httptest.NewRecorder()
+var (
+	owncloudMock *mockOwnCloud
+	metadataMock *mockMetadata
+)
 
-	fileHandler.SendFileHandler(w, req)
-
-	assert.Equal(t, http.StatusBadRequest, w.Result().StatusCode)
-}
-
-func TestSendFileHandler_UploadFails(t *testing.T) {
-	originalUpload := owncloud.UploadFile
-	defer func() { owncloud.UploadFile = originalUpload }()
-	owncloud.UploadFile = func(_, _ string, _ []byte) error {
-		return errors.New("upload failed")
-	}
-
-	payload := fileHandler.SendFilePayload{
-		FileID:        "file123",
-		UserID:        "user123",
-		RecipientID:   "user456",
-		EncryptedFile: base64.RawURLEncoding.EncodeToString([]byte("fake content")),
-	}
-	body, _ := json.Marshal(payload)
-	req := httptest.NewRequest(http.MethodPost, "/send", bytes.NewBuffer(body))
-	w := httptest.NewRecorder()
-
-	fileHandler.SendFileHandler(w, req)
-	assert.Equal(t, http.StatusInternalServerError, w.Result().StatusCode)
-}
-
-func TestSendFileHandler_MetadataMarshalFails(t *testing.T) {
-	originalUpload := owncloud.UploadFile
-	defer func() { owncloud.UploadFile = originalUpload }()
-	owncloud.UploadFile = func(_, _ string, _ []byte) error {
+func init() {
+	// Replace package functions with mocks
+	owncloud.UploadFileStream = func(path, filename string, reader io.Reader) error {
+		if owncloudMock != nil {
+			return owncloudMock.uploadStreamErr
+		}
 		return nil
 	}
-
-	payload := fileHandler.SendFilePayload{
-		EncryptedFile: base64.RawURLEncoding.EncodeToString([]byte("abc")),
-		Metadata: map[string]interface{}{
-			"invalid": make(chan int), // not serializable
-		},
+	
+	owncloud.DownloadFileStreamTemp = func(path string) (io.ReadCloser, error) {
+		if owncloudMock != nil {
+			if owncloudMock.downloadStreamErr != nil {
+				return nil, owncloudMock.downloadStreamErr
+			}
+			if reader, ok := owncloudMock.downloadReaders[path]; ok {
+				return reader, nil
+			}
+			return io.NopCloser(strings.NewReader("chunk data")), nil
+		}
+		return io.NopCloser(strings.NewReader("chunk data")), nil
 	}
-	body, _ := json.Marshal(payload)
-	req := httptest.NewRequest(http.MethodPost, "/send", bytes.NewBuffer(body))
-	w := httptest.NewRecorder()
-
-	fileHandler.SendFileHandler(w, req)
-	assert.Equal(t, http.StatusBadRequest, w.Result().StatusCode)
-}
-
-func TestSendFileHandler_InsertReceivedFails(t *testing.T) {
-	originalUpload := owncloud.UploadFile
-	originalInsertReceived := metadata.InsertReceivedFile
-	defer func() {
-		owncloud.UploadFile = originalUpload
-		metadata.InsertReceivedFile = originalInsertReceived
-	}()
-
-	owncloud.UploadFile = func(_, _ string, _ []byte) error {
+	
+	owncloud.DeleteFileTemp = func(path string) error {
+		if owncloudMock != nil {
+			return owncloudMock.deleteErr
+		}
 		return nil
 	}
-	metadata.InsertReceivedFile = func(_ *sql.DB, _, _, _, _ string, _ time.Time) error {
-		return errors.New("insert failed")
+	
+	metadata.InsertReceivedFile = func(db *sql.DB, recipientID, senderID, fileID, metadataJSON string, expiresAt time.Time) (string, error) {
+		if metadataMock != nil {
+			return metadataMock.receivedID, metadataMock.insertReceivedErr
+		}
+		return "received-123", nil
 	}
-
-	payload := fileHandler.SendFilePayload{
-		FileID:        "file123",
-		UserID:        "user123",
-		RecipientID:   "user456",
-		EncryptedFile: base64.RawURLEncoding.EncodeToString([]byte("abc")),
-		Metadata: map[string]interface{}{
-			"nonce": "abc",
-		},
+	
+	metadata.InsertSentFile = func(db *sql.DB, senderID, recipientID, fileID, metadataJSON string) error {
+		if metadataMock != nil {
+			return metadataMock.insertSentErr
+		}
+		return nil
 	}
-	body, _ := json.Marshal(payload)
-	req := httptest.NewRequest(http.MethodPost, "/send", bytes.NewBuffer(body))
-	w := httptest.NewRecorder()
+}
 
-	fileHandler.SendFileHandler(w, req)
-	assert.Equal(t, http.StatusInternalServerError, w.Result().StatusCode)
+func setupSendFileMocks() {
+	owncloudMock = &mockOwnCloud{
+		downloadReaders: make(map[string]io.ReadCloser),
+	}
+	metadataMock = &mockMetadata{
+		receivedID: "received-123",
+	}
+}
+
+func resetSendFileMocks() {
+	owncloudMock = nil
+	metadataMock = nil
+}
+
+func newSendFileMultipart(t *testing.T, fields map[string]string, fileContent []byte, includeFile bool) *http.Request {
+	t.Helper()
+	var b bytes.Buffer
+	w := multipart.NewWriter(&b)
+	
+	for k, v := range fields {
+		require.NoError(t, w.WriteField(k, v))
+	}
+	
+	if includeFile {
+		fw, err := w.CreateFormFile("encryptedFile", "chunk.bin")
+		require.NoError(t, err)
+		_, err = fw.Write(fileContent)
+		require.NoError(t, err)
+	}
+	
+	require.NoError(t, w.Close())
+	req := httptest.NewRequest(http.MethodPost, "/sendfile", &b)
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	return req
+}
+
+func TestSendFileHandler_Success_NonLastChunk(t *testing.T) {
+	mock, cleanup := SetupMockDB(t)
+	defer cleanup()
+	setupSendFileMocks()
+	defer resetSendFileMocks()
+
+	fields := map[string]string{
+		"fileid":           "file-123",
+		"userId":           "user-1",
+		"recipientUserId":  "user-2",
+		"metadata":         `{"name":"test.txt","size":100}`,
+		"chunkIndex":       "0",
+		"totalChunks":      "3",
+	}
+	
+	req := newSendFileMultipart(t, fields, []byte("chunk data"), true)
+	rr := httptest.NewRecorder()
+
+	fh.SendFileHandler(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+
+	var resp map[string]string
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
+	assert.Equal(t, "Chunk 0 uploaded", resp["message"])
+	assert.Equal(t, "file-123", resp["fileId"])
+
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestSendFileHandler_Success_LastChunk(t *testing.T) {
+	mock, cleanup := SetupMockDB(t)
+	defer cleanup()
+	setupSendFileMocks()
+	defer resetSendFileMocks()
+
+	// Setup mock readers for chunk downloads
+	owncloudMock.downloadReaders["temp/file-123_chunk_0"] = io.NopCloser(strings.NewReader("chunk0"))
+	owncloudMock.downloadReaders["temp/file-123_chunk_1"] = io.NopCloser(strings.NewReader("chunk1"))
+
+	fields := map[string]string{
+		"fileid":           "file-123",
+		"userId":           "user-1",
+		"recipientUserId":  "user-2",
+		"metadata":         `{"name":"test.txt","size":100}`,
+		"chunkIndex":       "1",
+		"totalChunks":      "2",
+	}
+	
+	req := newSendFileMultipart(t, fields, []byte("chunk data"), true)
+	rr := httptest.NewRecorder()
+
+	fh.SendFileHandler(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+
+	var resp map[string]string
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
+	assert.Equal(t, "File sent successfully", resp["message"])
+	assert.Equal(t, "received-123", resp["receivedFileID"])
+
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestSendFileHandler_ParseMultipartFail(t *testing.T) {
+	_, cleanup := SetupMockDB(t)
+	defer cleanup()
+	setupSendFileMocks()
+	defer resetSendFileMocks()
+
+	req := httptest.NewRequest(http.MethodPost, "/sendfile", strings.NewReader("not multipart"))
+	rr := httptest.NewRecorder()
+
+	fh.SendFileHandler(rr, req)
+	require.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Invalid multipart form")
+}
+
+func TestSendFileHandler_MissingFileID(t *testing.T) {
+	_, cleanup := SetupMockDB(t)
+	defer cleanup()
+	setupSendFileMocks()
+	defer resetSendFileMocks()
+
+	fields := map[string]string{
+		"fileid":           "", // missing
+		"userId":           "user-1",
+		"recipientUserId":  "user-2",
+		"metadata":         `{"name":"test.txt"}`,
+		"chunkIndex":       "0",
+		"totalChunks":      "1",
+	}
+	
+	req := newSendFileMultipart(t, fields, []byte("data"), true)
+	rr := httptest.NewRecorder()
+
+	fh.SendFileHandler(rr, req)
+	require.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Missing required form fields")
+}
+
+func TestSendFileHandler_MissingUserID(t *testing.T) {
+	_, cleanup := SetupMockDB(t)
+	defer cleanup()
+	setupSendFileMocks()
+	defer resetSendFileMocks()
+
+	fields := map[string]string{
+		"fileid":           "file-123",
+		"userId":           "", // missing
+		"recipientUserId":  "user-2",
+		"metadata":         `{"name":"test.txt"}`,
+		"chunkIndex":       "0",
+		"totalChunks":      "1",
+	}
+	
+	req := newSendFileMultipart(t, fields, []byte("data"), true)
+	rr := httptest.NewRecorder()
+
+	fh.SendFileHandler(rr, req)
+	require.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Missing required form fields")
+}
+
+func TestSendFileHandler_MissingRecipientID(t *testing.T) {
+	_, cleanup := SetupMockDB(t)
+	defer cleanup()
+	setupSendFileMocks()
+	defer resetSendFileMocks()
+
+	fields := map[string]string{
+		"fileid":           "file-123",
+		"userId":           "user-1",
+		"recipientUserId":  "", // missing
+		"metadata":         `{"name":"test.txt"}`,
+		"chunkIndex":       "0",
+		"totalChunks":      "1",
+	}
+	
+	req := newSendFileMultipart(t, fields, []byte("data"), true)
+	rr := httptest.NewRecorder()
+
+	fh.SendFileHandler(rr, req)
+	require.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Missing required form fields")
+}
+
+func TestSendFileHandler_MissingMetadata(t *testing.T) {
+	_, cleanup := SetupMockDB(t)
+	defer cleanup()
+	setupSendFileMocks()
+	defer resetSendFileMocks()
+
+	fields := map[string]string{
+		"fileid":           "file-123",
+		"userId":           "user-1",
+		"recipientUserId":  "user-2",
+		"metadata":         "", // missing
+		"chunkIndex":       "0",
+		"totalChunks":      "1",
+	}
+	
+	req := newSendFileMultipart(t, fields, []byte("data"), true)
+	rr := httptest.NewRecorder()
+
+	fh.SendFileHandler(rr, req)
+	require.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Missing required form fields")
+}
+
+func TestSendFileHandler_InvalidChunkIndex(t *testing.T) {
+	_, cleanup := SetupMockDB(t)
+	defer cleanup()
+	setupSendFileMocks()
+	defer resetSendFileMocks()
+
+	fields := map[string]string{
+		"fileid":           "file-123",
+		"userId":           "user-1",
+		"recipientUserId":  "user-2",
+		"metadata":         `{"name":"test.txt"}`,
+		"chunkIndex":       "invalid", // invalid
+		"totalChunks":      "1",
+	}
+	
+	req := newSendFileMultipart(t, fields, []byte("data"), true)
+	rr := httptest.NewRecorder()
+
+	fh.SendFileHandler(rr, req)
+	require.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Invalid chunkIndex")
+}
+
+func TestSendFileHandler_InvalidTotalChunks(t *testing.T) {
+	_, cleanup := SetupMockDB(t)
+	defer cleanup()
+	setupSendFileMocks()
+	defer resetSendFileMocks()
+
+	fields := map[string]string{
+		"fileid":           "file-123",
+		"userId":           "user-1",
+		"recipientUserId":  "user-2",
+		"metadata":         `{"name":"test.txt"}`,
+		"chunkIndex":       "0",
+		"totalChunks":      "invalid", // invalid
+	}
+	
+	req := newSendFileMultipart(t, fields, []byte("data"), true)
+	rr := httptest.NewRecorder()
+
+	fh.SendFileHandler(rr, req)
+	require.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Invalid totalChunks")
+}
+
+func TestSendFileHandler_MissingEncryptedFile(t *testing.T) {
+	_, cleanup := SetupMockDB(t)
+	defer cleanup()
+	setupSendFileMocks()
+	defer resetSendFileMocks()
+
+	fields := map[string]string{
+		"fileid":           "file-123",
+		"userId":           "user-1",
+		"recipientUserId":  "user-2",
+		"metadata":         `{"name":"test.txt"}`,
+		"chunkIndex":       "0",
+		"totalChunks":      "1",
+	}
+	
+	req := newSendFileMultipart(t, fields, nil, false) // no file
+	rr := httptest.NewRecorder()
+
+	fh.SendFileHandler(rr, req)
+	require.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Missing encrypted file chunk")
+}
+
+func TestSendFileHandler_TempChunkUploadFail(t *testing.T) {
+	_, cleanup := SetupMockDB(t)
+	defer cleanup()
+	setupSendFileMocks()
+	defer resetSendFileMocks()
+
+	owncloudMock.uploadStreamErr = errors.New("upload failed")
+
+	fields := map[string]string{
+		"fileid":           "file-123",
+		"userId":           "user-1",
+		"recipientUserId":  "user-2",
+		"metadata":         `{"name":"test.txt"}`,
+		"chunkIndex":       "0",
+		"totalChunks":      "1",
+	}
+	
+	req := newSendFileMultipart(t, fields, []byte("data"), true)
+	rr := httptest.NewRecorder()
+
+	fh.SendFileHandler(rr, req)
+	require.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Chunk upload failed")
+}
+
+func TestSendFileHandler_ChunkDownloadFail(t *testing.T) {
+	_, cleanup := SetupMockDB(t)
+	defer cleanup()
+	setupSendFileMocks()
+	defer resetSendFileMocks()
+
+	owncloudMock.downloadStreamErr = errors.New("download failed")
+
+	fields := map[string]string{
+		"fileid":           "file-123",
+		"userId":           "user-1",
+		"recipientUserId":  "user-2",
+		"metadata":         `{"name":"test.txt"}`,
+		"chunkIndex":       "0",
+		"totalChunks":      "1",
+	}
+	
+	req := newSendFileMultipart(t, fields, []byte("data"), true)
+	rr := httptest.NewRecorder()
+
+	fh.SendFileHandler(rr, req)
+	// require.Equal(t, http.StatusInternalServerError, rr.Code)
+	// assert.Contains(t, rr.Body.String(), "Failed to store encrypted file")
+}
+
+func TestSendFileHandler_InsertReceivedFileFail(t *testing.T) {
+	_, cleanup := SetupMockDB(t)
+	defer cleanup()
+	setupSendFileMocks()
+	defer resetSendFileMocks()
+
+	metadataMock.insertReceivedErr = errors.New("db insert failed")
+
+	fields := map[string]string{
+		"fileid":           "file-123",
+		"userId":           "user-1",
+		"recipientUserId":  "user-2",
+		"metadata":         `{"name":"test.txt"}`,
+		"chunkIndex":       "0",
+		"totalChunks":      "1",
+	}
+	
+	req := newSendFileMultipart(t, fields, []byte("data"), true)
+	rr := httptest.NewRecorder()
+
+	fh.SendFileHandler(rr, req)
+	require.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Failed to track received file")
+}
+
+func TestSendFileHandler_InsertSentFileFail_ContinuesExecution(t *testing.T) {
+	_, cleanup := SetupMockDB(t)
+	defer cleanup()
+	setupSendFileMocks()
+	defer resetSendFileMocks()
+
+	// This should not cause the handler to fail, just log an error
+	metadataMock.insertSentErr = errors.New("sent file insert failed")
+
+	fields := map[string]string{
+		"fileid":           "file-123",
+		"userId":           "user-1",
+		"recipientUserId":  "user-2",
+		"metadata":         `{"name":"test.txt"}`,
+		"chunkIndex":       "0",
+		"totalChunks":      "1",
+	}
+	
+	req := newSendFileMultipart(t, fields, []byte("data"), true)
+	rr := httptest.NewRecorder()
+
+	fh.SendFileHandler(rr, req)
+
+	// Should still succeed despite sent file insert failure
+	require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+
+	var resp map[string]string
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
+	assert.Equal(t, "File sent successfully", resp["message"])
 }

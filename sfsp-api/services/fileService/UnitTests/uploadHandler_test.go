@@ -18,7 +18,7 @@ import (
 
 // --- Helpers ---
 
-func setupMockDB(t *testing.T) (sqlmock.Sqlmock, func()) {
+func SetupMockDB(t *testing.T) (sqlmock.Sqlmock, func()) {
 	t.Helper()
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
@@ -30,7 +30,7 @@ func setupMockDB(t *testing.T) (sqlmock.Sqlmock, func()) {
 	return mock, cleanup
 }
 
-func newJSONRequest(t *testing.T, method, url string, body any) *http.Request {
+func NewJSONRequest(t *testing.T, method, url string, body any) *http.Request {
 	t.Helper()
 	var buf bytes.Buffer
 	if body != nil {
@@ -60,10 +60,8 @@ func newMultipart(t *testing.T, fields map[string]string, fileField string, file
 	return req, w.FormDataContentType()
 }
 
-// --- StartUploadHandler tests ---
-
 func TestStartUploadHandler_Success(t *testing.T) {
-	mock, cleanup := setupMockDB(t)
+	mock, cleanup := SetupMockDB(t)
 	defer cleanup()
 
 	rows := sqlmock.NewRows([]string{"id"}).AddRow("abc-123")
@@ -83,7 +81,7 @@ func TestStartUploadHandler_Success(t *testing.T) {
 		Path:            "/files",
 		Nonce:           "nonce-xyz",
 	}
-	req := newJSONRequest(t, http.MethodPost, "/start", body)
+	req := NewJSONRequest(t, http.MethodPost, "/start", body)
 	rr := httptest.NewRecorder()
 
 	fh.StartUploadHandler(rr, req)
@@ -98,7 +96,7 @@ func TestStartUploadHandler_Success(t *testing.T) {
 }
 
 func TestStartUploadHandler_BadJSON(t *testing.T) {
-	_, cleanup := setupMockDB(t)
+	_, cleanup := SetupMockDB(t)
 	defer cleanup()
 
 	req := httptest.NewRequest(http.MethodPost, "/start", strings.NewReader("{bad json"))
@@ -111,14 +109,14 @@ func TestStartUploadHandler_BadJSON(t *testing.T) {
 }
 
 func TestStartUploadHandler_MissingFields(t *testing.T) {
-	_, cleanup := setupMockDB(t)
+	_, cleanup := SetupMockDB(t)
 	defer cleanup()
 
 	body := fh.StartUploadRequest{
 		UserID:   "",         // missing
 		FileName: "file.txt", // present
 	}
-	req := newJSONRequest(t, http.MethodPost, "/start", body)
+	req := NewJSONRequest(t, http.MethodPost, "/start", body)
 	rr := httptest.NewRecorder()
 
 	fh.StartUploadHandler(rr, req)
@@ -127,7 +125,7 @@ func TestStartUploadHandler_MissingFields(t *testing.T) {
 }
 
 func TestStartUploadHandler_DBError(t *testing.T) {
-	mock, cleanup := setupMockDB(t)
+	mock, cleanup := SetupMockDB(t)
 	defer cleanup()
 
 	mock.ExpectQuery(`INSERT INTO files`).WillReturnError(sql.ErrConnDone)
@@ -141,7 +139,7 @@ func TestStartUploadHandler_DBError(t *testing.T) {
 		Path:            "files",
 		Nonce:           "n",
 	}
-	req := newJSONRequest(t, http.MethodPost, "/start", body)
+	req := NewJSONRequest(t, http.MethodPost, "/start", body)
 	rr := httptest.NewRecorder()
 
 	fh.StartUploadHandler(rr, req)
@@ -153,7 +151,7 @@ func TestStartUploadHandler_DBError(t *testing.T) {
 // --- UploadHandler tests (validation/error paths only, no OwnCloud calls) ---
 
 func TestUploadHandler_ParseMultipartFail(t *testing.T) {
-	_, cleanup := setupMockDB(t)
+	_, cleanup := SetupMockDB(t)
 	defer cleanup()
 
 	req := httptest.NewRequest(http.MethodPost, "/upload", strings.NewReader("not multipart"))
@@ -164,7 +162,7 @@ func TestUploadHandler_ParseMultipartFail(t *testing.T) {
 }
 
 func TestUploadHandler_MissingRequiredFields(t *testing.T) {
-	_, cleanup := setupMockDB(t)
+	_, cleanup := SetupMockDB(t)
 	defer cleanup()
 
 	fields := map[string]string{
@@ -179,7 +177,7 @@ func TestUploadHandler_MissingRequiredFields(t *testing.T) {
 }
 
 func TestUploadHandler_InvalidChunkIndex(t *testing.T) {
-	_, cleanup := setupMockDB(t)
+	_, cleanup := SetupMockDB(t)
 	defer cleanup()
 
 	fields := map[string]string{
@@ -200,7 +198,7 @@ func TestUploadHandler_InvalidChunkIndex(t *testing.T) {
 }
 
 func TestUploadHandler_InvalidTotalChunks(t *testing.T) {
-	_, cleanup := setupMockDB(t)
+	_, cleanup := SetupMockDB(t)
 	defer cleanup()
 
 	fields := map[string]string{
@@ -221,7 +219,7 @@ func TestUploadHandler_InvalidTotalChunks(t *testing.T) {
 }
 
 func TestUploadHandler_MissingEncryptedFile(t *testing.T) {
-	_, cleanup := setupMockDB(t)
+	_, cleanup := SetupMockDB(t)
 	defer cleanup()
 
 	fields := map[string]string{
@@ -242,7 +240,7 @@ func TestUploadHandler_MissingEncryptedFile(t *testing.T) {
 }
 
 func TestUploadHandler_MissingFileIDOnNonFirstChunk(t *testing.T) {
-	mock, cleanup := setupMockDB(t)
+	mock, cleanup := SetupMockDB(t)
 	defer cleanup()
 
 	// No DB expectations on purpose—should fail before any DB or OwnCloud call
