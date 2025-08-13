@@ -2,7 +2,6 @@ const request = require('supertest');
 const express = require('express');
 const { Readable, PassThrough } = require('stream');
 
-// Create a proper axios mock that matches how axios is used
 const mockAxios = jest.fn();
 mockAxios.get = jest.fn();
 mockAxios.post = jest.fn();
@@ -10,7 +9,6 @@ mockAxios.put = jest.fn();
 mockAxios.delete = jest.fn();
 mockAxios.create = jest.fn(() => mockAxios);
 
-// Mock modules - axios should be mocked as default export
 jest.mock('axios', () => mockAxios);
 jest.mock('dotenv', () => ({ config: jest.fn() }));
 jest.mock('form-data', () => {
@@ -26,7 +24,6 @@ const fileController = require('../controllers/fileController');
 const app = express();
 app.use(express.json());
 
-// Set up routes - using POST as your controller expects req.body
 app.post('/download', fileController.downloadFile);
 app.post('/metadata', fileController.getMetaData);
 app.post('/startUpload', fileController.startUpload);
@@ -53,11 +50,9 @@ describe('File Service Controller', () => {
     jest.clearAllMocks();
     process.env.FILE_SERVICE_URL = 'http://localhost:8081';
     
-    // Reset all axios method mocks
     mockAxios.get.mockReset();
     mockAxios.post.mockReset();
-    
-    // Set default successful responses
+
     mockAxios.post.mockResolvedValue({
       status: 200,
       data: { success: true }
