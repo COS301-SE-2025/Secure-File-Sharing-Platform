@@ -41,7 +41,6 @@ var (
 )
 
 func init() {
-	// Replace package functions with mocks
 	owncloud.UploadFileStream = func(path, filename string, reader io.Reader) error {
 		if owncloudMock != nil {
 			return owncloudMock.uploadStreamErr
@@ -155,8 +154,6 @@ func TestSendFileHandler_Success_LastChunk(t *testing.T) {
 	defer cleanup()
 	setupSendFileMocks()
 	defer resetSendFileMocks()
-
-	// Setup mock readers for chunk downloads
 	owncloudMock.downloadReaders["temp/file-123_chunk_0"] = io.NopCloser(strings.NewReader("chunk0"))
 	owncloudMock.downloadReaders["temp/file-123_chunk_1"] = io.NopCloser(strings.NewReader("chunk1"))
 
@@ -205,7 +202,7 @@ func TestSendFileHandler_MissingFileID(t *testing.T) {
 	defer resetSendFileMocks()
 
 	fields := map[string]string{
-		"fileid":           "", // missing
+		"fileid":           "",
 		"userId":           "user-1",
 		"recipientUserId":  "user-2",
 		"metadata":         `{"name":"test.txt"}`,
@@ -229,7 +226,7 @@ func TestSendFileHandler_MissingUserID(t *testing.T) {
 
 	fields := map[string]string{
 		"fileid":           "file-123",
-		"userId":           "", // missing
+		"userId":           "",
 		"recipientUserId":  "user-2",
 		"metadata":         `{"name":"test.txt"}`,
 		"chunkIndex":       "0",
@@ -253,7 +250,7 @@ func TestSendFileHandler_MissingRecipientID(t *testing.T) {
 	fields := map[string]string{
 		"fileid":           "file-123",
 		"userId":           "user-1",
-		"recipientUserId":  "", // missing
+		"recipientUserId":  "",
 		"metadata":         `{"name":"test.txt"}`,
 		"chunkIndex":       "0",
 		"totalChunks":      "1",
@@ -277,7 +274,7 @@ func TestSendFileHandler_MissingMetadata(t *testing.T) {
 		"fileid":           "file-123",
 		"userId":           "user-1",
 		"recipientUserId":  "user-2",
-		"metadata":         "", // missing
+		"metadata":         "",
 		"chunkIndex":       "0",
 		"totalChunks":      "1",
 	}
@@ -301,7 +298,7 @@ func TestSendFileHandler_InvalidChunkIndex(t *testing.T) {
 		"userId":           "user-1",
 		"recipientUserId":  "user-2",
 		"metadata":         `{"name":"test.txt"}`,
-		"chunkIndex":       "invalid", // invalid
+		"chunkIndex":       "invalid",
 		"totalChunks":      "1",
 	}
 	
@@ -325,7 +322,7 @@ func TestSendFileHandler_InvalidTotalChunks(t *testing.T) {
 		"recipientUserId":  "user-2",
 		"metadata":         `{"name":"test.txt"}`,
 		"chunkIndex":       "0",
-		"totalChunks":      "invalid", // invalid
+		"totalChunks":      "invalid", 
 	}
 	
 	req := newSendFileMultipart(t, fields, []byte("data"), true)
@@ -351,7 +348,7 @@ func TestSendFileHandler_MissingEncryptedFile(t *testing.T) {
 		"totalChunks":      "1",
 	}
 	
-	req := newSendFileMultipart(t, fields, nil, false) // no file
+	req := newSendFileMultipart(t, fields, nil, false)
 	rr := httptest.NewRecorder()
 
 	fh.SendFileHandler(rr, req)
@@ -439,8 +436,6 @@ func TestSendFileHandler_InsertSentFileFail_ContinuesExecution(t *testing.T) {
 	defer cleanup()
 	setupSendFileMocks()
 	defer resetSendFileMocks()
-
-	// This should not cause the handler to fail, just log an error
 	metadataMock.insertSentErr = errors.New("sent file insert failed")
 
 	fields := map[string]string{
@@ -456,8 +451,6 @@ func TestSendFileHandler_InsertSentFileFail_ContinuesExecution(t *testing.T) {
 	rr := httptest.NewRecorder()
 
 	fh.SendFileHandler(rr, req)
-
-	// Should still succeed despite sent file insert failure
 	require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 
 	var resp map[string]string

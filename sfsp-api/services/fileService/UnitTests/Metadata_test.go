@@ -29,8 +29,6 @@ func SetupMetadataMockDB(t *testing.T) (sqlmock.Sqlmock, func()) {
 	return mock, cleanup
 }
 
-// --- GetUserFilesHandler tests ---
-
 func TestGetUserFilesHandler_Success(t *testing.T) {
 	mock, cleanup := SetupMetadataMockDB(t)
 	defer cleanup()
@@ -109,10 +107,8 @@ func TestGetUserFilesHandler_DBError(t *testing.T) {
 func TestGetUserFilesHandler_RowScanError(t *testing.T) {
 	mock, cleanup := SetupMetadataMockDB(t)
 	defer cleanup()
-
-	// Create rows with incorrect number of columns to trigger scan error
 	rows := sqlmock.NewRows([]string{"id", "file_name", "file_type"}).
-		AddRow("file-123", "test.txt", "text/plain") // missing columns
+		AddRow("file-123", "test.txt", "text/plain") 
 
 	mock.ExpectQuery(`SELECT id, file_name, file_type, file_size, description, tags, created_at, cid FROM files WHERE owner_id = \$1`).
 		WithArgs("user-1").
@@ -124,16 +120,14 @@ func TestGetUserFilesHandler_RowScanError(t *testing.T) {
 
 	metadata.GetUserFilesHandler(rr, req)
 
-	require.Equal(t, http.StatusOK, rr.Code) // Should continue despite scan errors
+	require.Equal(t, http.StatusOK, rr.Code)
 	
 	var files []map[string]interface{}
 	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &files))
-	assert.Len(t, files, 0) // No files due to scan error
+	assert.Len(t, files, 0)
 
 	require.NoError(t, mock.ExpectationsWereMet())
 }
-
-// --- ListFileMetadataHandler tests ---
 
 func TestListFileMetadataHandler_Success(t *testing.T) {
 	mock, cleanup := SetupMetadataMockDB(t)
@@ -206,8 +200,6 @@ func TestListFileMetadataHandler_MissingUserID(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "Missing userId")
 }
 
-// --- GetUserFileCountHandler tests ---
-
 func TestGetUserFileCountHandler_Success(t *testing.T) {
 	mock, cleanup := SetupMetadataMockDB(t)
 	defer cleanup()
@@ -278,7 +270,6 @@ func TestGetUserFileCountHandler_DBError(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
-// --- AddReceivedFileHandler tests ---
 
 func TestAddReceivedFileHandler_Success(t *testing.T) {
 	mock, cleanup := SetupMetadataMockDB(t)
@@ -330,7 +321,7 @@ func TestAddReceivedFileHandler_MissingFields(t *testing.T) {
 	defer cleanup()
 
 	body := metadata.AddReceivedFileRequest{
-		SenderID:    "", // missing
+		SenderID:    "", 
 		RecipientID: "recipient-1",
 		FileID:      "file-123",
 	}
@@ -365,8 +356,6 @@ func TestAddReceivedFileHandler_DBError(t *testing.T) {
 
 	require.NoError(t, mock.ExpectationsWereMet())
 }
-
-// --- GetPendingFilesHandler tests ---
 
 func TestGetPendingFilesHandler_Success(t *testing.T) {
 	mock, cleanup := SetupMetadataMockDB(t)
@@ -429,8 +418,6 @@ func TestGetPendingFilesHandler_MissingUserID(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "Missing userId")
 }
 
-// --- AddSentFileHandler tests ---
-
 func TestAddSentFileHandler_Success(t *testing.T) {
 	mock, cleanup := SetupMetadataMockDB(t)
 	defer cleanup()
@@ -487,7 +474,7 @@ func TestAddSentFileHandler_MissingFields(t *testing.T) {
 		FileID      string `json:"fileId"`
 	}
 	body := SentFileRequest{
-		SenderID:    "", // missing
+		SenderID:    "",
 		RecipientID: "recipient-1",
 		FileID:      "file-123",
 	}
@@ -499,8 +486,6 @@ func TestAddSentFileHandler_MissingFields(t *testing.T) {
 	require.Equal(t, http.StatusBadRequest, rr.Code)
 	assert.Contains(t, rr.Body.String(), "Missing required fields")
 }
-
-// --- GetSentFilesHandler tests ---
 
 func TestGetSentFilesHandler_Success(t *testing.T) {
 	mock, cleanup := SetupMetadataMockDB(t)
@@ -549,7 +534,7 @@ func TestAddTagsHandler_MissingFields(t *testing.T) {
 	defer cleanup()
 
 	body := metadata.AddTagsRequest{
-		FileID: "", // missing
+		FileID: "",
 		Tags:   []string{"tag1"},
 	}
 	req := NewJSONRequest(t, http.MethodPost, "/addTags", body)

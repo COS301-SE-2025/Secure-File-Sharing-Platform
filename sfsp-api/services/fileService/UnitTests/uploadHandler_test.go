@@ -148,7 +148,6 @@ func TestStartUploadHandler_DBError(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
-// --- UploadHandler tests (validation/error paths only, no OwnCloud calls) ---
 
 func TestUploadHandler_ParseMultipartFail(t *testing.T) {
 	_, cleanup := SetupMockDB(t)
@@ -186,7 +185,7 @@ func TestUploadHandler_InvalidChunkIndex(t *testing.T) {
 		"fileType":    "application/octet-stream",
 		"fileHash":    "deadbeef",
 		"nonce":       "n",
-		"chunkIndex":  "x", // invalid
+		"chunkIndex":  "x", 
 		"totalChunks": "2",
 		"fileId":      "id-1",
 	}
@@ -208,7 +207,7 @@ func TestUploadHandler_InvalidTotalChunks(t *testing.T) {
 		"fileHash":    "deadbeef",
 		"nonce":       "n",
 		"chunkIndex":  "0",
-		"totalChunks": "x", // invalid
+		"totalChunks": "x", 
 		"fileId":      "id-1",
 	}
 	req, _ := newMultipart(t, fields, "encryptedFile", "enc.bin", []byte("abc"), true)
@@ -232,7 +231,7 @@ func TestUploadHandler_MissingEncryptedFile(t *testing.T) {
 		"totalChunks": "1",
 		"fileId":      "id-1",
 	}
-	req, _ := newMultipart(t, fields, "encryptedFile", "enc.bin", nil, false) // no file
+	req, _ := newMultipart(t, fields, "encryptedFile", "enc.bin", nil, false) 
 	rr := httptest.NewRecorder()
 
 	fh.UploadHandler(rr, req)
@@ -243,16 +242,15 @@ func TestUploadHandler_MissingFileIDOnNonFirstChunk(t *testing.T) {
 	mock, cleanup := SetupMockDB(t)
 	defer cleanup()
 
-	// No DB expectations on purpose—should fail before any DB or OwnCloud call
 	fields := map[string]string{
 		"userId":      "u1",
 		"fileName":    "f.bin",
 		"fileType":    "application/octet-stream",
 		"fileHash":    "deadbeef",
 		"nonce":       "n",
-		"chunkIndex":  "1", // non-first chunk
+		"chunkIndex":  "1", 
 		"totalChunks": "3",
-		"fileId":      "",  // missing
+		"fileId":      "", 
 	}
 	req, _ := newMultipart(t, fields, "encryptedFile", "enc.bin", []byte("abc"), true)
 	rr := httptest.NewRecorder()
