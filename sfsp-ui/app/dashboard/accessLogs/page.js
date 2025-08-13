@@ -21,7 +21,7 @@ export default function AccessLogsPage() {
           return;
         }
 
-        // Step 1: Fetch all files
+        // Fetch all files
         const filesRes = await fetch('http://localhost:5000/api/files/metadata', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -37,8 +37,9 @@ export default function AccessLogsPage() {
           return !tags.includes('deleted') && !tags.some(tag => tag.trim().startsWith('deleted_time:'));
         });
 
-        // Step 2: Fetch logs for each file
+        // Fetch logs for each file
         const allLogs = [];
+
         for (const file of files) {
           try {
             const logsRes = await fetch('http://localhost:5000/api/files/getAccesslog', {
@@ -50,23 +51,40 @@ export default function AccessLogsPage() {
             if (!logsRes.ok) continue;
             const fileLogs = await logsRes.json();
 
-            // Step 3: Attach file info to each log
-            const formatted = fileLogs
-              .filter(log => log.file_id === file.fileId)
-              .map(log => ({
-                user: (log.message?.split(' ') || [])[1] || 'unknown@example.com' || 'Unknown User',
-                email: log.message || 'unknown@example.com',
+            // Build logs
+            for (const log of fileLogs) {
+              if (log.file_id !== file.fileId) continue;
+
+              //get email as 2nd word
+              const email = log.message?.split(/\s+/)[1] || 'unknown@example.com';
+
+              // Fetch user info from email
+              let userName = log.message?.split(/\s+/)[0] || 'Unknown User';
+              try {
+                const response = await fetch(`http://localhost:5000/api/users/getUserInfo/${email}`);
+                if (response.ok) {
+                  const userInfo = await response.json();
+                  if (userInfo?.name) {
+                    userName = userInfo.name;
+                  }
+                }
+              } catch (err) {
+                console.log(`Could not fetch user info for ${email}:`, err);
+              }
+
+              allLogs.push({
+                user: userName,
+                email,
                 action: log.action?.toLowerCase() || '',
                 file: file.fileName || 'Unnamed file',
                 date: new Date(log.timestamp).toLocaleString(),
-              }));
-
-            allLogs.push(...formatted);
+              });
+            }
           } catch (err) {
             console.error(`Error fetching logs for file ${file.fileId}:`, err);
           }
         }
-
+        console.log(allLogs);
         setLogs(allLogs);
       } catch (err) {
         console.error('Failed to fetch all logs:', err);
@@ -77,6 +95,7 @@ export default function AccessLogsPage() {
 
     fetchAllLogs();
   }, []);
+
 
   const filteredLogs = logs
     .filter((log) => actionFilter === 'All actions' || log.action === actionFilter.toLowerCase())

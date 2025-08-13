@@ -110,6 +110,37 @@ class UserController {
     }
   }
 
+  async getUserInfoFromEmail(req, res) {
+    try {
+      const { email } = req.params;
+      if (!email) {
+        return res.status(400).json({
+          success: false,
+          message: "No email provided",
+        });
+      }
+
+      const response = await userService.getUserInfoFromEmail(email);
+      if (!response) {
+        return res.status(404).json({
+          success: false,
+          message: "User Info not found",
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: response,
+      });
+    } catch (error) {
+      console.error("Error fetching user Info", error);
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error.",
+      });
+    }
+  }
+
   async getPublicKeys(req, res) {
     try {
       const { userId } = req.params;
