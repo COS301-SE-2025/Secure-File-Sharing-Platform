@@ -60,12 +60,15 @@ export default function AccessLogsPage() {
 
               // Fetch user info from email
               let userName = log.message?.split(/\s+/)[0] || 'Unknown User';
+              let avatar='';
               try {
                 const response = await fetch(`http://localhost:5000/api/users/getUserInfo/${email}`);
                 if (response.ok) {
                   const userInfo = await response.json();
-                  if (userInfo?.name) {
-                    userName = userInfo.name;
+                  console.log('userInfo:', userInfo);
+                  if (userInfo?.data.username) {
+                    userName = userInfo.data.username;
+                    avatar=userInfo.data.avatar_url;
                   }
                 }
               } catch (err) {

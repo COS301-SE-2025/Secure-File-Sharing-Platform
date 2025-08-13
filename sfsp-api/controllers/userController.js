@@ -5,7 +5,7 @@ const VaultController = require("./vaultController");
 
 class UserController {
   async register(req, res) {
-	  console.log("I can get here");
+    console.log("I can get here");
     try {
       const { username, email, password } = req.body;
       const {
@@ -57,14 +57,14 @@ class UserController {
           opks_private,
         });
         if (!vaultres || vaultres.error) {
-		console.log("Inside the if statement vaultres");
+          console.log("Inside the if statement vaultres");
           return res.status(500).json({
             success: false,
             message: vaultres.error || "Failed to store private keys in vault.",
           });
         }
       }
-	    console.log("The is before the 201");
+      console.log("The is before the 201");
       return res.status(201).json({
         success: true,
         message: "User registered successfully.",
@@ -120,26 +120,28 @@ class UserController {
         });
       }
 
-      const response = await userService.getUserInfoFromEmail(email);
-      if (!response) {
+      const userInfo = await userService.getUserInfoFromEmail(email);
+
+      if (!userInfo) {
         return res.status(404).json({
           success: false,
-          message: "User Info not found",
+          message: `User with email ${email} not found`,
         });
       }
 
       return res.status(200).json({
         success: true,
-        data: response,
+        data: userInfo,
       });
     } catch (error) {
-      console.error("Error fetching user Info", error);
+      console.error("Error fetching user info:", error);
       return res.status(500).json({
         success: false,
-        message: "Internal server error.",
+        message: "Internal server error",
       });
     }
   }
+
 
   async getPublicKeys(req, res) {
     try {
@@ -581,7 +583,7 @@ class UserController {
       if (!avatar_url && avatar_url !== null) {
         return res.status(400).json({ success: false, message: 'Avatar URL required (or null to remove)' });
       }
-      
+
       const updatedUrl = await userService.updateAvatarUrl(userId, avatar_url);
       res.status(200).json({ success: true, data: { avatar_url: updatedUrl } });
     } catch (error) {
@@ -619,7 +621,7 @@ class UserController {
         if (!existingUser.google_id) {
           const { data: updatedUser, error: updateError } = await supabase
             .from("users")
-            .update({ 
+            .update({
               google_id: google_id,
               avatar_url: picture || existingUser.avatar_url
             })

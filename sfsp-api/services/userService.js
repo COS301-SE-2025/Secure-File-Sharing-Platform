@@ -94,7 +94,7 @@ class UserService {
     try {
       const { data, error } = await supabase
         .from("users")
-        .select("username, avatar_url")
+        .select("username, avatar_url,email")
         .eq("email", email)
         .single();
 
@@ -102,9 +102,7 @@ class UserService {
         throw new Error("This user email was not found");
       }
 
-      const { id } = data;
-
-      return { id };
+      return data;
     } catch (error) {
       throw new Error("Fetching User Info failed: " + error.message);
     }
