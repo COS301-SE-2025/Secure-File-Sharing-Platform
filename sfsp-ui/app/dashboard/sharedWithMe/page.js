@@ -3,12 +3,10 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Upload, FolderPlus, Grid, List } from "lucide-react";
+import { Grid, List } from "lucide-react";
 import { ShareDialog } from "../myFilesV2/shareDialog";
-import { UploadDialog } from "../myFilesV2/uploadDialog";
 import { FileDetailsDialog } from "../myFilesV2/fileDetailsDialog";
 import { ActivityLogsDialog } from "../myFilesV2/activityLogsDialog";
-import { CreateFolderDialog } from "../myFilesV2/createFolderDialog";
 import { FileGrid } from "../myFilesV2/fileGrid";
 import { FileList } from "../myFilesV2/fileList";
 import { useDashboardSearch } from "../components/DashboardSearchContext";
@@ -158,13 +156,17 @@ export default function MyFiles() {
       if (!Array.isArray(data)) {
         data = [];
       }
+      
 
       const formatted = data
         .filter((f) => {
           const tags = f.tags ? f.tags.replace(/[{}]/g, "").split(",") : [];
           return (
             !tags.includes("deleted") &&
-            !tags.some((tag) => tag.trim().startsWith("deleted_time:"))
+            !tags.some((tag) => tag.trim().startsWith("deleted_time:")) &&
+            (tags.includes("view-only") ||
+            tags.includes("shared") ||
+            tags.includes("received"))
           );
         })
         .map((f) => {
@@ -568,12 +570,12 @@ const handleOpenFullView = async (file) => {
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-2xl font-semibold text-blue-500 ">My Files</h1>
+            <h1 className="text-2xl font-semibold text-blue-500 ">Shared with me</h1>
             <p className="text-gray-600 dark:text-gray-400">
-              Manage and organize your files
+              Files and folders that have been shared with you
             </p>
           </div>
-
+         
           <div className="flex items-center gap-4">
             {/* View Toggle */}
             <div className="flex items-center bg-white rounded-lg border p-1 dark:bg-gray-200">
@@ -596,39 +598,8 @@ const handleOpenFullView = async (file) => {
                 <List className="h-4 w-4" />
               </button>
             </div>
-
-            {/* Create Folder & Upload buttons */}
-            <button
-              onClick={() => setIsCreateFolderOpen(true)}
-              className="flex items-center gap-2 px-3 py-1 rounded border border-gray-300 hover:bg-gray-100 dark:bg-gray-200 dark:text-gray-900"
-            >
-              <FolderPlus className="h-4 w-4" />
-              <span>Create Folder</span>
-            </button>
-
-            <button
-              onClick={() => setIsUploadOpen(true)}
-              className="flex items-center gap-2 px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700"
-            >
-              <Upload className="h-4 w-4" />
-              <span>Upload Files</span>
-            </button>
           </div>
         </div>
-        {/* Back Button
-        <div className="flex flex-col space-y-2 mb-4">
-          {currentPath && (
-            <button
-              onClick={() =>
-                setCurrentPath(currentPath.split("/").slice(0, -1).join("/"))
-              }
-              className="self-start text-sm text-blue-600 hover:underline"
-            >
-              ← Go Back to &quot;
-              {currentPath.split("/").slice(0, -1).join("/") || "All files"}&quot;
-            </button>
-          )}
-        </div> */}
 
         {renderBreadcrumbs()}
 
@@ -649,7 +620,7 @@ const handleOpenFullView = async (file) => {
               />
             </svg>
             <h2 className="text-lg font-semibold">No files found</h2>
-            <p className="text-sm text-gray-400">Upload or create folders to get started</p>
+            <p className="text-sm text-gray-400">Get sharing ...</p>
           </div>
         ) : viewMode === "grid" ? (
           <FileGrid
@@ -699,17 +670,7 @@ const handleOpenFullView = async (file) => {
 
 
         {/* Dialogs */}
-        <UploadDialog
-          open={isUploadOpen}
-          onOpenChange={setIsUploadOpen}
-          onUploadSuccess={fetchFiles}
-          currentFolderPath={currentPath}
-        />
-        <CreateFolderDialog
-          open={isCreateFolderOpen}
-          onOpenChange={setIsCreateFolderOpen}
-          currentPath={currentPath}
-        />
+        
         <ShareDialog
           open={isShareOpen}
           onOpenChange={setIsShareOpen}

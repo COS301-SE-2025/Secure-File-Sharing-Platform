@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { Eye, Download, Share2, Edit, Clock, Trash2 } from 'lucide-react';
 import { useDashboardSearch } from '@/app/dashboard/components/DashboardSearchContext';
 import { useEncryptionStore } from '@/app/SecureKeyStorage';
@@ -60,15 +61,15 @@ export default function AccessLogsPage() {
 
               // Fetch user info from email
               let userName = log.message?.split(/\s+/)[0] || 'Unknown User';
-              let avatar='';
+              let avatar = '';
               try {
                 const response = await fetch(`http://localhost:5000/api/users/getUserInfo/${email}`);
                 if (response.ok) {
                   const userInfo = await response.json();
-                  console.log('userInfo:', userInfo);
+                  // console.log('userInfo:', userInfo);
                   if (userInfo?.data.username) {
                     userName = userInfo.data.username;
-                    avatar=userInfo.data.avatar_url;
+                    avatar = userInfo.data.avatar_url;
                   }
                 }
               } catch (err) {
@@ -77,7 +78,7 @@ export default function AccessLogsPage() {
 
               allLogs.push({
                 user: userName,
-                email,
+                email, avatar,
                 action: log.action?.toLowerCase() || '',
                 file: file.fileName || 'Unnamed file',
                 date: new Date(log.timestamp).toLocaleString(),
@@ -168,9 +169,19 @@ export default function AccessLogsPage() {
                 {filteredLogs.map((log, idx) => (
                   <tr key={idx} className="border-b border-gray-200 dark:border-gray-700">
                     <td className="py-4 flex items-center gap-3">
-                      <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-bold">
-                        {log.user[0]}
-                      </div>
+                      {log.avatar ? (
+                        <Image
+                          src={log.avatar}
+                          alt={log.user}
+                          width={32} 
+                          height={32}
+                          className="rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-bold">
+                          {log.user[0]}
+                        </div>
+                      )}
                       <div>
                         <div className="font-medium">{log.user}</div>
                         <div className="text-xs text-gray-500 dark:text-gray-400">{log.email}</div>
