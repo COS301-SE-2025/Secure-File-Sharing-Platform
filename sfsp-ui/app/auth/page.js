@@ -778,6 +778,7 @@ export default function AuthPage() {
                       value={signupData.password}
                       onChange={handleChange(setSignupData)}
                       onFocus={() => setIsPasswordFocused(true)}
+                      onBlur={() => setIsPasswordFocused(false)}
                       required
                       className={`w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${fieldErrors.password ? 'border-red-500' : ''
                         }`}
