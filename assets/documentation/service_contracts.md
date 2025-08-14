@@ -10,6 +10,8 @@ This document defines the service contracts between major components of the secu
 - **Protocol**: REST over HTTP/HTTPS
 - **Authentication**: JWT in Authorization header
 
+> NOTE: The parts lead to the service endpoints discussed in other sections.
+
 #### Routes
 ```
 /api/users/*
@@ -166,9 +168,25 @@ form-data:
 - **Protocol**: REST over HTTP/HTTPS
 
 #### Endpoints
-- `POST /register` - Register new user
-- `POST /login` - User login
-- `GET /public-keys/{userId}` - Get user's public keys
+| Method | Endpoint | Auth Required | Description |
+|--------|----------|--------------|-------------|
+| POST   | /register | No           | Register a new user |
+| POST   | /login    | No           | User login |
+| POST   | /logout   | Yes          | User logout |
+| GET    | /profile  | Yes          | Get user profile |
+| DELETE | /profile  | Yes          | Delete user profile |
+| POST   | /token_refresh | Yes      | Refresh authentication token |
+| PUT    | /profile  | Yes          | Update user profile |
+| POST   | /verify-password | Yes    | Verify user password |
+| POST   | /send-reset-pin | Yes     | Send password reset PIN |
+| POST   | /change-password | Yes    | Change user password |
+| GET    | /public-keys/:userId | Yes | Get public keys for a user |
+| GET    | /getUserId/:email | Yes   | Get user ID from email |
+| POST   | /get-token | Yes         | Get user token |
+| GET    | /token-info | Yes        | Get user info from token |
+| GET    | /notifications | Yes     | Get notification settings |
+| PUT    | /notifications | Yes     | Update notification settings |
+| POST   | /avatar-url | Yes       | Update avatar URL |
 
 ### Data Format
 - **Request/Response**: JSON
@@ -214,10 +232,25 @@ form-data:
 5. API Gateway -> File Service: Store sent file
 6. File Service -> Metadata DB: Record transaction
 
+#### Key Storage Flow
+1. UI -> API Gateway: `POST /api/vault/store-key`
+2. API Gateway -> Vault Service: stores key bundle
+3. Vault Service -> HashiCorp Vault: stores secrets
+
 #### Key Retrieval Flow
 1. UI -> API Gateway: `GET /api/vault/retrieve-key`
 2. API Gateway -> Vault Service: Retrieve key bundle
 3. Vault Service -> HashiCorp Vault: Get secrets
+
+#### Register Flow
+1. UI -> API Gateway: `POST /api/users/register`
+2. API Gateway -> Supabase: stores the credentials
+3. Then [Key Storage Flow](#key-storage-flow)
+
+#### Login Flow
+1. UI -> API Gateway: `POST /api/users/register`
+2. API Gateway -> Supabase: retrieves the credentials
+3. Then [Key Retrival Flow](#key-retrieval-flow)
 
 ---
 
@@ -240,7 +273,7 @@ Test cases should verify:
 
 ## 7. Versioning
 
-All APIs follow semantic versioning (v1, v2, etc.) with:
+All APIs would follow semantic versioning (v1, v2, etc.) with:
 - Version in URL path (`/v1/api/files`)
 - Backward compatibility for at least one previous version
 - Deprecation notices in documentation
