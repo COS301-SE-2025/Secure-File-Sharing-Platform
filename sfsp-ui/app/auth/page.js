@@ -366,6 +366,19 @@ export default function AuthPage() {
 
       const { token: jwtToken } = await jwtResponse.json();
       localStorage.setItem("token", jwtToken);
+
+      const addUserRes = await fetch("http://localhost:5000/api/files/addUser", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.id,
+        }),
+      });
+
+      if (!addUserRes.ok) {
+        console.error("Failed to add user to database");
+      }
+      
       setMessage("User successfully registered!");
 
       setTimeout(() => {
