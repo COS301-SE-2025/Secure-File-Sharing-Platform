@@ -1,0 +1,14 @@
+services:
+  frontend:
+    build:
+      context: ./sfsp-ui
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+
+  sfsp-api:
+    build:
+      context: ./sfsp-api
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
