@@ -11,6 +11,7 @@ export default function Loader({ message = "Loading..." }) {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.3 }}
+        data-testid="loader"
         >
         <div className="flex flex-col items-center space-y-4">
             <Image
@@ -25,7 +26,7 @@ export default function Loader({ message = "Loading..." }) {
                 resolvedTheme === 'dark' ? 'border-blue-400' : 'border-white'
             }`}
             ></div>
-            <p className="text-lg font-semibold text-white">
+            <p className="text-lg font-semibold text-white" data-testid="loader-message">
             {message}
             </p>
         </div>

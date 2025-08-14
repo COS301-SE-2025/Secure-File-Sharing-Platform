@@ -500,7 +500,7 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white flex">
+    <div className="min-h-screen bg-white flex" data-testid="auth-page">
       {isLoading && <Loader message={loaderMessage} />}
       {/* Left Panel */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 relative overflow-hidden">
@@ -678,6 +678,7 @@ export default function AuthPage() {
                   onClick={handleGoogleAuth}
                   disabled={isLoading}
                   className="w-full flex items-center justify-center space-x-2 border dark:border-gray-400 border-gray-300 rounded-md py-2 hover:bg-gray-100 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  data-testid="google-oauth-button"
                 >
                   <svg
                     className="w-5 h-5"
@@ -929,6 +930,7 @@ export default function AuthPage() {
                   onClick={handleGoogleAuth}
                   disabled={isLoading}
                   className="w-full flex items-center justify-center space-x-2 border dark:border-gray-400 border-gray-300 rounded-md py-2 hover:bg-gray-100 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  data-testid="google-oauth-button"
                 >
                   <svg
                     className="w-5 h-5"
