@@ -12,3 +12,10 @@ services:
       dockerfile: Dockerfile
     ports:
       - "5000:5000"
+
+  keyservice:
+    build:
+      context: ./sfsp-api/services/keyservice
+      dockerfile: Dockerfile
+    ports:
+      - "8443:8443"
