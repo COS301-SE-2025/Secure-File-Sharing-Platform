@@ -41,7 +41,6 @@ class UserService {
             email,
             password: hashedPassword,
             resetPasswordPIN,
-            is_verified: false, // Require email verification for normal registration
             ik_public,
             spk_public,
             opks_public,
@@ -56,17 +55,15 @@ class UserService {
       if (error) {
         throw new Error("Failed to create user: " + error.message);
       }
-      
-      // Don't generate token for unverified users
-      // Token will be generated after email verification
-      
+      const token = this.generateToken(newUser.id);
+
       return {
         user: {
           id: newUser.id,
           username: newUser.username,
           email: newUser.email,
-          is_verified: newUser.is_verified,
         },
+        token,
       };
     } catch (error) {
       throw new Error("Registration failed: " + error.message);
@@ -169,11 +166,6 @@ class UserService {
       const isPasswordValid = await bcrypt.compare(password, user.password);
       if (!isPasswordValid) {
         throw new Error("Invalid password.");
-      }
-
-      // Check if user has verified their email
-      if (user.is_verified === false) {
-        throw new Error("Please verify your email before logging in. Check your inbox for the verification code.");
       }
 
       const token = this.generateToken(user.id, user.email);
