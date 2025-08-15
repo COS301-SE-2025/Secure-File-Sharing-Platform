@@ -20,7 +20,7 @@ services:
     ports:
       - "8443:8443"
 
-  fileService:
+  fileservice:
     build:
       context: ./sfsp-api/services/fileService
       dockerfile: Dockerfile
