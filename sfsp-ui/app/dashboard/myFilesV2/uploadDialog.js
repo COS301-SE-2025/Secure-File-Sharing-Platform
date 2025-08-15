@@ -145,6 +145,28 @@ const uploadFilesHandler = async () => {
 
         await Promise.all(chunkUploadPromises);
         console.log(`${file.name} uploaded successfully`);
+
+        //add access log
+        const token = localStorage.getItem('token');
+
+        const res = await fetch('http://localhost:5000/api/users/profile', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.message || 'Failed to fetch profile');
+ 
+        await fetch("http://localhost:5000/api/files/addAccesslog", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            file_id: fileId,
+            user_id: userId,
+            action: "created",
+            message: `User ${result.data.email} uploaded the file.`,
+          }),
+        });
+
       } catch (err) {
         console.error(`Upload failed for ${file.name}:`, err);
         alert(`Upload failed for ${file.name}`);
