@@ -8,11 +8,14 @@ RUN go mod download
 COPY . .
 
 RUN go build -o main
+
 FROM alpine:latest
 
 WORKDIR /root/
 
 COPY --from=build /app/main .
+
+COPY --from=build /app/.env .
 
 EXPOSE 8081
 

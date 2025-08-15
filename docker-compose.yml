@@ -19,3 +19,10 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8443:8443"
+
+  fileService:
+    build:
+      context: ./sfsp-api/services/fileService
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
