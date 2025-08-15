@@ -1,28 +1,40 @@
 import { NextResponse } from 'next/server';
-import jwt from 'jsonwebtoken';
 
 export async function POST(request) {
     try {
         const { userId, email } = await request.json();
 
         if (!userId || !email) {
-        return NextResponse.json(
-            { error: 'Missing userId or email' },
-            { status: 400 }
-        );
+            return NextResponse.json(
+                { error: 'Missing userId or email' },
+                { status: 400 }
+            );
         }
 
-        const payload = { userId, email };
-        const secret = process.env.JWT_SECRET || 'nobody-is-going-to-guess-this-secret';
-        const token = jwt.sign(payload, secret, { expiresIn: '24h' });
+        const tokenResponse = await fetch('http://localhost:5000/api/users/get-token', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ userId }),
+        });
 
-        return NextResponse.json({ token });
+        if (!tokenResponse.ok) {
+            const errorData = await tokenResponse.json();
+            return NextResponse.json(
+                { error: errorData.message || 'Failed to generate token' },
+                { status: tokenResponse.status }
+            );
+        }
+
+        const result = await tokenResponse.json();
+        return NextResponse.json({ token: result.token });
 
     } catch (error) {
         console.error('JWT generation error:', error);
         return NextResponse.json(
-        { error: 'Failed to generate token' },
-        { status: 500 }
+            { error: 'Failed to generate token' },
+            { status: 500 }
         );
     }
 }

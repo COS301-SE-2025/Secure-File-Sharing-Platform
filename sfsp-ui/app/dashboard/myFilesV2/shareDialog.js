@@ -103,8 +103,7 @@ export function ShareDialog({ open, onOpenChange, file }) {
         }
 
         const json = await response.json();
-        const recipientId = json.data.id;
-
+        const recipientId = json.data.userId;
         console.log("Recipient Id is:", recipientId);
         console.log("FileId", file.id);
 
