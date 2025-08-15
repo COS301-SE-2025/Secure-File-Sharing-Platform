@@ -17,7 +17,7 @@ export async function POST(request) {
         .select('*')
         .eq('user_id', userId)
         .eq('code', code)
-        .eq('type', 'google_signin')
+        .in('type', ['google_signin', 'email_verification'])
         .eq('used', false)
         .order('created_at', { ascending: false })
         .limit(1)
@@ -51,6 +51,17 @@ export async function POST(request) {
                 { error: 'Failed to verify code' },
                 { status: 500 }
             );
+        }
+
+        // Mark the user as verified
+        const { error: userUpdateError } = await supabase
+        .from('users')
+        .update({ is_verified: true })
+        .eq('id', userId);
+
+        if (userUpdateError) {
+            console.error('Failed to mark user as verified:', userUpdateError);
+            // Continue anyway as the code was valid
         }
 
         return NextResponse.json({

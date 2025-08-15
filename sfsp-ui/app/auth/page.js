@@ -421,7 +421,6 @@ export default function AuthPage() {
       setIsLoading(true);
       setLoaderMessage("Redirecting to Google...");
       
-      // Check if there's already an auth in progress
       const authInProgress = localStorage.getItem('googleAuthInProgress');
       if (authInProgress) {
         setMessage('Google authentication is already in progress. Please wait...');
@@ -434,7 +433,7 @@ export default function AuthPage() {
       const scope = 'openid email profile';
       
       const state = crypto.randomUUID();
-      localStorage.setItem('googleAuthState', state);
+      sessionStorage.setItem('googleOAuthState', state);
       
       const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
         `client_id=${encodeURIComponent(clientId)}&` +
@@ -467,7 +466,6 @@ export default function AuthPage() {
   async function GenerateX3DHKeys(password) {
     const sodium = await getSodium();
 
-    // Identity keypair and signedkey pair (Ed25519) 
     const ik = sodium.crypto_sign_keypair();
     const spk = sodium.crypto_sign_keypair();
 
