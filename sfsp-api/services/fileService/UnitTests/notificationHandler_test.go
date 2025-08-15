@@ -1,346 +1,690 @@
 package unitTests
 
 import (
-	"bytes"
+	"database/sql"
 	"encoding/json"
-	"log"
 	"net/http"
 	"net/http/httptest"
-	"regexp"
+	"strings"
 	"testing"
+	"time"
 
-	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/joho/godotenv"
+	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler"
+	"github.com/stretchr/testify/require"
+	fh "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler"
 )
 
-func init() {
-	err := godotenv.Load("../.env")
-	if err != nil {
-		log.Println("Warning: Error loading .env file")
-	}
+// --- Tests for NotificationHandler ---
+
+func TestNotificationHandler_Success(t *testing.T) {
+	mock, cleanup := SetupMockDB(t)
+	defer cleanup()
+
+	userID := "user-123"
+	
+	rows := sqlmock.NewRows([]string{"id", "type", "from", "to", "file_name", "file_id", "message", "timestamp", "status", "read"}).
+		AddRow("notif-1", "share_request", "sender-1", "user-123", "document.pdf", "file-1", "File shared with you", time.Now(), "pending", false).
+		AddRow("notif-2", "file_received", "sender-2", "user-123", "image.jpg", "file-2", "File received", time.Now(), "accepted", true)
+
+	mock.ExpectQuery(`SELECT id, type, "from", "to", file_name, file_id, message, timestamp, status, read FROM notifications WHERE "to" = \$1`).
+		WithArgs(userID).
+		WillReturnRows(rows)
+
+	req := httptest.NewRequest(http.MethodGet, "/notifications?id="+userID, nil)
+	rr := httptest.NewRecorder()
+
+	fh.NotificationHandler(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code)
+
+	var response map[string]interface{}
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &response))
+	assert.True(t, response["success"].(bool))
+	assert.Len(t, response["notifications"], 2)
+
+	require.NoError(t, mock.ExpectationsWereMet())
 }
 
-func TestSimpleNotification(t *testing.T) {
-	assert.True(t, true, "This should always pass")
+func TestNotificationHandler_WrongMethod(t *testing.T) {
+	_, cleanup := SetupMockDB(t)
+	defer cleanup()
+
+	req := httptest.NewRequest(http.MethodPost, "/notifications", nil)
+	rr := httptest.NewRecorder()
+
+	fh.NotificationHandler(rr, req)
+
+	require.Equal(t, http.StatusMethodNotAllowed, rr.Code)
+
+	var response map[string]interface{}
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &response))
+	assert.False(t, response["success"].(bool))
+	assert.Equal(t, "Method not allowed", response["error"])
 }
 
-func TestNotificationHandler(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("Failed to create mock database: %v", err)
-	}
-	defer db.Close()
+func TestNotificationHandler_MissingUserID(t *testing.T) {
+	_, cleanup := SetupMockDB(t)
+	defer cleanup()
 
-	originalDB := fileHandler.DB
-	fileHandler.DB = db
-	defer func() { fileHandler.DB = originalDB }()
+	req := httptest.NewRequest(http.MethodGet, "/notifications", nil)
+	rr := httptest.NewRecorder()
 
-	t.Run("Success", func(t *testing.T) {
-		userID := "user123"
-		req := httptest.NewRequest(http.MethodGet, "/notifications?id="+userID, nil)
-		w := httptest.NewRecorder()
+	fh.NotificationHandler(rr, req)
 
-		rows := sqlmock.NewRows([]string{"id", "type", "from", "to", "file_name", "file_id", "message", "timestamp", "status", "read"}).
-			AddRow("notif1", "share", "user456", userID, "document.pdf", "file123", "Shared a file with you", "2025-06-25T10:00:00Z", "pending", false).
-			AddRow("notif2", "access", "user789", userID, "image.jpg", "file456", "Accessed your file", "2025-06-25T11:00:00Z", "completed", true)
+	require.Equal(t, http.StatusBadRequest, rr.Code)
 
-		mock.ExpectQuery(regexp.QuoteMeta(`SELECT id, type, "from", "to", file_name, file_id, message, timestamp, status, read 
-        FROM notifications WHERE "to" = $1`)).
-			WithArgs(userID).
-			WillReturnRows(rows)
-
-		fileHandler.NotificationHandler(w, req)
-		assert.Equal(t, http.StatusOK, w.Code)
-
-		var resp map[string]interface{}
-		err := json.NewDecoder(w.Body).Decode(&resp)
-		assert.NoError(t, err)
-		assert.Equal(t, true, resp["success"])
-
-		notifications, ok := resp["notifications"].([]interface{})
-		assert.True(t, ok)
-		assert.Len(t, notifications, 2)
-
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("Method not allowed", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/notifications?id=user123", nil)
-		w := httptest.NewRecorder()
-
-		fileHandler.NotificationHandler(w, req)
-		assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
-
-		var resp map[string]interface{}
-		err := json.NewDecoder(w.Body).Decode(&resp)
-		assert.NoError(t, err)
-		assert.Equal(t, false, resp["success"])
-		assert.Equal(t, "Method not allowed", resp["error"])
-	})
-
-	t.Run("Missing user ID", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/notifications", nil)
-		w := httptest.NewRecorder()
-
-		fileHandler.NotificationHandler(w, req)
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-
-		var resp map[string]interface{}
-		err := json.NewDecoder(w.Body).Decode(&resp)
-		assert.NoError(t, err)
-		assert.Equal(t, false, resp["success"])
-		assert.Equal(t, "Missing user ID", resp["error"])
-	})
-
-	t.Run("Database error", func(t *testing.T) {
-		userID := "user123"
-		req := httptest.NewRequest(http.MethodGet, "/notifications?id="+userID, nil)
-		w := httptest.NewRecorder()
-
-		mock.ExpectQuery(regexp.QuoteMeta(`SELECT id, type, "from", "to", file_name, file_id, message, timestamp, status, read 
-        FROM notifications WHERE "to" = $1`)).
-			WithArgs(userID).
-			WillReturnError(sqlmock.ErrCancelled)
-
-		fileHandler.NotificationHandler(w, req)
-		assert.Equal(t, http.StatusInternalServerError, w.Code)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
+	var response map[string]interface{}
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &response))
+	assert.False(t, response["success"].(bool))
+	assert.Equal(t, "Missing user ID", response["error"])
 }
 
-func TestMarkAsReadHandler(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("Failed to create mock database: %v", err)
-	}
-	defer db.Close()
+func TestNotificationHandler_DBError(t *testing.T) {
+	mock, cleanup := SetupMockDB(t)
+	defer cleanup()
 
-	originalDB := fileHandler.DB
-	fileHandler.DB = db
-	defer func() { fileHandler.DB = originalDB }()
+	userID := "user-123"
 
-	t.Run("Success", func(t *testing.T) {
-		reqBody := map[string]string{
-			"id": "notification123",
-		}
-		body, _ := json.Marshal(reqBody)
+	mock.ExpectQuery(`SELECT id, type, "from", "to", file_name, file_id, message, timestamp, status, read FROM notifications WHERE "to" = \$1`).
+		WithArgs(userID).
+		WillReturnError(sql.ErrConnDone)
 
-		req := httptest.NewRequest(http.MethodPost, "/notifications/markAsRead", bytes.NewBuffer(body))
-		req.Header.Set("Content-Type", "application/json")
-		w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/notifications?id="+userID, nil)
+	rr := httptest.NewRecorder()
 
-		mock.ExpectExec("UPDATE notifications SET read = TRUE WHERE id = \\$1").
-			WithArgs(reqBody["id"]).
-			WillReturnResult(sqlmock.NewResult(0, 1))
+	fh.NotificationHandler(rr, req)
 
-		fileHandler.MarkAsReadHandler(w, req)
-
-		assert.Equal(t, http.StatusOK, w.Code)
-
-		var resp map[string]interface{}
-		err := json.NewDecoder(w.Body).Decode(&resp)
-		assert.NoError(t, err)
-		assert.Equal(t, true, resp["success"])
-		assert.Equal(t, "Notification marked as read", resp["message"])
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("Method not allowed", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/notifications/markAsRead", nil)
-		w := httptest.NewRecorder()
-
-		fileHandler.MarkAsReadHandler(w, req)
-		assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
-	})
-
-	t.Run("Invalid JSON payload", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/notifications/markAsRead", bytes.NewBuffer([]byte("invalid json")))
-		req.Header.Set("Content-Type", "application/json")
-		w := httptest.NewRecorder()
-
-		fileHandler.MarkAsReadHandler(w, req)
-
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-	})
-
-	t.Run("Missing notification ID", func(t *testing.T) {
-		reqBody := map[string]string{
-			"id": "",
-		}
-		body, _ := json.Marshal(reqBody)
-
-		req := httptest.NewRequest(http.MethodPost, "/notifications/markAsRead", bytes.NewBuffer(body))
-		req.Header.Set("Content-Type", "application/json")
-		w := httptest.NewRecorder()
-
-		fileHandler.MarkAsReadHandler(w, req)
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-	})
-
-	t.Run("Notification not found", func(t *testing.T) {
-		reqBody := map[string]string{
-			"id": "nonexistent",
-		}
-		body, _ := json.Marshal(reqBody)
-
-		req := httptest.NewRequest(http.MethodPost, "/notifications/markAsRead", bytes.NewBuffer(body))
-		req.Header.Set("Content-Type", "application/json")
-		w := httptest.NewRecorder()
-
-		mock.ExpectExec("UPDATE notifications SET read = TRUE WHERE id = \\$1").
-			WithArgs(reqBody["id"]).
-			WillReturnResult(sqlmock.NewResult(0, 0))
-
-		fileHandler.MarkAsReadHandler(w, req)
-
-		assert.Equal(t, http.StatusNotFound, w.Code)
-
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
+	require.Equal(t, http.StatusInternalServerError, rr.Code)
+	require.NoError(t, mock.ExpectationsWereMet())
 }
 
-func TestRespondToShareRequestHandler(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("Failed to create mock database: %v", err)
+func TestNotificationHandler_EmptyResult(t *testing.T) {
+	mock, cleanup := SetupMockDB(t)
+	defer cleanup()
+
+	userID := "user-123"
+	
+	rows := sqlmock.NewRows([]string{"id", "type", "from", "to", "file_name", "file_id", "message", "timestamp", "status", "read"})
+
+	mock.ExpectQuery(`SELECT id, type, "from", "to", file_name, file_id, message, timestamp, status, read FROM notifications WHERE "to" = \$1`).
+		WithArgs(userID).
+		WillReturnRows(rows)
+
+	req := httptest.NewRequest(http.MethodGet, "/notifications?id="+userID, nil)
+	rr := httptest.NewRecorder()
+
+	fh.NotificationHandler(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code)
+
+	var response map[string]interface{}
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &response))
+	assert.True(t, response["success"].(bool))
+	assert.Len(t, response["notifications"], 0)
+
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+// --- Tests for MarkAsReadHandler ---
+
+func TestMarkAsReadHandler_Success(t *testing.T) {
+	mock, cleanup := SetupMockDB(t)
+	defer cleanup()
+
+	notificationID := "notif-123"
+
+	mock.ExpectExec("UPDATE notifications SET read = TRUE WHERE id = \\$1").
+		WithArgs(notificationID).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	body := map[string]string{"id": notificationID}
+	req := NewJSONRequest(t, http.MethodPost, "/notifications/mark-read", body)
+	rr := httptest.NewRecorder()
+
+	fh.MarkAsReadHandler(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code)
+
+	var response map[string]interface{}
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &response))
+	assert.True(t, response["success"].(bool))
+	assert.Equal(t, "Notification marked as read", response["message"])
+
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestMarkAsReadHandler_WrongMethod(t *testing.T) {
+	_, cleanup := SetupMockDB(t)
+	defer cleanup()
+
+	req := httptest.NewRequest(http.MethodGet, "/notifications/mark-read", nil)
+	rr := httptest.NewRecorder()
+
+	fh.MarkAsReadHandler(rr, req)
+
+	require.Equal(t, http.StatusMethodNotAllowed, rr.Code)
+}
+
+func TestMarkAsReadHandler_BadJSON(t *testing.T) {
+	_, cleanup := SetupMockDB(t)
+	defer cleanup()
+
+	req := httptest.NewRequest(http.MethodPost, "/notifications/mark-read", strings.NewReader("{bad json"))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	fh.MarkAsReadHandler(rr, req)
+
+	require.Equal(t, http.StatusBadRequest, rr.Code)
+}
+
+func TestMarkAsReadHandler_MissingID(t *testing.T) {
+	_, cleanup := SetupMockDB(t)
+	defer cleanup()
+
+	body := map[string]string{"id": ""}
+	req := NewJSONRequest(t, http.MethodPost, "/notifications/mark-read", body)
+	rr := httptest.NewRecorder()
+
+	fh.MarkAsReadHandler(rr, req)
+
+	require.Equal(t, http.StatusBadRequest, rr.Code)
+
+	var response map[string]interface{}
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &response))
+	assert.Equal(t, "Missing notification ID", response["error"])
+}
+
+func TestMarkAsReadHandler_NotificationNotFound(t *testing.T) {
+	mock, cleanup := SetupMockDB(t)
+	defer cleanup()
+
+	notificationID := "nonexistent"
+
+	mock.ExpectExec("UPDATE notifications SET read = TRUE WHERE id = \\$1").
+		WithArgs(notificationID).
+		WillReturnResult(sqlmock.NewResult(0, 0)) // 0 rows affected
+
+	body := map[string]string{"id": notificationID}
+	req := NewJSONRequest(t, http.MethodPost, "/notifications/mark-read", body)
+	rr := httptest.NewRecorder()
+
+	fh.MarkAsReadHandler(rr, req)
+
+	require.Equal(t, http.StatusNotFound, rr.Code)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestMarkAsReadHandler_DBError(t *testing.T) {
+	mock, cleanup := SetupMockDB(t)
+	defer cleanup()
+
+	notificationID := "notif-123"
+
+	mock.ExpectExec("UPDATE notifications SET read = TRUE WHERE id = \\$1").
+		WithArgs(notificationID).
+		WillReturnError(sql.ErrConnDone)
+
+	body := map[string]string{"id": notificationID}
+	req := NewJSONRequest(t, http.MethodPost, "/notifications/mark-read", body)
+	rr := httptest.NewRecorder()
+
+	fh.MarkAsReadHandler(rr, req)
+
+	require.Equal(t, http.StatusInternalServerError, rr.Code)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+// --- Tests for RespondToShareRequestHandler ---
+
+func TestRespondToShareRequestHandler_AcceptedWithReceivedFile(t *testing.T) {
+	mock, cleanup := SetupMockDB(t)
+	defer cleanup()
+
+	notificationID := "notif-123"
+	status := "accepted"
+
+	// Mock the status update
+	mock.ExpectExec("UPDATE notifications SET status = \\$1, read = TRUE WHERE id = \\$2").
+		WithArgs(status, notificationID).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	// Mock fetching notification info
+	notifRows := sqlmock.NewRows([]string{"file_id", "from", "to", "received_file_id"}).
+		AddRow("file-123", "sender-1", "recipient-1", "received-456")
+
+	mock.ExpectQuery(`SELECT n\.file_id, n\."from", n\."to", n\."received_file_id" FROM notifications n WHERE n\.id = \$1`).
+		WithArgs(notificationID).
+		WillReturnRows(notifRows)
+
+	// Mock fetching received file metadata
+	metadataRows := sqlmock.NewRows([]string{"metadata"}).
+		AddRow(`{"key": "encrypted_key"}`)
+
+	mock.ExpectQuery(`SELECT metadata FROM received_files WHERE file_id = \$1 AND recipient_id = \$2 AND id = \$3`).
+		WithArgs("file-123", "recipient-1", "received-456").
+		WillReturnRows(metadataRows)
+
+	// Mock fetching file details
+	fileRows := sqlmock.NewRows([]string{"file_name", "file_type", "cid", "file_size"}).
+		AddRow("document.pdf", "application/pdf", "QmTest123", int64(1024))
+
+	mock.ExpectQuery(`SELECT file_name, file_type, cid, file_size FROM files WHERE id = \$1`).
+		WithArgs("file-123").
+		WillReturnRows(fileRows)
+
+	body := map[string]string{"id": notificationID, "status": status}
+	req := NewJSONRequest(t, http.MethodPost, "/notifications/respond", body)
+	rr := httptest.NewRecorder()
+
+	fh.RespondToShareRequestHandler(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code)
+
+	var response map[string]interface{}
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &response))
+	assert.True(t, response["success"].(bool))
+	assert.Contains(t, response, "fileData")
+
+	fileData := response["fileData"].(map[string]interface{})
+	assert.Equal(t, "file-123", fileData["file_id"])
+	assert.Equal(t, "document.pdf", fileData["file_name"])
+	assert.False(t, fileData["viewOnly"].(bool))
+
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestRespondToShareRequestHandler_AcceptedViewOnly(t *testing.T) {
+	mock, cleanup := SetupMockDB(t)
+	defer cleanup()
+
+	notificationID := "notif-123"
+	status := "accepted"
+
+	// Mock the status update
+	mock.ExpectExec("UPDATE notifications SET status = \\$1, read = TRUE WHERE id = \\$2").
+		WithArgs(status, notificationID).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	// Mock fetching notification info (no received_file_id)
+	notifRows := sqlmock.NewRows([]string{"file_id", "from", "to", "received_file_id"}).
+		AddRow("file-123", "sender-1", "recipient-1", sql.NullString{Valid: false})
+
+	mock.ExpectQuery(`SELECT n\.file_id, n\."from", n\."to", n\."received_file_id" FROM notifications n WHERE n\.id = \$1`).
+		WithArgs(notificationID).
+		WillReturnRows(notifRows)
+
+	// Mock fetching view-only metadata
+	metadataRows := sqlmock.NewRows([]string{"metadata"}).
+		AddRow(`{"view_key": "view_encrypted_key"}`)
+
+	mock.ExpectQuery(`SELECT metadata FROM shared_files_view WHERE sender_id = \$1 AND recipient_id = \$2 AND file_id = \$3`).
+		WithArgs("sender-1", "recipient-1", "file-123").
+		WillReturnRows(metadataRows)
+
+	// Mock fetching file details
+	fileRows := sqlmock.NewRows([]string{"file_name", "file_type", "cid", "file_size"}).
+		AddRow("document.pdf", "application/pdf", "QmTest123", int64(1024))
+
+	mock.ExpectQuery(`SELECT file_name, file_type, cid, file_size FROM files WHERE id = \$1`).
+		WithArgs("file-123").
+		WillReturnRows(fileRows)
+
+	body := map[string]string{"id": notificationID, "status": status}
+	req := NewJSONRequest(t, http.MethodPost, "/notifications/respond", body)
+	rr := httptest.NewRecorder()
+
+	fh.RespondToShareRequestHandler(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code)
+
+	var response map[string]interface{}
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &response))
+	assert.True(t, response["success"].(bool))
+
+	fileData := response["fileData"].(map[string]interface{})
+	assert.True(t, fileData["viewOnly"].(bool))
+
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestRespondToShareRequestHandler_DeclinedStatus(t *testing.T) {
+	mock, cleanup := SetupMockDB(t)
+	defer cleanup()
+
+	notificationID := "notif-123"
+	status := "declined"
+
+	mock.ExpectExec("UPDATE notifications SET status = \\$1, read = TRUE WHERE id = \\$2").
+		WithArgs(status, notificationID).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	body := map[string]string{"id": notificationID, "status": status}
+	req := NewJSONRequest(t, http.MethodPost, "/notifications/respond", body)
+	rr := httptest.NewRecorder()
+
+	fh.RespondToShareRequestHandler(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestRespondToShareRequestHandler_WrongMethod(t *testing.T) {
+	_, cleanup := SetupMockDB(t)
+	defer cleanup()
+
+	req := httptest.NewRequest(http.MethodGet, "/notifications/respond", nil)
+	rr := httptest.NewRecorder()
+
+	fh.RespondToShareRequestHandler(rr, req)
+
+	require.Equal(t, http.StatusMethodNotAllowed, rr.Code)
+}
+
+func TestRespondToShareRequestHandler_InvalidStatus(t *testing.T) {
+	_, cleanup := SetupMockDB(t)
+	defer cleanup()
+
+	body := map[string]string{"id": "notif-123", "status": "invalid"}
+	req := NewJSONRequest(t, http.MethodPost, "/notifications/respond", body)
+	rr := httptest.NewRecorder()
+
+	fh.RespondToShareRequestHandler(rr, req)
+
+	require.Equal(t, http.StatusBadRequest, rr.Code)
+
+	var response map[string]interface{}
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &response))
+	assert.Contains(t, response["error"], "Invalid status")
+}
+
+func TestRespondToShareRequestHandler_MissingFields(t *testing.T) {
+	_, cleanup := SetupMockDB(t)
+	defer cleanup()
+
+	body := map[string]string{"id": "", "status": "accepted"}
+	req := NewJSONRequest(t, http.MethodPost, "/notifications/respond", body)
+	rr := httptest.NewRecorder()
+
+	fh.RespondToShareRequestHandler(rr, req)
+
+	require.Equal(t, http.StatusBadRequest, rr.Code)
+
+	var response map[string]interface{}
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &response))
+	assert.Equal(t, "Missing ID or status", response["error"])
+}
+
+func TestRespondToShareRequestHandler_NotificationNotFound(t *testing.T) {
+	mock, cleanup := SetupMockDB(t)
+	defer cleanup()
+
+	notificationID := "nonexistent"
+	status := "accepted"
+
+	mock.ExpectExec("UPDATE notifications SET status = \\$1, read = TRUE WHERE id = \\$2").
+		WithArgs(status, notificationID).
+		WillReturnResult(sqlmock.NewResult(0, 0)) // 0 rows affected
+
+	body := map[string]string{"id": notificationID, "status": status}
+	req := NewJSONRequest(t, http.MethodPost, "/notifications/respond", body)
+	rr := httptest.NewRecorder()
+
+	fh.RespondToShareRequestHandler(rr, req)
+
+	require.Equal(t, http.StatusNotFound, rr.Code)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+// --- Tests for ClearNotificationHandler ---
+
+func TestClearNotificationHandler_Success(t *testing.T) {
+	mock, cleanup := SetupMockDB(t)
+	defer cleanup()
+
+	notificationID := "notif-123"
+
+	mock.ExpectExec("DELETE FROM notifications WHERE id = \\$1").
+		WithArgs(notificationID).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	body := map[string]string{"id": notificationID}
+	req := NewJSONRequest(t, http.MethodPost, "/notifications/clear", body)
+	rr := httptest.NewRecorder()
+
+	fh.ClearNotificationHandler(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code)
+
+	var response map[string]interface{}
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &response))
+	assert.True(t, response["success"].(bool))
+	assert.Equal(t, "Notification deleted", response["message"])
+
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestClearNotificationHandler_NotificationNotFound(t *testing.T) {
+	mock, cleanup := SetupMockDB(t)
+	defer cleanup()
+
+	notificationID := "nonexistent"
+
+	mock.ExpectExec("DELETE FROM notifications WHERE id = \\$1").
+		WithArgs(notificationID).
+		WillReturnResult(sqlmock.NewResult(0, 0)) // 0 rows affected
+
+	body := map[string]string{"id": notificationID}
+	req := NewJSONRequest(t, http.MethodPost, "/notifications/clear", body)
+	rr := httptest.NewRecorder()
+
+	fh.ClearNotificationHandler(rr, req)
+
+	require.Equal(t, http.StatusNotFound, rr.Code)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestClearNotificationHandler_WrongMethod(t *testing.T) {
+	_, cleanup := SetupMockDB(t)
+	defer cleanup()
+
+	req := httptest.NewRequest(http.MethodGet, "/notifications/clear", nil)
+	rr := httptest.NewRecorder()
+
+	fh.ClearNotificationHandler(rr, req)
+
+	require.Equal(t, http.StatusMethodNotAllowed, rr.Code)
+}
+
+func TestClearNotificationHandler_MissingID(t *testing.T) {
+	_, cleanup := SetupMockDB(t)
+	defer cleanup()
+
+	body := map[string]string{"id": ""}
+	req := NewJSONRequest(t, http.MethodPost, "/notifications/clear", body)
+	rr := httptest.NewRecorder()
+
+	fh.ClearNotificationHandler(rr, req)
+
+	require.Equal(t, http.StatusBadRequest, rr.Code)
+}
+
+// --- Tests for AddNotificationHandler ---
+
+func TestAddNotificationHandler_SuccessWithReceivedFileID(t *testing.T) {
+	mock, cleanup := SetupMockDB(t)
+	defer cleanup()
+
+	notification := map[string]interface{}{
+		"type":           "share_request",
+		"from":           "sender-1",
+		"to":             "recipient-1",
+		"file_name":      "document.pdf",
+		"file_id":        "file-123",
+		"message":        "File shared with you",
+		"receivedFileID": "received-456",
+		"viewOnly":       false,
 	}
-	defer db.Close()
 
-	originalDB := fileHandler.DB
-	fileHandler.DB = db
-	defer func() { fileHandler.DB = originalDB }()
+	rows := sqlmock.NewRows([]string{"id"}).AddRow("new-notif-123")
 
-	t.Run("Success - Accept", func(t *testing.T) {
-		reqBody := map[string]string{
-			"id":     "notification123",
-			"status": "accepted",
+	mock.ExpectQuery(`INSERT INTO notifications \(type, "from", "to", file_name, file_id, received_file_id, message, status\) VALUES \(\$1, \$2, \$3, \$4, \$5, \$6, \$7, 'pending'\) RETURNING id`).
+		WithArgs("share_request", "sender-1", "recipient-1", "document.pdf", "file-123", "received-456", "File shared with you").
+		WillReturnRows(rows)
+
+	req := NewJSONRequest(t, http.MethodPost, "/notifications/add", notification)
+	rr := httptest.NewRecorder()
+
+	fh.AddNotificationHandler(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code)
+
+	var response map[string]interface{}
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &response))
+	assert.True(t, response["success"].(bool))
+	assert.Equal(t, "new-notif-123", response["id"])
+
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestAddNotificationHandler_SuccessViewOnly(t *testing.T) {
+	mock, cleanup := SetupMockDB(t)
+	defer cleanup()
+
+	notification := map[string]interface{}{
+		"type":      "share_request",
+		"from":      "sender-1",
+		"to":        "recipient-1",
+		"file_name": "document.pdf",
+		"file_id":   "file-123",
+		"message":   "View-only file shared",
+		"viewOnly":  true,
+	}
+
+	rows := sqlmock.NewRows([]string{"id"}).AddRow("new-notif-456")
+
+	mock.ExpectQuery(`INSERT INTO notifications \(type, "from", "to", file_name, file_id, message, status\) VALUES \(\$1, \$2, \$3, \$4, \$5, \$6, 'pending'\) RETURNING id`).
+		WithArgs("share_request", "sender-1", "recipient-1", "document.pdf", "file-123", "View-only file shared").
+		WillReturnRows(rows)
+
+	req := NewJSONRequest(t, http.MethodPost, "/notifications/add", notification)
+	rr := httptest.NewRecorder()
+
+	fh.AddNotificationHandler(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code)
+
+	var response map[string]interface{}
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &response))
+	assert.True(t, response["success"].(bool))
+	assert.Equal(t, "new-notif-456", response["id"])
+
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestAddNotificationHandler_WrongMethod(t *testing.T) {
+	_, cleanup := SetupMockDB(t)
+	defer cleanup()
+
+	req := httptest.NewRequest(http.MethodGet, "/notifications/add", nil)
+	rr := httptest.NewRecorder()
+
+	fh.AddNotificationHandler(rr, req)
+
+	require.Equal(t, http.StatusMethodNotAllowed, rr.Code)
+}
+
+func TestAddNotificationHandler_MissingRequiredFields(t *testing.T) {
+	_, cleanup := SetupMockDB(t)
+	defer cleanup()
+
+	notification := map[string]interface{}{
+		"type": "share_request",
+		"from": "",  // missing
+		"to":   "recipient-1",
+		// other required fields missing
+	}
+
+	req := NewJSONRequest(t, http.MethodPost, "/notifications/add", notification)
+	rr := httptest.NewRecorder()
+
+	fh.AddNotificationHandler(rr, req)
+
+	require.Equal(t, http.StatusBadRequest, rr.Code)
+
+	var response map[string]interface{}
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &response))
+	assert.Equal(t, "Missing required fields", response["error"])
+}
+
+func TestAddNotificationHandler_DBError(t *testing.T) {
+	mock, cleanup := SetupMockDB(t)
+	defer cleanup()
+
+	notification := map[string]interface{}{
+		"type":      "share_request",
+		"from":      "sender-1",
+		"to":        "recipient-1",
+		"file_name": "document.pdf",
+		"file_id":   "file-123",
+		"message":   "File shared",
+		"viewOnly":  true,
+	}
+
+	mock.ExpectQuery(`INSERT INTO notifications`).
+		WillReturnError(sql.ErrConnDone)
+
+	req := NewJSONRequest(t, http.MethodPost, "/notifications/add", notification)
+	rr := httptest.NewRecorder()
+
+	fh.AddNotificationHandler(rr, req)
+
+	require.Equal(t, http.StatusInternalServerError, rr.Code)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+// --- Table-driven tests for status validation ---
+
+func TestValidStatusValues(t *testing.T) {
+	tests := []struct {
+		name   string
+		status string
+		valid  bool
+	}{
+		{"Valid accepted", "accepted", true},
+		{"Valid declined", "declined", true},
+		{"Valid pending", "pending", true},
+		{"Invalid status", "invalid", false},
+		{"Empty status", "", false},
+		{"Case sensitive", "ACCEPTED", false},
+	}
+
+	mockDB, cleanup := SetupMockDB(t)
+	defer cleanup()
+
+	// Set up expectations for all valid status updates
+	for _, tt := range tests {
+		if tt.valid {
+			mockDB.ExpectExec("UPDATE notifications SET status = \\$1, read = TRUE WHERE id = \\$2").
+				WithArgs(tt.status, "notif-123").
+				WillReturnResult(sqlmock.NewResult(1, 1))
 		}
-		body, _ := json.Marshal(reqBody)
+	}
 
-		req := httptest.NewRequest(http.MethodPost, "/notifications/respond", bytes.NewBuffer(body))
-		req.Header.Set("Content-Type", "application/json")
-		w := httptest.NewRecorder()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			body := map[string]string{"id": "notif-123", "status": tt.status}
+			req := NewJSONRequest(t, http.MethodPost, "/notifications/respond", body)
+			rr := httptest.NewRecorder()
 
-		mock.ExpectExec("UPDATE notifications SET status = \\$1, read = TRUE WHERE id = \\$2").
-			WithArgs(reqBody["status"], reqBody["id"]).
-			WillReturnResult(sqlmock.NewResult(0, 1))
+			fh.RespondToShareRequestHandler(rr, req)
 
-		mock.ExpectQuery(regexp.QuoteMeta(`
-            SELECT n.file_id, n."from", n."to"
-            FROM notifications n
-            WHERE n.id = $1`)).
-			WithArgs(reqBody["id"]).
-			WillReturnRows(sqlmock.NewRows([]string{"file_id", "from", "to"}).
-				AddRow("file123", "user456", "user123"))
-
-		mock.ExpectQuery(regexp.QuoteMeta(`
-            SELECT metadata
-            FROM received_files
-            WHERE file_id = $1 AND recipient_id = $2`)).
-			WithArgs("file123", "user123").
-			WillReturnRows(sqlmock.NewRows([]string{"metadata"}).
-				AddRow(`{"key":"value"}`))
-
-		mock.ExpectQuery(regexp.QuoteMeta(`
-            SELECT file_name, file_type, cid, file_size
-            FROM files
-            WHERE id = $1`)).
-			WithArgs("file123").
-			WillReturnRows(sqlmock.NewRows([]string{"file_name", "file_type", "cid", "file_size"}).
-				AddRow("document.pdf", "application/pdf", "cid123", int64(1024)))
-
-		fileHandler.RespondToShareRequestHandler(w, req)
-		assert.Equal(t, http.StatusOK, w.Code)
-
-		var resp map[string]interface{}
-		err := json.NewDecoder(w.Body).Decode(&resp)
-		assert.NoError(t, err)
-		assert.Equal(t, true, resp["success"])
-		assert.Equal(t, "Notification status updated", resp["message"])
-		fileData, ok := resp["fileData"].(map[string]interface{})
-		assert.True(t, ok)
-		assert.Equal(t, "file123", fileData["file_id"])
-		assert.Equal(t, "user456", fileData["sender_id"])
-		assert.Equal(t, "user123", fileData["recipient_id"])
-		assert.Equal(t, "document.pdf", fileData["file_name"])
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("Success - Decline", func(t *testing.T) {
-		reqBody := map[string]string{
-			"id":     "notification123",
-			"status": "declined",
-		}
-		body, _ := json.Marshal(reqBody)
-
-		req := httptest.NewRequest(http.MethodPost, "/notifications/respond", bytes.NewBuffer(body))
-		req.Header.Set("Content-Type", "application/json")
-		w := httptest.NewRecorder()
-
-		mock.ExpectExec("UPDATE notifications SET status = \\$1, read = TRUE WHERE id = \\$2").
-			WithArgs(reqBody["status"], reqBody["id"]).
-			WillReturnResult(sqlmock.NewResult(0, 1))
-
-		fileHandler.RespondToShareRequestHandler(w, req)
-		assert.Equal(t, http.StatusOK, w.Code)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("Invalid status", func(t *testing.T) {
-		reqBody := map[string]string{
-			"id":     "notification123",
-			"status": "invalid",
-		}
-		body, _ := json.Marshal(reqBody)
-
-		req := httptest.NewRequest(http.MethodPost, "/notifications/respond", bytes.NewBuffer(body))
-		req.Header.Set("Content-Type", "application/json")
-		w := httptest.NewRecorder()
-
-		fileHandler.RespondToShareRequestHandler(w, req)
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-	})
-
-	t.Run("Notification not found", func(t *testing.T) {
-		reqBody := map[string]string{
-			"id":     "nonexistent",
-			"status": "accepted",
-		}
-		body, _ := json.Marshal(reqBody)
-
-		req := httptest.NewRequest(http.MethodPost, "/notifications/respond", bytes.NewBuffer(body))
-		req.Header.Set("Content-Type", "application/json")
-		w := httptest.NewRecorder()
-
-		mock.ExpectExec("UPDATE notifications SET status = \\$1, read = TRUE WHERE id = \\$2").
-			WithArgs(reqBody["status"], reqBody["id"]).
-			WillReturnResult(sqlmock.NewResult(0, 0))
-
-		fileHandler.RespondToShareRequestHandler(w, req)
-		assert.Equal(t, http.StatusNotFound, w.Code)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("Database error", func(t *testing.T) {
-		reqBody := map[string]string{
-			"id":     "notification123",
-			"status": "accepted",
-		}
-		body, _ := json.Marshal(reqBody)
-
-		req := httptest.NewRequest(http.MethodPost, "/notifications/respond", bytes.NewBuffer(body))
-		req.Header.Set("Content-Type", "application/json")
-		w := httptest.NewRecorder()
-
-		mock.ExpectExec("UPDATE notifications SET status = \\$1, read = TRUE WHERE id = \\$2").
-			WithArgs(reqBody["status"], reqBody["id"]).
-			WillReturnError(sqlmock.ErrCancelled)
-
-		fileHandler.RespondToShareRequestHandler(w, req)
-		assert.Equal(t, http.StatusInternalServerError, w.Code)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
+			if tt.valid {
+				assert.NotEqual(t, http.StatusBadRequest, rr.Code)
+			} else {
+				assert.Equal(t, http.StatusBadRequest, rr.Code)
+			}
+		})
+	}
 }
