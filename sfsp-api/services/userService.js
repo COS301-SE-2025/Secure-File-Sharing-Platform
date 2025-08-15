@@ -90,6 +90,24 @@ class UserService {
     }
   }
 
+  async getUserInfoFromEmail(email) {
+    try {
+      const { data, error } = await supabase
+        .from("users")
+        .select("username, avatar_url,email")
+        .eq("email", email)
+        .single();
+
+      if (error || !data) {
+        throw new Error("This user email was not found");
+      }
+
+      return data;
+    } catch (error) {
+      throw new Error("Fetching User Info failed: " + error.message);
+    }
+  }
+
   async getPublicKeys(userId) {
     try {
       const { data, error } = await supabase
