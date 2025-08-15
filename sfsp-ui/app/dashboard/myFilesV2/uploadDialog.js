@@ -118,7 +118,7 @@ const uploadFilesHandler = async () => {
           formData.append("fileName", file.name);
           formData.append("fileType", file.type || "application/octet-stream");
           formData.append("fileDescription", "");
-          formData.append("fileTags", JSON.stringify(["personal"]));
+          formData.append("fileTags", JSON.stringify(["personal use"]));
           formData.append("path", currentFolderPath || "files");
           formData.append("fileHash", fileHash);
           formData.append(
