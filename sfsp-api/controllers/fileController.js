@@ -820,9 +820,9 @@ exports.getUsersWithFileAccess = async (req, res) => {
   }
 
   try {
-    const response = await axios.post(
+    const response = await axios.get(
       `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/usersWithFileAccess`,
-      { fileId },
+      { params: { fileId } },
       { headers: { "Content-Type": "application/json" } }
     );
 

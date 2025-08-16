@@ -73,9 +73,9 @@ func GetAccesslogHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetUsersWithFileAccessHandler(w http.ResponseWriter, r *http.Request) {
-	fileID := r.URL.Query().Get("file_id")
+	fileID := r.URL.Query().Get("fileId")
 	if fileID == "" {
-		http.Error(w, "file_id is required", http.StatusBadRequest)
+		http.Error(w, "fileId is required", http.StatusBadRequest)
 		return
 	}
 
