@@ -82,8 +82,8 @@ export default function AccessLogsPage() {
                 action: log.action?.toLowerCase() || '',
                 file: file.fileName || 'Unnamed file',
                 // date: new Date(log.timestamp).toLocaleString(),
-                timestamp: log.timestamp, 
-                dateFormatted: new Date(log.timestamp).toLocaleString(), 
+                timestamp: log.timestamp,
+                dateFormatted: new Date(log.timestamp).toLocaleString(),
               });
             }
           } catch (err) {
@@ -109,8 +109,7 @@ export default function AccessLogsPage() {
       return log.action === actionFilter.toLowerCase();
     })
     .filter((log) => {
-      // Date filter
-      const logDate = new Date(log.date);
+      const logDate = new Date(log.timestamp);
 
       if (dateFilter === "Last 7 days") {
         const sevenDaysAgo = new Date(now);
@@ -127,16 +126,16 @@ export default function AccessLogsPage() {
       return true; // "All time"
     })
     .filter((log) => {
-      // Search filter
       const query = search.toLowerCase();
       return (
         log.user.toLowerCase().includes(query) ||
         log.email.toLowerCase().includes(query) ||
         log.action.toLowerCase().includes(query) ||
         log.file.toLowerCase().includes(query) ||
-        log.date.toLowerCase().includes(query)
+        log.dateFormatted.toLowerCase().includes(query)
       );
     });
+
 
   return (
     <div className="p-6">
@@ -231,7 +230,7 @@ export default function AccessLogsPage() {
                       </div>
                     </td>
                     <td className="py-4">{log.file}</td>
-                    <td className="py-4 text-gray-500 dark:text-gray-400">{log.date}</td>
+                    <td className="py-4 text-gray-500 dark:text-gray-400">{log.dateFormatted}</td>
                   </tr>
                 ))}
               </tbody>
