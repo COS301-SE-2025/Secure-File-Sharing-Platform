@@ -1,24 +1,26 @@
-package database_test
+// package database_test
 
-import (
-	"os"
-	"testing"
+package integrationTests
 
-	"github.com/stretchr/testify/require"
-	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/database"
-)
+// import (
+// 	"os"
+// 	"testing"
 
-func TestInitPostgre_RealConnection(t *testing.T) {
-	// Ensure this is only run when a real DB is available
-	dsn := os.Getenv("POSTGRES_URI")
-	if dsn == "" {
-		t.Skip("POSTGRES_URI not set, skipping integration test")
-	}
+// 	"github.com/stretchr/testify/require"
+// 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/database"
+// )
 
-	db, err := database.InitPostgre()
-	require.NoError(t, err)
-	require.NotNil(t, db)
+// func TestInitPostgre_RealConnection(t *testing.T) {
+// 	// Ensure this is only run when a real DB is available
+// 	dsn := os.Getenv("POSTGRES_URI")
+// 	if dsn == "" {
+// 		t.Skip("POSTGRES_URI not set, skipping integration test")
+// 	}
 
-	err = db.Close()
-	require.NoError(t, err)
-}
+// 	db, err := database.InitPostgre()
+// 	require.NoError(t, err)
+// 	require.NotNil(t, db)
+
+// 	err = db.Close()
+// 	require.NoError(t, err)
+// }

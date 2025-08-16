@@ -1,7 +1,7 @@
 // //go:build integration
 // // +build integration
 
-// package integrationTests
+package integrationTests
 
 // import (
 // 	"bytes"
