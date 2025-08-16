@@ -1,5 +1,7 @@
 // package fileHandler_test
 
+package integrationTests
+
 // import (
 // 	"bytes"
 // 	"database/sql"

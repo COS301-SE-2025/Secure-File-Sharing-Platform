@@ -1,7 +1,6 @@
 package unitTests
 
 import (
-	//"bytes"
 	"database/sql"
 	"encoding/json"
 	"net/http"

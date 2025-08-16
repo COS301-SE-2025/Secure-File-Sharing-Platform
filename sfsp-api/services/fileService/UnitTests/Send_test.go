@@ -12,8 +12,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	//sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	fh "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler"
@@ -21,7 +19,6 @@ import (
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
 )
 
-// Mock the owncloud and metadata packages
 type mockOwnCloud struct {
 	uploadStreamErr    error
 	downloadStreamErr  error
@@ -402,8 +399,6 @@ func TestSendFileHandler_ChunkDownloadFail(t *testing.T) {
 	rr := httptest.NewRecorder()
 
 	fh.SendFileHandler(rr, req)
-	// require.Equal(t, http.StatusInternalServerError, rr.Code)
-	// assert.Contains(t, rr.Body.String(), "Failed to store encrypted file")
 }
 
 func TestSendFileHandler_InsertReceivedFileFail(t *testing.T) {

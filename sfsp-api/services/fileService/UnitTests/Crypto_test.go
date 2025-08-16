@@ -1,13 +1,11 @@
 package unitTests
 
 import (
-	//"os"
 	"testing"
 	"bytes"
 	"io"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	//"github.com/joho/godotenv"
 	en "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto"
 )
 
@@ -76,9 +74,6 @@ func TestDecryptStream_FailedToReadIV(t *testing.T) {
 
 	encryptedData = *bytes.NewBuffer(corruptedData)
 	_, err = en.DecryptStream(&encryptedData, key)
-
-	// require.Error(t, err)
-	// assert.Contains(t, err.Error(), "failed to read IV")
 }
 
 

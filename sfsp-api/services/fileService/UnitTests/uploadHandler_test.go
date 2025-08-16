@@ -16,8 +16,6 @@ import (
 	fh "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler"
 )
 
-// --- Helpers ---
-
 func SetupMockDB(t *testing.T) (sqlmock.Sqlmock, func()) {
 	t.Helper()
 	db, mock, err := sqlmock.New()
@@ -113,8 +111,8 @@ func TestStartUploadHandler_MissingFields(t *testing.T) {
 	defer cleanup()
 
 	body := fh.StartUploadRequest{
-		UserID:   "",         // missing
-		FileName: "file.txt", // present
+		UserID:   "",    
+		FileName: "file.txt",
 	}
 	req := NewJSONRequest(t, http.MethodPost, "/start", body)
 	rr := httptest.NewRecorder()
