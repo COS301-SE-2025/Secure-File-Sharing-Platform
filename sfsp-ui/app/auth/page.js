@@ -8,7 +8,6 @@ import Loader from '@/app/dashboard/components/Loader';
 import { getSodium } from "@/app/lib/sodium";
 import { EyeClosed, Eye } from 'lucide-react';
 import { v4 as uuidv4 } from "uuid";
-import { supabase, loginUser, registerUser } from "@/lib/supabaseClient";
 //import * as sodium from 'libsodium-wrappers-sumo';
 import { generateLinearEasing } from "framer-motion";
 import {
@@ -134,84 +133,119 @@ export default function AuthPage() {
     setLoaderMessage("Signing you in...");
     setMessage(null);
 
+    console.log(loginData.email);
+    console.log(loginData.password);
+
     try {
       const sodium = await getSodium();
-      
-      // Use the Supabase loginUser function
-      const { data: user, error } = await loginUser(loginData.email, loginData.password);
+      const res = await fetch("http://localhost:5000/api/users/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: loginData.email,
+          password: loginData.password,
+        }),
+      });
 
-      if (error || !user) {
-        throw new Error(error?.message || "Invalid email or password");
+      const result = await res.json();
+      console.log(result);
+      if (!res.ok || !result.success) {
+        throw new Error(result.message || "Invalid login credentials");
       }
 
-      // Parse stored keys
-      let opks_public_temp;
-      if (typeof user.opks_public === "string") {
-        try {
-          opks_public_temp = JSON.parse(user.opks_public);
-        } catch (e) {
-          opks_public_temp = user.opks_public.replace(/\\+/g, "").slice(1, -1).split(",");
-        }
-      } else {
-        opks_public_temp = user.opks_public;
-      }
+      //New E2EE stuff
+      const {
+        id,
+        salt,
+        nonce,
+        //private keys
+        //public keys
+        ik_public,
+        spk_public,
+        signedPrekeySignature,
+        opks_public,
+      } = result.data.user;
 
-      // Store user ID in encryption store
-      useEncryptionStore.getState().setUserId(user.id);
+      const { ik_private_key, opks_private, spk_private_key } = result.data.keyBundle;
+      const { token } = result.data;
 
-      // Derive key from password and salt
+      //we don't need to securely store the user ID but I will store it in the Zustand store for easy access
+      useEncryptionStore.getState().setUserId(id);
+
+      //derived key from password and salt
       const derivedKey = sodium.crypto_pwhash(
         32, // key length
         loginData.password,
-        sodium.from_base64(user.salt),
+        sodium.from_base64(salt),
         sodium.crypto_pwhash_OPSLIMIT_MODERATE,
         sodium.crypto_pwhash_MEMLIMIT_MODERATE,
         sodium.crypto_pwhash_ALG_DEFAULT
       );
 
-      // For existing users, you'll need to get their private keys from your backend
-      // This is a simplified version - you'll need to adapt based on your key storage
+      // Decrypt + convert identity key
+      const decryptedIkPrivateKeyRaw = sodium.crypto_secretbox_open_easy(
+        sodium.from_base64(ik_private_key),
+        sodium.from_base64(nonce),
+        derivedKey
+      );
+
+      if (!decryptedIkPrivateKeyRaw) {
+        throw new Error("Failed to decrypt identity key private key");
+      }
+
+      let opks_public_temp;
+      if (typeof opks_public === "string") {
+        try {
+          opks_public_temp = JSON.parse(opks_public.replace(/\\+/g, ""));
+        } catch (e) {
+          opks_public_temp = opks_public.replace(/\\+/g, "").slice(1, -1).split(",");
+        }
+      } else {
+        opks_public_temp = opks_public;
+      }
       const userKeys = {
-        identity_public_key: sodium.from_base64(user.ik_public),
-        signedpk_public_key: sodium.from_base64(user.spk_public),
+        identity_private_key: decryptedIkPrivateKeyRaw, // ✅ fixed
+        signedpk_private_key: sodium.from_base64(spk_private_key),
+        oneTimepks_private: opks_private.map((opk) => ({
+          opk_id: opk.opk_id,
+          private_key: sodium.from_base64(opk.private_key),
+        })),
+        identity_public_key: sodium.from_base64(ik_public),
+        signedpk_public_key: sodium.from_base64(spk_public),
         oneTimepks_public: opks_public_temp.map((opk) => ({
           opk_id: opk.opk_id,
           publicKey: sodium.from_base64(opk.publicKey),
         })),
-        signedPrekeySignature: sodium.from_base64(user.signedPrekeySignature),
-        salt: sodium.from_base64(user.salt),
-        nonce: sodium.from_base64(user.nonce),
+        signedPrekeySignature: sodium.from_base64(signedPrekeySignature),
+        salt: sodium.from_base64(salt),
+        nonce: sodium.from_base64(nonce),
       };
 
-      await storeDerivedKeyEncrypted(derivedKey);
+      console.log("Ik private is: ", decryptedIkPrivateKeyRaw);
+
+      await storeDerivedKeyEncrypted(derivedKey); // stores with unlockToken
       sessionStorage.setItem("unlockToken", "session-unlock");
-      await storeUserKeysSecurely(userKeys, derivedKey);
+      await storeUserKeysSecurely(userKeys, derivedKey); // your existing function
 
       useEncryptionStore.setState({
         encryptionKey: derivedKey,
-        userId: user.id,
+        userId: id,
         userKeys: userKeys,
       });
 
-      // Generate proper JWT token via backend API
-      const jwtResponse = await fetch('/api/auth/generate-jwt', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ userId: user.id, email: user.email }),
-      });
+      console.log("User keys stored successfully:", userKeys);
+      // localStorage.setItem('token', result.token);
+      const bearerToken = token;
 
-      if (!jwtResponse.ok) {
-        const errorData = await jwtResponse.json();
-        console.error('JWT generation failed:', errorData);
-        throw new Error('Failed to generate authentication token');
+      if (!bearerToken) {
+        throw new Error("No token returned from server");
       }
 
-      const { token: jwtToken } = await jwtResponse.json();
-      localStorage.setItem("token", jwtToken);
+      //const unlockToken = sessionStorage.getItem("unlockToken");
+
+      const rawToken = bearerToken.replace(/^Bearer\s/, "");
+      localStorage.setItem("token", rawToken);
       setMessage("Login successful!");
-      
       setTimeout(() => {
         router.push("/dashboard");
       }, 1000);
@@ -265,7 +299,6 @@ export default function AuthPage() {
 
     try {
       const sodium = await getSodium();
-      
       const {
         ik_private_key,
         spk_private_key,
@@ -278,28 +311,31 @@ export default function AuthPage() {
         salt,
       } = await GenerateX3DHKeys(password);
 
-      // Create user using the registerUser function
-      const { data: user, error: insertError } = await registerUser({
-        username: name,
-        email,
-        password,
-        keyData: {
+      const res = await fetch("http://localhost:5000/api/users/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: name,
+          email,
+          password,
+          ik_private_key,
+          spk_private_key,
+          opks_private,
           ik_public,
           spk_public,
           opks_public,
           nonce,
           signedPrekeySignature,
           salt,
-        }
+        }),
       });
 
-      if (insertError) {
-        console.error('Error creating user:', insertError);
-        if (insertError.code === '23505') {
-          throw new Error('An account with this email already exists');
-        }
-        throw new Error('Failed to create user account');
+      const result = await res.json();
+      if (!res.ok || !result.success) {
+        throw new Error(result.message || "Registration failed");
       }
+
+      const { token, user } = result.data;
 
       const derivedKey = sodium.crypto_pwhash(
         32,
@@ -309,6 +345,8 @@ export default function AuthPage() {
         sodium.crypto_pwhash_MEMLIMIT_MODERATE,
         sodium.crypto_pwhash_ALG_DEFAULT
       );
+      console.log("Start signup");
+      console.log("Derived key is: ", derivedKey);
 
       // Decrypt identity key for storage
       const decryptedIkPrivateKey = sodium.crypto_secretbox_open_easy(
@@ -316,10 +354,12 @@ export default function AuthPage() {
         sodium.from_base64(nonce),
         derivedKey
       );
-      
       if (!decryptedIkPrivateKey) {
         throw new Error("Failed to decrypt identity key private key");
       }
+
+      console.log("Decrypted ik private is: ", decryptedIkPrivateKey);
+      console.log("End if sign up");
 
       const userKeys = {
         identity_private_key: decryptedIkPrivateKey,
@@ -349,24 +389,10 @@ export default function AuthPage() {
         userKeys: userKeys,
       });
 
-      // Generate proper JWT token via backend API
-      const jwtResponse = await fetch('/api/auth/generate-jwt', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ userId: user.id, email: user.email }),
-      });
+      localStorage.setItem("token", token.replace(/^Bearer\s/, ""));
+      setMessage("User successfully registered!");
 
-      if (!jwtResponse.ok) {
-        const errorData = await jwtResponse.json();
-        console.error('JWT generation failed:', errorData);
-        throw new Error('Failed to generate authentication token');
-      }
-
-      const { token: jwtToken } = await jwtResponse.json();
-      localStorage.setItem("token", jwtToken);
-
+      //add user to the postgres database using the rute for addUser in file routes
       const addUserRes = await fetch("http://localhost:5000/api/files/addUser", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -378,8 +404,6 @@ export default function AuthPage() {
       if (!addUserRes.ok) {
         console.error("Failed to add user to database");
       }
-      
-      setMessage("User successfully registered!");
 
       setTimeout(() => {
         router.push('/dashboard');
@@ -397,7 +421,6 @@ export default function AuthPage() {
       setIsLoading(true);
       setLoaderMessage("Redirecting to Google...");
       
-      // Check if there's already an auth in progress
       const authInProgress = localStorage.getItem('googleAuthInProgress');
       if (authInProgress) {
         setMessage('Google authentication is already in progress. Please wait...');
@@ -410,7 +433,7 @@ export default function AuthPage() {
       const scope = 'openid email profile';
       
       const state = crypto.randomUUID();
-      localStorage.setItem('googleAuthState', state);
+      sessionStorage.setItem('googleOAuthState', state);
       
       const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
         `client_id=${encodeURIComponent(clientId)}&` +
@@ -443,7 +466,6 @@ export default function AuthPage() {
   async function GenerateX3DHKeys(password) {
     const sodium = await getSodium();
 
-    // Identity keypair and signedkey pair (Ed25519) 
     const ik = sodium.crypto_sign_keypair();
     const spk = sodium.crypto_sign_keypair();
 
@@ -513,7 +535,7 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white flex">
+    <div className="min-h-screen bg-white flex" data-testid="auth-page">
       {isLoading && <Loader message={loaderMessage} />}
       {/* Left Panel */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 relative overflow-hidden">
@@ -691,6 +713,7 @@ export default function AuthPage() {
                   onClick={handleGoogleAuth}
                   disabled={isLoading}
                   className="w-full flex items-center justify-center space-x-2 border dark:border-gray-400 border-gray-300 rounded-md py-2 hover:bg-gray-100 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  data-testid="google-oauth-button"
                 >
                   <svg
                     className="w-5 h-5"
@@ -791,6 +814,7 @@ export default function AuthPage() {
                       value={signupData.password}
                       onChange={handleChange(setSignupData)}
                       onFocus={() => setIsPasswordFocused(true)}
+                      onBlur={() => setIsPasswordFocused(false)}
                       required
                       className={`w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${fieldErrors.password ? 'border-red-500' : ''
                         }`}
@@ -941,6 +965,7 @@ export default function AuthPage() {
                   onClick={handleGoogleAuth}
                   disabled={isLoading}
                   className="w-full flex items-center justify-center space-x-2 border dark:border-gray-400 border-gray-300 rounded-md py-2 hover:bg-gray-100 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  data-testid="google-oauth-button"
                 >
                   <svg
                     className="w-5 h-5"

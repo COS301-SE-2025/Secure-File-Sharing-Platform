@@ -88,13 +88,13 @@ const uploadFilesHandler = async () => {
         if (!startRes.ok) throw new Error("Failed to start upload");
         const { fileId } = await startRes.json();
 
-        // 2️⃣ Compress file
+        //Skip compression as it doesn't actually help much, with videos at least
         const fileBuffer = new Uint8Array(await file.arrayBuffer());
-        const compressed = gzip(fileBuffer, { level: 9 });
+        //const compressed = gzip(fileBuffer, { level: 9 });
 
         // 3️⃣ Encrypt entire compressed file
         //nonce is up there
-        const ciphertext = sodium.crypto_secretbox_easy(compressed, nonce, encryptionKey);
+        const ciphertext = sodium.crypto_secretbox_easy(fileBuffer, nonce, encryptionKey);
 
         // 4️⃣ Compute SHA-256 hash of encrypted file
         const hashBuffer = await crypto.subtle.digest("SHA-256", ciphertext.buffer);
@@ -118,7 +118,7 @@ const uploadFilesHandler = async () => {
           formData.append("fileName", file.name);
           formData.append("fileType", file.type || "application/octet-stream");
           formData.append("fileDescription", "");
-          formData.append("fileTags", JSON.stringify(["personal"]));
+          formData.append("fileTags", JSON.stringify(["personal use"]));
           formData.append("path", currentFolderPath || "files");
           formData.append("fileHash", fileHash);
           formData.append(

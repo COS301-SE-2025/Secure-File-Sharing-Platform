@@ -71,9 +71,11 @@ export async function SendFile(recipientUserId, fileid, isViewOnly = false) {
   );
 
   console.log("[UI DEBUG] 3️⃣ Fetch recipient's public keys");
+  console.log(recipientUserId);
   const bundleRes = await fetch(
     `http://localhost:5000/api/users/public-keys/${recipientUserId}`
   );
+
   if (!bundleRes.ok) throw new Error("Recipient key bundle not found");
   const { data: recipientKeys } = await bundleRes.json();
 
@@ -335,4 +337,3 @@ export async function ReceiveFile(fileData) {
 
   console.log(`✅ File ${file_name} received and uploaded locally as ${fileId}`);
 }
-
