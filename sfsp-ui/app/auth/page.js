@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
@@ -46,6 +46,53 @@ export default function AuthPage() {
     confirmPassword: "",
     agreeToTerms: false,
   });
+
+  // Handle Google OAuth errors from URL parameters
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const error = urlParams.get('error');
+    
+    if (error) {
+      switch (error) {
+        case 'oauth_error':
+          setMessage('Google authentication was cancelled or failed. Please try again.');
+          break;
+        case 'oauth_cancelled':
+          setMessage('Google authentication was cancelled.');
+          break;
+        case 'missing_code':
+          setMessage('Google authentication failed. Missing authorization code.');
+          break;
+        case 'code_expired':
+          setMessage('Authorization code has expired. Please try again.');
+          break;
+        case 'code_reused':
+          setMessage('This authorization code has already been used. Please try again.');
+          break;
+        case 'invalid_state':
+          setMessage('Invalid authentication state. Please try again.');
+          break;
+        case 'authentication_failed':
+          setMessage('Failed to authenticate with our servers. Please try again.');
+          break;
+        case 'oauth_init_failed':
+          setMessage('Failed to initiate Google authentication. Please check your internet connection.');
+          break;
+        default:
+          setMessage('An error occurred during Google authentication. Please try again.');
+      }
+      
+      // Clean up URL parameters
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+    }
+
+    // Clean up any pending Google auth state
+    const authInProgress = localStorage.getItem('googleAuthInProgress');
+    if (authInProgress) {
+      localStorage.removeItem('googleAuthInProgress');
+    }
+  }, []);
 
   function handleChange(setter) {
     return (event) => {
@@ -202,6 +249,7 @@ export default function AuthPage() {
       setTimeout(() => {
         router.push("/dashboard");
       }, 1000);
+      
     } catch (err) {
       console.error("Login error:", err);
       setMessage(
@@ -368,6 +416,48 @@ export default function AuthPage() {
     }
   };
 
+  const handleGoogleAuth = async () => {
+    try {
+      setIsLoading(true);
+      setLoaderMessage("Redirecting to Google...");
+      
+      const authInProgress = localStorage.getItem('googleAuthInProgress');
+      if (authInProgress) {
+        setMessage('Google authentication is already in progress. Please wait...');
+        setIsLoading(false);
+        return;
+      }
+
+      const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+      const redirectUri = 'http://localhost:3000/auth/google/callback';
+      const scope = 'openid email profile';
+      
+      const state = crypto.randomUUID();
+      sessionStorage.setItem('googleOAuthState', state);
+      
+      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+        `client_id=${encodeURIComponent(clientId)}&` +
+        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+        `response_type=code&` +
+        `scope=${encodeURIComponent(scope)}&` +
+        `state=${encodeURIComponent(state)}&` +
+        `access_type=offline&` +
+        `prompt=consent`;
+
+      localStorage.setItem('googleAuthInProgress', 'true');
+      
+      localStorage.removeItem('lastUsedGoogleCode');
+      
+      window.location.href = authUrl;
+
+    } catch (error) {
+      console.error('Google OAuth error:', error);
+      setMessage('Failed to initiate Google authentication. Please try again.');
+      setIsLoading(false);
+      localStorage.removeItem('googleAuthInProgress');
+    }
+  };
+
   function setError(msg) {
     setMessage(msg);
     setIsLoading(false);
@@ -376,7 +466,6 @@ export default function AuthPage() {
   async function GenerateX3DHKeys(password) {
     const sodium = await getSodium();
 
-    // Identity keypair and signedkey pair (Ed25519) 
     const ik = sodium.crypto_sign_keypair();
     const spk = sodium.crypto_sign_keypair();
 
@@ -386,19 +475,16 @@ export default function AuthPage() {
     console.log("SPK private", spk.privateKey);
     console.log("SPK public", spk.publicKey);
 
-    // Sign the SPK public key using the Ed25519 identity key should be 64 bits, all of the above
     const spkSignature = sodium.crypto_sign_detached(
       spk.publicKey,
       ik.privateKey
     );
 
-    // One-Time PreKeys (X25519)
     const opks = Array.from({ length: 10 }, () => ({
       opk_id: crypto.randomUUID(),
       keypair: sodium.crypto_box_keypair(),
     }));
 
-    // Derive encryption key from password
     const salt = sodium.randombytes_buf(sodium.crypto_pwhash_SALTBYTES);
     console.log("Salt is: ", salt)
     const derivedKey = sodium.crypto_pwhash(
@@ -412,7 +498,6 @@ export default function AuthPage() {
 
     console.log("Derivedkey is: ", derivedKey);
 
-    // Encrypt identity private key
     const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
     console.log("Nonce is:", nonce);
     const encryptedIK = sodium.crypto_secretbox_easy(
@@ -429,7 +514,6 @@ export default function AuthPage() {
     console.log("End key generation");
 
     return {
-      // Public
       ik_public: sodium.to_base64(ik.publicKey),
       spk_public: sodium.to_base64(spk.publicKey),
       signedPrekeySignature: sodium.to_base64(spkSignature),
@@ -438,22 +522,20 @@ export default function AuthPage() {
         publicKey: sodium.to_base64(opk.keypair.publicKey),
       })),
 
-      // Private (encrypted where appropriate)
-      ik_private_key: sodium.to_base64(encryptedIK), // 🔐 encrypted
-      spk_private_key: sodium.to_base64(spk.privateKey), // not encrypted
+      ik_private_key: sodium.to_base64(encryptedIK),
+      spk_private_key: sodium.to_base64(spk.privateKey),
       opks_private: opks.map((opk) => ({
         opk_id: opk.opk_id,
         private_key: sodium.to_base64(opk.keypair.privateKey),
       })),
 
-      // Crypto parameters
       salt: sodium.to_base64(salt),
       nonce: sodium.to_base64(nonce),
     };
   }
 
   return (
-    <div className="min-h-screen bg-white flex">
+    <div className="min-h-screen bg-white flex" data-testid="auth-page">
       {isLoading && <Loader message={loaderMessage} />}
       {/* Left Panel */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 relative overflow-hidden">
@@ -628,11 +710,10 @@ export default function AuthPage() {
                 {/* Google login button */}
                 <button
                   type="button"
-                  onClick={() => {
-                    //Replace this with Google OAuth logic
-                    window.location.href = "/api/auth/google";
-                  }}
-                  className="w-full flex items-center justify-center space-x-2 border dark:border-gray-400 border-gray-300 rounded-md py-2 hover:bg-gray-100 transition"
+                  onClick={handleGoogleAuth}
+                  disabled={isLoading}
+                  className="w-full flex items-center justify-center space-x-2 border dark:border-gray-400 border-gray-300 rounded-md py-2 hover:bg-gray-100 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  data-testid="google-oauth-button"
                 >
                   <svg
                     className="w-5 h-5"
@@ -733,6 +814,7 @@ export default function AuthPage() {
                       value={signupData.password}
                       onChange={handleChange(setSignupData)}
                       onFocus={() => setIsPasswordFocused(true)}
+                      onBlur={() => setIsPasswordFocused(false)}
                       required
                       className={`w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${fieldErrors.password ? 'border-red-500' : ''
                         }`}
@@ -813,7 +895,7 @@ export default function AuthPage() {
                         className={`w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${
                           fieldErrors.confirmPassword ? 'border-red-500' : ''
                         } ${!allPasswordRequirementsMet ? 'bg-gray-100 cursor-not-allowed opacity-50' : ''}`}
-                        placeholder={!allPasswordRequirementsMet ? 'Complete password requirements first' : ''}
+                        placeholder={!allPasswordRequirementsMet ? 'Enter password' : ''}
                       />
                       <button
                         type="button"
@@ -880,11 +962,10 @@ export default function AuthPage() {
                 {/* Google Sign Up button */}
                 <button
                   type="button"
-                  onClick={() => {
-                    // Replace with your actual Google signup route
-                    window.location.href = "/api/auth/google";
-                  }}
-                  className="w-full flex items-center justify-center space-x-2 border dark:border-gray-400 border-gray-300 rounded-md py-2 hover:bg-gray-100 transition"
+                  onClick={handleGoogleAuth}
+                  disabled={isLoading}
+                  className="w-full flex items-center justify-center space-x-2 border dark:border-gray-400 border-gray-300 rounded-md py-2 hover:bg-gray-100 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  data-testid="google-oauth-button"
                 >
                   <svg
                     className="w-5 h-5"

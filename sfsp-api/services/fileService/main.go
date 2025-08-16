@@ -46,9 +46,10 @@ func main() {
 	//initialize ownCloud client
 	owncloud.InitOwnCloud(os.Getenv("OWNCLOUD_URL"), os.Getenv("OWNCLOUD_USERNAME"), os.Getenv("OWNCLOUD_PASSWORD"))
 
+	http.HandleFunc("/startUpload", fileHandler.StartUploadHandler)
 	http.HandleFunc("/upload", fileHandler.UploadHandler)
 	http.HandleFunc("/download", fileHandler.DownloadHandler)
-
+	
 	// access log endpoints
 	http.HandleFunc("/addAccesslog", fileHandler.AddAccesslogHandler)
 	http.HandleFunc("/getAccesslog", fileHandler.GetAccesslogHandler)

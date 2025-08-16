@@ -6,8 +6,15 @@ import React, { useState, useRef } from "react";
 import { Upload, X, File } from "lucide-react";
 import { useEncryptionStore } from "@/app/SecureKeyStorage";
 import { getSodium } from "@/app/lib/sodium";
+import Image from "next/image";
+import { gzip } from "pako";
 
-export function UploadDialog({ open, onOpenChange, onUploadSuccess, currentFolderPath }) {
+export function UploadDialog({
+  open,
+  onOpenChange,
+  onUploadSuccess,
+  currentFolderPath,
+}) {
   const [dragActive, setDragActive] = useState(false);
   const [uploadFiles, setUploadFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
@@ -34,104 +41,150 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess, currentFolde
     e.target.value = null;
   };
 
+  const handleGoogleDriveUpload = () => {};
+
+  const handleDropboxUpload = () => {};
+
   const removeFile = (index) => {
     setUploadFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const uploadFilesHandler = async () => {
-    if (uploadFiles.length === 0) return;
-    setUploading(true);
-    setUploadProgress(0);
+ const chunkSize = 10 * 1024 * 1024; // 5MB per chunk
 
-    const { encryptionKey, userId } = useEncryptionStore.getState();
-    if (!encryptionKey || !userId) {
-      alert("Missing user ID or encryption key.");
-      setUploading(false);
-      return;
-    }
+const uploadFilesHandler = async () => {
+  if (uploadFiles.length === 0) return;
+  setUploading(true);
+  setUploadProgress(0);
 
-    const sodium = await getSodium();
+  const { encryptionKey, userId } = useEncryptionStore.getState();
+  if (!encryptionKey || !userId) {
+    alert("Missing user ID or encryption key.");
+    setUploading(false);
+    return;
+  }
+	console.log("Starting to upload a file");
+  const sodium = await getSodium();
+  const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
 
-    // Upload in parallel
-    await Promise.all(
-      uploadFiles.map(async (file, index) => {
-        try {
-          const fileBuffer = new Uint8Array(await file.arrayBuffer());
-          const nonce = sodium.randombytes_buf(
-            sodium.crypto_secretbox_NONCEBYTES
-          );
-          const ciphertext = sodium.crypto_secretbox_easy(
-            fileBuffer,
-            nonce,
-            encryptionKey
-          );
+  // Process each file in parallel
+  await Promise.all(
+    uploadFiles.map(async (file) => {
+      try {
+        // 1️⃣ Call startUpload to get fileId
+        const startRes = await fetch("http://localhost:5000/api/files/startUpload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fileName: file.name,
+            fileType: file.type,
+            userId,
+	    nonce: sodium.to_base64(nonce, sodium.base64_variants.ORIGINAL),
+            fileDescription: "",
+            fileTags: ["personal"],
+            path: currentFolderPath || "files",
+          }),
+        });
+
+        if (!startRes.ok) throw new Error("Failed to start upload");
+        const { fileId } = await startRes.json();
+
+        //Skip compression as it doesn't actually help much, with videos at least
+        const fileBuffer = new Uint8Array(await file.arrayBuffer());
+        //const compressed = gzip(fileBuffer, { level: 9 });
+
+        // 3️⃣ Encrypt entire compressed file
+        //nonce is up there
+        const ciphertext = sodium.crypto_secretbox_easy(fileBuffer, nonce, encryptionKey);
+
+        // 4️⃣ Compute SHA-256 hash of encrypted file
+        const hashBuffer = await crypto.subtle.digest("SHA-256", ciphertext.buffer);
+        const fileHash = Array.from(new Uint8Array(hashBuffer))
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join("");
+
+        // 5️⃣ Chunk encrypted file
+        const totalChunks = Math.ceil(ciphertext.length / chunkSize);
+        let uploadedChunks = 0;
+
+        // 6️⃣ Upload all chunks in parallel
+        const chunkUploadPromises = Array.from({ length: totalChunks }, (_, chunkIndex) => {
+          const start = chunkIndex * chunkSize;
+          const end = Math.min(start + chunkSize, ciphertext.length);
+          const chunk = ciphertext.slice(start, end);
 
           const formData = new FormData();
+          formData.append("fileId", fileId);                          
           formData.append("userId", userId);
           formData.append("fileName", file.name);
-          formData.append("fileType", file.type);
-          formData.append("fileDescription", ""); // a user can add description later
-          formData.append("fileTags", JSON.stringify(["personal"]));
-          formData.append("path", currentFolderPath || "");
+          formData.append("fileType", file.type || "application/octet-stream");
+          formData.append("fileDescription", "");
+          formData.append("fileTags", JSON.stringify(["personal use"]));
+          formData.append("path", currentFolderPath || "files");
+          formData.append("fileHash", fileHash);
           formData.append(
             "nonce",
             sodium.to_base64(nonce, sodium.base64_variants.ORIGINAL)
           );
+          formData.append("chunkIndex", chunkIndex.toString());
+          formData.append("totalChunks", totalChunks.toString());
+          formData.append("encryptedFile", new Blob([chunk]), file.name);
 
-          // ⬇️ Encrypted file as binary Blob
-          formData.append("encryptedFile", new Blob([ciphertext]), file.name);
-
-          const res = await fetch("http://localhost:5000/api/files/upload", {
+          return fetch("http://localhost:5000/api/files/upload", {
             method: "POST",
             body: formData,
-          });
+          })
+            .then((res) => {
+              if (!res.ok) throw new Error(`Chunk ${chunkIndex} failed`);
+              return res.json();
+            })
+            .then(() => {
+              uploadedChunks++;
+              setUploadProgress(Math.round((uploadedChunks / totalChunks) * 100));
+            });
+        });
 
-          if (!res.ok) throw new Error("Upload failed");
+        await Promise.all(chunkUploadPromises);
+        console.log(`${file.name} uploaded successfully`);
 
-          const uploadResult = await res.json();
-          console.log(uploadResult);
+        //add access log
+        const token = localStorage.getItem('token');
 
-          // Log access
-          const token = localStorage.getItem("token");
-          if (!token) return;
+        const res = await fetch('http://localhost:5000/api/users/profile', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
-          const profileRes = await fetch(
-            "http://localhost:5000/api/users/profile",
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            }
-          );
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.message || 'Failed to fetch profile');
+ 
+        await fetch("http://localhost:5000/api/files/addAccesslog", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            file_id: fileId,
+            user_id: userId,
+            action: "created",
+            message: `User ${result.data.email} uploaded the file.`,
+          }),
+        });
 
-          const profileResult = await profileRes.json();
-          if (!profileRes.ok)
-            throw new Error(profileResult.message || "Failed to fetch profile");
+      } catch (err) {
+        console.error(`Upload failed for ${file.name}:`, err);
+        alert(`Upload failed for ${file.name}`);
+      }
+    })
+  );
 
-          await fetch("http://localhost:5000/api/files/addAccesslog", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              file_id: uploadResult.server.fileId,
-              user_id: profileResult.data.id,
-              action: "created",
-              message: `User ${profileResult.data.email} uploaded the file.`,
-            }),
-          });
-        } catch (err) {
-          console.error(`Upload failed for ${file.name}:`, err);
-          alert(`Upload failed for ${file.name}`);
-        }
+  setUploading(false);
+  setUploadFiles([]);
+  setUploadProgress(0);
+  onOpenChange(false);
+  onUploadSuccess?.();
+};
 
-        setUploadProgress((prev) =>
-          Math.round(((index + 1) / uploadFiles.length) * 100)
-        );
-      })
-    );
-
-    setUploading(false);
-    setUploadFiles([]);
-    setUploadProgress(0);
-    onOpenChange(false);
-    onUploadSuccess?.();
+  const compressFile = async (file) => {
+    const fileBuffer = new Uint8Array(await file.arrayBuffer());
+    const compressedBuffer = gzip(fileBuffer, { level: 9 });
+    return new Blob([compressedBuffer], { type: file.type });
   };
 
   const formatFileSize = (bytes) => {
@@ -173,6 +226,38 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess, currentFolde
             onChange={handleFileSelect}
             className="hidden"
           />
+
+          <div className="flex justify-center gap-4 mt-4">
+            <button
+              type="button"
+              onClick={handleGoogleDriveUpload}
+              className="flex items-center gap-2 border px-3 py-2 rounded text-sm hover:bg-gray-100"
+            >
+              <Image
+                src="/img/google.png"
+                alt="Google Drive"
+                width={20}
+                height={20}
+                className="h-5 w-5"
+              />
+              Google Drive
+            </button>
+
+            <button
+              type="button"
+              onClick={handleDropboxUpload}
+              className="flex items-center gap-2 border px-3 py-2 rounded text-sm hover:bg-gray-100"
+            >
+              <Image
+                src="/img/dropbox.png"
+                alt="Dropbox"
+                width={20}
+                height={20}
+                className="h-5 w-5"
+              />
+              Dropbox
+            </button>
+          </div>
         </div>
 
         {uploadFiles.length > 0 && (

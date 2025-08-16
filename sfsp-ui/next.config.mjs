@@ -3,7 +3,9 @@ const nextConfig = {
     eslint: {
         ignoreDuringBuilds: true,
     },
-    output: 'standalone',
+    images: {
+    domains: ['res.cloudinary.com'],
+  },
 };
 
 export default nextConfig;
