@@ -3,6 +3,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { Settings, UserMinus } from "lucide-react";
 import {
   FileIcon,
   Download,
@@ -41,6 +42,8 @@ export function FileGrid({
   const [menuFile, setMenuFile] = useState(null);
   const menuRef = useRef(null);
   const [draggedFile, setDraggedFile] = useState(null);
+  const [isRevokeAccessOpen, setIsRevokeAccessOpen] = useState(false);
+  const [isChangeMethodOpen, setIsChangeMethodOpen] = useState(false);
 
   const iconMap = {
     folder: <Folder className="h-8 w-8 text-blue-500" />,
@@ -115,7 +118,6 @@ export function FileGrid({
     return false;
   };
 
-  // Check if current user is the owner (assuming owner files don't have "received" tag)
   const isOwner = (file) => {
     if (!file.tags) return true;
     
@@ -420,19 +422,35 @@ export function FileGrid({
 
           {menuFile?.type !== "folder" && <hr className="my-1" />}
 
-          {/* Revoke View Access Button - Show for view-only files or files with view sharing enabled */}
-          {(isViewOnly(menuFile) || menuFile.allow_view_sharing) && isOwner(menuFile) && onRevokeViewAccess && (
-            <button
-              onClick={() => {
-                onRevokeViewAccess(menuFile);
-                setMenuFile(null);
-              }}
-              className={`w-full text-left px-4 py-2 hover:bg-orange-50 text-orange-600 flex items-center gap-2 dark:hover:bg-orange-200 dark:text-orange-600 ${menuFile?.type === "folder" ? "hidden" : ""
-                }`}
-            >
-              <EyeOff className="h-4 w-4" /> Revoke View Access
-            </button>
-          )}
+          {/* Manage Access Button */}
+{isOwner(menuFile) && (
+  <button
+    onClick={() => {
+      setIsRevokeAccessOpen(true);
+      setMenuFile(null);
+    }}
+    className={`w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 dark:hover:bg-blue-200 ${
+      menuFile?.type === "folder" ? "hidden" : ""
+    }`}
+  >
+    <UserMinus className="h-4 w-4" /> Manage Access
+  </button>
+)}
+
+{/* Change Share Method Button */}
+{isOwner(menuFile) && (
+  <button
+    onClick={() => {
+      setIsChangeMethodOpen(true);
+      setMenuFile(null);
+    }}
+    className={`w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 dark:hover:bg-blue-200 ${
+      menuFile?.type === "folder" ? "hidden" : ""
+    }`}
+  >
+    <Settings className="h-4 w-4" /> Change Share Methods
+  </button>
+)}
 
           <button
             onClick={() => handleDelete(menuFile)}

@@ -16,7 +16,8 @@ import { useEncryptionStore } from "@/app/SecureKeyStorage";
 import { getSodium } from "@/app/lib/sodium";
 import { PreviewDrawer } from "./previewDrawer";
 import { FullViewModal } from "./fullViewModal";
-import pako from "pako";
+import { RevokeAccessDialog } from "./revokeAccessDialog";
+import { ChangeShareMethodDialog } from "./changeShareMethodDialog";
 
 function getFileType(mimeType) {
   if (!mimeType) return "unknown";
@@ -74,6 +75,9 @@ export default function MyFiles() {
   const [viewerFile, setViewerFile] = useState(null);
   const [viewerContent, setViewerContent] = useState(null);
 
+const [isRevokeAccessOpen, setIsRevokeAccessOpen] = useState(false);
+const [isChangeMethodOpen, setIsChangeMethodOpen] = useState(false);
+
   const normalizePath = (path) =>
     path?.startsWith("files/") ? path.slice(6) : path || "";
 
@@ -116,19 +120,6 @@ export default function MyFiles() {
     }
 
     return tags.includes("view-only") || file.viewOnly;
-  };
-
-  const isOwner = (file) => {
-    let tags = [];
-    if (file.tags) {
-      if (Array.isArray(file.tags)) {
-        tags = file.tags;
-      } else if (typeof file.tags === 'string') {
-        tags = file.tags.replace(/[{}]/g, "").split(",");
-      }
-    }
-
-    return !tags.includes("received");
   };
 
   const fetchFiles = async () => {
@@ -229,7 +220,6 @@ export default function MyFiles() {
 
     const nonce = sodium.from_base64(nonceBase64, sodium.base64_variants.ORIGINAL);
 
-    // Convert to stream reader
     const reader = res.body.getReader();
     const chunks = [];
     let totalLength = 0;
@@ -242,7 +232,6 @@ export default function MyFiles() {
       totalLength += value.length;
     }
 
-    // Merge chunks into single Uint8Array
     const encryptedFile = new Uint8Array(totalLength);
     let offset = 0;
     for (const chunk of chunks) {
@@ -250,12 +239,9 @@ export default function MyFiles() {
       offset += chunk.length;
     }
 
-    // Decrypt the file
     const decrypted = sodium.crypto_secretbox_open_easy(encryptedFile, nonce, encryptionKey);
     if (!decrypted) throw new Error("Decryption failed");
 
-    // Download file
-    //const decompressed = pako.ungzip(decrypted);
     const blob = new Blob([decrypted]);
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -656,7 +642,8 @@ const handleOpenFullView = async (file) => {
             onViewActivity={openActivityDialog}
             onDownload={handleDownload}
             onDelete={fetchFiles}
-            onRevokeViewAccess={handleRevokeViewAccess}
+            onRevokeAccess={() => setIsRevokeAccessOpen(true)}
+            onChangeShareMode={() => setIsChangeMethodOpen(true)}
             onClick={handlePreview}
             onDoubleClick={handleOpenFullView}
             onMoveFile={handleMoveFile}
@@ -678,8 +665,8 @@ const handleOpenFullView = async (file) => {
             onViewActivity={openActivityDialog}
             onDownload={handleDownload}
             onDelete={fetchFiles}
-            onRevokeViewAccess={handleRevokeViewAccess}
-            onChangeShareMode={handleChangeShareMode}
+            onRevokeAccess={() => setIsRevokeAccessOpen(true)}
+            onChangeShareMode={() => setIsChangeMethodOpen(true)}
             onClick={handlePreview}
             onDoubleClick={handleOpenFullView}
             onMoveFile={handleMoveFile}
@@ -697,6 +684,16 @@ const handleOpenFullView = async (file) => {
 
 
         {/* Dialogs */}
+        <RevokeAccessDialog
+          open={isRevokeAccessOpen}
+          onOpenChange={setIsRevokeAccessOpen}
+          file={selectedFile}
+        />
+        <ChangeShareMethodDialog
+          open={isChangeMethodOpen}
+          onOpenChange={setIsChangeMethodOpen}
+          file={selectedFile}
+        />
         <UploadDialog
           open={isUploadOpen}
           onOpenChange={setIsUploadOpen}

@@ -4,7 +4,6 @@ import { getSodium } from "@/app/lib/sodium";
 
 //The is where we will be creting the shared key encrypting the file and encrypting the AES key
 import { useEncryptionStore, getUserKeysSecurely } from "./SecureKeyStorage";
-import { is } from "cypress/types/bluebird";
 
 function concatUint8Arrays(arrays) {
   const totalLength = arrays.reduce((sum, arr) => sum + arr.length, 0);
