@@ -81,7 +81,9 @@ export default function AccessLogsPage() {
                 email, avatar,
                 action: log.action?.toLowerCase() || '',
                 file: file.fileName || 'Unnamed file',
-                date: new Date(log.timestamp).toLocaleString(),
+                // date: new Date(log.timestamp).toLocaleString(),
+                timestamp: log.timestamp, 
+                dateFormatted: new Date(log.timestamp).toLocaleString(), 
               });
             }
           } catch (err) {
@@ -100,10 +102,32 @@ export default function AccessLogsPage() {
     fetchAllLogs();
   }, []);
 
-
+  const now = new Date();
   const filteredLogs = logs
-    .filter((log) => actionFilter === 'All actions' || log.action === actionFilter.toLowerCase())
     .filter((log) => {
+      if (actionFilter === "All actions") return true;
+      return log.action === actionFilter.toLowerCase();
+    })
+    .filter((log) => {
+      // Date filter
+      const logDate = new Date(log.date);
+
+      if (dateFilter === "Last 7 days") {
+        const sevenDaysAgo = new Date(now);
+        sevenDaysAgo.setDate(now.getDate() - 7);
+        return logDate >= sevenDaysAgo;
+      }
+
+      if (dateFilter === "Last 30 days") {
+        const thirtyDaysAgo = new Date(now);
+        thirtyDaysAgo.setDate(now.getDate() - 30);
+        return logDate >= thirtyDaysAgo;
+      }
+
+      return true; // "All time"
+    })
+    .filter((log) => {
+      // Search filter
       const query = search.toLowerCase();
       return (
         log.user.toLowerCase().includes(query) ||
@@ -173,7 +197,7 @@ export default function AccessLogsPage() {
                         <Image
                           src={log.avatar}
                           alt={log.user}
-                          width={32} 
+                          width={32}
                           height={32}
                           className="rounded-full object-cover"
                         />
