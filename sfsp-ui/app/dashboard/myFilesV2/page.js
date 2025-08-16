@@ -200,7 +200,6 @@ export default function MyFiles() {
   }, []);
 
   const handleDownload = async (file) => {
-    // Prevent download for view-only files
     if (isViewOnly(file)) {
       alert("This file is view-only and cannot be downloaded.");
       return;
@@ -643,7 +642,7 @@ export default function MyFiles() {
 
         {/*File */}
         {filteredVisibleFiles.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-96 text-center text-gray-700 dark:text-gray-500 dark:text-gray-400  rounded-lg p-10">
+          <div className="flex flex-col items-center justify-center h-96 text-center text-gray-700 dark:text-gray-500  rounded-lg p-10">
             <svg
               className="w-16 h-16 mb-4 text-gray-500 dark:text-gray-300"
               fill="none"
@@ -691,6 +690,7 @@ export default function MyFiles() {
             onDownload={handleDownload}
             onDelete={fetchFiles}
             onRevokeViewAccess={handleRevokeViewAccess}
+            onChangeShareMode={handleChangeShareMode}
             onClick={handlePreview}
             onDoubleClick={handleOpenFullView}
             onMoveFile={handleMoveFile}

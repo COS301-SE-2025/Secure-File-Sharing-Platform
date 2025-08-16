@@ -89,6 +89,6 @@ func main() {
 
 	//changeMethod
 	http.HandleFunc("/changeMethod", fileHandler.ChangeShareMethodHandler)
-
+	http.HandleFunc("/usersWithFileAccess", fileHandler.GetUsersWithFileAccessHandler)
 	log.Fatal(http.ListenAndServe(":8081", nil))
 }

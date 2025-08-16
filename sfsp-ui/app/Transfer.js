@@ -4,6 +4,7 @@ import { getSodium } from "@/app/lib/sodium";
 
 //The is where we will be creting the shared key encrypting the file and encrypting the AES key
 import { useEncryptionStore, getUserKeysSecurely } from "./SecureKeyStorage";
+import { is } from "cypress/types/bluebird";
 
 function concatUint8Arrays(arrays) {
   const totalLength = arrays.reduce((sum, arr) => sum + arr.length, 0);
@@ -173,6 +174,132 @@ export async function SendFile(recipientUserId, fileid, isViewOnly = false) {
   //if (!result.success) throw new Error(result.message || "File upload failed");
   console.log("File sent successfully:", res);
 
+  if (isViewOnly) {
+    console.log("View-only file share ID:", result.shareId);
+    return result.shareId;
+  } else {
+    console.log("Received File ID:", result.receivedFileID);
+    return result.receivedFileID;
+  }
+}
+
+export async function ChangeShareMethod(recipientUserId, fileid, isViewOnly = false){
+  const sodium = await getSodium();
+  const { userId, encryptionKey } = useEncryptionStore.getState();
+
+  const userKeysRaw = await getUserKeysSecurely(encryptionKey);
+  const userKeys = normalizeUserKeys(userKeysRaw, sodium);
+
+  console.log("[UI DEBUG]2️⃣ Download encrypted file as binary")
+  const response = await fetch("http://localhost:5000/api/files/download", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId, fileId: fileid }),
+  });
+  if (!response.ok) throw new Error("Failed to retrieve file content");
+
+  const buffer = await response.arrayBuffer();
+  const encryptedLocalFile = new Uint8Array(buffer);
+
+  const nonceHeader = response.headers.get("x-nonce");
+  console.log("Received x-nonce header:", nonceHeader);
+  const decrypted = sodium.crypto_secretbox_open_easy(
+    encryptedLocalFile,
+    sodium.from_base64(
+      response.headers.get("x-nonce"),
+      sodium.base64_variants.ORIGINAL
+    ),
+    encryptionKey
+  );
+
+  console.log("[UI DEBUG]3️⃣ Get recipient's public keys")
+  const bundleRes = await fetch(
+    `http://localhost:5000/api/users/public-keys/${recipientUserId}`
+  );
+  if (!bundleRes.ok) throw new Error("Recipient key bundle not found");
+
+  const { data: recipientKeys } = await bundleRes.json();
+
+  const ikPrivKeyCurve25519 = sodium.crypto_sign_ed25519_sk_to_curve25519(
+    userKeys.identity_private_key
+  );
+  const EK = sodium.crypto_kx_keypair();
+
+  const DH1 = sodium.crypto_scalarmult(
+    ikPrivKeyCurve25519,
+    sodium.crypto_sign_ed25519_pk_to_curve25519(
+      sodium.from_base64(recipientKeys.spk_public)
+    )
+  );
+  const DH2 = sodium.crypto_scalarmult(
+    EK.privateKey,
+    sodium.crypto_sign_ed25519_pk_to_curve25519(
+      sodium.from_base64(recipientKeys.ik_public)
+    )
+  );
+  const DH3 = sodium.crypto_scalarmult(
+    EK.privateKey,
+    sodium.crypto_sign_ed25519_pk_to_curve25519(
+      sodium.from_base64(recipientKeys.spk_public)
+    )
+  );
+  const DH4 = sodium.crypto_scalarmult(
+    EK.privateKey,
+    sodium.from_base64(recipientKeys.opk.publicKey)
+  );
+
+  const combinedDH = concatUint8Arrays([DH1, DH2, DH3, DH4]);
+  const sharedKey = sodium.crypto_generichash(32, combinedDH);
+
+  const aesKey = sodium.crypto_secretbox_keygen();
+  const fileNonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
+  const encryptedFile = sodium.crypto_secretbox_easy(
+    decrypted,
+    fileNonce,
+    aesKey
+  );
+
+  const keyNonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
+  const encryptedAesKey = sodium.crypto_secretbox_easy(
+    aesKey,
+    keyNonce,
+    sharedKey
+  );
+
+  const ikPrivateKey = userKeys.identity_private_key;
+
+  const fileHash = sodium.crypto_generichash(32, encryptedFile);
+  const signature = sodium.crypto_sign_detached(fileHash, ikPrivateKey);
+
+  const newShareMethod = isViewOnly ? "view" : "download";
+  const formData = new FormData();
+  formData.append("fileid", fileid);
+  formData.append("userId", userId);
+  formData.append("recipientId", recipientUserId);
+  formData.append("newShareMethod", newShareMethod);
+  formData.append(
+    "metadata",
+    JSON.stringify({
+      fileNonce: sodium.to_base64(fileNonce),
+      keyNonce: sodium.to_base64(keyNonce),
+      ikPublicKey: sodium.to_base64(userKeys.identity_public_key),//we already send ikPublicKey
+      spkPublicKey: sodium.to_base64(userKeys.signedpk_public_key),
+      ekPublicKey: sodium.to_base64(EK.publicKey),
+      opk_id: recipientKeys.opk.opk_id,
+      encryptedAesKey: sodium.to_base64(encryptedAesKey),
+      signature: sodium.to_base64(signature),
+      fileHash: sodium.to_base64(fileHash),
+    })
+  );
+  formData.append("encryptedFile", new Blob([encryptedFile]));
+
+  const res = await fetch("http://localhost:5000/api/files/changeShareMethod", {
+    method: "POST",
+    body: formData,
+  });
+
+  if(!res.ok) throw new Error("Failed to change share method");
+  const result = await res.json();
   if (isViewOnly) {
     console.log("View-only file share ID:", result.shareId);
     return result.shareId;

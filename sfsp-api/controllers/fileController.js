@@ -668,3 +668,27 @@ exports.changeShareMethod = [
     }
   }
 ];
+
+exports.getUsersWithFileAccess = async (req, res) => {
+  const { fileId } = req.body;
+
+  if (!fileId) {
+    return res.status(400).send("Missing fileId");
+  }
+
+  try {
+    const response = await axios.post(
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/usersWithFileAccess`,
+      { fileId },
+      { headers: { "Content-Type": "application/json" } }
+    );
+
+    if (response.status !== 200) {
+      return res.status(response.status).send("Error getting users with file access");
+    }
+    res.json(response.data);
+  } catch (err) {
+    console.error("Error getting users with file access:", err.message);
+    res.status(500).send("Error getting users with file access");
+  }
+};

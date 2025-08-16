@@ -13,6 +13,7 @@ router.post('/getNumberOFFiles', fileController.getNumberOfFiles);
 // access logs endpoints
 router.post('/addAccesslog', fileController.addAccesslog);
 router.post('/getAccesslog', fileController.getAccesslog);
+router.post('/usersWithFileAccess', fileController.getUsersWithFileAccess);
 
 router.post('/send', fileController.sendFile);
 router.post('/addTags', fileController.addTags);
