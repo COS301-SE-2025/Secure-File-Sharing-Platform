@@ -337,6 +337,34 @@ export default function AuthPage() {
 
       const { token, user } = result.data;
 
+      // Don't store token or keys for unverified users
+      if (!user.is_verified) {
+        setMessage("Account created successfully! Please check your email for verification.");
+        
+        //add user to the postgres database using the rute for addUser in file routes
+        const addUserRes = await fetch("http://localhost:5000/api/files/addUser", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: user.id,
+          }),
+        });
+
+        if (!addUserRes.ok) {
+          console.error("Failed to add user to database");
+        }
+
+        setTimeout(() => {
+          router.push(`/auth/verify-email?email=${encodeURIComponent(email)}&userId=${user.id}`);
+        }, 1500);
+        return;
+      }
+
+      // This code will only run for verified users (shouldn't happen for new registrations)
+      if (!token) {
+        throw new Error("No authentication token received");
+      }
+
       const derivedKey = sodium.crypto_pwhash(
         32,
         password,
@@ -390,21 +418,9 @@ export default function AuthPage() {
       });
 
       localStorage.setItem("token", token.replace(/^Bearer\s/, ""));
-      setMessage("User successfully registered!");
-
-      //add user to the postgres database using the rute for addUser in file routes
-      const addUserRes = await fetch("http://localhost:5000/api/files/addUser", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: user.id,
-        }),
-      });
-
-      if (!addUserRes.ok) {
-        console.error("Failed to add user to database");
-      }
-
+      
+      // For verified users, proceed to dashboard (shouldn't happen for new registrations)
+      setMessage("Welcome back!");
       setTimeout(() => {
         router.push('/dashboard');
       }, 1000);

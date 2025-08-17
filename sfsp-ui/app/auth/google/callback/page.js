@@ -23,7 +23,7 @@ export default function GoogleCallbackPage() {
             const storedState = sessionStorage.getItem("googleOAuthState");
 
             if (error === "access_denied") {
-            router.push("/auth");
+            router.push("/auth?error=oauth_cancelled");
             return;
             }
 
@@ -38,7 +38,7 @@ export default function GoogleCallbackPage() {
             }
 
             if (state !== storedState) {
-            router.push("/auth?error=state_mismatch");
+            router.push("/auth?error=invalid_state");
             return;
             }
 

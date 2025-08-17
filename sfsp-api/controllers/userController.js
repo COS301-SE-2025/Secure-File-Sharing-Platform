@@ -63,6 +63,19 @@ class UserController {
             message: vaultres.error || "Failed to store private keys in vault.",
           });
         }
+
+        // Send verification email for new regular users
+        try {
+          await userService.sendVerificationCode(
+            result.user.id,
+            result.user.email,
+            result.user.username || "User"
+          );
+          console.log("Verification email sent to new user:", result.user.email);
+        } catch (emailError) {
+          console.error("Failed to send verification email to new user:", emailError);
+          // Don't fail registration if email sending fails
+        }
       }
       console.log("The is before the 201");
       return res.status(201).json({
@@ -72,9 +85,33 @@ class UserController {
       });
     } catch (error) {
       console.error("Error registering user:", error);
+      
+      // Return specific error messages for known issues
+      if (error.message.includes("User already exists")) {
+        return res.status(409).json({
+          success: false,
+          message: "An account with this email address already exists. Please use a different email or try logging in.",
+        });
+      }
+      
+      if (error.message.includes("Failed to create user")) {
+        return res.status(400).json({
+          success: false,
+          message: "Failed to create account. Please check your information and try again.",
+        });
+      }
+      
+      if (error.message.includes("Failed to store private keys")) {
+        return res.status(500).json({
+          success: false,
+          message: "Account created but failed to secure your keys. Please try registering again.",
+        });
+      }
+      
+      // Generic fallback for unexpected errors
       return res.status(500).json({
         success: false,
-        message: "Internal server error.",
+        message: "An unexpected error occurred while creating your account. Please try again.",
       });
     }
   }
@@ -689,27 +726,15 @@ class UserController {
           });
         }
 
-        // Send verification email for new Google users using the same endpoint as frontend
+        // Send verification email for new Google users using the backend service
         try {
-          const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-          const response = await fetch(`${frontendUrl}/api/auth/send-verification`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              email: user.email,
-              userId: user.id,
-              userName: user.username || "User"
-            }),
-          });
-
-          if (response.ok) {
-            console.log("Verification email sent to Google user:", user.email);
-          } else {
-            const errorData = await response.json();
-            console.error("Failed to send verification email:", errorData.error);
-          }
+          await userService.sendVerificationCode(
+            user.id,
+            user.email,
+            user.username || "User",
+            'google_signin'
+          );
+          console.log("Verification email sent to Google user:", user.email);
         } catch (emailError) {
           console.error("Failed to send verification email to Google user:", emailError);
         }
