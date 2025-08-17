@@ -181,6 +181,9 @@ export default function GoogleCallbackPage() {
         sessionStorage.setItem("unlockToken", "session-unlock");
         await storeUserKeysSecurely(userKeys, derivedKey);
 
+        // Clear any existing persisted state before setting new user data
+        localStorage.removeItem('encryption-store');
+        
         useEncryptionStore.setState({
             encryptionKey: derivedKey,
             userId: user.id,

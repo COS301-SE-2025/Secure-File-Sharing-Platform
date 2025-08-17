@@ -227,6 +227,9 @@ export default function AuthPage() {
       sessionStorage.setItem("unlockToken", "session-unlock");
       await storeUserKeysSecurely(userKeys, derivedKey); // your existing function
 
+      // Clear any existing persisted state before setting new user data
+      localStorage.removeItem('encryption-store');
+
       useEncryptionStore.setState({
         encryptionKey: derivedKey,
         userId: id,
@@ -382,6 +385,9 @@ export default function AuthPage() {
       await storeDerivedKeyEncrypted(derivedKey);
       sessionStorage.setItem("unlockToken", "session-unlock");
       await storeUserKeysSecurely(userKeys, derivedKey);
+
+      // Clear any existing persisted state before setting new user data
+      localStorage.removeItem('encryption-store');
 
       useEncryptionStore.setState({
         encryptionKey: derivedKey,
