@@ -1,679 +1,625 @@
-// package fileHandler_test
+//go:build integration
+// +build integration
 
 package integration_test
 
-// import (
-// 	"bytes"
-// 	"database/sql"
-// 	"encoding/json"
-// 	"fmt"
-// 	"net/http"
-// 	"net/http/httptest"
-// 	"testing"
-
-// 	"github.com/google/uuid"
-
-// 	_ "github.com/lib/pq"
-// 	"github.com/stretchr/testify/assert"
-// 	"github.com/stretchr/testify/require"
-
-// 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler" // Adjust import path as needed
-// )
-
-// var (
-// 	testDBHost     = "localhost"
-// 	testDBPort     = 5432
-// 	testDBUser     = "admin"
-// 	testDBPassword = "admin"
-// 	testDBName     = "file_service_db"
-// )
-
-// type testNotification struct {
-// 	ID        string `json:"id"`
-// 	Type      string `json:"type"`
-// 	From      string `json:"from"`
-// 	To        string `json:"to"`
-// 	FileName  string `json:"file_name"`
-// 	FileID    string `json:"file_id"`
-// 	Message   string `json:"message"`
-// 	Timestamp string `json:"timestamp"`
-// 	Status    string `json:"status"`
-// 	Read      bool   `json:"read"`
-// }
-
-// func setupTestDB(t *testing.T) func() {
-// 	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
-// 		testDBHost, testDBPort, testDBUser, testDBPassword, testDBName)
-
-// 	db, err := sql.Open("postgres", dsn)
-// 	require.NoError(t, err, "Failed to connect to test database")
-
-// 	fileHandler.DB = db
-
-// 	createTables(t, db)
-
-// 	return func() {
-// 		cleanupTables(t, db)
-// 		db.Close()
-// 	}
-// }
-
-// func createTables(t *testing.T, db *sql.DB) {
-// 	_, err := db.Exec(`
-// 		CREATE TABLE IF NOT EXISTS notifications (
-// 			id SERIAL PRIMARY KEY,
-// 			type VARCHAR(50) NOT NULL,
-// 			"from" VARCHAR(255) NOT NULL,
-// 			"to" VARCHAR(255) NOT NULL,
-// 			file_name VARCHAR(255) NOT NULL,
-// 			file_id VARCHAR(255) NOT NULL,
-// 			message TEXT,
-// 			timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-// 			status VARCHAR(20) DEFAULT 'pending',
-// 			read BOOLEAN DEFAULT FALSE
-// 		)
-// 	`)
-// 	require.NoError(t, err, "Failed to create notifications table")
-
-// 	_, err = db.Exec(`
-// 		CREATE TABLE IF NOT EXISTS files (
-// 			id VARCHAR(255) PRIMARY KEY,
-// 			file_name VARCHAR(255) NOT NULL,
-// 			file_type VARCHAR(100),
-// 			cid VARCHAR(255),
-// 			file_size BIGINT,
-// 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-// 		)
-// 	`)
-// 	require.NoError(t, err, "Failed to create files table")
-
-// 	_, err = db.Exec(`
-// 		CREATE TABLE IF NOT EXISTS received_files (
-// 			id SERIAL PRIMARY KEY,
-// 			file_id VARCHAR(255) NOT NULL,
-// 			recipient_id VARCHAR(255) NOT NULL,
-// 			metadata TEXT,
-// 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-// 		)
-// 	`)
-// 	require.NoError(t, err, "Failed to create received_files table")
-// }
-
-// func cleanupTables(t *testing.T, db *sql.DB) {
-// 	tables := []string{"notifications", "files", "received_files"}
-// 	for _, table := range tables {
-// 		_, err := db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", table))
-// 		if err != nil {
-// 			t.Logf("Warning: Failed to drop table %s: %v", table, err)
-// 		}
-// 	}
-// }
-
-// // Helper function to insert test data
-// func insertTestData(t *testing.T, db *sql.DB) (string, string, string, string) {
-// 	fileID := uuid.New().String()
-// 	senderID := uuid.New().String()
-// 	recipientID := uuid.New().String()
-
-// 	_, err := db.Exec(`INSERT INTO users (id) VALUES ($1)`, senderID)
-// 	require.NoError(t, err)
-
-// 	_, err = db.Exec(`INSERT INTO users (id) VALUES ($1)`, recipientID)
-// 	require.NoError(t, err)
-
-// 	_, err = db.Exec(`
-// 		INSERT INTO files (id, file_name, file_type, cid, file_size, owner_id)
-// 		VALUES ($1, $2, $3, $4, $5, $6)
-// 	`, fileID, "test-document.pdf", "application/pdf", "QmTest123", 1024, senderID)
-// 	require.NoError(t, err)
-
-// 	_, err = db.Exec(`
-// 		INSERT INTO received_files (file_id, recipient_id, metadata)
-// 		VALUES ($1, $2, $3)
-// 	`, fileID, recipientID, `{"encrypted": true, "key": "test-key"}`)
-// 	require.NoError(t, err)
-
-// 	var notificationID string
-// 	err = db.QueryRow(`
-// 		INSERT INTO notifications (type, "from", "to", file_name, file_id, message, status)
-// 		VALUES ($1, $2, $3, $4, $5, $6, $7)
-// 		RETURNING id
-// 	`, "share_request", senderID, recipientID, "test-document.pdf", fileID, "Please review this document", "pending").Scan(&notificationID)
-// 	require.NoError(t, err)
-
-// 	return notificationID, fileID, senderID, recipientID
-// }
-
-// func TestNotificationHandler(t *testing.T) {
-// 	cleanup := setupTestDB(t)
-// 	defer cleanup()
-
-// 	notificationID, fileID, senderID, recipientID := insertTestData(t, fileHandler.DB)
-
-// 	tests := []struct {
-// 		name           string
-// 		method         string
-// 		queryParams    string
-// 		expectedStatus int
-// 		expectedCount  int
-// 	}{
-// 		{
-// 			name:           "Get notifications successfully",
-// 			method:         "GET",
-// 			queryParams:    fmt.Sprintf("?id=%s", recipientID),
-// 			expectedStatus: http.StatusOK,
-// 			expectedCount:  1,
-// 		},
-// 		{
-// 			name:           "Missing user ID",
-// 			method:         "GET",
-// 			queryParams:    "",
-// 			expectedStatus: http.StatusBadRequest,
-// 			expectedCount:  0,
-// 		},
-// 		{
-// 			name:           "Invalid method",
-// 			method:         "POST",
-// 			queryParams:    fmt.Sprintf("?id=%s", recipientID),
-// 			expectedStatus: http.StatusMethodNotAllowed,
-// 			expectedCount:  0,
-// 		},
-// 		{
-// 			name:           "User with no notifications",
-// 			method:         "GET",
-// 			queryParams:    "?id=nonexistent-user",
-// 			expectedStatus: http.StatusOK,
-// 			expectedCount:  0,
-// 		},
-// 	}
-
-// 	for _, tt := range tests {
-// 		t.Run(tt.name, func(t *testing.T) {
-// 			req := httptest.NewRequest(tt.method, "/notifications"+tt.queryParams, nil)
-// 			w := httptest.NewRecorder()
-
-// 			fileHandler.NotificationHandler(w, req)
-
-// 			assert.Equal(t, tt.expectedStatus, w.Code)
-
-// 			if tt.expectedStatus == http.StatusOK {
-// 				var response struct {
-// 					Success       bool               `json:"success"`
-// 					Notifications []testNotification `json:"notifications"`
-// 				}
-// 				err := json.Unmarshal(w.Body.Bytes(), &response)
-// 				require.NoError(t, err)
-
-// 				assert.True(t, response.Success)
-// 				assert.Len(t, response.Notifications, tt.expectedCount)
-
-// 				if tt.expectedCount > 0 {
-// 					notification := response.Notifications[0]
-// 					assert.Equal(t, notificationID, notification.ID)
-// 					assert.Equal(t, "share_request", notification.Type)
-// 					assert.Equal(t, senderID, notification.From)
-// 					assert.Equal(t, recipientID, notification.To)
-// 					assert.Equal(t, "test-document.pdf", notification.FileName)
-// 					assert.Equal(t, fileID, notification.FileID)
-// 					assert.Equal(t, "pending", notification.Status)
-// 					assert.False(t, notification.Read)
-// 				}
-// 			}
-// 		})
-// 	}
-// }
-
-// func TestMarkAsReadHandler(t *testing.T) {
-// 	cleanup := setupTestDB(t)
-// 	defer cleanup()
-
-// 	notificationID, _, _, _ := insertTestData(t, fileHandler.DB)
-
-// 	tests := []struct {
-// 		name           string
-// 		method         string
-// 		requestBody    interface{}
-// 		expectedStatus int
-// 		expectedRead   bool
-// 	}{
-// 		{
-// 			name:           "Mark notification as read successfully",
-// 			method:         "POST",
-// 			requestBody:    map[string]string{"id": notificationID},
-// 			expectedStatus: http.StatusOK,
-// 			expectedRead:   true,
-// 		},
-// 		{
-// 			name:           "Missing notification ID",
-// 			method:         "POST",
-// 			requestBody:    map[string]string{},
-// 			expectedStatus: http.StatusBadRequest,
-// 			expectedRead:   false,
-// 		},
-// 		{
-// 			name:           "Invalid request body",
-// 			method:         "POST",
-// 			requestBody:    "invalid json",
-// 			expectedStatus: http.StatusBadRequest,
-// 			expectedRead:   false,
-// 		},
-// 		{
-// 			name:           "Notification not found",
-// 			method:         "POST",
-// 			requestBody:    map[string]string{"id": "99999"},
-// 			expectedStatus: http.StatusNotFound,
-// 			expectedRead:   false,
-// 		},
-// 		{
-// 			name:           "Invalid method",
-// 			method:         "GET",
-// 			requestBody:    map[string]string{"id": notificationID},
-// 			expectedStatus: http.StatusMethodNotAllowed,
-// 			expectedRead:   false,
-// 		},
-// 	}
-
-// 	for _, tt := range tests {
-// 		t.Run(tt.name, func(t *testing.T) {
-// 			var body bytes.Buffer
-// 			if tt.requestBody != nil {
-// 				json.NewEncoder(&body).Encode(tt.requestBody)
-// 			}
-
-// 			req := httptest.NewRequest(tt.method, "/notifications/mark-read", &body)
-// 			req.Header.Set("Content-Type", "application/json")
-// 			w := httptest.NewRecorder()
-
-// 			fileHandler.MarkAsReadHandler(w, req)
-
-// 			assert.Equal(t, tt.expectedStatus, w.Code)
-
-// 			if tt.expectedStatus == http.StatusOK {
-// 				var response map[string]interface{}
-// 				err := json.Unmarshal(w.Body.Bytes(), &response)
-// 				require.NoError(t, err)
-
-// 				assert.True(t, response["success"].(bool))
-// 				assert.Equal(t, "Notification marked as read", response["message"])
-
-// 				var read bool
-// 				err = fileHandler.DB.QueryRow("SELECT read FROM notifications WHERE id = $1", notificationID).Scan(&read)
-// 				require.NoError(t, err)
-// 				assert.True(t, read)
-// 			}
-// 		})
-// 	}
-// }
-
-// func TestRespondToShareRequestHandler(t *testing.T) {
-// 	cleanup := setupTestDB(t)
-// 	defer cleanup()
-
-// 	notificationID, fileID, senderID, recipientID := insertTestData(t, fileHandler.DB)
-
-// 	tests := []struct {
-// 		name           string
-// 		method         string
-// 		requestBody    interface{}
-// 		expectedStatus int
-// 		expectedData   bool
-// 	}{
-// 		{
-// 			name:           "Accept share request successfully",
-// 			method:         "POST",
-// 			requestBody:    map[string]string{"id": notificationID, "status": "accepted"},
-// 			expectedStatus: http.StatusOK,
-// 			expectedData:   true,
-// 		},
-// 		{
-// 			name:           "Decline share request successfully",
-// 			method:         "POST",
-// 			requestBody:    map[string]string{"id": notificationID, "status": "declined"},
-// 			expectedStatus: http.StatusOK,
-// 			expectedData:   false,
-// 		},
-// 		{
-// 			name:           "Invalid status",
-// 			method:         "POST",
-// 			requestBody:    map[string]string{"id": notificationID, "status": "invalid"},
-// 			expectedStatus: http.StatusBadRequest,
-// 			expectedData:   false,
-// 		},
-// 		{
-// 			name:           "Missing ID",
-// 			method:         "POST",
-// 			requestBody:    map[string]string{"status": "accepted"},
-// 			expectedStatus: http.StatusBadRequest,
-// 			expectedData:   false,
-// 		},
-// 		{
-// 			name:           "Missing status",
-// 			method:         "POST",
-// 			requestBody:    map[string]string{"id": notificationID},
-// 			expectedStatus: http.StatusBadRequest,
-// 			expectedData:   false,
-// 		},
-// 		{
-// 			name:           "Notification not found",
-// 			method:         "POST",
-// 			requestBody:    map[string]string{"id": "99999", "status": "accepted"},
-// 			expectedStatus: http.StatusNotFound,
-// 			expectedData:   false,
-// 		},
-// 		{
-// 			name:           "Invalid method",
-// 			method:         "GET",
-// 			requestBody:    map[string]string{"id": notificationID, "status": "accepted"},
-// 			expectedStatus: http.StatusMethodNotAllowed,
-// 			expectedData:   false,
-// 		},
-// 	}
-
-// 	for _, tt := range tests {
-// 		t.Run(tt.name, func(t *testing.T) {
-// 			_, err := fileHandler.DB.Exec("UPDATE notifications SET status = 'pending', read = FALSE WHERE id = $1", notificationID)
-// 			require.NoError(t, err)
-
-// 			var body bytes.Buffer
-// 			if tt.requestBody != nil {
-// 				json.NewEncoder(&body).Encode(tt.requestBody)
-// 			}
-
-// 			req := httptest.NewRequest(tt.method, "/notifications/respond", &body)
-// 			req.Header.Set("Content-Type", "application/json")
-// 			w := httptest.NewRecorder()
-
-// 			fileHandler.RespondToShareRequestHandler(w, req)
-
-// 			assert.Equal(t, tt.expectedStatus, w.Code)
-
-// 			if tt.expectedStatus == http.StatusOK {
-// 				var response map[string]interface{}
-// 				err := json.Unmarshal(w.Body.Bytes(), &response)
-// 				require.NoError(t, err)
-
-// 				assert.True(t, response["success"].(bool))
-// 				assert.Equal(t, "Notification status updated", response["message"])
-
-// 				if tt.expectedData {
-// 					fileData, exists := response["fileData"].(map[string]interface{})
-// 					assert.True(t, exists)
-// 					assert.Equal(t, fileID, fileData["file_id"])
-// 					assert.Equal(t, senderID, fileData["sender_id"])
-// 					assert.Equal(t, recipientID, fileData["recipient_id"])
-// 					assert.Equal(t, "test-document.pdf", fileData["file_name"])
-// 					assert.Equal(t, "application/pdf", fileData["file_type"])
-// 					assert.Equal(t, "QmTest123", fileData["cid"])
-// 					assert.Equal(t, float64(1024), fileData["file_size"])
-// 					assert.Equal(t, `{"encrypted": true, "key": "test-key"}`, fileData["metadata"])
-// 				} else {
-// 					_, exists := response["fileData"]
-// 					assert.False(t, exists)
-// 				}
-// 			}
-// 		})
-// 	}
-// }
-
-// func TestClearNotificationHandler(t *testing.T) {
-// 	cleanup := setupTestDB(t)
-// 	defer cleanup()
-
-// 	notificationID, _, _, _ := insertTestData(t, fileHandler.DB)
-
-// 	tests := []struct {
-// 		name           string
-// 		method         string
-// 		requestBody    interface{}
-// 		expectedStatus int
-// 	}{
-// 		{
-// 			name:           "Clear notification successfully",
-// 			method:         "POST",
-// 			requestBody:    map[string]string{"id": notificationID},
-// 			expectedStatus: http.StatusOK,
-// 		},
-// 		{
-// 			name:           "Missing notification ID",
-// 			method:         "POST",
-// 			requestBody:    map[string]string{},
-// 			expectedStatus: http.StatusBadRequest,
-// 		},
-// 		{
-// 			name:           "Invalid request body",
-// 			method:         "POST",
-// 			requestBody:    "invalid json",
-// 			expectedStatus: http.StatusBadRequest,
-// 		},
-// 		{
-// 			name:           "Notification not found",
-// 			method:         "POST",
-// 			requestBody:    map[string]string{"id": "99999"},
-// 			expectedStatus: http.StatusNotFound,
-// 		},
-// 		{
-// 			name:           "Invalid method",
-// 			method:         "GET",
-// 			requestBody:    map[string]string{"id": notificationID},
-// 			expectedStatus: http.StatusMethodNotAllowed,
-// 		},
-// 	}
-
-// 	for _, tt := range tests {
-// 		t.Run(tt.name, func(t *testing.T) {
-// 			if tt.name != "Clear notification successfully" {
-// 				_, err := fileHandler.DB.Exec(`
-// 					INSERT INTO notifications (id, type, "from", "to", file_name, file_id, message, status)
-// 					VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-// 					ON CONFLICT (id) DO NOTHING
-// 				`, notificationID, "share_request", "user-123", "user-456", "test-document.pdf", "test-file-123", "Test message", "pending")
-// 				if err != nil {
-// 					t.Logf("Note: Notification may already exist: %v", err)
-// 				}
-// 			}
-
-// 			var body bytes.Buffer
-// 			if tt.requestBody != nil {
-// 				json.NewEncoder(&body).Encode(tt.requestBody)
-// 			}
-
-// 			req := httptest.NewRequest(tt.method, "/notifications/clear", &body)
-// 			req.Header.Set("Content-Type", "application/json")
-// 			w := httptest.NewRecorder()
-
-// 			fileHandler.ClearNotificationHandler(w, req)
-
-// 			assert.Equal(t, tt.expectedStatus, w.Code)
-
-// 			if tt.expectedStatus == http.StatusOK {
-// 				var response map[string]interface{}
-// 				err := json.Unmarshal(w.Body.Bytes(), &response)
-// 				require.NoError(t, err)
-
-// 				assert.True(t, response["success"].(bool))
-// 				assert.Equal(t, "Notification deleted", response["message"])
-
-// 				var count int
-// 				err = fileHandler.DB.QueryRow("SELECT COUNT(*) FROM notifications WHERE id = $1", notificationID).Scan(&count)
-// 				require.NoError(t, err)
-// 				assert.Equal(t, 0, count)
-// 			}
-// 		})
-// 	}
-// }
-
-// func TestAddNotificationHandler(t *testing.T) {
-// 	cleanup := setupTestDB(t)
-// 	defer cleanup()
-
-// 	tests := []struct {
-// 		name           string
-// 		method         string
-// 		requestBody    interface{}
-// 		expectedStatus int
-// 	}{
-// 		{
-// 			name:   "Add notification successfully",
-// 			method: "POST",
-// 			requestBody: map[string]string{
-// 				"type":      "share_request",
-// 				"from":      "user-789",
-// 				"to":        "user-456",
-// 				"file_name": "new-document.pdf",
-// 				"file_id":   "new-file-456",
-// 				"message":   "Please review this new document",
-// 			},
-// 			expectedStatus: http.StatusOK,
-// 		},
-// 		{
-// 			name:   "Missing required fields",
-// 			method: "POST",
-// 			requestBody: map[string]string{
-// 				"type": "share_request",
-// 				"from": "user-789",
-// 			},
-// 			expectedStatus: http.StatusBadRequest,
-// 		},
-// 		{
-// 			name:           "Invalid request body",
-// 			method:         "POST",
-// 			requestBody:    "invalid json",
-// 			expectedStatus: http.StatusBadRequest,
-// 		},
-// 		{
-// 			name:   "Invalid method",
-// 			method: "GET",
-// 			requestBody: map[string]string{
-// 				"type":      "share_request",
-// 				"from":      "user-789",
-// 				"to":        "user-456",
-// 				"file_name": "new-document.pdf",
-// 				"file_id":   "new-file-456",
-// 				"message":   "Please review this new document",
-// 			},
-// 			expectedStatus: http.StatusMethodNotAllowed,
-// 		},
-// 	}
-
-// 	for _, tt := range tests {
-// 		t.Run(tt.name, func(t *testing.T) {
-// 			var body bytes.Buffer
-// 			if tt.requestBody != nil {
-// 				json.NewEncoder(&body).Encode(tt.requestBody)
-// 			}
-
-// 			req := httptest.NewRequest(tt.method, "/notifications/add", &body)
-// 			req.Header.Set("Content-Type", "application/json")
-// 			w := httptest.NewRecorder()
-
-// 			fileHandler.AddNotificationHandler(w, req)
-
-// 			assert.Equal(t, tt.expectedStatus, w.Code)
-
-// 			if tt.expectedStatus == http.StatusOK {
-// 				var response map[string]interface{}
-// 				err := json.Unmarshal(w.Body.Bytes(), &response)
-// 				require.NoError(t, err)
-
-// 				assert.True(t, response["success"].(bool))
-// 				assert.Equal(t, "Notification added", response["message"])
-// 				assert.NotEmpty(t, response["id"])
-
-// 				var count int
-// 				notificationID := response["id"].(string)
-// 				err = fileHandler.DB.QueryRow("SELECT COUNT(*) FROM notifications WHERE id = $1", notificationID).Scan(&count)
-// 				require.NoError(t, err)
-// 				assert.Equal(t, 1, count)
-// 			}
-// 		})
-// 	}
-// }
-
-// func TestDatabaseNotInitialized(t *testing.T) {
-// 	originalDB := fileHandler.DB
-// 	fileHandler.DB = nil
-// 	defer func() {
-// 		fileHandler.DB = originalDB
-// 	}()
-
-// 	tests := []struct {
-// 		name    string
-// 		handler http.HandlerFunc
-// 		method  string
-// 		path    string
-// 		body    interface{}
-// 	}{
-// 		{"NotificationHandler", fileHandler.NotificationHandler, "GET", "/notifications?id=test", nil},
-// 		{"MarkAsReadHandler", fileHandler.MarkAsReadHandler, "POST", "/notifications/mark-read", map[string]string{"id": "test"}},
-// 		{"RespondToShareRequestHandler", fileHandler.RespondToShareRequestHandler, "POST", "/notifications/respond", map[string]string{"id": "test", "status": "accepted"}},
-// 		{"ClearNotificationHandler", fileHandler.ClearNotificationHandler, "POST", "/notifications/clear", map[string]string{"id": "test"}},
-// 		{"AddNotificationHandler", fileHandler.AddNotificationHandler, "POST", "/notifications/add", map[string]string{"type": "test", "from": "user1", "to": "user2", "file_name": "test.pdf", "file_id": "123", "message": "test"}},
-// 	}
-
-// 	for _, tt := range tests {
-// 		t.Run(tt.name, func(t *testing.T) {
-// 			var body bytes.Buffer
-// 			if tt.body != nil {
-// 				json.NewEncoder(&body).Encode(tt.body)
-// 			}
-
-// 			req := httptest.NewRequest(tt.method, tt.path, &body)
-// 			if tt.body != nil {
-// 				req.Header.Set("Content-Type", "application/json")
-// 			}
-// 			w := httptest.NewRecorder()
-
-// 			tt.handler(w, req)
-
-// 			assert.Equal(t, http.StatusInternalServerError, w.Code)
-
-// 			var response map[string]interface{}
-// 			err := json.Unmarshal(w.Body.Bytes(), &response)
-// 			require.NoError(t, err)
-
-// 			assert.False(t, response["success"].(bool))
-// 			assert.Equal(t, "Database not initialized", response["error"])
-// 		})
-// 	}
-// }
-
-// func BenchmarkNotificationHandler(b *testing.B) {
-// 	cleanup := setupTestDB(&testing.T{})
-// 	defer cleanup()
-
-// 	// Insert test data
-// 	insertTestData(&testing.T{}, fileHandler.DB)
-
-// 	b.ResetTimer()
-// 	for i := 0; i < b.N; i++ {
-// 		req := httptest.NewRequest("GET", "/notifications?id=user-456", nil)
-// 		w := httptest.NewRecorder()
-// 		fileHandler.NotificationHandler(w, req)
-// 	}
-// }
-
-// func BenchmarkAddNotificationHandler(b *testing.B) {
-// 	cleanup := setupTestDB(&testing.T{})
-// 	defer cleanup()
-
-// 	requestBody := map[string]string{
-// 		"type":      "share_request",
-// 		"from":      "user-789",
-// 		"to":        "user-456",
-// 		"file_name": "benchmark-document.pdf",
-// 		"file_id":   "benchmark-file-456",
-// 		"message":   "Benchmark test",
-// 	}
-
-// 	b.ResetTimer()
-// 	for i := 0; i < b.N; i++ {
-// 		var body bytes.Buffer
-// 		json.NewEncoder(&body).Encode(requestBody)
-
-// 		req := httptest.NewRequest("POST", "/notifications/add", &body)
-// 		req.Header.Set("Content-Type", "application/json")
-// 		w := httptest.NewRecorder()
-
-// 		fileHandler.AddNotificationHandler(w, req)
-// 	}
-// }
+import (
+	"bytes"
+	"context"
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"strings"
+	"testing"
+	"time"
+
+	nat "github.com/docker/go-connections/nat"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/wait"
+
+	fh "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler"
+
+	_ "github.com/lib/pq"
+)
+
+type startedDBNotif struct {
+	container testcontainers.Container
+	dsn       string
+}
+
+func startPostgresNotif(t *testing.T) startedDBNotif {
+	t.Helper()
+
+	if dsn := os.Getenv("POSTGRES_TEST_DSN"); dsn != "" {
+		return startedDBNotif{dsn: dsn}
+	}
+
+	ctx := context.Background()
+	const (
+		user = "testuser"
+		pass = "testpass"
+		db   = "testdb"
+	)
+	req := testcontainers.ContainerRequest{
+		Image:        "postgres:16-alpine",
+		ExposedPorts: []string{"5432/tcp"},
+		Env: map[string]string{
+			"POSTGRES_USER":     user,
+			"POSTGRES_PASSWORD": pass,
+			"POSTGRES_DB":       db,
+		},
+		WaitingFor: wait.ForSQL(
+			"5432/tcp", "postgres",
+			func(host string, port nat.Port) string {
+				return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+					user, pass, host, port.Port(), db)
+			},
+		).WithStartupTimeout(120 * time.Second),
+	}
+	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: req,
+		Started:          true,
+	})
+	if err != nil && strings.Contains(err.Error(), "permission denied while trying to connect to the Docker daemon socket") {
+		t.Skipf("Skipping DB-backed tests: Docker not accessible (%v). Fix Docker perms or set POSTGRES_TEST_DSN.", err)
+	}
+	require.NoError(t, err, "failed to start postgres container")
+
+	host, err := c.Host(ctx)
+	require.NoError(t, err)
+	mp, err := c.MappedPort(ctx, "5432/tcp")
+	require.NoError(t, err)
+
+	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", user, pass, host, mp.Port(), db)
+	return startedDBNotif{container: c, dsn: dsn}
+}
+
+func openDBNotif(t *testing.T, dsn string) *sql.DB {
+	t.Helper()
+	db, err := sql.Open("postgres", dsn)
+	require.NoError(t, err)
+	require.NoError(t, db.Ping())
+	return db
+}
+
+func seedNotificationsSchema(t *testing.T, db *sql.DB) {
+	t.Helper()
+	_, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS notifications (
+			id TEXT PRIMARY KEY DEFAULT md5(random()::text),
+			type TEXT NOT NULL,
+			"from" TEXT NOT NULL,
+			"to" TEXT NOT NULL,
+			file_name TEXT NOT NULL,
+			file_id TEXT NOT NULL,
+			received_file_id TEXT NULL,
+			message TEXT DEFAULT '',
+			timestamp TEXT NOT NULL DEFAULT to_char(NOW() AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+			status TEXT NOT NULL DEFAULT 'pending',
+			read BOOLEAN NOT NULL DEFAULT FALSE
+		);
+		CREATE TABLE IF NOT EXISTS files (
+			id TEXT PRIMARY KEY,
+			file_name TEXT NOT NULL,
+			file_type TEXT NOT NULL,
+			cid TEXT,
+			file_size BIGINT NOT NULL DEFAULT 0
+		);
+		CREATE TABLE IF NOT EXISTS received_files (
+			id TEXT PRIMARY KEY DEFAULT md5(random()::text),
+			file_id TEXT NOT NULL,
+			recipient_id TEXT NOT NULL,
+			metadata TEXT NOT NULL
+		);
+		-- In prod this might be a VIEW; for tests, a table with the same columns is fine.
+		CREATE TABLE IF NOT EXISTS shared_files_view (
+			sender_id TEXT NOT NULL,
+			recipient_id TEXT NOT NULL,
+			file_id TEXT NOT NULL,
+			metadata TEXT NOT NULL
+		);
+	`)
+	require.NoError(t, err)
+}
+
+func insertNotification(t *testing.T, db *sql.DB, n map[string]any) string {
+	t.Helper()
+	var id string
+	q := `INSERT INTO notifications (type,"from","to",file_name,file_id,received_file_id,message,status,read)
+	      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`
+	_, ok := n["received_file_id"]
+	if !ok {
+		n["received_file_id"] = nil
+	}
+	err := db.QueryRow(q,
+		n["type"], n["from"], n["to"], n["file_name"], n["file_id"],
+		n["received_file_id"], n["message"], n["status"], n["read"],
+	).Scan(&id)
+	require.NoError(t, err)
+	return id
+}
+
+func doJSONReq(t *testing.T, method, path string, body any, h http.HandlerFunc) (*httptest.ResponseRecorder, []byte) {
+	t.Helper()
+	var rdr io.Reader
+	switch v := body.(type) {
+	case string:
+		rdr = bytes.NewBufferString(v)
+	case []byte:
+		rdr = bytes.NewBuffer(v)
+	default:
+		b, err := json.Marshal(v)
+		require.NoError(t, err)
+		rdr = bytes.NewBuffer(b)
+	}
+	req := httptest.NewRequest(method, path, rdr)
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	h(rr, req)
+	return rr, rr.Body.Bytes()
+}
+
+func TestNotificationHandler_MethodNotAllowed(t *testing.T) {
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/notifications?id=u1", nil)
+	fh.NotificationHandler(rr, req)
+	assert.Equal(t, http.StatusMethodNotAllowed, rr.Code)
+}
+
+func TestNotificationHandler_MissingUserID(t *testing.T) {
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/notifications", nil)
+	fh.NotificationHandler(rr, req)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+}
+
+func TestNotificationHandler_DBNil(t *testing.T) {
+	prev := fh.DB
+	fh.DB = nil
+	defer func() { fh.DB = prev }()
+
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/notifications?id=u1", nil)
+	fh.NotificationHandler(rr, req)
+
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	var resp map[string]any
+	_ = json.Unmarshal(rr.Body.Bytes(), &resp)
+	assert.Equal(t, false, resp["success"])
+}
+
+func TestNotificationHandler_DBError_TableMissing(t *testing.T) {
+	sd := startPostgresNotif(t)
+	if sd.container != nil {
+		t.Cleanup(func() { _ = sd.container.Terminate(context.Background()) })
+	}
+	db := openDBNotif(t, sd.dsn)
+	t.Cleanup(func() { _ = db.Close() })
+
+	prev := fh.DB
+	fh.DB = db
+	t.Cleanup(func() { fh.DB = prev })
+
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/notifications?id=u1", nil)
+	fh.NotificationHandler(rr, req)
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+}
+
+func TestNotificationHandler_Success_FiltersByRecipient(t *testing.T) {
+	sd := startPostgresNotif(t)
+	if sd.container != nil {
+		t.Cleanup(func() { _ = sd.container.Terminate(context.Background()) })
+	}
+	db := openDBNotif(t, sd.dsn)
+	t.Cleanup(func() { _ = db.Close() })
+	seedNotificationsSchema(t, db)
+
+	insertNotification(t, db, map[string]any{
+		"type": "share", "from": "u1", "to": "u2",
+		"file_name": "a.txt", "file_id": "fa", "message": "m1",
+		"status": "pending", "read": false,
+	})
+	insertNotification(t, db, map[string]any{
+		"type": "share", "from": "u9", "to": "u2",
+		"file_name": "b.txt", "file_id": "fb", "message": "m2",
+		"status": "pending", "read": false,
+	})
+	insertNotification(t, db, map[string]any{
+		"type": "share", "from": "u1", "to": "u3",
+		"file_name": "c.txt", "file_id": "fc", "message": "m3",
+		"status": "pending", "read": false,
+	})
+
+	prev := fh.DB
+	fh.DB = db
+	t.Cleanup(func() { fh.DB = prev })
+
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/notifications?id=u2", nil)
+	fh.NotificationHandler(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	var resp struct {
+		Success       bool             `json:"success"`
+		Notifications []map[string]any `json:"notifications"`
+	}
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
+	assert.True(t, resp.Success)
+	require.Len(t, resp.Notifications, 2)
+	for _, n := range resp.Notifications {
+		assert.Equal(t, "u2", n["to"])
+	}
+}
+
+func TestMarkAsReadHandler_MethodNotAllowed(t *testing.T) {
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/notifications/mark", nil)
+	fh.MarkAsReadHandler(rr, req)
+	assert.Equal(t, http.StatusMethodNotAllowed, rr.Code)
+}
+
+func TestMarkAsReadHandler_InvalidBody(t *testing.T) {
+	rr, _ := doJSONReq(t, http.MethodPost, "/notifications/mark", `{"id":`, fh.MarkAsReadHandler)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+}
+
+func TestMarkAsReadHandler_MissingID(t *testing.T) {
+	rr, _ := doJSONReq(t, http.MethodPost, "/notifications/mark", map[string]string{"id": ""}, fh.MarkAsReadHandler)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+}
+
+func TestMarkAsReadHandler_DBNil(t *testing.T) {
+	prev := fh.DB
+	fh.DB = nil
+	defer func() { fh.DB = prev }()
+
+	rr, _ := doJSONReq(t, http.MethodPost, "/notifications/mark", map[string]string{"id": "x"}, fh.MarkAsReadHandler)
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+}
+
+func TestMarkAsReadHandler_NotFound(t *testing.T) {
+	sd := startPostgresNotif(t)
+	if sd.container != nil {
+		t.Cleanup(func() { _ = sd.container.Terminate(context.Background()) })
+	}
+	db := openDBNotif(t, sd.dsn)
+	t.Cleanup(func() { _ = db.Close() })
+	seedNotificationsSchema(t, db)
+
+	prev := fh.DB
+	fh.DB = db
+	t.Cleanup(func() { fh.DB = prev })
+
+	rr, _ := doJSONReq(t, http.MethodPost, "/notifications/mark", map[string]string{"id": "does-not-exist"}, fh.MarkAsReadHandler)
+	assert.Equal(t, http.StatusNotFound, rr.Code)
+}
+
+func TestMarkAsReadHandler_Success(t *testing.T) {
+	sd := startPostgresNotif(t)
+	if sd.container != nil {
+		t.Cleanup(func() { _ = sd.container.Terminate(context.Background()) })
+	}
+	db := openDBNotif(t, sd.dsn)
+	t.Cleanup(func() { _ = db.Close() })
+	seedNotificationsSchema(t, db)
+
+	id := insertNotification(t, db, map[string]any{
+		"type": "share", "from": "u1", "to": "u2",
+		"file_name": "a.txt", "file_id": "fa", "message": "m1",
+		"status": "pending", "read": false,
+	})
+
+	prev := fh.DB
+	fh.DB = db
+	t.Cleanup(func() { fh.DB = prev })
+
+	rr, body := doJSONReq(t, http.MethodPost, "/notifications/mark", map[string]string{"id": id}, fh.MarkAsReadHandler)
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, string(body), "Notification marked as read")
+
+	var readVal bool
+	require.NoError(t, db.QueryRow(`SELECT read FROM notifications WHERE id=$1`, id).Scan(&readVal))
+	assert.True(t, readVal)
+}
+
+func TestRespondHandler_MethodNotAllowed(t *testing.T) {
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/notifications/respond", nil)
+	fh.RespondToShareRequestHandler(rr, req)
+	assert.Equal(t, http.StatusMethodNotAllowed, rr.Code)
+}
+
+func TestRespondHandler_InvalidBody(t *testing.T) {
+	rr, _ := doJSONReq(t, http.MethodPost, "/notifications/respond", `{"id":"x",`, fh.RespondToShareRequestHandler)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+}
+
+func TestRespondHandler_MissingIDOrStatus(t *testing.T) {
+	rr, _ := doJSONReq(t, http.MethodPost, "/notifications/respond", map[string]string{"id": "", "status": "accepted"}, fh.RespondToShareRequestHandler)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+}
+
+func TestRespondHandler_InvalidStatus(t *testing.T) {
+	rr, _ := doJSONReq(t, http.MethodPost, "/notifications/respond", map[string]string{"id": "x", "status": "weird"}, fh.RespondToShareRequestHandler)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+}
+
+func TestRespondHandler_DBNil(t *testing.T) {
+	prev := fh.DB
+	fh.DB = nil
+	defer func() { fh.DB = prev }()
+	rr, _ := doJSONReq(t, http.MethodPost, "/notifications/respond", map[string]string{"id": "x", "status": "accepted"}, fh.RespondToShareRequestHandler)
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+}
+
+func TestRespondHandler_NotFoundOnUpdate(t *testing.T) {
+	sd := startPostgresNotif(t)
+	if sd.container != nil {
+		t.Cleanup(func() { _ = sd.container.Terminate(context.Background()) })
+	}
+	db := openDBNotif(t, sd.dsn)
+	t.Cleanup(func() { _ = db.Close() })
+	seedNotificationsSchema(t, db)
+
+	prev := fh.DB
+	fh.DB = db
+	t.Cleanup(func() { fh.DB = prev })
+
+	rr, _ := doJSONReq(t, http.MethodPost, "/notifications/respond", map[string]string{"id": "missing", "status": "accepted"}, fh.RespondToShareRequestHandler)
+	assert.Equal(t, http.StatusNotFound, rr.Code)
+}
+
+func TestRespondHandler_Accepted_WithReceivedFileID_ReturnsFileData(t *testing.T) {
+	sd := startPostgresNotif(t)
+	if sd.container != nil {
+		t.Cleanup(func() { _ = sd.container.Terminate(context.Background()) })
+	}
+	db := openDBNotif(t, sd.dsn)
+	t.Cleanup(func() { _ = db.Close() })
+	seedNotificationsSchema(t, db)
+
+	_, err := db.Exec(`INSERT INTO files (id,file_name,file_type,cid,file_size) VALUES ('file-1','report.pdf','file','cid/rep',12345)`)
+	require.NoError(t, err)
+
+	var rfID string
+	require.NoError(t, db.QueryRow(`INSERT INTO received_files (file_id,recipient_id,metadata) VALUES ('file-1','u2','{"k":"v"}') RETURNING id`).Scan(&rfID))
+
+	notifID := insertNotification(t, db, map[string]any{
+		"type": "share", "from": "u1", "to": "u2",
+		"file_name": "report.pdf", "file_id": "file-1",
+		"received_file_id": rfID, "message": "please review",
+		"status": "pending", "read": false,
+	})
+
+	prev := fh.DB
+	fh.DB = db
+	t.Cleanup(func() { fh.DB = prev })
+
+	rr, body := doJSONReq(t, http.MethodPost, "/notifications/respond", map[string]string{
+		"id": notifID, "status": "accepted",
+	}, fh.RespondToShareRequestHandler)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+
+	var resp struct {
+		Success bool                   `json:"success"`
+		Message string                 `json:"message"`
+		File    map[string]interface{} `json:"fileData"`
+	}
+	require.NoError(t, json.Unmarshal(body, &resp))
+	assert.True(t, resp.Success)
+	assert.Equal(t, "Notification status updated", resp.Message)
+	require.NotNil(t, resp.File)
+	assert.Equal(t, "file-1", resp.File["file_id"])
+	assert.Equal(t, "u1", resp.File["sender_id"])
+	assert.Equal(t, "u2", resp.File["recipient_id"])
+	assert.Equal(t, "report.pdf", resp.File["file_name"])
+	assert.Equal(t, "file", resp.File["file_type"])
+	assert.Equal(t, "cid/rep", resp.File["cid"])
+	assert.Equal(t, float64(12345), resp.File["file_size"])
+	assert.Equal(t, false, resp.File["viewOnly"])
+	assert.Equal(t, `{"k":"v"}`, resp.File["metadata"])
+}
+
+func TestRespondHandler_Accepted_ViewOnly_ReturnsFileData(t *testing.T) {
+	sd := startPostgresNotif(t)
+	if sd.container != nil {
+		t.Cleanup(func() { _ = sd.container.Terminate(context.Background()) })
+	}
+	db := openDBNotif(t, sd.dsn)
+	t.Cleanup(func() { _ = db.Close() })
+	seedNotificationsSchema(t, db)
+
+	_, err := db.Exec(`INSERT INTO files (id,file_name,file_type,cid,file_size) VALUES ('file-2','img.png','file','cid/img',777)`)
+	require.NoError(t, err)
+
+	_, err = db.Exec(`INSERT INTO shared_files_view (sender_id,recipient_id,file_id,metadata) VALUES ('u1','u3','file-2','{"view":"only"}')`)
+	require.NoError(t, err)
+
+	notifID := insertNotification(t, db, map[string]any{
+		"type": "share", "from": "u1", "to": "u3",
+		"file_name": "img.png", "file_id": "file-2",
+		"message": "FYI",
+		"status": "pending", "read": false,
+	})
+
+	prev := fh.DB
+	fh.DB = db
+	t.Cleanup(func() { fh.DB = prev })
+
+	rr, body := doJSONReq(t, http.MethodPost, "/notifications/respond", map[string]string{
+		"id": notifID, "status": "accepted",
+	}, fh.RespondToShareRequestHandler)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+
+	var resp struct {
+		Success bool                   `json:"success"`
+		File    map[string]interface{} `json:"fileData"`
+	}
+	require.NoError(t, json.Unmarshal(body, &resp))
+	assert.True(t, resp.Success)
+	assert.Equal(t, true, resp.File["viewOnly"])
+	assert.Equal(t, `{"view":"only"}`, resp.File["metadata"])
+}
+
+func TestClearHandler_MethodNotAllowed(t *testing.T) {
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/notifications/clear", nil)
+	fh.ClearNotificationHandler(rr, req)
+	assert.Equal(t, http.StatusMethodNotAllowed, rr.Code)
+}
+
+func TestClearHandler_InvalidBody(t *testing.T) {
+	rr, _ := doJSONReq(t, http.MethodPost, "/notifications/clear", `{"id":`, fh.ClearNotificationHandler)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+}
+
+func TestClearHandler_MissingID(t *testing.T) {
+	rr, _ := doJSONReq(t, http.MethodPost, "/notifications/clear", map[string]string{"id": ""}, fh.ClearNotificationHandler)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+}
+
+func TestClearHandler_DBNil(t *testing.T) {
+	prev := fh.DB
+	fh.DB = nil
+	defer func() { fh.DB = prev }()
+	rr, _ := doJSONReq(t, http.MethodPost, "/notifications/clear", map[string]string{"id": "x"}, fh.ClearNotificationHandler)
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+}
+
+func TestClearHandler_NotFound(t *testing.T) {
+	sd := startPostgresNotif(t)
+	if sd.container != nil {
+		t.Cleanup(func() { _ = sd.container.Terminate(context.Background()) })
+	}
+	db := openDBNotif(t, sd.dsn)
+	t.Cleanup(func() { _ = db.Close() })
+	seedNotificationsSchema(t, db)
+
+	prev := fh.DB
+	fh.DB = db
+	t.Cleanup(func() { fh.DB = prev })
+
+	rr, _ := doJSONReq(t, http.MethodPost, "/notifications/clear", map[string]string{"id": "missing"}, fh.ClearNotificationHandler)
+	assert.Equal(t, http.StatusNotFound, rr.Code)
+}
+
+func TestClearHandler_Success(t *testing.T) {
+	sd := startPostgresNotif(t)
+	if sd.container != nil {
+		t.Cleanup(func() { _ = sd.container.Terminate(context.Background()) })
+	}
+	db := openDBNotif(t, sd.dsn)
+	t.Cleanup(func() { _ = db.Close() })
+	seedNotificationsSchema(t, db)
+
+	id := insertNotification(t, db, map[string]any{
+		"type": "share", "from": "u1", "to": "u2",
+		"file_name": "a.txt", "file_id": "fa", "message": "m1",
+		"status": "pending", "read": false,
+	})
+
+	prev := fh.DB
+	fh.DB = db
+	t.Cleanup(func() { fh.DB = prev })
+
+	rr, body := doJSONReq(t, http.MethodPost, "/notifications/clear", map[string]string{"id": id}, fh.ClearNotificationHandler)
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, string(body), "Notification deleted")
+
+	var count int
+	require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM notifications WHERE id=$1`, id).Scan(&count))
+	assert.Equal(t, 0, count)
+}
+
+/*****************************  AddNotificationHandler  **********************/
+
+func TestAddNotificationHandler_MethodNotAllowed(t *testing.T) {
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/notifications/add", nil)
+	fh.AddNotificationHandler(rr, req)
+	assert.Equal(t, http.StatusMethodNotAllowed, rr.Code)
+}
+
+func TestAddNotificationHandler_InvalidBody(t *testing.T) {
+	rr, _ := doJSONReq(t, http.MethodPost, "/notifications/add", `{"type":"share",`, fh.AddNotificationHandler)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+}
+
+func TestAddNotificationHandler_MissingRequired(t *testing.T) {
+	rr, _ := doJSONReq(t, http.MethodPost, "/notifications/add", map[string]any{
+		"type": "share", "from": "u1", "to": "", "file_name": "doc", "file_id": "f1",
+	}, fh.AddNotificationHandler)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+}
+
+func TestAddNotificationHandler_DBNil(t *testing.T) {
+	prev := fh.DB
+	fh.DB = nil
+	defer func() { fh.DB = prev }()
+
+	rr, _ := doJSONReq(t, http.MethodPost, "/notifications/add", map[string]any{
+		"type": "share", "from": "u1", "to": "u2", "file_name": "doc", "file_id": "f1",
+	}, fh.AddNotificationHandler)
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+}
+
+func TestAddNotificationHandler_Success_ViewOnly(t *testing.T) {
+	sd := startPostgresNotif(t)
+	if sd.container != nil {
+		t.Cleanup(func() { _ = sd.container.Terminate(context.Background()) })
+	}
+	db := openDBNotif(t, sd.dsn)
+	t.Cleanup(func() { _ = db.Close() })
+	seedNotificationsSchema(t, db)
+
+	prev := fh.DB
+	fh.DB = db
+	t.Cleanup(func() { fh.DB = prev })
+
+	rr, body := doJSONReq(t, http.MethodPost, "/notifications/add", map[string]any{
+		"type": "share", "from": "u1", "to": "u2",
+		"file_name": "doc", "file_id": "f1", "message": "hey",
+		"viewOnly": true, 
+	}, fh.AddNotificationHandler)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	var resp map[string]any
+	require.NoError(t, json.Unmarshal(body, &resp))
+	assert.Equal(t, true, resp["success"])
+	require.NotEmpty(t, resp["id"])
+}
+
+func TestAddNotificationHandler_Success_WithReceivedFileID(t *testing.T) {
+	sd := startPostgresNotif(t)
+	if sd.container != nil {
+		t.Cleanup(func() { _ = sd.container.Terminate(context.Background()) })
+	}
+	db := openDBNotif(t, sd.dsn)
+	t.Cleanup(func() { _ = db.Close() })
+	seedNotificationsSchema(t, db)
+
+	prev := fh.DB
+	fh.DB = db
+	t.Cleanup(func() { fh.DB = prev })
+
+	rr, body := doJSONReq(t, http.MethodPost, "/notifications/add", map[string]any{
+		"type": "share", "from": "u1", "to": "u2",
+		"file_name": "doc", "file_id": "f1", "message": "attach",
+		"receivedFileID": "rf-1",
+	}, fh.AddNotificationHandler)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	var resp map[string]any
+	require.NoError(t, json.Unmarshal(body, &resp))
+	assert.Equal(t, true, resp["success"])
+	require.NotEmpty(t, resp["id"])
+}
