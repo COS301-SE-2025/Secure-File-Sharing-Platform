@@ -1,138 +1,152 @@
-// package fileHandler_test
+//go:build integration
+// +build integration
 
 package integration_test
 
-// import (
-// 	"bytes"
-// 	"encoding/json"
-// 	"errors"
-// 	"net/http"
-// 	"net/http/httptest"
-// 	"testing"
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"testing"
 
-// 	"bou.ke/monkey"
-// 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler"
-// 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/metadata"
-// 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
-// 	"github.com/stretchr/testify/assert"
-// )
+	monkey "bou.ke/monkey"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
-// func TestDeleteFileHandler(t *testing.T) {
-// 	t.Run("Successful Deletion", func(t *testing.T) {: Patch owncloud and metadata functions
-// 		monkey.Patch(owncloud.DeleteFile, func(fileID, userID string) error {
-// 			return nil
-// 		})
-// 		defer monkey.Unpatch(owncloud.DeleteFile)
+	fh "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler"
+	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/metadata"
+	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
+)
 
-// 		monkey.Patch(metadata.DeleteFileMetadata, func(fileID string) error {
-// 			return nil
-// 		})
-// 		defer monkey.Unpatch(metadata.DeleteFileMetadata)
+func doDeleteReq(t *testing.T, body any) (*httptest.ResponseRecorder, []byte) {
+	t.Helper()
 
-// 		reqBody, _ := json.Marshal(fileHandler.DeleteRequest{
-// 			FileId: "file123",
-// 			UserID: "user456",
-// 		})
-// 		req := httptest.NewRequest(http.MethodPost, "/delete", bytes.NewReader(reqBody))
-// 		req.Header.Set("Content-Type", "application/json")
-// 		w := httptest.NewRecorder()
+	var rdr io.Reader
+	switch v := body.(type) {
+	case string:
+		rdr = bytes.NewBufferString(v)
+	case []byte:
+		rdr = bytes.NewBuffer(v)
+	default:
+		b, err := json.Marshal(v)
+		require.NoError(t, err)
+		rdr = bytes.NewBuffer(b)
+	}
 
-// 		fileHandler.DeleteFileHandler(w, req)
+	req := httptest.NewRequest(http.MethodPost, "/delete", rdr)
+	rr := httptest.NewRecorder()
 
-// 		assert.Equal(t, http.StatusOK, w.Code)
-// 		var response map[string]string
-// 		err := json.NewDecoder(w.Body).Decode(&response)
-// 		assert.NoError(t, err)
-// 		assert.Equal(t, "File successfully deleted", response["message"])
-// 	})
+	fh.DeleteFileHandler(rr, req)
+	return rr, rr.Body.Bytes()
+}
 
-// 	t.Run("Missing FileID", func(t *testing.T) {
-// 		reqBody, _ := json.Marshal(fileHandler.DeleteRequest{
-// 			FileId: "",
-// 			UserID: "user456",
-// 		})
-// 		req := httptest.NewRequest(http.MethodPost, "/delete", bytes.NewReader(reqBody))
-// 		req.Header.Set("Content-Type", "application/json")
-// 		w := httptest.NewRecorder()
+func TestDeleteFileHandler_InvalidJSON(t *testing.T) {
+	t.Cleanup(monkey.UnpatchAll)
 
-// 		fileHandler.DeleteFileHandler(w, req)
-// 		assert.Equal(t, http.StatusBadRequest, w.Code)
-// 		assert.Contains(t, w.Body.String(), "Missing fileId")
-// 	})
+	rr, body := doDeleteReq(t, `{"fileId": "abc", "userId":`)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, string(body), "Invalid JSON payload")
+}
 
-// 	t.Run("Missing UserID", func(t *testing.T) {
-// 		reqBody, _ := json.Marshal(fileHandler.DeleteRequest{
-// 			FileId: "file123",
-// 			UserID: "",
-// 		})
-// 		req := httptest.NewRequest(http.MethodPost, "/delete", bytes.NewReader(reqBody))
-// 		req.Header.Set("Content-Type", "application/json")
-// 		w := httptest.NewRecorder()
+func TestDeleteFileHandler_MissingFileID(t *testing.T) {
+	t.Cleanup(monkey.UnpatchAll)
 
-// 		fileHandler.DeleteFileHandler(w, req)
+	rr, body := doDeleteReq(t, map[string]string{
+		"fileId": "",
+		"userId": "user-1",
+	})
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, string(body), "Missing fileId")
+}
 
-// 		assert.Equal(t, http.StatusBadRequest, w.Code)
-// 		assert.Contains(t, w.Body.String(), "Missing UserID")
-// 	})
+func TestDeleteFileHandler_MissingUserID(t *testing.T) {
+	t.Cleanup(monkey.UnpatchAll)
 
-// 	t.Run("Invalid JSON Payload", func(t *testing.T) {
-// 		req := httptest.NewRequest(http.MethodPost, "/delete", bytes.NewReader([]byte("{invalid json}")))
-// 		req.Header.Set("Content-Type", "application/json")
-// 		w := httptest.NewRecorder()
+	rr, body := doDeleteReq(t, map[string]string{
+		"fileId": "file-1",
+		"userId": "",
+	})
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, string(body), "Missing UserID")
+}
 
-// 		fileHandler.DeleteFileHandler(w, req)
+func TestDeleteFileHandler_OwnCloudDeleteFails(t *testing.T) {
+	t.Cleanup(monkey.UnpatchAll)
 
-// 		assert.Equal(t, http.StatusBadRequest, w.Code)
-// 		assert.Contains(t, w.Body.String(), "Invalid JSON payload")
-// 	})
+	var gotFileID, gotUserID string
+	monkey.Patch(owncloud.DeleteFile, func(fileID, userID string) error {
+		gotFileID, gotUserID = fileID, userID
+		return fmt.Errorf("simulated owncloud failure")
+	})
+	monkey.Patch(metadata.DeleteFileMetadata, func(fileID string) error {
+		return fmt.Errorf("metadata should not have been called")
+	})
 
-// 	t.Run("OwnCloud Delete Failure", func(t *testing.T) {
-// 		monkey.Patch(owncloud.DeleteFile, func(fileID, userID string) error {
-// 			return errors.New("OwnCloud error")
-// 		})
-// 		defer monkey.Unpatch(owncloud.DeleteFile)
+	rr, body := doDeleteReq(t, map[string]string{
+		"fileId": "file-123",
+		"userId": "user-abc",
+	})
 
-// 		monkey.Patch(metadata.DeleteFileMetadata, func(fileID string) error {
-// 			return nil
-// 		})
-// 		defer monkey.Unpatch(metadata.DeleteFileMetadata)
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.Contains(t, string(body), "File delete failed")
+	assert.Equal(t, "file-123", gotFileID)
+	assert.Equal(t, "user-abc", gotUserID)
+}
 
-// 		reqBody, _ := json.Marshal(fileHandler.DeleteRequest{
-// 			FileId: "file123",
-// 			UserID: "user456",
-// 		})
-// 		req := httptest.NewRequest(http.MethodPost, "/delete", bytes.NewReader(reqBody))
-// 		req.Header.Set("Content-Type", "application/json")
-// 		w := httptest.NewRecorder()
+func TestDeleteFileHandler_MetadataDeleteFails(t *testing.T) {
+	t.Cleanup(monkey.UnpatchAll)
 
-// 		fileHandler.DeleteFileHandler(w, req)
+	var owncloudCalled bool
+	monkey.Patch(owncloud.DeleteFile, func(fileID, userID string) error {
+		owncloudCalled = true
+		return nil
+	})
+	monkey.Patch(metadata.DeleteFileMetadata, func(fileID string) error {
+		return fmt.Errorf("simulated metadata failure")
+	})
 
-// 		assert.Equal(t, http.StatusInternalServerError, w.Code)
-// 		assert.Contains(t, w.Body.String(), "File delete failed")
-// 	})
+	rr, body := doDeleteReq(t, map[string]string{
+		"fileId": "file-xyz",
+		"userId": "user-999",
+	})
 
-// 	t.Run("Metadata Delete Failure", func(t *testing.T) {
-// 		monkey.Patch(owncloud.DeleteFile, func(fileID, userID string) error {
-// 			return nil
-// 		})
-// 		defer monkey.Unpatch(owncloud.DeleteFile)
+	assert.True(t, owncloudCalled, "owncloud.DeleteFile should be called before metadata")
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.Contains(t, string(body), "File delete failed")
+}
 
-// 		monkey.Patch(metadata.DeleteFileMetadata, func(fileID string) error {
-// 			return errors.New("Metadata error")
-// 		})
-// 		defer monkey.Unpatch(metadata.DeleteFileMetadata)
+func TestDeleteFileHandler_Success(t *testing.T) {
+	t.Cleanup(monkey.UnpatchAll)
 
-// 		reqBody, _ := json.Marshal(fileHandler.DeleteRequest{
-// 			FileId: "file123",
-// 			UserID: "user456",
-// 		})
-// 		req := httptest.NewRequest(http.MethodPost, "/delete", bytes.NewReader(reqBody))
-// 		req.Header.Set("Content-Type", "application/json")
-// 		w := httptest.NewRecorder()
+	var owncloudCalled, metadataCalled bool
+	var ocFile, ocUser, mdFile string
 
-// 		fileHandler.DeleteFileHandler(w, req)
+	monkey.Patch(owncloud.DeleteFile, func(fileID, userID string) error {
+		owncloudCalled = true
+		ocFile, ocUser = fileID, userID
+		return nil
+	})
+	monkey.Patch(metadata.DeleteFileMetadata, func(fileID string) error {
+		metadataCalled = true
+		mdFile = fileID
+		return nil
+	})
 
-// 		assert.Equal(t, http.StatusInternalServerError, w.Code)
-// 		assert.Contains(t, w.Body.String(), "File delete failed")
-// 	})
-// }
+	rr, body := doDeleteReq(t, map[string]string{
+		"fileId": "f-42",
+		"userId": "u-7",
+	})
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Header().Get("Content-Type"), "application/json")
+	assert.Contains(t, string(body), "File successfully deleted")
+
+	assert.True(t, owncloudCalled)
+	assert.True(t, metadataCalled)
+	assert.Equal(t, "f-42", ocFile)
+	assert.Equal(t, "u-7", ocUser)
+	assert.Equal(t, "f-42", mdFile)
+}
