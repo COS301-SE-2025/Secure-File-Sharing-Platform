@@ -14,68 +14,15 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	//"os"
 	"testing"
-	//"time"
-
-	//nat "github.com/docker/go-connections/nat"
 	monkey "bou.ke/monkey"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	//"github.com/testcontainers/testcontainers-go"
-	//"github.com/testcontainers/testcontainers-go/wait"
-
-	// SUT
 	fh "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler"
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
 
 	_ "github.com/lib/pq"
 )
-
-// func startPostgresContainer(t *testing.T) (testcontainers.Container, string) {
-// 	t.Helper()
-// 	ctx := context.Background()
-
-// 	const (
-// 		user   = "testuser"
-// 		pass   = "testpass"
-// 		dbname = "testdb"
-// 	)
-
-// 	req := testcontainers.ContainerRequest{
-// 		Image:        "postgres:16-alpine",
-// 		ExposedPorts: []string{"5432/tcp"},
-// 		Env: map[string]string{
-// 			"POSTGRES_USER":     user,
-// 			"POSTGRES_PASSWORD": pass,
-// 			"POSTGRES_DB":       dbname,
-// 		},
-// 		WaitingFor: wait.ForSQL(
-// 			"5432/tcp", "postgres",
-// 			func(host string, port nat.Port) string {
-// 				return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-// 					user, pass, host, port.Port(), dbname)
-// 			},
-// 		).WithStartupTimeout(120 * time.Second),
-// 	}
-
-// 	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-// 		ContainerRequest: req,
-// 		Started:          true,
-// 	})
-// 	require.NoError(t, err, "failed to start postgres container")
-
-// 	host, err := c.Host(ctx)
-// 	require.NoError(t, err)
-
-// 	mapped, err := c.MappedPort(ctx, "5432/tcp")
-// 	require.NoError(t, err)
-
-// 	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-// 		user, pass, host, mapped.Port(), dbname)
-// 	return c, dsn
-// }
 
 func mustOpenDB(t *testing.T, dsn string) *sql.DB {
 	t.Helper()
@@ -87,8 +34,6 @@ func mustOpenDB(t *testing.T, dsn string) *sql.DB {
 
 func seedSchema(t *testing.T, db *sql.DB) {
 	t.Helper()
-	// Minimal schema to satisfy the handler's query.
-	// Types are TEXT so we don't care what your prod schema is.
 	_, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS files (
 			id TEXT PRIMARY KEY,
@@ -131,10 +76,6 @@ func doJSON(t *testing.T, method, path string, body any, h http.HandlerFunc) (*h
 	return rr, rr.Body.Bytes()
 }
 
-// ————————————————————————————————
-// DownloadHandler tests
-// ————————————————————————————————
-
 func TestDownloadHandler_InvalidJSON(t *testing.T) {
 	t.Cleanup(monkey.UnpatchAll)
 	rr, body := doJSON(t, http.MethodPost, "/download", `{"userId":"u1",`, fh.DownloadHandler)
@@ -155,14 +96,12 @@ func TestDownloadHandler_MissingFields(t *testing.T) {
 func TestDownloadHandler_NotFound(t *testing.T) {
 	t.Cleanup(monkey.UnpatchAll)
 
-	// Start DB
 	c, dsn := startPostgresContainer(t)
 	t.Cleanup(func() { _ = c.Terminate(context.Background()) })
 	db := mustOpenDB(t, dsn)
 	t.Cleanup(func() { _ = db.Close() })
 	seedSchema(t, db)
 
-	// Inject DB into handler
 	prevDB := fh.DB
 	fh.DB = db
 	t.Cleanup(func() { fh.DB = prevDB })
@@ -178,7 +117,6 @@ func TestDownloadHandler_NotFound(t *testing.T) {
 func TestDownloadHandler_OwncloudError(t *testing.T) {
 	t.Cleanup(monkey.UnpatchAll)
 
-	// Start DB + seed 1 row
 	c, dsn := startPostgresContainer(t)
 	t.Cleanup(func() { _ = c.Terminate(context.Background()) })
 	db := mustOpenDB(t, dsn)
@@ -194,12 +132,10 @@ func TestDownloadHandler_OwncloudError(t *testing.T) {
 	fileHash := hex.EncodeToString(hash[:])
 	insertFileRow(t, db, fileID, userID, fileName, nonce, fileHash, "cid-xyz")
 
-	// Inject DB
 	prevDB := fh.DB
 	fh.DB = db
 	t.Cleanup(func() { fh.DB = prevDB })
 
-	// Patch OwnCloud download to return an error
 	monkey.Patch(owncloud.DownloadFileStream, func(fid string) (io.ReadCloser, error) {
 		return nil, fmt.Errorf("simulated owncloud failure")
 	})
@@ -216,7 +152,6 @@ func TestDownloadHandler_OwncloudError(t *testing.T) {
 func TestDownloadHandler_Success_StreamsWithHeaders_AndBody(t *testing.T) {
 	t.Cleanup(monkey.UnpatchAll)
 
-	// Start DB + seed
 	c, dsn := startPostgresContainer(t)
 	t.Cleanup(func() { _ = c.Terminate(context.Background()) })
 	db := mustOpenDB(t, dsn)
@@ -233,12 +168,10 @@ func TestDownloadHandler_Success_StreamsWithHeaders_AndBody(t *testing.T) {
 
 	insertFileRow(t, db, fileID, userID, fileName, nonce, fileHash, "cid-any")
 
-	// Inject DB
 	prevDB := fh.DB
 	fh.DB = db
 	t.Cleanup(func() { fh.DB = prevDB })
 
-	// Patch OwnCloud stream to return our content
 	monkey.Patch(owncloud.DownloadFileStream, func(fid string) (io.ReadCloser, error) {
 		require.Equal(t, fileID, fid)
 		return io.NopCloser(bytes.NewReader(content)), nil
@@ -251,7 +184,6 @@ func TestDownloadHandler_Success_StreamsWithHeaders_AndBody(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, rr.Code)
 
-	// Headers
 	assert.Equal(t, "application/octet-stream", rr.Header().Get("Content-Type"))
 	assert.Equal(t, fileName, rr.Header().Get("X-File-Name"))
 	assert.Equal(t, nonce, rr.Header().Get("X-Nonce"))
@@ -259,13 +191,8 @@ func TestDownloadHandler_Success_StreamsWithHeaders_AndBody(t *testing.T) {
 	assert.Contains(t, disp, "attachment;")
 	assert.Contains(t, disp, fileName)
 
-	// Body (streamed content)
 	assert.Equal(t, content, body)
 }
-
-// ————————————————————————————————
-// DownloadSentFile tests
-// ————————————————————————————————
 
 func TestDownloadSentFile_InvalidJSON(t *testing.T) {
 	t.Cleanup(monkey.UnpatchAll)
