@@ -3,396 +3,575 @@
 
 package integration_test
 
-// import (
-// 	"bytes"
-// 	"context"
-// 	"crypto/sha256"
-// 	"database/sql"
-// 	"encoding/hex"
-// 	"encoding/json"
-// 	"fmt"
-// 	"io"
-// 	"mime/multipart"
-// 	"net/http"
-// 	"net/http/httptest"
-// 	"os"
-// 	"path/filepath"
-// 	"strings"
-// 	"testing"
-// 	"time"
+import (
+	"bytes"
+	"context"
+	"crypto/sha256"
+	"database/sql"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"io"
+	"mime/multipart"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"strings"
+	"testing"
+	"time"
 
-// 	"bou.ke/monkey"
-// 	_ "github.com/lib/pq"
-// 	"github.com/stretchr/testify/assert"
-// 	"github.com/stretchr/testify/require"
-// 	"github.com/testcontainers/testcontainers-go"
-// 	"github.com/testcontainers/testcontainers-go/wait"
+	nat "github.com/docker/go-connections/nat"
+	monkey "bou.ke/monkey"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/wait"
 
-// 	fh "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler"
-// 	oc "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
-// )
+	fh "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler"
+	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
 
-// /* ----------------------------- Test Harness ----------------------------- */
+	_ "github.com/lib/pq"
+)
 
-// type pgEnv struct {
-// 	DB         *sql.DB
-// 	terminate  func()
-// 	tmpOC      string
-// 	unpatchAll func()
-// }
+type startedDBUp struct {
+	container testcontainers.Container
+	dsn       string
+}
 
-// func setup(t *testing.T) *pgEnv {
-// 	t.Helper()
+func startPostgresUp(t *testing.T) startedDBUp {
+	t.Helper()
 
-// 	// 1) Start Postgres in a container
-// 	ctx := context.Background()
-// 	req := testcontainers.ContainerRequest{
-// 		Image:        "postgres:16-alpine",
-// 		ExposedPorts: []string{"5432/tcp"},
-// 		Env: map[string]string{
-// 			"POSTGRES_USER":     "test",
-// 			"POSTGRES_PASSWORD": "test",
-// 			"POSTGRES_DB":       "testdb",
-// 		},
-// 		WaitingFor: wait.ForAll(
-// 			wait.ForListeningPort("5432/tcp"),
-// 			wait.ForLog("database system is ready to accept connections"),
-// 		).WithDeadline(60 * time.Second),
-// 	}
-// 	pgC, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-// 		ContainerRequest: req, Started: true,
-// 	})
-// 	require.NoError(t, err, "failed to start postgres container")
+	if dsn := os.Getenv("POSTGRES_TEST_DSN"); dsn != "" {
+		return startedDBUp{dsn: dsn}
+	}
 
-// 	host, err := pgC.Host(ctx)
-// 	require.NoError(t, err)
-// 	mapped, err := pgC.MappedPort(ctx, "5432")
-// 	require.NoError(t, err)
+	ctx := context.Background()
+	const (
+		user = "testuser"
+		pass = "testpass"
+		db   = "testdb"
+	)
+	req := testcontainers.ContainerRequest{
+		Image:        "postgres:16-alpine",
+		ExposedPorts: []string{"5432/tcp"},
+		Env: map[string]string{
+			"POSTGRES_USER":     user,
+			"POSTGRES_PASSWORD": pass,
+			"POSTGRES_DB":       db,
+		},
+		WaitingFor: wait.ForSQL("5432/tcp", "postgres",
+			func(host string, port nat.Port) string {
+				return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+					user, pass, host, port.Port(), db)
+			}).WithStartupTimeout(120 * time.Second),
+	}
 
-// 	dsn := fmt.Sprintf("postgres://test:test@%s:%s/testdb?sslmode=disable", host, mapped.Port())
-// 	db, err := sql.Open("postgres", dsn)
-// 	if err != nil {
-// 		_ = pgC.Terminate(ctx)
-// 		require.NoError(t, err)
-// 	}
+	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: req,
+		Started:          true,
+	})
+	if err != nil && strings.Contains(err.Error(), "permission denied while trying to connect to the Docker daemon socket") {
+		t.Skipf("Skipping DB-backed tests: Docker not accessible (%v). Set POSTGRES_TEST_DSN to reuse an existing DB.", err)
+	}
+	require.NoError(t, err, "failed to start postgres container")
 
-// 	// Wait for ping
-// 	deadline := time.Now().Add(30 * time.Second)
-// 	for {
-// 		if err := db.Ping(); err == nil {
-// 			break
-// 		}
-// 		if time.Now().After(deadline) {
-// 			_ = pgC.Terminate(ctx)
-// 			require.FailNow(t, "db ping never succeeded", "%v", err)
-// 		}
-// 		time.Sleep(250 * time.Millisecond)
-// 	}
+	host, err := c.Host(ctx)
+	require.NoError(t, err)
+	mp, err := c.MappedPort(ctx, "5432/tcp")
+	require.NoError(t, err)
 
-// 	// 2) Minimal schema matching handlers
-// 	const schema = `
-// CREATE TABLE IF NOT EXISTS files (
-//   id          TEXT PRIMARY KEY DEFAULT md5(random()::text),
-//   owner_id    TEXT NOT NULL,
-//   file_name   TEXT NOT NULL,
-//   file_type   TEXT,
-//   file_hash   TEXT NOT NULL,
-//   nonce       TEXT,
-//   description TEXT,
-//   tags        TEXT[],
-//   cid         TEXT,
-//   file_size   BIGINT,
-//   created_at  TIMESTAMP NOT NULL
-// );`
-// 	_, err = db.Exec(schema)
-// 	if err != nil {
-// 		_ = pgC.Terminate(ctx)
-// 		require.NoError(t, err, "create schema")
-// 	}
+	return startedDBUp{
+		container: c,
+		dsn:       fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", user, pass, host, mp.Port(), db),
+	}
+}
 
-// 	// 3) Wire DB into handlers
-// 	fh.SetPostgreClient(db)
+func openDBUp(t *testing.T, dsn string) *sql.DB {
+	t.Helper()
+	db, err := sql.Open("postgres", dsn)
+	require.NoError(t, err)
+	require.NoError(t, db.Ping())
+	return db
+}
 
-// 	// 4) Patch OwnCloud functions to use a temp folder
-// 	tmpRoot := t.TempDir()
-// 	unpatch := patchOwnCloudToFS(t, tmpRoot)
+func seedFilesSchemaUp(t *testing.T, db *sql.DB) {
+	t.Helper()
+	_, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS files (
+			id TEXT PRIMARY KEY DEFAULT md5(random()::text),
+			owner_id TEXT NOT NULL,
+			file_name TEXT NOT NULL,
+			file_type TEXT DEFAULT 'file',
+			file_hash TEXT DEFAULT '',
+			nonce TEXT DEFAULT '',
+			description TEXT DEFAULT '',
+			tags TEXT[] DEFAULT '{}',
+			cid TEXT DEFAULT '',
+			file_size BIGINT DEFAULT 0,
+			created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+		);
+	`)
+	require.NoError(t, err)
+}
 
-// 	return &pgEnv{
-// 		DB: db,
-// 		terminate: func() {
-// 			_ = db.Close()
-// 			_ = pgC.Terminate(ctx)
-// 		},
-// 		tmpOC:      tmpRoot,
-// 		unpatchAll: unpatch,
-// 	}
-// }
+type memStoreUp struct{ m map[string][]byte }
 
-// func teardown(env *pgEnv) {
-// 	if env == nil {
-// 		return
-// 	}
-// 	env.unpatchAll()
-// 	env.terminate()
-// }
+func (s *memStoreUp) put(key string, data []byte) { s.m[key] = append([]byte(nil), data...) }
+func (s *memStoreUp) get(key string) ([]byte, bool) {
+	b, ok := s.m[key]
+	if !ok {
+		return nil, false
+	}
+	return append([]byte(nil), b...), true
+}
+func (s *memStoreUp) del(key string) { delete(s.m, key) }
 
-// // Replace owncloud.* calls with a file-system backed fake
-// func patchOwnCloudToFS(t *testing.T, root string) func() {
-// 	t.Helper()
-// 	join := func(parts ...string) string { return filepath.Join(append([]string{root}, parts...)...) }
+type memWCUp struct {
+	key   string
+	store *memStoreUp
+	buf   bytes.Buffer
+}
+func (w *memWCUp) Write(p []byte) (int, error) { return w.buf.Write(p) }
+func (w *memWCUp) Close() error {
+	w.store.put(w.key, w.buf.Bytes())
+	return nil
+}
 
-// 	p1 := monkey.Patch(oc.UploadFileStream, func(dir, name string, r io.Reader) error {
-// 		require.NoError(t, os.MkdirAll(join(dir), 0o755))
-// 		f, err := os.Create(join(dir, name))
-// 		if err != nil {
-// 			return err
-// 		}
-// 		defer f.Close()
-// 		_, err = io.Copy(f, r)
-// 		return err
-// 	})
+type ocHooksUp struct {
+	uploadHook func(path, name string, r io.Reader) error
+	createHook func(path, name string) (io.WriteCloser, error)
+	downloadHook func(path string) (io.ReadCloser, error)
+}
 
-// 	p2 := monkey.Patch(oc.CreateFileStream, func(dir, name string) (io.WriteCloser, error) {
-// 		require.NoError(t, os.MkdirAll(join(dir), 0o755))
-// 		return os.Create(join(dir, name))
-// 	})
+func patchOwncloudUp(t *testing.T, s *memStoreUp, hooks *ocHooksUp) {
+	t.Helper()
 
-// 	p3 := monkey.Patch(oc.DownloadFileStreamTemp, func(path string) (io.ReadCloser, error) {
-// 		return os.Open(join(path))
-// 	})
+	monkey.Patch(owncloud.UploadFileStream, func(path, name string, r io.Reader) error {
+		if hooks != nil && hooks.uploadHook != nil {
+			if err := hooks.uploadHook(path, name, r); err != nil {
+				return err
+			}
+		}
+		data, _ := io.ReadAll(r)
+		key := strings.TrimSuffix(path, "/") + "/" + name
+		s.put(key, data)
+		return nil
+	})
 
-// 	p4 := monkey.Patch(oc.DeleteFileTemp, func(path string) error {
-// 		return os.Remove(join(path))
-// 	})
+	monkey.Patch(owncloud.DownloadFileStreamTemp, func(chunkPath string) (io.ReadCloser, error) {
+		if hooks != nil && hooks.downloadHook != nil {
+			if rc, err := hooks.downloadHook(chunkPath); err != nil || rc != nil {
+				return rc, err
+			}
+		}
+		if b, ok := s.get(chunkPath); ok {
+			return io.NopCloser(bytes.NewReader(b)), nil
+		}
+		return nil, fmt.Errorf("temp chunk not found: %s", chunkPath)
+	})
 
-// 	return func() {
-// 		p1.Unpatch()
-// 		p2.Unpatch()
-// 		p3.Unpatch()
-// 		p4.Unpatch()
-// 	}
-// }
+	monkey.Patch(owncloud.DeleteFileTemp, func(chunkPath string) error {
+		s.del(chunkPath)
+		return nil
+	})
 
-// /* --------------------------- Helper HTTP utils -------------------------- */
+	monkey.Patch(owncloud.CreateFileStream, func(path, name string) (io.WriteCloser, error) {
+		if hooks != nil && hooks.createHook != nil {
+			return hooks.createHook(path, name)
+		}
+		key := strings.TrimSuffix(path, "/") + "/" + name
+		return &memWCUp{key: key, store: s}, nil
+	})
+}
 
-// func doJSON(t *testing.T, h http.HandlerFunc, method string, body any) *httptest.ResponseRecorder {
-// 	t.Helper()
-// 	var buf bytes.Buffer
-// 	if body != nil {
-// 		require.NoError(t, json.NewEncoder(&buf).Encode(body))
-// 	}
-// 	req := httptest.NewRequest(method, "/", &buf)
-// 	req.Header.Set("Content-Type", "application/json")
-// 	rr := httptest.NewRecorder()
-// 	h.ServeHTTP(rr, req)
-// 	return rr
-// }
+func makeMultipartUp(t *testing.T, fields map[string]string, fileField, fileName string, fileBytes []byte) (*bytes.Buffer, string) {
+	t.Helper()
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+	for k, v := range fields {
+		require.NoError(t, w.WriteField(k, v))
+	}
+	if fileField != "" {
+		fw, err := w.CreateFormFile(fileField, fileName)
+		require.NoError(t, err)
+		_, _ = fw.Write(fileBytes)
+	}
+	require.NoError(t, w.Close())
+	return &buf, w.FormDataContentType()
+}
 
-// func newMultipartUploadReq(
-// 	t *testing.T,
-// 	fields map[string]string,
-// 	fileField, fileName string,
-// 	fileBytes []byte,
-// ) (*http.Request, *httptest.ResponseRecorder) {
-// 	t.Helper()
+func TestUpload_InvalidContentType(t *testing.T) {
+	t.Cleanup(monkey.UnpatchAll)
+	req := httptest.NewRequest(http.MethodPost, "/upload", bytes.NewBufferString(`{}`))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
 
-// 	var body bytes.Buffer
-// 	w := multipart.NewWriter(&body)
+	fh.UploadHandler(rr, req)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+}
 
-// 	for k, v := range fields {
-// 		fw, err := w.CreateFormField(k)
-// 		require.NoError(t, err, "CreateFormField %s", k)
-// 		_, _ = io.Copy(fw, strings.NewReader(v))
-// 	}
+func TestUpload_MissingRequiredFields(t *testing.T) {
+	t.Cleanup(monkey.UnpatchAll)
+	s := &memStoreUp{m: map[string][]byte{}}
+	patchOwncloudUp(t, s, nil)
 
-// 	if fileField != "" {
-// 		fw, err := w.CreateFormFile(fileField, fileName) // use provided field name
-// 		require.NoError(t, err, "CreateFormFile")
-// 		_, err = fw.Write(fileBytes)
-// 		require.NoError(t, err, "write file bytes")
-// 	}
-// 	require.NoError(t, w.Close())
+	body, ctype := makeMultipartUp(t, map[string]string{
+		"userId": "u1",
+		"chunkIndex":  "0",
+		"totalChunks": "1",
+	}, "encryptedFile", "c0.bin", []byte("x"))
+	req := httptest.NewRequest(http.MethodPost, "/upload", body)
+	req.Header.Set("Content-Type", ctype)
+	rr := httptest.NewRecorder()
 
-// 	req := httptest.NewRequest(http.MethodPost, "/", &body)
-// 	req.Header.Set("Content-Type", w.FormDataContentType())
-// 	rr := httptest.NewRecorder()
-// 	return req, rr
-// }
+	fh.UploadHandler(rr, req)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+}
 
-// /* --------------------------------- TESTS -------------------------------- */
+func TestUpload_InvalidIndices_AndMissingFile(t *testing.T) {
+	t.Cleanup(monkey.UnpatchAll)
+	s := &memStoreUp{m: map[string][]byte{}}
+	patchOwncloudUp(t, s, nil)
 
-// func TestStartUploadHandler_Success(t *testing.T) {
-// 	env := setup(t)
-// 	defer teardown(env)
+	body1, ctype1 := makeMultipartUp(t, map[string]string{
+		"userId":      "u1",
+		"fileName":    "doc",
+		"fileType":    "application/octet-stream",
+		"fileHash":    "deadbeef",
+		"nonce":       "n1",
+		"chunkIndex":  "bad",
+		"totalChunks": "1",
+	}, "encryptedFile", "c0.bin", []byte("x"))
+	req1 := httptest.NewRequest(http.MethodPost, "/upload", body1)
+	req1.Header.Set("Content-Type", ctype1)
+	rr1 := httptest.NewRecorder()
+	fh.UploadHandler(rr1, req1)
+	assert.Equal(t, http.StatusBadRequest, rr1.Code)
 
-// 	payload := map[string]any{
-// 		"userId":          "u123",
-// 		"fileName":        "alpha.enc",
-// 		"fileType":        "application/octet-stream",
-// 		"fileDescription": "first upload",
-// 		"fileTags":        []string{"a", "b"},
-// 		"path":            "folderA",
-// 		"nonce":           "nonce-123",
-// 	}
+	body2, ctype2 := makeMultipartUp(t, map[string]string{
+		"userId":      "u1",
+		"fileName":    "doc",
+		"fileType":    "application/octet-stream",
+		"fileHash":    "deadbeef",
+		"nonce":       "n1",
+		"chunkIndex":  "0",
+		"totalChunks": "1",
+	}, "", "", nil)
+	req2 := httptest.NewRequest(http.MethodPost, "/upload", body2)
+	req2.Header.Set("Content-Type", ctype2)
+	rr2 := httptest.NewRecorder()
+	fh.UploadHandler(rr2, req2)
+	assert.Equal(t, http.StatusBadRequest, rr2.Code)
+}
 
-// 	rr := doJSON(t, fh.StartUploadHandler, http.MethodPost, payload)
-// 	require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+func TestUpload_FirstChunk_InsertsMetadata_AndACK(t *testing.T) {
+	t.Cleanup(monkey.UnpatchAll)
+	s := &memStoreUp{m: map[string][]byte{}}
+	patchOwncloudUp(t, s, nil)
 
-// 	var resp map[string]string
-// 	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
-// 	fileID := resp["fileId"]
-// 	require.NotEmpty(t, fileID, "fileId must be returned")
+	sd := startPostgresUp(t)
+	if sd.container != nil {
+		t.Cleanup(func() { _ = sd.container.Terminate(context.Background()) })
+	}
+	db := openDBUp(t, sd.dsn)
+	t.Cleanup(func() { _ = db.Close() })
+	seedFilesSchemaUp(t, db)
 
-// 	var owner, name, ftype, hash, nonce, desc, cid sql.NullString
-// 	var size sql.NullInt64
-// 	err := env.DB.QueryRow(`
-// 		SELECT owner_id,file_name,file_type,file_hash,nonce,description,cid,file_size
-// 		FROM files WHERE id=$1
-// 	`, fileID).Scan(&owner, &name, &ftype, &hash, &nonce, &desc, &cid, &size)
-// 	require.NoError(t, err)
+	prev := fh.DB
+	fh.DB = db
+	t.Cleanup(func() { fh.DB = prev })
 
-// 	assert.Equal(t, "u123", owner.String)
-// 	assert.Equal(t, "alpha.enc", name.String)
-// 	assert.Equal(t, "", hash.String)         // empty at start
-// 	assert.Equal(t, int64(0), size.Int64)    // size 0 at start
-// 	assert.Equal(t, "folderA", cid.String)   // StartUpload stores path directly
-// }
+	body, ctype := makeMultipartUp(t, map[string]string{
+		"userId":      "uX",
+		"fileName":    "big.bin",
+		"fileType":    "application/octet-stream",
+		"fileHash":    "abc123",
+		"nonce":       "nX",
+		"chunkIndex":  "0",
+		"totalChunks": "3",
+	}, "encryptedFile", "c0.bin", []byte("AAA"))
+	req := httptest.NewRequest(http.MethodPost, "/upload", body)
+	req.Header.Set("Content-Type", ctype)
+	rr := httptest.NewRecorder()
 
-// func TestUploadHandler_ChunkedMerge_Success_DefaultPath(t *testing.T) {
-// 	env := setup(t)
-// 	defer teardown(env)
+	fh.UploadHandler(rr, req)
+	assert.Equal(t, http.StatusOK, rr.Code)
 
-// 	// Build two chunks
-// 	ch0 := []byte("hello ")
-// 	ch1 := []byte("world")
-// 	all := append(append([]byte{}, ch0...), ch1...)
-// 	sum := sha256.Sum256(all)
-// 	wantHash := hex.EncodeToString(sum[:])
-// 	wantSize := int64(len(all))
+	var resp map[string]string
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
+	require.NotEmpty(t, resp["fileId"])
+	assert.Contains(t, resp["message"], "Chunk 0 uploaded")
 
-// 	// 1) First chunk (no fileId, chunkIndex=0)
-// 	fields1 := map[string]string{
-// 		"userId":         "uX",
-// 		"fileName":       "greeting.enc",
-// 		"fileType":       "application/octet-stream",
-// 		"fileHash":       "placeholder",
-// 		"nonce":          "nonce-xyz",
-// 		"fileDescription":"desc",
-// 		"fileTags":       `["tag1","tag2"]`,
-// 		"chunkIndex":     "0",
-// 		"totalChunks":    "2",
-// 		// no fileId, no path → default path "files"
-// 	}
+	var count int
+	require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM files WHERE id=$1 AND owner_id='uX'`, resp["fileId"]).Scan(&count))
+	assert.Equal(t, 1, count)
 
-// 	req1, rr1 := newMultipartUploadReq(t, fields1, "encryptedFile", "c0.bin", ch0)
-// 	fh.UploadHandler(rr1, req1)
-// 	require.Equal(t, http.StatusOK, rr1.Code, rr1.Body.String())
+	b, ok := s.get("temp/" + resp["fileId"] + "_chunk_0")
+	require.True(t, ok)
+	assert.Equal(t, []byte("AAA"), b)
+}
 
-// 	var resp1 map[string]string
-// 	require.NoError(t, json.Unmarshal(rr1.Body.Bytes(), &resp1))
-// 	fileID := resp1["fileId"]
-// 	require.NotEmpty(t, fileID, "first chunk must return fileId")
+func TestUpload_SingleChunk_FullMerge_UpdatesDB_AndStoresFinal(t *testing.T) {
+	t.Cleanup(monkey.UnpatchAll)
 
-// 	// 2) Second (last) chunk → triggers merge
-// 	fields2 := map[string]string{
-// 		"userId":         "uX",
-// 		"fileName":       "greeting.enc",
-// 		"fileType":       "application/octet-stream",
-// 		"fileHash":       "placeholder",
-// 		"nonce":          "nonce-xyz",
-// 		"fileDescription":"desc",
-// 		"fileTags":       `["tag1","tag2"]`,
-// 		"chunkIndex":     "1",
-// 		"totalChunks":    "2",
-// 		"fileId":         fileID,
-// 	}
+	s := &memStoreUp{m: map[string][]byte{}}
+	patchOwncloudUp(t, s, nil)
 
-// 	req2, rr2 := newMultipartUploadReq(t, fields2, "encryptedFile", "c1.bin", ch1)
-// 	fh.UploadHandler(rr2, req2)
-// 	require.Equal(t, http.StatusOK, rr2.Code, rr2.Body.String())
+	sd := startPostgresUp(t)
+	if sd.container != nil {
+		t.Cleanup(func() { _ = sd.container.Terminate(context.Background()) })
+	}
+	db := openDBUp(t, sd.dsn)
+	t.Cleanup(func() { _ = db.Close() })
+	seedFilesSchemaUp(t, db)
 
-// 	var resp2 map[string]string
-// 	require.NoError(t, json.Unmarshal(rr2.Body.Bytes(), &resp2))
-// 	assert.Equal(t, "File uploaded and metadata stored", resp2["message"])
-// 	assert.Equal(t, fileID, resp2["fileId"])
+	prev := fh.DB
+	fh.DB = db
+	t.Cleanup(func() { fh.DB = prev })
 
-// 	// Check merged file bytes on fake OwnCloud
-// 	mergedPath := filepath.Join(env.tmpOC, "files", fileID)
-// 	gotBytes, err := os.ReadFile(mergedPath)
-// 	require.NoError(t, err)
-// 	assert.Equal(t, "hello world", string(gotBytes))
+	content := []byte("HELLO WORLD")
+	body, ctype := makeMultipartUp(t, map[string]string{
+		"userId":       "uZ",
+		"fileName":     "one.bin",
+		"fileType":     "application/octet-stream",
+		"fileHash":     "ignored-by-handler",
+		"nonce":        "nZ",
+		"chunkIndex":   "0",
+		"totalChunks":  "1",
+		"path":         "customdir",
+	}, "encryptedFile", "all.bin", content)
 
-// 	// Check DB: hash/size/cid
-// 	var gotHash, gotCID string
-// 	var gotSize int64
-// 	require.NoError(t, env.DB.QueryRow(`
-// 		SELECT file_hash,file_size,cid FROM files WHERE id=$1
-// 	`, fileID).Scan(&gotHash, &gotSize, &gotCID))
+	req := httptest.NewRequest(http.MethodPost, "/upload", body)
+	req.Header.Set("Content-Type", ctype)
+	rr := httptest.NewRecorder()
 
-// 	assert.Equal(t, wantHash, gotHash)
-// 	assert.Equal(t, wantSize, gotSize)
-// 	assert.Equal(t, "files/"+fileID, gotCID) // default path
-// }
+	fh.UploadHandler(rr, req)
+	assert.Equal(t, http.StatusOK, rr.Code)
 
-// func TestUploadHandler_SingleChunk_CustomPath(t *testing.T) {
-// 	env := setup(t)
-// 	defer teardown(env)
+	var resp map[string]string
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
+	fileID := resp["fileId"]
+	require.NotEmpty(t, fileID)
 
-// 	payload := []byte("only-one-chunk")
-// 	sum := sha256.Sum256(payload)
-// 	wantHash := hex.EncodeToString(sum[:])
-// 	wantSize := int64(len(payload))
+	finalKey := "files/" + fileID
+	b, ok := s.get(finalKey)
+	require.True(t, ok)
+	assert.Equal(t, content, b)
 
-// 	fields := map[string]string{
-// 		"userId":          "uZ",
-// 		"fileName":        "single.enc",
-// 		"fileType":        "application/octet-stream",
-// 		"fileHash":        "placeholder",
-// 		"nonce":           "n1",
-// 		"fileDescription": "single",
-// 		"fileTags":        `["x"]`,
-// 		"chunkIndex":      "0",
-// 		"totalChunks":     "1",
-// 		"path":            "my/folder", // override
-// 	}
+	var hash, cid string
+	var size int64
+	require.NoError(t, db.QueryRow(`SELECT file_hash,file_size,cid FROM files WHERE id=$1`, fileID).Scan(&hash, &size, &cid))
+	expHash := sha256.Sum256(content)
+	assert.Equal(t, hex.EncodeToString(expHash[:]), hash)
+	assert.Equal(t, int64(len(content)), size)
+	assert.Equal(t, "customdir/"+fileID, cid)
+}
 
-// 	req, rr := newMultipartUploadReq(t, fields, "encryptedFile", "one.bin", payload)
-// 	fh.UploadHandler(rr, req)
-// 	require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+func TestUpload_CreateFileStreamFail(t *testing.T) {
+	t.Cleanup(monkey.UnpatchAll)
 
-// 	var resp map[string]string
-// 	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
-// 	fileID := resp["fileId"]
-// 	require.NotEmpty(t, fileID)
+	s := &memStoreUp{m: map[string][]byte{}}
+	patchOwncloudUp(t, s, &ocHooksUp{
+		createHook: func(path, name string) (io.WriteCloser, error) {
+			return nil, fmt.Errorf("create stream failed")
+		},
+	})
 
-// 	var gotHash, gotCID string
-// 	var gotSize int64
-// 	require.NoError(t, env.DB.QueryRow(`
-// 		SELECT file_hash,file_size,cid FROM files WHERE id=$1
-// 	`, fileID).Scan(&gotHash, &gotSize, &gotCID))
+	sd := startPostgresUp(t)
+	if sd.container != nil {
+		t.Cleanup(func() { _ = sd.container.Terminate(context.Background()) })
+	}
+	db := openDBUp(t, sd.dsn)
+	t.Cleanup(func() { _ = db.Close() })
+	seedFilesSchemaUp(t, db)
 
-// 	assert.Equal(t, wantHash, gotHash)
-// 	assert.Equal(t, wantSize, gotSize)
-// 	assert.Equal(t, "my/folder/"+fileID, gotCID)
-// }
+	prev := fh.DB
+	fh.DB = db
+	t.Cleanup(func() { fh.DB = prev })
 
-// func TestUploadHandler_InvalidTagsJSON_Returns400(t *testing.T) {
-// 	env := setup(t)
-// 	defer teardown(env)
+	body, ctype := makeMultipartUp(t, map[string]string{
+		"userId":      "u1",
+		"fileName":    "f.bin",
+		"fileType":    "application/octet-stream",
+		"fileHash":    "x",
+		"nonce":       "n1",
+		"chunkIndex":  "0",
+		"totalChunks": "1",
+	}, "encryptedFile", "c0.bin", []byte("BYTES"))
+	req := httptest.NewRequest(http.MethodPost, "/upload", body)
+	req.Header.Set("Content-Type", ctype)
+	rr := httptest.NewRecorder()
 
-// 	fields := map[string]string{
-// 		"userId":          "uBad",
-// 		"fileName":        "bad.enc",
-// 		"fileType":        "application/octet-stream",
-// 		"fileHash":        "placeholder",
-// 		"nonce":           "n",
-// 		"fileDescription": "bad",
-// 		"fileTags":        `not-json`, // invalid JSON
-// 		"chunkIndex":      "0",
-// 		"totalChunks":     "1",
-// 	}
+	fh.UploadHandler(rr, req)
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.Contains(t, rr.Body.String(), "File assembly failed")
+}
 
-// 	req, rr := newMultipartUploadReq(t, fields, "encryptedFile", "x.bin", []byte("abc"))
-// 	fh.UploadHandler(rr, req)
-// 	require.Equal(t, http.StatusBadRequest, rr.Code, rr.Body.String())
-// }
+func TestUpload_MergeFailsOnMissingChunk(t *testing.T) {
+	t.Cleanup(monkey.UnpatchAll)
+
+	s := &memStoreUp{m: map[string][]byte{}}
+	patchOwncloudUp(t, s, &ocHooksUp{
+		downloadHook: func(path string) (io.ReadCloser, error) {
+			return nil, fmt.Errorf("cannot open chunk")
+		},
+	})
+
+	sd := startPostgresUp(t)
+	if sd.container != nil {
+		t.Cleanup(func() { _ = sd.container.Terminate(context.Background()) })
+	}
+	db := openDBUp(t, sd.dsn)
+	t.Cleanup(func() { _ = db.Close() })
+	seedFilesSchemaUp(t, db)
+
+	prev := fh.DB
+	fh.DB = db
+	t.Cleanup(func() { fh.DB = prev })
+
+	body, ctype := makeMultipartUp(t, map[string]string{
+		"userId":      "u1",
+		"fileName":    "f.bin",
+		"fileType":    "application/octet-stream",
+		"fileHash":    "x",
+		"nonce":       "n1",
+		"chunkIndex":  "0",
+		"totalChunks": "1",
+	}, "encryptedFile", "c0.bin", []byte("BYTES"))
+	req := httptest.NewRequest(http.MethodPost, "/upload", body)
+	req.Header.Set("Content-Type", ctype)
+	rr := httptest.NewRecorder()
+
+	fh.UploadHandler(rr, req)
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Chunk merge failed")
+}
+
+func TestUpload_DBInsertError_NoSchema(t *testing.T) {
+	t.Cleanup(monkey.UnpatchAll)
+
+	s := &memStoreUp{m: map[string][]byte{}}
+	patchOwncloudUp(t, s, nil)
+
+	sd := startPostgresUp(t)
+	if sd.container != nil {
+		t.Cleanup(func() { _ = sd.container.Terminate(context.Background()) })
+	}
+	db := openDBUp(t, sd.dsn)
+	t.Cleanup(func() { _ = db.Close() })
+
+	prev := fh.DB
+	fh.DB = db
+	t.Cleanup(func() { fh.DB = prev })
+
+	body, ctype := makeMultipartUp(t, map[string]string{
+		"userId":      "u1",
+		"fileName":    "doc",
+		"fileType":    "application/octet-stream",
+		"fileHash":    "x",
+		"nonce":       "n1",
+		"chunkIndex":  "0",
+		"totalChunks": "3",
+	}, "encryptedFile", "c0.bin", []byte("AAA"))
+	req := httptest.NewRequest(http.MethodPost, "/upload", body)
+	req.Header.Set("Content-Type", ctype)
+	rr := httptest.NewRecorder()
+
+	fh.UploadHandler(rr, req)
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Failed to create file metadata")
+}
+
+func TestStartUpload_InvalidJSON(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/start", bytes.NewBufferString(`{"x":`))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	fh.StartUploadHandler(rr, req)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+}
+
+func TestStartUpload_MissingRequired(t *testing.T) {
+	body := map[string]any{
+		"userId":   "",
+		"fileName": "",
+	}
+	b, _ := json.Marshal(body)
+	req := httptest.NewRequest(http.MethodPost, "/start", bytes.NewBuffer(b))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	fh.StartUploadHandler(rr, req)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+}
+
+func TestStartUpload_Success_InsertsRow_ReturnsID(t *testing.T) {
+	sd := startPostgresUp(t)
+	if sd.container != nil {
+		t.Cleanup(func() { _ = sd.container.Terminate(context.Background()) })
+	}
+	db := openDBUp(t, sd.dsn)
+	t.Cleanup(func() { _ = db.Close() })
+	seedFilesSchemaUp(t, db)
+
+	prev := fh.DB
+	fh.DB = db
+	t.Cleanup(func() { fh.DB = prev })
+
+	reqBody := map[string]any{
+		"userId":          "U10",
+		"fileName":        "photo.jpg",
+		"fileType":        "image/jpeg",
+		"fileDescription": "desc",
+		"fileTags":        []string{"a", "b"},
+		"path":            "uploads",
+		"nonce":           "N-10",
+	}
+	b, _ := json.Marshal(reqBody)
+	req := httptest.NewRequest(http.MethodPost, "/start", bytes.NewBuffer(b))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	fh.StartUploadHandler(rr, req)
+	assert.Equal(t, http.StatusOK, rr.Code)
+
+	var resp map[string]string
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
+	fileID := resp["fileId"]
+	require.NotEmpty(t, fileID)
+
+	var owner, name, ftype, nonce, cid string
+	var size int64
+	require.NoError(t, db.QueryRow(`SELECT owner_id,file_name,file_type,nonce,cid,file_size FROM files WHERE id=$1`, fileID).
+		Scan(&owner, &name, &ftype, &nonce, &cid, &size))
+	assert.Equal(t, "U10", owner)
+	assert.Equal(t, "photo.jpg", name)
+	assert.Equal(t, "image/jpeg", ftype)
+	assert.Equal(t, "N-10", nonce)
+	assert.Equal(t, "uploads", cid)
+	assert.Equal(t, int64(0), size)
+}
+
+func TestStartUpload_DBError_NoSchema(t *testing.T) {
+	sd := startPostgresUp(t)
+	if sd.container != nil {
+		t.Cleanup(func() { _ = sd.container.Terminate(context.Background()) })
+	}
+	db := openDBUp(t, sd.dsn)
+	t.Cleanup(func() { _ = db.Close() })
+
+	prev := fh.DB
+	fh.DB = db
+	t.Cleanup(func() { fh.DB = prev })
+
+	reqBody := map[string]any{
+		"userId":   "U",
+		"fileName": "f",
+	}
+	b, _ := json.Marshal(reqBody)
+	req := httptest.NewRequest(http.MethodPost, "/start", bytes.NewBuffer(b))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	fh.StartUploadHandler(rr, req)
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Failed to start upload")
+}
