@@ -1,6 +1,6 @@
 // package fileHandler_test
 
-package integrationTests
+package integration_test
 
 // import (
 // 	"bytes"
