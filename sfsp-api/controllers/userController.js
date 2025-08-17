@@ -1,4 +1,5 @@
 const bcrypt = require("bcrypt");
+const axios = require("axios");
 const { supabase } = require("../config/database");
 const userService = require("../services/userService");
 const VaultController = require("./vaultController");
@@ -673,6 +674,19 @@ class UserController {
         } else {
           user = existingUser;
         }
+
+        // Ensure user is added to PostgreSQL database via file service (for both new and existing users)
+        try {
+          const postgresRes = await axios.post(
+            `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/addUser`,
+            { userId: user.id },
+            { headers: { "Content-Type": "application/json" } }
+          );
+          console.log("User successfully ensured in PostgreSQL database");
+        } catch (postgresError) {
+          console.error("Failed to add user to PostgreSQL database:", postgresError.message);
+          // Don't fail the login if PostgreSQL insertion fails
+        }
       } else {
         isNewUser = true;
         
@@ -724,6 +738,19 @@ class UserController {
             success: false,
             message: vaultres.error || "Failed to store private keys in vault.",
           });
+        }
+
+        // Add user to PostgreSQL database via file service
+        try {
+          const postgresRes = await axios.post(
+            `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/addUser`,
+            { userId: user.id },
+            { headers: { "Content-Type": "application/json" } }
+          );
+          console.log("Google user successfully added to PostgreSQL database");
+        } catch (postgresError) {
+          console.error("Failed to add Google user to PostgreSQL database:", postgresError.message);
+          // Don't fail the registration if PostgreSQL insertion fails
         }
 
         // Send verification email for new Google users using the backend service
