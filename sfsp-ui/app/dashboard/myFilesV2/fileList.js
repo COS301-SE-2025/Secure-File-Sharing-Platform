@@ -29,9 +29,8 @@ export function FileList({
   onDoubleClick,
   onMoveFile,
   onEnterFolder,
-  onGoBack,
-  currentPath,
   onRevokeViewAccess,
+  onChangeShareMethod, // <-- Add this prop
 }) {
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const [menuFile, setMenuFile] = useState(null);
@@ -158,11 +157,6 @@ export function FileList({
   // Check if file is view-only (either from tags or viewOnly property)
   const isViewOnly = (file) => {
     return file.viewOnly || (file.tags && file.tags.includes("view-only"));
-  };
-
-  // Check if current user is the owner (assuming owner files don't have "received" tag)
-  const isOwner = (file) => {
-    return !file.tags || !file.tags.includes("received");
   };
 
   return (
@@ -323,6 +317,7 @@ export function FileList({
 
           {menuFile?.type !== "folder" && <hr className="my-1" />}
 
+          {/* Revoke View Access */}
           {(isViewOnly(menuFile) || menuFile.allow_view_sharing) && onRevokeViewAccess && (
             <button
               onClick={() => {
@@ -333,6 +328,19 @@ export function FileList({
                 }`}
             >
               <EyeOff className="h-4 w-4" /> Revoke View Access
+            </button>
+          )}
+
+          {/* Change Share Method */}
+          {onChangeShareMethod && menuFile?.type !== "folder" && (
+            <button
+              onClick={() => {
+                onChangeShareMethod(menuFile);
+                setMenuFile(null);
+              }}
+              className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 dark:hover:bg-blue-200"
+            >
+              <Share className="h-4 w-4" /> Change Share Method
             </button>
           )}
 
