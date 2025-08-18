@@ -15,8 +15,6 @@ import (
 	fh "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler"
 )
 
-// --- Tests for NotificationHandler ---
-
 func TestNotificationHandler_Success(t *testing.T) {
 	mock, cleanup := SetupMockDB(t)
 	defer cleanup()
@@ -126,8 +124,6 @@ func TestNotificationHandler_EmptyResult(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
-// --- Tests for MarkAsReadHandler ---
-
 func TestMarkAsReadHandler_Success(t *testing.T) {
 	mock, cleanup := SetupMockDB(t)
 	defer cleanup()
@@ -204,7 +200,7 @@ func TestMarkAsReadHandler_NotificationNotFound(t *testing.T) {
 
 	mock.ExpectExec("UPDATE notifications SET read = TRUE WHERE id = \\$1").
 		WithArgs(notificationID).
-		WillReturnResult(sqlmock.NewResult(0, 0)) // 0 rows affected
+		WillReturnResult(sqlmock.NewResult(0, 0)) 
 
 	body := map[string]string{"id": notificationID}
 	req := NewJSONRequest(t, http.MethodPost, "/notifications/mark-read", body)
@@ -236,8 +232,6 @@ func TestMarkAsReadHandler_DBError(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
-// --- Tests for RespondToShareRequestHandler ---
-
 func TestRespondToShareRequestHandler_AcceptedWithReceivedFile(t *testing.T) {
 	mock, cleanup := SetupMockDB(t)
 	defer cleanup()
@@ -245,12 +239,10 @@ func TestRespondToShareRequestHandler_AcceptedWithReceivedFile(t *testing.T) {
 	notificationID := "notif-123"
 	status := "accepted"
 
-	// Mock the status update
 	mock.ExpectExec("UPDATE notifications SET status = \\$1, read = TRUE WHERE id = \\$2").
 		WithArgs(status, notificationID).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 
-	// Mock fetching notification info
 	notifRows := sqlmock.NewRows([]string{"file_id", "from", "to", "received_file_id"}).
 		AddRow("file-123", "sender-1", "recipient-1", "received-456")
 
@@ -258,7 +250,6 @@ func TestRespondToShareRequestHandler_AcceptedWithReceivedFile(t *testing.T) {
 		WithArgs(notificationID).
 		WillReturnRows(notifRows)
 
-	// Mock fetching received file metadata
 	metadataRows := sqlmock.NewRows([]string{"metadata"}).
 		AddRow(`{"key": "encrypted_key"}`)
 
@@ -266,7 +257,6 @@ func TestRespondToShareRequestHandler_AcceptedWithReceivedFile(t *testing.T) {
 		WithArgs("file-123", "recipient-1", "received-456").
 		WillReturnRows(metadataRows)
 
-	// Mock fetching file details
 	fileRows := sqlmock.NewRows([]string{"file_name", "file_type", "cid", "file_size"}).
 		AddRow("document.pdf", "application/pdf", "QmTest123", int64(1024))
 
@@ -302,12 +292,10 @@ func TestRespondToShareRequestHandler_AcceptedViewOnly(t *testing.T) {
 	notificationID := "notif-123"
 	status := "accepted"
 
-	// Mock the status update
 	mock.ExpectExec("UPDATE notifications SET status = \\$1, read = TRUE WHERE id = \\$2").
 		WithArgs(status, notificationID).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 
-	// Mock fetching notification info (no received_file_id)
 	notifRows := sqlmock.NewRows([]string{"file_id", "from", "to", "received_file_id"}).
 		AddRow("file-123", "sender-1", "recipient-1", sql.NullString{Valid: false})
 
@@ -315,7 +303,6 @@ func TestRespondToShareRequestHandler_AcceptedViewOnly(t *testing.T) {
 		WithArgs(notificationID).
 		WillReturnRows(notifRows)
 
-	// Mock fetching view-only metadata
 	metadataRows := sqlmock.NewRows([]string{"metadata"}).
 		AddRow(`{"view_key": "view_encrypted_key"}`)
 
@@ -323,7 +310,6 @@ func TestRespondToShareRequestHandler_AcceptedViewOnly(t *testing.T) {
 		WithArgs("sender-1", "recipient-1", "file-123").
 		WillReturnRows(metadataRows)
 
-	// Mock fetching file details
 	fileRows := sqlmock.NewRows([]string{"file_name", "file_type", "cid", "file_size"}).
 		AddRow("document.pdf", "application/pdf", "QmTest123", int64(1024))
 
@@ -425,7 +411,7 @@ func TestRespondToShareRequestHandler_NotificationNotFound(t *testing.T) {
 
 	mock.ExpectExec("UPDATE notifications SET status = \\$1, read = TRUE WHERE id = \\$2").
 		WithArgs(status, notificationID).
-		WillReturnResult(sqlmock.NewResult(0, 0)) // 0 rows affected
+		WillReturnResult(sqlmock.NewResult(0, 0)) 
 
 	body := map[string]string{"id": notificationID, "status": status}
 	req := NewJSONRequest(t, http.MethodPost, "/notifications/respond", body)
@@ -436,8 +422,6 @@ func TestRespondToShareRequestHandler_NotificationNotFound(t *testing.T) {
 	require.Equal(t, http.StatusNotFound, rr.Code)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
-
-// --- Tests for ClearNotificationHandler ---
 
 func TestClearNotificationHandler_Success(t *testing.T) {
 	mock, cleanup := SetupMockDB(t)
@@ -473,7 +457,7 @@ func TestClearNotificationHandler_NotificationNotFound(t *testing.T) {
 
 	mock.ExpectExec("DELETE FROM notifications WHERE id = \\$1").
 		WithArgs(notificationID).
-		WillReturnResult(sqlmock.NewResult(0, 0)) // 0 rows affected
+		WillReturnResult(sqlmock.NewResult(0, 0))
 
 	body := map[string]string{"id": notificationID}
 	req := NewJSONRequest(t, http.MethodPost, "/notifications/clear", body)
@@ -509,8 +493,6 @@ func TestClearNotificationHandler_MissingID(t *testing.T) {
 
 	require.Equal(t, http.StatusBadRequest, rr.Code)
 }
-
-// --- Tests for AddNotificationHandler ---
 
 func TestAddNotificationHandler_SuccessWithReceivedFileID(t *testing.T) {
 	mock, cleanup := SetupMockDB(t)
@@ -601,9 +583,8 @@ func TestAddNotificationHandler_MissingRequiredFields(t *testing.T) {
 
 	notification := map[string]interface{}{
 		"type": "share_request",
-		"from": "",  // missing
+		"from": "",
 		"to":   "recipient-1",
-		// other required fields missing
 	}
 
 	req := NewJSONRequest(t, http.MethodPost, "/notifications/add", notification)
@@ -644,8 +625,6 @@ func TestAddNotificationHandler_DBError(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
-// --- Table-driven tests for status validation ---
-
 func TestValidStatusValues(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -663,7 +642,6 @@ func TestValidStatusValues(t *testing.T) {
 	mockDB, cleanup := SetupMockDB(t)
 	defer cleanup()
 
-	// Set up expectations for all valid status updates
 	for _, tt := range tests {
 		if tt.valid {
 			mockDB.ExpectExec("UPDATE notifications SET status = \\$1, read = TRUE WHERE id = \\$2").
@@ -671,7 +649,6 @@ func TestValidStatusValues(t *testing.T) {
 				WillReturnResult(sqlmock.NewResult(1, 1))
 		}
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			body := map[string]string{"id": "notif-123", "status": tt.status}

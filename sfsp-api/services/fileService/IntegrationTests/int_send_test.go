@@ -1,266 +1,381 @@
-// package fileHandler_test
+//go:build integration
+// +build integration
 
-// import (
-// 	"bytes"
-// 	"database/sql"
-// 	"encoding/base64"
-// 	"encoding/json"
-// 	"fmt"
-// 	"net/http"
-// 	"net/http/httptest"
-// 	"testing"
-// 	"time"
+package integration_test
 
-// 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler"
-// 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/metadata"
-// 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
-// 	"github.com/stretchr/testify/assert"
-// 	"github.com/stretchr/testify/mock"
-// )
+import (
+	"bytes"
+	"database/sql"
+	//"encoding/json"
+	"fmt"
+	"io"
+	"mime/multipart"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+	"time"
 
-// // Mock dependencies
-// type MockOwnCloud struct {
-// 	mock.Mock
+	monkey "bou.ke/monkey"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	fh "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler"
+	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/metadata"
+	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
+)
+
+/* ------------------------------ helpers ----------------------------------- */
+
+//type memStore struct{ m map[string][]byte }
+
+// func (s *memStore) put(key string, data []byte) { s.m[key] = append([]byte(nil), data...) }
+// func (s *memStore) get(key string) ([]byte, bool) {
+// 	b, ok := s.m[key]
+// 	if !ok {
+// 		return nil, false
+// 	}
+// 	return append([]byte(nil), b...), true
 // }
+// func (s *memStore) del(key string) { delete(s.m, key) }
 
-// func (m *MockOwnCloud) UploadFile(targetPath, fileID string, fileBytes []byte) error {
-// 	args := m.Called(targetPath, fileID, fileBytes)
-// 	return args.Error(0)
-// }
+func patchOwncloud(t *testing.T, s *memStore, opts ...func(path, name string) error) {
+	t.Helper()
 
-// type MockMetadata struct {
-// 	mock.Mock
-// }
+	// optional hook for simulating errors on UploadFileStream
+	var uploadHook func(path, name string) error
+	if len(opts) > 0 {
+		uploadHook = opts[0]
+	}
 
-// func (m *MockMetadata) InsertReceivedFile(db *sql.DB, recipientId, senderId, fileId, metadataJson string, expiresAt time.Time) error {
-// 	args := m.Called(db, recipientId, senderId, fileId, metadataJson, expiresAt)
-// 	return args.Error(0)
-// }
+	monkey.Patch(owncloud.UploadFileStream, func(path, name string, r io.Reader) error {
+		if uploadHook != nil {
+			if err := uploadHook(path, name); err != nil {
+				return err
+			}
+		}
+		key := strings.TrimSuffix(path, "/") + "/" + name
+		data, _ := io.ReadAll(r)
+		s.put(key, data)
+		return nil
+	})
+	monkey.Patch(owncloud.DownloadFileStreamTemp, func(chunkPath string) (io.ReadCloser, error) {
+		if b, ok := s.get(chunkPath); ok {
+			return io.NopCloser(bytes.NewReader(b)), nil
+		}
+		return nil, fmt.Errorf("temp chunk not found: %s", chunkPath)
+	})
+	monkey.Patch(owncloud.DeleteFileTemp, func(chunkPath string) error {
+		s.del(chunkPath)
+		return nil
+	})
+}
 
-// func (m *MockMetadata) InsertSentFile(db *sql.DB, senderId, recipientId, fileId, encryptedFileKey, x3dhEphemeralPubKey string) error {
-// 	args := m.Called(db, senderId, recipientId, fileId, encryptedFileKey, x3dhEphemeralPubKey)
-// 	return args.Error(0)
-// }
+// Build a multipart/form-data body with fields and one file part.
+func makeMultipart(t *testing.T, fields map[string]string, fileField, fileName string, fileBytes []byte) (*bytes.Buffer, string) {
+	t.Helper()
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+	for k, v := range fields {
+		require.NoError(t, w.WriteField(k, v))
+	}
+	if fileField != "" {
+		fw, err := w.CreateFormFile(fileField, fileName)
+		require.NoError(t, err)
+		_, _ = fw.Write(fileBytes)
+	}
+	require.NoError(t, w.Close())
+	return &buf, w.FormDataContentType()
+}
 
-// func TestSendFileHandler(t *testing.T) {
-// 	// Mock dependencies
-// 	mockOwnCloud := new(MockOwnCloud)
-// 	mockMetadata := new(MockMetadata)
-// 	originalOwnCloud := owncloud.UploadFile
-// 	originalInsertReceivedFile := metadata.InsertReceivedFile
-// 	originalInsertSentFile := metadata.InsertSentFile
+/* ------------------------------ tests ------------------------------------- */
 
-// 	// Override with mocks
-// 	owncloud.UploadFile = mockOwnCloud.UploadFile
-// 	metadata.InsertReceivedFile = mockMetadata.InsertReceivedFile
-// 	metadata.InsertSentFile = mockMetadata.InsertSentFile
+func TestSendFileHandler_InvalidContentType(t *testing.T) {
+	t.Cleanup(monkey.UnpatchAll)
 
-// 	// Restore original functions after tests
-// 	defer func() {
-// 		owncloud.UploadFile = originalOwnCloud
-// 		metadata.InsertReceivedFile = originalInsertReceivedFile
-// 		metadata.InsertSentFile = originalInsertSentFile
-// 	}()
+	// Not multipart => ParseMultipartForm fails
+	req := httptest.NewRequest(http.MethodPost, "/send", bytes.NewBufferString(`{"x":1}`))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
 
-// 	// Mock DB
-// 	var mockDB *sql.DB
-// 	fileHandler.DB = mockDB
+	fh.SendFileHandler(rr, req)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Invalid multipart form")
+}
 
-// 	t.Run("Successful file send", func(t *testing.T) {
-// 		// Prepare test payload
-// 		payload := fileHandler.SendFilePayload{
-// 			FileID:          "file123",
-// 			FilePath:        "testfile.txt",
-// 			UserID:          "user1",
-// 			RecipientID:     "user2",
-// 			EncryptedFile:   base64.RawURLEncoding.EncodeToString([]byte("test file content")),
-// 			EncryptedAESKey: "encryptedKey",
-// 			EKPublicKey:     "publicKey",
-// 			Metadata: map[string]interface{}{
-// 				"nonce": "abc123",
-// 				"ikPub": "publicKey123",
-// 				"size":  1024,
-// 			},
-// 		}
-// 		payloadBytes, _ := json.Marshal(payload)
+func TestSendFileHandler_MissingFields(t *testing.T) {
+	t.Cleanup(monkey.UnpatchAll)
+	s := &memStore{m: map[string][]byte{}}
+	patchOwncloud(t, s)
 
-// 		// Setup mocks
-// 		mockOwnCloud.On("UploadFile", "files/user1/sent", "file123", mock.Anything).Return(nil)
-// 		mockMetadata.On(
-// 			"InsertReceivedFile",
-// 			mock.Anything, // *sql.DB
-// 			"user2",
-// 			"user1",
-// 			"file123",
-// 			mock.MatchedBy(func(metadata string) bool {
-// 				var meta map[string]interface{}
-// 				err := json.Unmarshal([]byte(metadata), &meta)
-// 				return err == nil && meta["nonce"] == "abc123" && meta["ikPub"] == "publicKey123" && meta["size"] == float64(1024)
-// 			}),
-// 			mock.AnythingOfType("time.Time"),
-// 		).Return(nil)
-// 		mockMetadata.On("InsertSentFile", mock.Anything, "user1", "user2", "file123", "encryptedKey", "publicKey").Return(nil)
+	body, ctype := makeMultipart(t, map[string]string{
+		"userId": "u1",
+		// missing most required fields
+	}, "encryptedFile", "x.bin", []byte("x"))
+	req := httptest.NewRequest(http.MethodPost, "/send", body)
+	req.Header.Set("Content-Type", ctype)
+	rr := httptest.NewRecorder()
 
-// 		// Create HTTP request
-// 		req, err := http.NewRequest("POST", "/send-file", bytes.NewBuffer(payloadBytes))
-// 		assert.NoError(t, err)
-// 		req.Header.Set("Content-Type", "application/json")
+	fh.SendFileHandler(rr, req)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Missing required form fields")
+}
 
-// 		// Create response recorder
-// 		rr := httptest.NewRecorder()
+func TestSendFileHandler_InvalidIndicesOrMissingFile(t *testing.T) {
+	t.Cleanup(monkey.UnpatchAll)
+	s := &memStore{m: map[string][]byte{}}
+	patchOwncloud(t, s)
 
-// 		// Call handler
-// 		fileHandler.SendFileHandler(rr, req)
+	// invalid chunkIndex
+	body, ctype := makeMultipart(t, map[string]string{
+		"fileid":         "f1",
+		"userId":         "u1",
+		"recipientUserId":"u2",
+		"metadata":       `{}`,
+		"chunkIndex":     "bad",
+		"totalChunks":    "1",
+	}, "encryptedFile", "x.bin", []byte("x"))
+	req := httptest.NewRequest(http.MethodPost, "/send", body)
+	req.Header.Set("Content-Type", ctype)
+	rr := httptest.NewRecorder()
+	fh.SendFileHandler(rr, req)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Invalid chunkIndex")
 
-// 		// Assert response
-// 		assert.Equal(t, http.StatusOK, rr.Code)
-// 		var response map[string]string
-// 		err = json.NewDecoder(rr.Body).Decode(&response)
-// 		assert.NoError(t, err)
-// 		assert.Equal(t, "File sent successfully", response["message"])
+	// missing file part
+	body2, ctype2 := makeMultipart(t, map[string]string{
+		"fileid":         "f1",
+		"userId":         "u1",
+		"recipientUserId":"u2",
+		"metadata":       `{}`,
+		"chunkIndex":     "0",
+		"totalChunks":    "1",
+	}, "", "", nil)
+	req2 := httptest.NewRequest(http.MethodPost, "/send", body2)
+	req2.Header.Set("Content-Type", ctype2)
+	rr2 := httptest.NewRecorder()
+	fh.SendFileHandler(rr2, req2)
+	assert.Equal(t, http.StatusBadRequest, rr2.Code)
+	assert.Contains(t, rr2.Body.String(), "Missing encrypted file chunk")
+}
 
-// 		// Verify mocks
-// 		mockOwnCloud.AssertExpectations(t)
-// 		mockMetadata.AssertExpectations(t)
-// 	})
+func TestSendFileHandler_TempUploadFail(t *testing.T) {
+	t.Cleanup(monkey.UnpatchAll)
+	s := &memStore{m: map[string][]byte{}}
+	// Fail only when writing to "temp"
+	patchOwncloud(t, s, func(path, name string) error {
+		if path == "temp" {
+			return fmt.Errorf("simulated temp upload error")
+		}
+		return nil
+	})
+	// Patch metadata to ensure it's not called (but harmless if it is)
+	monkey.Patch(metadata.InsertReceivedFile, func(db *sql.DB, recipientID, senderID, fileID, metadataJSON string, expiresAt time.Time) (string, error) {
+		return "", fmt.Errorf("should not be called")
+	})
 
-// 	t.Run("Invalid JSON payload", func(t *testing.T) {
-// 		// Invalid JSON
-// 		invalidPayload := []byte(`{invalid json}`)
-// 		req, err := http.NewRequest("POST", "/send-file", bytes.NewBuffer(invalidPayload))
-// 		assert.NoError(t, err)
-// 		req.Header.Set("Content-Type", "application/json")
+	body, ctype := makeMultipart(t, map[string]string{
+		"fileid":         "f1",
+		"userId":         "u1",
+		"recipientUserId":"u2",
+		"metadata":       `{}`,
+		"chunkIndex":     "0",
+		"totalChunks":    "1",
+	}, "encryptedFile", "x.bin", []byte("x"))
+	req := httptest.NewRequest(http.MethodPost, "/send", body)
+	req.Header.Set("Content-Type", ctype)
+	rr := httptest.NewRecorder()
+	fh.SendFileHandler(rr, req)
 
-// 		rr := httptest.NewRecorder()
-// 		fileHandler.SendFileHandler(rr, req)
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Chunk upload failed")
+}
 
-// 		assert.Equal(t, http.StatusBadRequest, rr.Code)
-// 		assert.Contains(t, rr.Body.String(), "Invalid JSON payload")
-// 	})
+func TestSendFileHandler_AckIntermediateChunk(t *testing.T) {
+	t.Cleanup(monkey.UnpatchAll)
+	s := &memStore{m: map[string][]byte{}}
+	patchOwncloud(t, s)
+	// Patch metadata to avoid DB usage if handler tried (it shouldn't for non-final)
+	monkey.Patch(metadata.InsertReceivedFile, func(db *sql.DB, recipientID, senderID, fileID, metadataJSON string, expiresAt time.Time) (string, error) {
+		return "", nil
+	})
 
-// 	t.Run("Invalid base64 encrypted file", func(t *testing.T) {
-// 		payload := fileHandler.SendFilePayload{
-// 			FileID:          "file123",
-// 			UserID:          "user1",
-// 			RecipientID:     "user2",
-// 			EncryptedFile:   "invalid-base64-!!", // Invalid base64
-// 			EncryptedAESKey: "encryptedKey",
-// 			EKPublicKey:     "publicKey",
-// 			Metadata:        map[string]interface{}{"nonce": "abc123"},
-// 		}
-// 		payloadBytes, _ := json.Marshal(payload)
+	fields := map[string]string{
+		"fileid":         "f1",
+		"userId":         "u1",
+		"recipientUserId":"u2",
+		"metadata":       `{"a":1}`,
+		"chunkIndex":     "0",
+		"totalChunks":    "2",
+	}
+	body, ctype := makeMultipart(t, fields, "encryptedFile", "c0.bin", []byte("AAA"))
+	req := httptest.NewRequest(http.MethodPost, "/send", body)
+	req.Header.Set("Content-Type", ctype)
+	rr := httptest.NewRecorder()
 
-// 		req, err := http.NewRequest("POST", "/send-file", bytes.NewBuffer(payloadBytes))
-// 		assert.NoError(t, err)
-// 		req.Header.Set("Content-Type", "application/json")
+	fh.SendFileHandler(rr, req)
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), `"Chunk 0 uploaded"`)
+	// chunk persisted in temp
+	got, ok := s.get("temp/f1_chunk_0")
+	require.True(t, ok)
+	assert.Equal(t, []byte("AAA"), got)
+}
 
-// 		rr := httptest.NewRecorder()
-// 		fileHandler.SendFileHandler(rr, req)
+func TestSendFileHandler_FinalMerge_Success_AndDBTracking(t *testing.T) {
+	t.Cleanup(monkey.UnpatchAll)
+	s := &memStore{m: map[string][]byte{}}
+	patchOwncloud(t, s)
 
-// 		assert.Equal(t, http.StatusBadRequest, rr.Code)
-// 		assert.Contains(t, rr.Body.String(), "Invalid encrypted file format")
-// 	})
+	// Pre-store first chunk in temp to simulate previous request
+	s.put("temp/F2_chunk_0", []byte("HELLO "))
 
-// 	t.Run("OwnCloud upload failure", func(t *testing.T) {
-// 		payload := fileHandler.SendFilePayload{
-// 			FileID:          "file123",
-// 			UserID:          "user1",
-// 			RecipientID:     "user2",
-// 			EncryptedFile:   base64.RawURLEncoding.EncodeToString([]byte("test file content")),
-// 			EncryptedAESKey: "encryptedKey",
-// 			EKPublicKey:     "publicKey",
-// 			Metadata:        map[string]interface{}{"nonce": "abc123"},
-// 		}
-// 		payloadBytes, _ := json.Marshal(payload)
+	// Patch metadata layer
+	var gotRecip, gotSender, gotFile, gotMeta string
+	var gotExpire time.Time
+	monkey.Patch(metadata.InsertReceivedFile, func(db *sql.DB, recipientID, senderID, fileID, metadataJSON string, expiresAt time.Time) (string, error) {
+		gotRecip, gotSender, gotFile, gotMeta, gotExpire = recipientID, senderID, fileID, metadataJSON, expiresAt
+		return "rf-123", nil
+	})
+	var sentCalled bool
+	monkey.Patch(metadata.InsertSentFile, func(db *sql.DB, senderID, recipientID, fileID, metadataJSON string) error {
+		sentCalled = true
+		return nil
+	})
 
-// 		// Setup mock to return error
-// 		mockOwnCloud.On("UploadFile", "files/user1/sent", "file123", mock.Anything).Return(fmt.Errorf("upload failed"))
+	fields := map[string]string{
+		"fileid":         "F2",
+		"userId":         "SENDER",
+		"recipientUserId":"RECIP",
+		"metadata":       `{"k":"v"}`,
+		"chunkIndex":     "1",
+		"totalChunks":    "2",
+	}
+	body, ctype := makeMultipart(t, fields, "encryptedFile", "c1.bin", []byte("WORLD"))
+	req := httptest.NewRequest(http.MethodPost, "/send", body)
+	req.Header.Set("Content-Type", ctype)
+	rr := httptest.NewRecorder()
 
-// 		// No mocks for InsertReceivedFile or InsertSentFile, as handler exits early
+	fh.SendFileHandler(rr, req)
 
-// 		req, err := http.NewRequest("POST", "/send-file", bytes.NewBuffer(payloadBytes))
-// 		assert.NoError(t, err)
-// 		req.Header.Set("Content-Type", "application/json")
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), `"message":"File sent successfully"`)
+	assert.Contains(t, rr.Body.String(), `"receivedFileID":"rf-123"`)
 
-// 		rr := httptest.NewRecorder()
-// 		fileHandler.SendFileHandler(rr, req)
+	// Verify final uploaded content at files/SENDER/sent/F2
+	finalKey := "files/SENDER/sent/F2"
+	got, ok := s.get(finalKey)
+	require.True(t, ok)
+	assert.Equal(t, []byte("HELLO WORLD"), got)
 
-// 		assert.Equal(t, http.StatusInternalServerError, rr.Code)
-// 		assert.Contains(t, rr.Body.String(), "Failed to store encrypted file")
+	// Verify metadata.InsertReceivedFile args
+	assert.Equal(t, "RECIP", gotRecip)
+	assert.Equal(t, "SENDER", gotSender)
+	assert.Equal(t, "F2", gotFile)
+	assert.Equal(t, `{"k":"v"}`, gotMeta)
+	assert.WithinDuration(t, time.Now().Add(48*time.Hour), gotExpire, time.Hour)
 
-// 		// Verify mocks
-// 		mockOwnCloud.AssertExpectations(t)
-// 	})
+	// InsertSentFile was called (non-fatal if it fails)
+	assert.True(t, sentCalled)
+}
 
-// 	t.Run("Invalid metadata format", func(t *testing.T) {
-// 		// Create payload with unserializable metadata
-// 		payload := fileHandler.SendFilePayload{
-// 			FileID:          "file123",
-// 			UserID:          "user1",
-// 			RecipientID:     "user2",
-// 			EncryptedFile:   base64.RawURLEncoding.EncodeToString([]byte("test file content")),
-// 			EncryptedAESKey: "encryptedKey",
-// 			EKPublicKey:     "publicKey",
-// 			Metadata: map[string]interface{}{
-// 				"invalid": make(chan int), // Unserializable type
-// 			},
-// 		}
-// 		payloadBytes, _ := json.Marshal(payload)
+func TestSendFileHandler_FinalUploadFail(t *testing.T) {
+	t.Cleanup(monkey.UnpatchAll)
+	s := &memStore{m: map[string][]byte{}}
+	patchOwncloud(t, s)
 
-// 		// Setup mocks
-// 		mockOwnCloud.On("UploadFile", "files/user1/sent", "file123", mock.Anything).Return(nil)
+	s.put("temp/F3_chunk_0", []byte("A"))
+	monkey.Patch(owncloud.UploadFileStream, func(path, name string, r io.Reader) error {
+		_, _ = io.Copy(io.Discard, r)
+		if strings.HasPrefix(path, "files/") && strings.HasSuffix(path, "/sent") {
+			return fmt.Errorf("simulated final upload error")
+		}
+		key := strings.TrimSuffix(path, "/") + "/" + name
+		data, _ := io.ReadAll(bytes.NewReader(nil))
+		s.put(key, data)
+		return nil
+	})
 
-// 		req, err := http.NewRequest("POST", "/send-file", bytes.NewBuffer(payloadBytes))
-// 		assert.NoError(t, err)
-// 		req.Header.Set("Content-Type", "application/json")
+	body, ctype := makeMultipart(t, map[string]string{
+		"fileid":         "F3",
+		"userId":         "S",
+		"recipientUserId":"R",
+		"metadata":       `{}`,
+		"chunkIndex":     "1",
+		"totalChunks":    "2",
+	}, "encryptedFile", "c1.bin", []byte("B"))
 
-// 		rr := httptest.NewRecorder()
-// 		fileHandler.SendFileHandler(rr, req)
+	req := httptest.NewRequest(http.MethodPost, "/send", body)
+	req.Header.Set("Content-Type", ctype)
+	rr := httptest.NewRecorder()
 
-// 		assert.Equal(t, http.StatusBadRequest, rr.Code)
-// 		assert.Contains(t, rr.Body.String(), "Invalid metadata format")
-// 	})
+	fh.SendFileHandler(rr, req)
 
-// 	t.Run("Insert received file failure", func(t *testing.T) {
-// 		payload := fileHandler.SendFilePayload{
-// 			FileID:          "file123",
-// 			UserID:          "user1",
-// 			RecipientID:     "user2",
-// 			EncryptedFile:   base64.RawURLEncoding.EncodeToString([]byte("test file content")),
-// 			EncryptedAESKey: "encryptedKey",
-// 			EKPublicKey:     "publicKey",
-// 			Metadata:        map[string]interface{}{"nonce": "abc123"},
-// 		}
-// 		payloadBytes, _ := json.Marshal(payload)
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Failed to store encrypted file")
+}
 
-// 		// Setup mocks
-// 		mockOwnCloud.On("UploadFile", "files/user1/sent", "file123", mock.Anything).Return(nil)
-// 		mockMetadata.On(
-// 			"InsertReceivedFile",
-// 			mock.Anything, // *sql.DB
-// 			"user2",
-// 			"user1",
-// 			"file123",
-// 			mock.MatchedBy(func(metadata string) bool {
-// 				var meta map[string]interface{}
-// 				err := json.Unmarshal([]byte(metadata), &meta)
-// 				return err == nil && meta["nonce"] == "abc123"
-// 			}),
-// 			mock.AnythingOfType("time.Time"),
-// 		).Return(fmt.Errorf("db error"))
+func TestSendFileHandler_InsertReceivedFileFails(t *testing.T) {
+	t.Cleanup(monkey.UnpatchAll)
+	s := &memStore{m: map[string][]byte{}}
+	patchOwncloud(t, s)
+	// Pre-store chunk 0
+	s.put("temp/F4_chunk_0", []byte("A"))
 
-// 		req, err := http.NewRequest("POST", "/send-file", bytes.NewBuffer(payloadBytes))
-// 		assert.NoError(t, err)
-// 		req.Header.Set("Content-Type", "application/json")
+	monkey.Patch(metadata.InsertReceivedFile, func(db *sql.DB, recipientID, senderID, fileID, metadataJSON string, expiresAt time.Time) (string, error) {
+		return "", fmt.Errorf("db error on received")
+	})
+	// InsertSentFile shouldn't matter; handler 500s before using it.
 
-// 		rr := httptest.NewRecorder()
-// 		fileHandler.SendFileHandler(rr, req)
+	body, ctype := makeMultipart(t, map[string]string{
+		"fileid":         "F4",
+		"userId":         "S",
+		"recipientUserId":"R",
+		"metadata":       `{}`,
+		"chunkIndex":     "1",
+		"totalChunks":    "2",
+	}, "encryptedFile", "c1.bin", []byte("B"))
+	req := httptest.NewRequest(http.MethodPost, "/send", body)
+	req.Header.Set("Content-Type", ctype)
+	rr := httptest.NewRecorder()
 
-// 		assert.Equal(t, http.StatusInternalServerError, rr.Code)
-// 		assert.Contains(t, rr.Body.String(), "Failed to track received file")
+	fh.SendFileHandler(rr, req)
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Failed to track received file")
+}
 
-// 		// Verify mocks
-// 		mockOwnCloud.AssertExpectations(t)
-// 		mockMetadata.AssertExpectations(t)
-// 	})
-// }
+func TestSendFileHandler_InsertSentFileFails_ButResponseStillOK(t *testing.T) {
+	t.Cleanup(monkey.UnpatchAll)
+	s := &memStore{m: map[string][]byte{}}
+	patchOwncloud(t, s)
+	// Pre-store chunk 0
+	s.put("temp/F5_chunk_0", []byte("LEFT-"))
+
+	monkey.Patch(metadata.InsertReceivedFile, func(db *sql.DB, recipientID, senderID, fileID, metadataJSON string, expiresAt time.Time) (string, error) {
+		return "rf-999", nil
+	})
+	monkey.Patch(metadata.InsertSentFile, func(db *sql.DB, senderID, recipientID, fileID, metadataJSON string) error {
+		return fmt.Errorf("sent insert failed (non-fatal)")
+	})
+
+	body, ctype := makeMultipart(t, map[string]string{
+		"fileid":         "F5",
+		"userId":         "S",
+		"recipientUserId":"R",
+		"metadata":       `{}`,
+		"chunkIndex":     "1",
+		"totalChunks":    "2",
+	}, "encryptedFile", "c1.bin", []byte("RIGHT"))
+	req := httptest.NewRequest(http.MethodPost, "/send", body)
+	req.Header.Set("Content-Type", ctype)
+	rr := httptest.NewRecorder()
+
+	fh.SendFileHandler(rr, req)
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), `"receivedFileID":"rf-999"`)
+
+	// Final content present
+	got, ok := s.get("files/S/sent/F5")
+	require.True(t, ok)
+	assert.Equal(t, []byte("LEFT-RIGHT"), got)
+}
