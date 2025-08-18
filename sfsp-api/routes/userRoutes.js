@@ -18,7 +18,7 @@ router.post('/send-reset-pin', authMiddleware, userController.sendResetPIN);
 router.post('/change-password', authMiddleware, userController.changePassword);
 router.get('/public-keys/:userId', userController.getPublicKeys);
 router.get('/getUserId/:email', userController.getUserIdFromEmail);
-router.get('/getUserInfo/:email', userController.getUserInfoFromEmail);
+router.get('/getUserInfo/:userId', userController.getUserInfoFromID);
 router.post('/get-token', userController.getUserToken);
 router.get('/token-info', userController.getUserInfoFromToken);
 router.get('/notifications', authMiddleware, userController.getNotificationSettings);
