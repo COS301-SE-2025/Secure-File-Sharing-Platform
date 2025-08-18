@@ -1,4 +1,4 @@
-//app/dashboard/myFilesV2/fileList.js
+// app/dashboard/sharedWithMe/fileList.js
 
 "use client";
 
@@ -7,7 +7,6 @@ import {
   FileIcon,
   Download,
   Share,
-  Folder,
   FileText,
   Image,
   Video,
@@ -15,7 +14,7 @@ import {
   MoreVertical,
   X,
   Eye,
-  EyeOff
+  EyeOff,
 } from "lucide-react";
 
 function Toast({ message, type = "info", onClose }) {
@@ -38,10 +37,6 @@ export function FileList({
   onDelete,
   onClick,
   onDoubleClick,
-  onMoveFile,
-  onEnterFolder,
-  onGoBack,
-  currentPath,
   onRevokeViewAccess,
 }) {
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
@@ -56,20 +51,13 @@ export function FileList({
   };
 
   const iconMap = {
-    folder: <Folder className="h-5 w-5 text-blue-500" />,
     pdf: <FileText className="h-5 w-5 text-red-500" />,
     document: <FileText className="h-5 w-5 text-red-500" />,
     image: <Image className="h-5 w-5 text-green-500" alt="" />,
     video: <Video className="h-5 w-5 text-purple-500" />,
   };
 
-  const getIcon = (file) => {
-    if (file.type === "folder") {
-      console.log("Folder icon selected");
-      return <Folder className="h-5 w-5 text-blue-500" />;
-    }
-    return iconMap[file.type] || <FileIcon className="h-5 w-5 text-gray-500" />;
-  };
+  const getIcon = (file) => iconMap[file.type] || <FileIcon className="h-5 w-5 text-gray-500" />;
 
   const handleContextMenu = (e, file) => {
     e.preventDefault();
@@ -99,44 +87,33 @@ export function FileList({
         body: JSON.stringify({ fileId: file.id, tags }),
       });
 
-      if (!res.ok) {
-        throw new Error("Failed to tag file as deleted");
-      }
-
-      console.log(`File ${file.name} marked as deleted`);
+      if (!res.ok) throw new Error("Failed to tag file as deleted");
 
       const token = localStorage.getItem("token");
-      if (!token) return;
-
-      try {
-        const profileRes = await fetch(
-          "http://localhost:5000/api/users/profile",
-          {
+      if (token) {
+        try {
+          const profileRes = await fetch("http://localhost:5000/api/users/profile", {
             headers: { Authorization: `Bearer ${token}` },
-          }
-        );
+          });
+          const profileResult = await profileRes.json();
+          if (!profileRes.ok) throw new Error(profileResult.message || "Failed to fetch profile");
 
-        const profileResult = await profileRes.json();
-        if (!profileRes.ok)
-          throw new Error(profileResult.message || "Failed to fetch profile");
-
-        await fetch("http://localhost:5000/api/files/addAccesslog", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            file_id: file.id,
-            user_id: profileResult.data.id,
-            action: "deleted",
-            message: `User ${profileResult.data.email} deleted the file.`,
-          }),
-        });
-      } catch (err) {
-        console.error("Failed to fetch user profile:", err.message);
+          await fetch("http://localhost:5000/api/files/addAccesslog", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              file_id: file.id,
+              user_id: profileResult.data.id,
+              action: "deleted",
+              message: `User ${profileResult.data.email} deleted the file.`,
+            }),
+          });
+        } catch (err) {
+          console.error("Failed to fetch user profile:", err.message);
+        }
       }
 
-      if (onDelete) {
-        onDelete(file);
-      }
+      onDelete?.(file);
     } catch (err) {
       console.error("Delete failed:", err);
       showToast("Failed to delete file");
@@ -145,54 +122,19 @@ export function FileList({
     }
   };
 
-  const handleDragStart = (e, file) => {
-    setDraggedFile(file);
-    e.dataTransfer.effectAllowed = "move";
-  };
-
-  const handleDragOver = (e, folder) => {
-    if (
-      draggedFile &&
-      folder.type === "folder" &&
-      draggedFile.id !== folder.id
-    ) {
-      e.preventDefault(); // allows drop
-    }
-  };
-
-  const handleDrop = (e, folder) => {
-    e.preventDefault();
-    if (
-      draggedFile &&
-      folder.type === "folder" &&
-      draggedFile.id !== folder.id
-    ) {
-      const newPath = folder.cid || folder.path || folder.name;
-      onMoveFile?.(draggedFile, newPath);
-      setDraggedFile(null);
-    }
-  };
-
-  // Check if file is view-only (either from tags or viewOnly property)
-  const isViewOnly = (file) => {
-    return file.viewOnly || (file.tags && file.tags.includes("view-only"));
-  };
-
-  // Check if current user is the owner (assuming owner files don't have "received" tag)
-  const isOwner = (file) => {
-    return !file.tags || !file.tags.includes("received");
-  };
+  const isViewOnly = (file) =>
+    file.viewOnly || (file.tags && file.tags.includes("view-only"));
 
   return (
     <div>
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
-      <table className="w-full bg-white rounded-lg ">
+      <table className="w-full bg-white rounded-lg">
         <thead>
           <tr className="bg-gray-300 dark:bg-gray-700">
             <th className="text-left p-2">Name</th>
             <th className="text-left p-2">Size</th>
             <th className="text-left p-2">Modified</th>
-            <th className="text-left p-2">Type</th>
+            <th className="text-left p-2">Access</th>
             <th className="text-left p-2">Actions</th>
           </tr>
         </thead>
@@ -200,45 +142,27 @@ export function FileList({
           {files.map((file) => (
             <tr
               key={file.id}
-              draggable={file.type !== "folder"}
-              onDragStart={(e) => handleDragStart(e, file)}
-              onDragOver={(e) => handleDragOver(e, file)}
-              onDrop={(e) => handleDrop(e, file)}
-              onClick={() => {
-                if (file.type !== "folder") {
-                  onClick?.(file);
-                }
-              }}
-              onDoubleClick={() => {
-                if (file.type === "folder") {
-                  onEnterFolder?.(file.name);
-                } else {
-                  onDoubleClick?.(file);
-                }
-              }}
+              onClick={() => onClick?.(file)}
+              onDoubleClick={() => onDoubleClick?.(file)}
               onContextMenu={(e) => handleContextMenu(e, file)}
               className="hover:bg-gray-200 cursor-pointer dark:hover:bg-blue-100"
             >
               <td className="p-2 flex items-center gap-2">
                 {getIcon(file)}
                 <span className="font-medium">{file.name}</span>
-                {file.starred && (
-                  <Star className="h-4 w-4 text-yellow-500 fill-current" />
-                )}
-                {isViewOnly(file) && (
-                  <Eye className="h-4 w-4 text-blue-500" title="View Only" />
-                )}
+                {file.starred && <Star className="h-4 w-4 text-yellow-500 fill-current" />}
+                {isViewOnly(file) && <Eye className="h-4 w-4 text-blue-500" title="View Only" />}
               </td>
-              <td className="p-2">
-                {file.type === "folder" ? "" : file.size}
-              </td>
+              <td className="p-2">{file.size}</td>
               <td className="p-2">{file.modified}</td>
               <td className="p-2">
-                <span className={`px-2 py-1 rounded-full text-xs ${isViewOnly(file)
-                  ? 'bg-blue-100 text-blue-800 dark:bg-blue-200'
-                  : 'bg-green-100 text-green-800 dark:bg-green-200'
-                  }`}>
-                  {isViewOnly(file) ? 'View Only' : 'Full Access'}
+                <span
+                  className={`px-2 py-1 rounded-full text-xs ${isViewOnly(file)
+                    ? "bg-blue-100 text-blue-800 dark:bg-blue-200"
+                    : "bg-green-100 text-green-800 dark:bg-green-200"
+                    }`}
+                >
+                  {isViewOnly(file) ? "View Only" : "Full Access"}
                 </span>
               </td>
               <td className="p-2 flex gap-2">
@@ -316,18 +240,14 @@ export function FileList({
               }
               setMenuFile(null);
             }}
-            className={`w-full text-left px-4 py-2 flex items-center gap-2 ${menuFile?.type === "folder"
-              ? "hidden"
-              : isViewOnly(menuFile)
-                ? "opacity-50 cursor-not-allowed"
-                : "hover:bg-gray-100 dark:hover:bg-blue-200"
+            className={`w-full text-left px-4 py-2 flex items-center gap-2 ${isViewOnly(menuFile) ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-100 dark:hover:bg-blue-200"
               }`}
-            disabled={menuFile?.type !== "folder" && isViewOnly(menuFile)}
+            disabled={isViewOnly(menuFile)}
           >
             <Download className="h-4 w-4" /> Download
           </button>
 
-          {menuFile?.type !== "folder" && <hr className="my-1" />}
+          <hr className="my-1" />
 
           <button
             onClick={() => {
@@ -354,13 +274,10 @@ export function FileList({
               onViewActivity(menuFile);
               setMenuFile(null);
             }}
-            className={`w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 dark:hover:bg-blue-200 ${menuFile?.type === "folder" ? "hidden" : ""
-              }`}
+            className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 dark:hover:bg-blue-200"
           >
             <MoreVertical className="h-4 w-4" /> Activity Logs
           </button>
-
-          {menuFile?.type !== "folder" && <hr className="my-1" />}
 
           {(isViewOnly(menuFile) || menuFile.allow_view_sharing) && onRevokeViewAccess && (
             <button
@@ -368,8 +285,7 @@ export function FileList({
                 onRevokeViewAccess(menuFile);
                 setMenuFile(null);
               }}
-              className={`w-full text-left px-4 py-2 hover:bg-orange-50 text-orange-600 flex items-center gap-2 dark:hover:bg-orange-200 dark:text-orange-600 ${menuFile?.type === "folder" ? "hidden" : ""
-                }`}
+              className="w-full text-left px-4 py-2 hover:bg-orange-50 text-orange-600 flex items-center gap-2 dark:hover:bg-orange-200 dark:text-orange-600"
             >
               <EyeOff className="h-4 w-4" /> Revoke View Access
             </button>
