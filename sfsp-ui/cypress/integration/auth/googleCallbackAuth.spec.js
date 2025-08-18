@@ -10,7 +10,7 @@ describe("Google OAuth Callback - E2E", () => {
 
     describe("Successful OAuth Callback Flow", () => {
         it("should handle new user registration flow", () => {
-            cy.intercept('POST', '/api/auth/google/callback', {
+            cy.intercept('GET', '/api/auth/google**', {
                 statusCode: 200,
                 body: {
                     user: {
@@ -47,7 +47,7 @@ describe("Google OAuth Callback - E2E", () => {
         });
 
         it("should handle existing user login flow", () => {
-            cy.intercept('POST', '/api/auth/google/callback', {
+            cy.intercept('GET', '/api/auth/google**', {
                 statusCode: 200,
                 body: {
                     user: {
@@ -79,7 +79,7 @@ describe("Google OAuth Callback - E2E", () => {
         });
 
         it("should handle user with email but no Google ID (account linking)", () => {
-            cy.intercept('POST', '/api/auth/google/callback', {
+            cy.intercept('GET', '/api/auth/google**', {
                 statusCode: 200,
                 body: {
                     user: {
@@ -144,7 +144,7 @@ describe("Google OAuth Callback - E2E", () => {
         });
 
         it("should handle token exchange failure", () => {
-            cy.intercept('POST', '/api/auth/google/callback', {
+            cy.intercept('GET', '/api/auth/google**', {
                 statusCode: 400,
                 body: {
                     error: 'invalid_grant',
@@ -161,7 +161,7 @@ describe("Google OAuth Callback - E2E", () => {
         });
 
         it("should handle user creation failure", () => {
-            cy.intercept('POST', '/api/auth/google/callback', {
+            cy.intercept('GET', '/api/auth/google**', {
                 statusCode: 200,
                 body: {
                     user: {
@@ -181,7 +181,7 @@ describe("Google OAuth Callback - E2E", () => {
         });
 
         it("should handle duplicate email error", () => {
-            cy.intercept('POST', '/api/auth/google/callback', {
+            cy.intercept('GET', '/api/auth/google**', {
                 statusCode: 200,
                 body: {
                     user: {
@@ -201,7 +201,7 @@ describe("Google OAuth Callback - E2E", () => {
         });
 
         it("should handle MFA email sending failure", () => {
-            cy.intercept('POST', '/api/auth/google/callback', {
+            cy.intercept('GET', '/api/auth/google**', {
                 statusCode: 200,
                 body: {
                     user: {
@@ -231,7 +231,7 @@ describe("Google OAuth Callback - E2E", () => {
 
     describe("State Management", () => {
         it("should properly clean up localStorage on success", () => {
-            cy.intercept('POST', '/api/auth/google/callback', {
+            cy.intercept('GET', '/api/auth/google**', {
                 statusCode: 200,
                 body: {
                     user: { id: 'test', email: 'test@gmail.com', name: 'Test', verified_email: true },
@@ -256,7 +256,7 @@ describe("Google OAuth Callback - E2E", () => {
         });
 
         it("should clean up localStorage on error", () => {
-            cy.intercept('POST', '/api/auth/google/callback', {
+            cy.intercept('GET', '/api/auth/google**', {
                 statusCode: 500,
                 body: { error: 'Server error' }
             }).as('serverError');

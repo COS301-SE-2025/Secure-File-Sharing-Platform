@@ -203,6 +203,7 @@ export default function Sidebar() {
       <div className={`absolute bottom-6 ${showExpanded ? 'left-6 right-6' : 'left-2 right-2'} flex flex-col gap-3`}>
         {/* Pin/Unpin Button */}
         <button
+          data-testid="sidebar-toggle"
           onClick={toggleSidebar}
           className="flex items-center justify-center p-3 rounded-lg hover:bg-blue-300 dark:hover:bg-gray-700 transition-colors border-t border-gray-300 dark:border-gray-600 pt-3"
           title={isCollapsed ? 'Pin Sidebar Open' : 'Auto-Hide Sidebar'}
