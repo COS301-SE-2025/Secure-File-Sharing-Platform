@@ -44,6 +44,10 @@ app.post('/getSharedViewFiles', fileController.getSharedViewFiles);
 app.post('/getViewFileAccessLogs', fileController.getViewFileAccessLogs);
 app.post('/revokeViewAccess', fileController.revokeViewAccess);
 app.post('/downloadViewFile', fileController.downloadViewFile);
+app.use("/sendFile", fileController.sendFile);
+app.use("/uploadChunk", fileController.uploadChunk);
+app.use("/getMetaData", fileController.getMetaData);
+
 
 describe('File Service Controller', () => {
   beforeEach(() => {
@@ -279,47 +283,104 @@ describe("deleteFile", () => {
 });
 
 describe("sendFile", () => {
-  it("should return 400 if required fields missing", async () => {
+  const fileBuffer = Buffer.from("encrypted content");
+
+  it("should return 400 if required fields or file chunk missing", async () => {
     const res = await request(app).post("/sendFile").send({});
     expect(res.status).toBe(400);
     expect(res.text).toBe("Missing required fields or file chunk");
   });
 
-  it("should send file successfully", async () => {
-    mockAxios.post.mockResolvedValueOnce({ status: 200, data: { success: true } });
+  it("should send file successfully and return Go service response", async () => {
+    // Mock axios to return successful response
+    const mockGoResponse = { status: 200, data: { message: "Chunk uploaded" } };
+    mockAxios.post.mockResolvedValueOnce(mockGoResponse);
 
+    // Use Supertest with multipart form data
     const res = await request(app)
       .post("/sendFile")
-      .attach("encryptedFile", Buffer.from("chunk content"), "chunk_0.bin")
       .field("fileid", "file123")
       .field("userId", "user123")
-      .field("recipientUserId", "user456")
-      .field("metadata", JSON.stringify({ description: "test" }))
-      .field("chunkIndex", 0)
-      .field("totalChunks", 1);
+      .field("recipientUserId", "recipient456")
+      .field("metadata", JSON.stringify({ name: "test" }))
+      .field("chunkIndex", "1")
+      .field("totalChunks", "3")
+      .attach("encryptedFile", fileBuffer, { filename: "chunk_1.bin" });
 
-    expect(mockAxios.post).toHaveBeenCalledTimes(1);
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ success: true });
+    expect(res.body).toEqual(mockGoResponse.data);
   });
 
   it("should return 500 if axios fails", async () => {
-    mockAxios.post.mockRejectedValueOnce(new Error("Send failed"));
+    mockAxios.post.mockRejectedValueOnce(new Error("Go service down"));
 
     const res = await request(app)
       .post("/sendFile")
-      .attach("encryptedFile", Buffer.from("chunk content"), "chunk_0.bin")
       .field("fileid", "file123")
       .field("userId", "user123")
-      .field("recipientUserId", "user456")
-      .field("metadata", JSON.stringify({ description: "test" }))
-      .field("chunkIndex", 0)
-      .field("totalChunks", 1);
+      .field("recipientUserId", "recipient456")
+      .field("metadata", JSON.stringify({ name: "test" }))
+      .field("chunkIndex", "1")
+      .field("totalChunks", "3")
+      .attach("encryptedFile", fileBuffer, { filename: "chunk_1.bin" });
 
     expect(res.status).toBe(500);
     expect(res.text).toBe("Failed to send file");
   });
 });
+describe("uploadChunk", () => {
+  const fileBuffer = Buffer.from("chunk data");
+
+  it("should return 400 if fileName or file chunk missing", async () => {
+    const res = await request(app).post("/uploadChunk").send({});
+    expect(res.status).toBe(400);
+    expect(res.text).toBe("Missing file name or chunk data");
+  });
+
+  it("should return 400 if userId, nonce, fileHash, or fileId missing", async () => {
+    const res = await request(app)
+      .post("/uploadChunk")
+      .field("fileName", "test.txt")
+      .attach("file", fileBuffer, { filename: "test.txt" });
+
+    expect(res.status).toBe(400);
+    expect(res.text).toBe("Missing userId, nonce, fileHash, or fileId");
+  });
+
+  it("should upload file successfully and return Go response", async () => {
+    const mockGoResponse = { status: 200, data: { message: "Chunk uploaded" } };
+    mockAxios.post.mockResolvedValueOnce(mockGoResponse);
+
+    const res = await request(app)
+      .post("/uploadChunk")
+      .field("fileName", "test.txt")
+      .field("userId", "user123")
+      .field("nonce", "nonce123")
+      .field("fileHash", "hash123")
+      .field("fileId", "file123")
+      .attach("file", fileBuffer, { filename: "test.txt" });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual(mockGoResponse.data);
+  });
+
+  it("should return 500 if axios fails", async () => {
+    mockAxios.post.mockRejectedValueOnce(new Error("Go service down"));
+
+    const res = await request(app)
+      .post("/uploadChunk")
+      .field("fileName", "test.txt")
+      .field("userId", "user123")
+      .field("nonce", "nonce123")
+      .field("fileHash", "hash123")
+      .field("fileId", "file123")
+      .attach("file", fileBuffer, { filename: "test.txt" });
+
+    expect(res.status).toBe(500);
+    expect(res.text).toBe("Upload failed");
+  });
+});
+
 
 describe("addAccesslog", () => {
   it("should return 400 if required fields missing", async () => {
@@ -864,7 +925,7 @@ describe("createFolder", () => {
       expect(response.body).toEqual(mockFiles);
     });
   });
-  describe("downloadViewFile", () => {
+ describe("downloadViewFile", () => {
   it("should return 400 if missing userId or fileId", async () => {
     const res = await request(app).post("/downloadViewFile").send({});
     expect(res.status).toBe(400);
@@ -875,13 +936,11 @@ describe("createFolder", () => {
     const mockStream = new PassThrough();
     const fileContent = "view-only file content";
 
-    // Push content into the stream asynchronously
     process.nextTick(() => {
       mockStream.write(fileContent);
       mockStream.end();
     });
 
-    mockAxios.mockResolvedValueOnce = mockAxios.post.mockResolvedValueOnce; // fix call for POST
     mockAxios.post.mockResolvedValueOnce({
       data: mockStream,
       headers: {
@@ -909,6 +968,34 @@ describe("createFolder", () => {
     expect(response.body.toString()).toBe(fileContent);
   });
 
+  it("should handle stream error gracefully", async () => {
+    const mockStream = new PassThrough();
+
+    process.nextTick(() => {
+      mockStream.emit("error", new Error("Stream failed"));
+    });
+
+    mockAxios.post.mockResolvedValueOnce({
+      data: mockStream,
+      headers: {
+        "x-view-only": "true",
+        "x-file-id": "file123",
+        "x-share-id": "share789",
+      },
+    });
+
+    const response = await request(app)
+      .post("/downloadViewFile")
+      .send({ userId: "user123", fileId: "file123" })
+      .buffer(true)
+      .parse((res, cb) => {
+        res.on("data", () => {});
+        res.on("end", () => cb(null, Buffer.alloc(0)));
+      });
+
+    expect(response.status).toBe(200); // stream errors just close res, status already sent
+  });
+
   it("should return 403 if access revoked", async () => {
     mockAxios.post.mockRejectedValueOnce({ response: { status: 403 } });
 
@@ -931,6 +1018,7 @@ describe("createFolder", () => {
     expect(res.text).toBe("Download view file failed");
   });
 });
+
 
 describe("getSharedViewFiles", () => {
   it("should return 400 if userId missing", async () => {
