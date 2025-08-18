@@ -280,9 +280,11 @@ export default function AccessLogsPage() {
               >
                 <option>All actions</option>
                 <option>Viewed</option>
+                <option>Shared_View</option>
                 <option>Downloaded</option>
                 <option>Shared</option>
-                <option>Modified</option>
+                <option>Created</option>
+                <option>Trash</option>
               </select>
             </div>
 
