@@ -88,13 +88,13 @@ const uploadFilesHandler = async () => {
         if (!startRes.ok) throw new Error("Failed to start upload");
         const { fileId } = await startRes.json();
 
-        // 2️⃣ Compress file
+        //Skip compression as it doesn't actually help much, with videos at least
         const fileBuffer = new Uint8Array(await file.arrayBuffer());
-        const compressed = gzip(fileBuffer, { level: 9 });
+        //const compressed = gzip(fileBuffer, { level: 9 });
 
         // 3️⃣ Encrypt entire compressed file
         //nonce is up there
-        const ciphertext = sodium.crypto_secretbox_easy(compressed, nonce, encryptionKey);
+        const ciphertext = sodium.crypto_secretbox_easy(fileBuffer, nonce, encryptionKey);
 
         // 4️⃣ Compute SHA-256 hash of encrypted file
         const hashBuffer = await crypto.subtle.digest("SHA-256", ciphertext.buffer);
@@ -118,7 +118,7 @@ const uploadFilesHandler = async () => {
           formData.append("fileName", file.name);
           formData.append("fileType", file.type || "application/octet-stream");
           formData.append("fileDescription", "");
-          formData.append("fileTags", JSON.stringify(["personal"]));
+          formData.append("fileTags", JSON.stringify(["personal use"]));
           formData.append("path", currentFolderPath || "files");
           formData.append("fileHash", fileHash);
           formData.append(
@@ -145,6 +145,28 @@ const uploadFilesHandler = async () => {
 
         await Promise.all(chunkUploadPromises);
         console.log(`${file.name} uploaded successfully`);
+
+        //add access log
+        const token = localStorage.getItem('token');
+
+        const res = await fetch('http://localhost:5000/api/users/profile', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.message || 'Failed to fetch profile');
+ 
+        await fetch("http://localhost:5000/api/files/addAccesslog", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            file_id: fileId,
+            user_id: userId,
+            action: "created",
+            message: `User ${result.data.email} uploaded the file.`,
+          }),
+        });
+
       } catch (err) {
         console.error(`Upload failed for ${file.name}:`, err);
         alert(`Upload failed for ${file.name}`);

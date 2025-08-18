@@ -1,750 +1,690 @@
-// fileController.test.js
-const axios = require('axios');
-const fileController = require('../controllers/fileController'); // adjust path
-jest.mock('axios');
+const request = require('supertest');
+const express = require('express');
+const { Readable, PassThrough } = require('stream');
 
-describe('File Controller', () => {
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
-  const res = {
-  status: jest.fn().mockReturnThis(), // allows chaining
-  send: jest.fn(),
-};
+const mockAxios = jest.fn();
+mockAxios.get = jest.fn();
+mockAxios.post = jest.fn();
+mockAxios.put = jest.fn();
+mockAxios.delete = jest.fn();
+mockAxios.create = jest.fn(() => mockAxios);
 
-
-  describe('downloadFile', () => {
-    test('returns 400 if path or filename missing', async () => {
-      const req = { body: { userId: '', filename: '' } }
-      const res = {status: jest.fn().mockReturnThis(), send: jest.fn() };
-      await fileController.downloadFile(req, res);
-      expect(res.status).toHaveBeenCalledWith(400);
-    });
-  
-
-    test('returns file data on success', async () => {
-  const req = { body: { userId: 'user1', filename: 'file1' } };
-  const res = {
-    status: jest.fn().mockReturnThis(),
-    send: jest.fn(),
-    json: jest.fn()
+jest.mock('axios', () => mockAxios);
+jest.mock('dotenv', () => ({ config: jest.fn() }));
+jest.mock('form-data', () => {
+  const mockInstance = {
+    append: jest.fn(),
+    getHeaders: jest.fn(() => ({ 'content-type': 'multipart/form-data' }))
   };
-
-  axios.post.mockResolvedValue({
-    data: { fileName: 'file1', fileContent: 'data123', nonce: 'abc123' },
-  });
-
-  await fileController.downloadFile(req, res);
-
-  expect(axios.post).toHaveBeenCalledWith(
-    expect.stringContaining('/download'),
-    { userId: 'user1', filename: 'file1' },
-    { headers: { "Content-Type": "application/json" } }
-  );
-
-  expect(res.json).toHaveBeenCalledWith({
-    fileName: 'file1',
-    fileContent: 'data123',
-    nonce: 'abc123'
-  });
+  return jest.fn(() => mockInstance);
 });
 
-    test('returns 500 on download failure', async () => {
-      const req = { body: { userId: 'user1', filename: 'file1' } }
-      const res = { status: jest.fn().mockReturnThis(), send: jest.fn() };
-      axios.post.mockRejectedValue(new Error('Failed'));
+const fileController = require('../controllers/fileController'); 
 
-      await fileController.downloadFile(req, res);
+const app = express();
+app.use(express.json());
 
-      expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.send).toHaveBeenCalledWith("Download failed");
+app.post('/download', fileController.downloadFile);
+app.post('/metadata', fileController.getMetaData);
+app.post('/startUpload', fileController.startUpload);
+app.post('/getNumberOfFiles', fileController.getNumberOfFiles);
+app.post('/deleteFile', fileController.deleteFile);
+app.post('/addAccesslog', fileController.addAccesslog);
+app.post('/getAccesslog', fileController.getAccesslog);
+app.post('/addTags', fileController.addTags);
+app.post('/addUserToTable', fileController.addUserToTable);
+app.post('/softDeleteFile', fileController.softDeleteFile);
+app.post('/restoreFile', fileController.restoreFile);
+app.post('/removeFileTags', fileController.removeFileTags);
+app.post('/downloadSentFile', fileController.downloadSentFile);
+app.post('/addDescription', fileController.addDescription);
+app.post('/createFolder', fileController.createFolder);
+app.post('/updateFilePath', fileController.updateFilePath);
+app.post('/getSharedViewFiles', fileController.getSharedViewFiles);
+app.post('/getViewFileAccessLogs', fileController.getViewFileAccessLogs);
+app.post('/revokeViewAccess', fileController.revokeViewAccess);
+app.post('/downloadViewFile', fileController.downloadViewFile);
+
+describe('File Service Controller', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    process.env.FILE_SERVICE_URL = 'http://localhost:8081';
+    
+    mockAxios.get.mockReset();
+    mockAxios.post.mockReset();
+
+    mockAxios.post.mockResolvedValue({
+      status: 200,
+      data: { success: true }
+    });
+  });
+
+  describe('downloadFile', () => {
+    // it('should successfully initiate file download with proper headers', async () => {
+    //   const mockStream = new PassThrough();
+      
+    //   mockAxios.get.mockResolvedValueOnce({
+    //     data: mockStream,
+    //     headers: {
+    //       'x-file-name': 'test.txt',
+    //       'x-nonce': 'test-nonce-123',
+    //       'content-type': 'text/plain'
+    //     }
+    //   });
+
+    //   const responsePromise = request(app)
+    //     .post('/download')
+    //     .send({ userId: 'user123', fileId: 'file123' });
+
+    //   setTimeout(() => {
+    //     mockStream.end();
+    //   }, 10);
+
+    //   const result = await responsePromise;
+
+    //   expect(result.status).toBe(200);
+    //   expect(result.headers['content-type']).toBe('text/plain');
+      
+    //   expect(mockAxios.get).toHaveBeenCalledWith(
+    //     expect.stringContaining('/download'),
+    //     expect.objectContaining({
+    //       params: { userId: 'user123', fileId: 'file123' },
+    //       responseType: 'stream'
+    //     })
+    //   );
+    // });
+
+    it('should return 400 when userId or fileId is missing', async () => {
+      const response = await request(app)
+        .post('/download')
+        .send({ userId: 'user123' });
+
+      expect(response.status).toBe(400);
+      expect(response.text).toBe('Missing userId or fileId');
+    });
+
+    it('should return 500 when headers are missing from Go service', async () => {
+      const mockStream = new PassThrough();
+
+      mockAxios.get.mockResolvedValue({
+        data: mockStream,
+        headers: {} 
+      });
+
+      const responsePromise = request(app)
+        .post('/download')
+        .send({
+          userId: 'user123',
+          fileId: 'file456'
+        });
+
+      setTimeout(() => {
+        mockStream.end();
+      }, 10);
+
+      const response = await responsePromise;
+
+      expect(response.status).toBe(500);
+      expect(response.text).toBe('Download failed');
+    });
+
+    it('should handle axios errors', async () => {
+      mockAxios.get.mockRejectedValue(new Error('Network error'));
+
+      const response = await request(app)
+        .post('/download')
+        .send({
+          userId: 'user123',
+          fileId: 'file456'
+        });
+
+      expect(response.status).toBe(500);
+      expect(response.text).toBe('Download failed');
     });
   });
 
   describe('getMetaData', () => {
-    test('returns 400 if userId missing', async () => {
-      const req = { body: {} };
-      const res = { status: jest.fn().mockReturnThis(), send: jest.fn() };
-      await fileController.getMetaData(req, res);
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.send).toHaveBeenCalledWith('User ID is required');
-    });
+    it('should successfully retrieve metadata', async () => {
+      const mockMetadata = [
+        { id: '1', name: 'file1.txt' },
+        { id: '2', name: 'file2.txt' }
+      ];
 
-    test('returns metadata list on success', async () => {
-      const req = { body: { userId: 'user1' } };
-      const res = { json: jest.fn(), status: jest.fn().mockReturnThis(), send: jest.fn() };
-      const mockData = [{ fileName: 'fileA' }, { fileName: 'fileB' }];
-      axios.post.mockResolvedValue({ status: 200, data: mockData });
-
-      await fileController.getMetaData(req, res);
-
-      expect(res.json).toHaveBeenCalledWith(mockData);
-    });
-
-    test('forwards non-200 response status', async () => {
-      const req = { body: { userId: 'user1' } };
-      const res = { status: jest.fn().mockReturnThis(), send: jest.fn() };
-      axios.post.mockResolvedValue({ status: 404, data: null });
-
-      await fileController.getMetaData(req, res);
-
-      expect(res.status).toHaveBeenCalledWith(404);
-      expect(res.send).toHaveBeenCalledWith('Error retrieving metadata');
-    });
-
-    test('returns 500 on axios error', async () => {
-      const req = { body: { userId: 'user1' } };
-      const res = { status: jest.fn().mockReturnThis(), send: jest.fn() };
-      axios.post.mockRejectedValue(new Error('Network Error'));
-
-      await fileController.getMetaData(req, res);
-
-      expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.send).toHaveBeenCalledWith('Error retrieving metadata');
-    });
-  });
-
-    describe('uploadFile', () => {
-      test('returns 400 if fileName or fileContent missing', async () => {
-        const req = { body: { fileName: '', fileContent: '' } };
-        const res = { status: jest.fn().mockReturnThis(), send: jest.fn() };
-        await fileController.uploadFile(req, res);
-        expect(res.status).toHaveBeenCalledWith(400);
-        expect(res.send).toHaveBeenCalledWith('Missing file name or file content');
+      mockAxios.post.mockResolvedValue({
+        status: 200,
+        data: mockMetadata
       });
-      test('returns 400 if nonce is missing', async () => {
-    const req = {
-      body: {
-        fileName: 'file1',
-        fileContent: 'base64data',
-        fileType: 'application/pdf',
-        userId: 'user1',
-        // nonce: 'abc123' <- missing
-        fileDescription: 'desc',
-        fileTags: ['tag1'],
-        path: 'files',
-      },
-    };
 
-    const res = {
-      status: jest.fn().mockReturnThis(),
-      send: jest.fn(),
-    };
+      const response = await request(app)
+        .post('/metadata')
+        .send({ userId: 'user123' });
 
-    await fileController.uploadFile(req, res);
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual(mockMetadata);
+    });
 
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.send).toHaveBeenCalledWith('Missing nonce'); // adjust message to match your controller
-  });
+    it('should return 400 when userId is missing', async () => {
+      const response = await request(app)
+        .post('/metadata')
+        .send({});
 
-   test('returns 201 and server response on success', async () => {
-    const req = {
-      body: {
-        fileName: 'file1',
-        fileContent: 'base64data',
-        fileType: 'application/pdf',
-        userId: 'user1',
-        nonce: 'abc123', // FIXED: nonce is required by controller
-        fileDescription: 'desc',
-        fileTags: ['tag1'],
-        path: 'files',
-      }
-    };
+      expect(response.status).toBe(400);
+      expect(response.text).toBe('User ID is required');
+    });
 
-    const res = {
-      status: jest.fn().mockReturnThis(),
-      json: jest.fn(),
-      send: jest.fn()
-    };
+    it('should handle axios errors', async () => {
+      mockAxios.post.mockRejectedValue(new Error('Service unavailable'));
 
-    axios.post.mockResolvedValue({ data: { success: true } });
+      const response = await request(app)
+        .post('/metadata')
+        .send({ userId: 'user123' });
 
-    await fileController.uploadFile(req, res);
-
-    expect(axios.post).toHaveBeenCalledWith(
-      expect.stringContaining('/upload'),
-      expect.objectContaining({
-        fileName: 'file1',
-        fileContent: 'base64data',
-        fileType: 'application/pdf',
-        userId: 'user1',
-        nonce: 'abc123',
-        fileDescription: 'desc',
-        fileTags: ['tag1'],
-        path: 'files',
-      }),
-      { headers: { "Content-Type": 'application/pdf' } }
-    );
-
-    expect(res.status).toHaveBeenCalledWith(201);
-    expect(res.json).toHaveBeenCalledWith({
-      message: "File uploaded",
-      server: { success: true },
+      expect(response.status).toBe(500);
+      expect(response.text).toBe('Error retrieving metadata');
     });
   });
-test('returns 500 on upload failure', async () => {
-  const req = {
-    body: {
-      fileName: 'file1',
-      fileType: 'application/pdf',
-      userId: 'user1',
-      nonce: 'abc123',
-      fileContent: 'base64data',
-      fileTags: ['tag1'],
-      fileDescription: 'desc',
-      path: 'files',
-    },
-  };
 
-  const res = {
-    status: jest.fn().mockReturnThis(),
-    send: jest.fn(),
-  };
+  describe('startUpload', () => {
+    it('should successfully start upload', async () => {
+      const mockResponse = { uploadId: 'upload123', status: 'started' };
 
-    axios.post.mockRejectedValue(new Error('Something bad happened'));
+      mockAxios.post.mockResolvedValue({
+        status: 200,
+        data: mockResponse
+      });
 
-    await fileController.uploadFile(req, res);
+      const response = await request(app)
+        .post('/startUpload')
+        .send({
+          fileName: 'test.txt',
+          fileType: 'text/plain',
+          userId: 'user123',
+          nonce: 'nonce123',
+          fileDescription: 'Test file',
+          fileTags: ['tag1', 'tag2'],
+          path: 'uploads'
+        });
 
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.send).toHaveBeenCalledWith('Upload failed');
-  });
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual(mockResponse);
+    });
+
+    it('should return 400 when required fields are missing', async () => {
+      const response = await request(app)
+        .post('/startUpload')
+        .send({ fileName: 'test.txt' });
+
+      expect(response.status).toBe(400);
+      expect(response.text).toBe('Missing fileName or userId');
+    });
+
+    it('should handle string fileTags correctly', async () => {
+      mockAxios.post.mockResolvedValue({
+        status: 200,
+        data: { success: true }
+      });
+
+      await request(app)
+        .post('/startUpload')
+        .send({
+          fileName: 'test.txt',
+          userId: 'user123',
+          fileTags: 'single-tag'
+        });
+
+      expect(mockAxios.post).toHaveBeenCalledWith(
+        'http://localhost:8081/startUpload',
+        expect.objectContaining({
+          fileTags: ['single-tag']
+        }),
+        { headers: { 'Content-Type': 'application/json' } }
+      );
+    });
   });
 
   describe('getNumberOfFiles', () => {
-    test('returns 400 if userId missing', async () => {
-      const req = { body: {} };
-      const res = { status: jest.fn().mockReturnThis(), send: jest.fn() };
-      await fileController.getNumberOfFiles(req, res);
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.send).toHaveBeenCalledWith('User ID is required');
+    it('should successfully get file count', async () => {
+      mockAxios.post.mockResolvedValue({
+        status: 200,
+        data: 5
+      });
+
+      const response = await request(app)
+        .post('/getNumberOfFiles')
+        .send({ userId: 'user123' });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ fileCount: 5 });
     });
 
-    test('returns file count on success', async () => {
-      const req = { body: { userId: 'user1' } };
-      const res = { json: jest.fn(), status: jest.fn().mockReturnThis(), send: jest.fn() };
-      axios.post.mockResolvedValue({ status: 200, data: 42 });
+    it('should return 400 when userId is missing', async () => {
+      const response = await request(app)
+        .post('/getNumberOfFiles')
+        .send({});
 
-      await fileController.getNumberOfFiles(req, res);
-
-      expect(res.json).toHaveBeenCalledWith({ fileCount: 42 });
-    });
-
-    test('forwards non-200 status', async () => {
-      const req = { body: { userId: 'user1' } };
-      const res = { status: jest.fn().mockReturnThis(), send: jest.fn() };
-      axios.post.mockResolvedValue({ status: 404, data: null });
-
-      await fileController.getNumberOfFiles(req, res);
-
-      expect(res.status).toHaveBeenCalledWith(404);
-      expect(res.send).toHaveBeenCalledWith('Error retrieving file count');
-    });
-
-    test('returns 500 on error', async () => {
-      const req = { body: { userId: 'user1' } };
-      const res = { status: jest.fn().mockReturnThis(), send: jest.fn() };
-      axios.post.mockRejectedValue(new Error('Network error'));
-
-      await fileController.getNumberOfFiles(req, res);
-
-      expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.send).toHaveBeenCalledWith('Error retrieving file count');
+      expect(response.status).toBe(400);
+      expect(response.text).toBe('User ID is required');
     });
   });
+
+  describe('deleteFile', () => {
+    it('should successfully delete a file', async () => {
+      mockAxios.post.mockResolvedValue({
+        status: 200,
+        data: 'File deleted'
+      });
+
+      const response = await request(app)
+        .post('/deleteFile')
+        .send({
+          fileId: 'file123',
+          userId: 'user123'
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.text).toBe('File deleted successfully');
+    });
+
+    it('should return 400 when fileId is missing', async () => {
+      const response = await request(app)
+        .post('/deleteFile')
+        .send({ userId: 'user123' });
+
+      expect(response.status).toBe(400);
+      expect(response.text).toBe('FileId not received');
+    });
+
+    it('should return 400 when userId is missing', async () => {
+      const response = await request(app)
+        .post('/deleteFile')
+        .send({ fileId: 'file123' });
+
+      expect(response.status).toBe(400);
+      expect(response.text).toBe('UserId not found');
+    });
+  });
+
+  describe('addAccesslog', () => {
+    it('should successfully add access log', async () => {
+      mockAxios.post.mockResolvedValue({
+        status: 200,
+        data: 'Log added'
+      });
+
+      const response = await request(app)
+        .post('/addAccesslog')
+        .send({
+          file_id: 'file123',
+          user_id: 'user123',
+          action: 'download',
+          message: 'File downloaded'
+        });
+
+      expect(response.status).toBe(200);
+    });
+
+    it('should return 400 when required fields are missing', async () => {
+      const response = await request(app)
+        .post('/addAccesslog')
+        .send({
+          file_id: 'file123',
+          user_id: 'user123'
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.text).toBe('Missing required fields: file_id, user_id, action or message');
+    });
+  });
+
   describe('softDeleteFile', () => {
-  test('returns 400 if fileId missing', async () => {
-    const req = { body: {} };
-    const res = { status: jest.fn().mockReturnThis(), send: jest.fn() };
-    await fileController.softDeleteFile(req, res);
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.send).toHaveBeenCalledWith('Missing fileId');
-  });
+    it('should successfully soft delete a file', async () => {
+      mockAxios.post.mockResolvedValue({
+        status: 200,
+        data: { message: 'File soft deleted' }
+      });
 
-  test('returns success message on valid fileId', async () => {
-    const req = { body: { fileId: '123e4567-e89b-12d3-a456-426614174000' } };
-    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+      const response = await request(app)
+        .post('/softDeleteFile')
+        .send({ fileId: 'file123' });
 
-    axios.post.mockResolvedValue({
-      status: 200,
-      data: { message: 'File soft deleted successfully' },
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ message: 'File soft deleted' });
     });
 
-    await fileController.softDeleteFile(req, res);
+    it('should return 400 when fileId is missing', async () => {
+      const response = await request(app)
+        .post('/softDeleteFile')
+        .send({});
 
-    expect(axios.post).toHaveBeenCalledWith(
-      expect.stringContaining('/softDeleteFile'),
-      { fileId: req.body.fileId },
-      { headers: { 'Content-Type': 'application/json' } }
-    );
-    expect(res.json).toHaveBeenCalledWith({ message: 'File soft deleted successfully' });
-  });
-
-  test('returns 500 on failure', async () => {
-    const req = { body: { fileId: '123e4567-e89b-12d3-a456-426614174000' } };
-    const res = { status: jest.fn().mockReturnThis(), send: jest.fn() };
-
-    axios.post.mockRejectedValue(new Error('Failed'));
-
-    await fileController.softDeleteFile(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.send).toHaveBeenCalledWith('Failed to soft delete file');
-  });
-});
-
-describe('softDeleteFile', () => {
-  test('returns success message on valid fileId', async () => {
-    const req = { body: { fileId: '123e4567-e89b-12d3-a456-426614174000' } };
-    const res = { status: jest.fn().mockReturnThis(), json: jest.fn(), send: jest.fn() };
-
-    axios.post.mockResolvedValue({
-      status: 200,
-      data: { message: 'File soft deleted' }
+      expect(response.status).toBe(400);
+      expect(response.text).toBe('Missing fileId');
     });
 
-    await fileController.softDeleteFile(req, res);
+    it('should handle errors and return proper message', async () => {
+      mockAxios.post.mockRejectedValue(new Error('Service error'));
 
-    expect(axios.post).toHaveBeenCalledWith(
-      expect.stringContaining('/softDeleteFile'),
-      { fileId: req.body.fileId },
-      { headers: { 'Content-Type': 'application/json' } }
-    );
-    expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith({ message: 'File soft deleted' });
+      const response = await request(app)
+        .post('/softDeleteFile')
+        .send({ fileId: 'file123' });
+
+      expect(response.status).toBe(500);
+      expect(response.text).toBe('Failed to soft delete file');
+    });
   });
-});
 
-describe('restoreFile', () => {
-  test('returns success message on valid fileId', async () => {
-    const req = { body: { fileId: '123e4567-e89b-12d3-a456-426614174000' } };
-    const res = { status: jest.fn().mockReturnThis(), json: jest.fn(), send: jest.fn() };
+  describe('createFolder', () => {
+    it('should successfully create a folder', async () => {
+      const mockResponse = { folderId: 'folder123', message: 'Folder created' };
+      mockAxios.post.mockResolvedValue({
+        status: 200,
+        data: mockResponse
+      });
 
-    axios.post.mockResolvedValue({
-      status: 200,
-      data: { message: 'File restored' }
+      const response = await request(app)
+        .post('/createFolder')
+        .send({
+          userId: 'user123',
+          folderName: 'MyFolder',
+          parentPath: '/documents',
+          description: 'Test folder'
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual(mockResponse);
     });
 
-    await fileController.restoreFile(req, res);
+    it('should return 400 when required fields are missing', async () => {
+      const response = await request(app)
+        .post('/createFolder')
+        .send({ userId: 'user123' });
 
-    expect(axios.post).toHaveBeenCalledWith(
-      expect.stringContaining('/restoreFile'),
-      { fileId: req.body.fileId },
-      { headers: { 'Content-Type': 'application/json' } }
-    );
-    expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith({ message: 'File restored' });
-  });
-});
-describe('sendFile', () => {
-  const baseReq = {
-    body: {
-      fileid: 'file123',
-      userId: 'user1',
-      recipientUserId: 'user2',
-      encryptedFile: 'filedata',
-      encryptedAesKey: 'aeskey',
-      ekPublicKey: 'ek-pub-key',
-      metadata: {
-        fileNonce: 'nonce1',
-        keyNonce: 'nonce2',
-        ikPublicKey: 'ikPub',
-        ekPublicKey: 'ekPub',
-        opk_id: 'opkId',
-      },
-    },
-  };
-
-  const res = {
-    status: jest.fn().mockReturnThis(),
-    send: jest.fn(),
-    json: jest.fn(),
-  };
-
-  beforeEach(() => {
-    jest.clearAllMocks();
+      expect(response.status).toBe(400);
+      expect(response.text).toBe('Missing userId or folderName');
+    });
   });
 
-  test('returns 400 if fileid is missing', async () => {
-    const req = { body: { ...baseReq.body, fileid: undefined } };
+  describe('downloadViewFile', () => {
+    // it('should successfully download a view file', async () => {
+    //   const mockStream = new PassThrough();
+      
+    //   mockAxios.get.mockResolvedValue({
+    //     data: mockStream,
+    //     headers: {
+    //       'x-view-only': 'true',
+    //       'x-file-id': 'file123',
+    //       'x-share-id': 'share456',
+    //       'content-type': 'text/plain'
+    //     }
+    //   });
 
-    await fileController.sendFile(req, res);
+    //   const responsePromise = request(app)
+    //     .post('/downloadViewFile')
+    //     .send({
+    //       userId: 'user123',
+    //       fileId: 'file123'
+    //     });
 
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.send).toHaveBeenCalledWith("File ID is missing");
+    //   setTimeout(() => {
+    //     mockStream.write('You should watch fight club');
+    //     mockStream.end();
+    //   }, 10);
+
+    //   const response = await responsePromise;
+
+    //   expect(response.status).toBe(200);
+    //   expect(mockAxios.get).toHaveBeenCalledWith(
+    //     expect.stringContaining('/downloadViewFile'),
+    //     expect.objectContaining({
+    //       params: expect.any(Object),
+    //       responseType: 'stream'
+    //     })
+    //   );
+    // });
+
+    it('should return 403 for access denied', async () => {
+      const error = new Error('Access denied');
+      error.response = { status: 403 };
+      mockAxios.get.mockRejectedValue(error);
+
+      const response = await request(app)
+        .post('/downloadViewFile')
+        .send({
+          userId: 'user123',
+          fileId: 'file123'
+        });
+
+      expect(response.status).toBe(500);
+      expect(response.text).toBe('Download view file failed');
+    });
+
+    it('should return 400 when required fields are missing', async () => {
+      const response = await request(app)
+        .post('/downloadViewFile')
+        .send({ fileId: 'file123' });
+
+      expect(response.status).toBe(400);
+      expect(response.text).toBe('Missing userId or fileId');
+    });
   });
 
-  test('returns 400 if userId or recipientUserId is missing', async () => {
-    const req = { body: { ...baseReq.body, userId: '', recipientUserId: '' } };
+  describe('addDescription', () => {
+    it('should successfully add description', async () => {
+      mockAxios.post.mockResolvedValue({
+        status: 200,
+        data: 'Description added'
+      });
 
-    await fileController.sendFile(req, res);
+      const response = await request(app)
+        .post('/addDescription')
+        .send({
+          fileId: 'file123',
+          description: 'New description'
+        });
 
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.send).toHaveBeenCalledWith("User ID or Recipient User ID is missing");
+      expect(response.status).toBe(200);
+    });
+
+    it('should return 400 when required fields are missing', async () => {
+      const response = await request(app)
+        .post('/addDescription')
+        .send({ fileId: 'file123' });
+
+      expect(response.status).toBe(400);
+      expect(response.text).toBe('Missing fileId or description');
+    });
   });
 
-  test('returns 400 if encryptedFile or encryptedAesKey is missing', async () => {
-    const req = {
-      body: {
-        ...baseReq.body,
-        encryptedFile: null,
-        encryptedAesKey: null,
-      },
-    };
+  describe('addTags', () => {
+    it('should successfully add tags', async () => {
+      mockAxios.post.mockResolvedValue({
+        status: 200,
+        data: 'Tags added'
+      });
 
-    await fileController.sendFile(req, res);
+      const response = await request(app)
+        .post('/addTags')
+        .send({
+          fileId: 'file123',
+          tags: ['tag1', 'tag2']
+        });
 
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.send).toHaveBeenCalledWith("Encrypted file or AES key is missing");
+      expect(response.status).toBe(200);
+    });
+
+    it('should return 400 when required fields are missing', async () => {
+      const response = await request(app)
+        .post('/addTags')
+        .send({ fileId: 'file123' });
+
+      expect(response.status).toBe(400);
+      expect(response.text).toBe('Missing required fields: fileId or tags');
+    });
   });
 
-  test('returns 400 if metadata is incomplete', async () => {
-    const req = {
-      body: {
-        ...baseReq.body,
-        metadata: { fileNonce: 'only-this-one' },
-      },
-    };
+  describe('restoreFile', () => {
+    it('should successfully restore a file', async () => {
+      const mockResponse = { message: 'File restored' };
+      mockAxios.post.mockResolvedValue({
+        status: 200,
+        data: mockResponse
+      });
 
-    await fileController.sendFile(req, res);
+      const response = await request(app)
+        .post('/restoreFile')
+        .send({ fileId: 'file123' });
 
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.send).toHaveBeenCalledWith("Metadata is incomplete or missing required keys");
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual(mockResponse);
+    });
+
+    it('should return 400 when fileId is missing', async () => {
+      const response = await request(app)
+        .post('/restoreFile')
+        .send({});
+
+      expect(response.status).toBe(400);
+      expect(response.text).toBe('Missing fileId');
+    });
   });
 
-  test('returns 200 if file is sent successfully', async () => {
-    axios.post.mockResolvedValue({ status: 200 });
+  describe('addUserToTable', () => {
+    it('should successfully add user to table', async () => {
+      mockAxios.post.mockResolvedValue({
+        status: 200,
+        data: 'User added'
+      });
 
-    await fileController.sendFile(baseReq, res);
+      const response = await request(app)
+        .post('/addUserToTable')
+        .send({ userId: 'user123' });
 
-    expect(axios.post).toHaveBeenCalledWith(
-      expect.stringContaining('/sendFile'),
-      expect.objectContaining({
-        fileid: 'file123',
-        userId: 'user1',
-        recipientUserId: 'user2',
-        encryptedFile: 'filedata',
-        encryptedAesKey: 'aeskey',
-        ekPublicKey: 'ek-pub-key',
-        metadata: expect.any(Object),
-      }),
-      { headers: { 'Content-Type': 'application/json' } }
-    );
+      expect(response.status).toBe(200);
+    });
 
-    expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith({ message: "File sent successfully" });
+    it('should return 400 when userId is missing', async () => {
+      const response = await request(app)
+        .post('/addUserToTable')
+        .send({});
+
+      expect(response.status).toBe(400);
+      expect(response.text).toBe('Missing UserId');
+    });
   });
 
-  test('forwards backend error if axios returns non-200', async () => {
-    axios.post.mockResolvedValue({ status: 500 });
+  describe('getAccesslog', () => {
+    it('should successfully get access logs', async () => {
+      const mockLogs = [
+        { id: 1, action: 'download', timestamp: '2024-01-01' }
+      ];
+      mockAxios.post.mockResolvedValue({
+        status: 200,
+        data: mockLogs
+      });
 
-    await fileController.sendFile(baseReq, res);
+      const response = await request(app)
+        .post('/getAccesslog')
+        .send({ file_id: 'file123' });
 
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.send).toHaveBeenCalledWith("Error sending file");
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual(mockLogs);
+    });
   });
 
-  test('returns 500 on axios failure', async () => {
-    axios.post.mockRejectedValue(new Error('Network down'));
+  describe('removeFileTags', () => {
+    it('should successfully remove tags', async () => {
+      mockAxios.post.mockResolvedValue({
+        status: 200,
+        data: 'Tags removed'
+      });
 
-    await fileController.sendFile(baseReq, res);
+      const response = await request(app)
+        .post('/removeFileTags')
+        .send({
+          fileId: 'file123',
+          tags: ['tag1']
+        });
 
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.send).toHaveBeenCalledWith("Failed to send file");
-  });
-});
-
-describe('addAccesslog', () => {
-  const res = { status: jest.fn().mockReturnThis(), send: jest.fn() };
-
-  beforeEach(() => jest.clearAllMocks());
-
-  test('returns 400 if required fields are missing', async () => {
-    const req = { body: {} };
-
-    await fileController.addAccesslog(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.send).toHaveBeenCalledWith(
-      "Missing required fields: file_id, user_id, action or message"
-    );
+      expect(response.status).toBe(200);
+    });
   });
 
-  test('returns success if access log is added', async () => {
-    const req = {
-      body: {
-        file_id: 'file1',
-        user_id: 'user1',
-        action: 'VIEWED',
-        message: 'User viewed file',
-      },
-    };
+  describe('updateFilePath', () => {
+    it('should successfully update file path', async () => {
+      const mockResponse = { message: 'Path updated' };
+      mockAxios.post.mockResolvedValue({
+        status: 200,
+        data: mockResponse
+      });
 
-    axios.post.mockResolvedValue({ status: 200, data: 'OK' });
+      const response = await request(app)
+        .post('/updateFilePath')
+        .send({
+          fileId: 'file123',
+          newPath: '/new/path'
+        });
 
-    await fileController.addAccesslog(req, res);
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual(mockResponse);
+    });
 
-    expect(axios.post).toHaveBeenCalledWith(
-      expect.stringContaining('/addAccesslog'),
-      expect.objectContaining(req.body),
-      { headers: { "Content-Type": "application/json" } }
-    );
-    expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.send).toHaveBeenCalledWith('OK');
+    it('should return 400 when required fields are missing', async () => {
+      const response = await request(app)
+        .post('/updateFilePath')
+        .send({ fileId: 'file123' });
+
+      expect(response.status).toBe(400);
+      expect(response.text).toBe('Missing fileId or newPath');
+    });
   });
 
-  test('returns 500 on error', async () => {
-    const req = {
-      body: {
-        file_id: 'file1',
-        user_id: 'user1',
-        action: 'VIEWED',
-        message: 'User viewed file',
-      },
-    };
+  describe('getSharedViewFiles', () => {
+    it('should successfully get shared view files', async () => {
+      const mockFiles = [
+        { id: 'file1', name: 'shared1.txt' }
+      ];
+      mockAxios.post.mockResolvedValue({
+        status: 200,
+        data: mockFiles
+      });
 
-    axios.post.mockRejectedValue(new Error('Service unavailable'));
+      const response = await request(app)
+        .post('/getSharedViewFiles')
+        .send({ userId: 'user123' });
 
-    await fileController.addAccesslog(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.send).toHaveBeenCalledWith("Failed to add access log");
-  });
-});
-
-describe('getAccesslog', () => {
-  const res = {
-    status: jest.fn().mockReturnThis(),
-    json: jest.fn(),
-    send: jest.fn(),
-  };
-
-  beforeEach(() => jest.clearAllMocks());
-
-  test('returns logs if file_id provided', async () => {
-    const req = { body: { file_id: 'file1' } };
-    const mockLogs = [{ action: 'VIEWED', message: '...' }];
-
-    axios.post.mockResolvedValue({ status: 200, data: mockLogs });
-
-    await fileController.getAccesslog(req, res);
-
-    expect(axios.post).toHaveBeenCalledWith(
-      expect.stringContaining('/getAccesslog'),
-      { file_id: 'file1' },
-      { headers: { "Content-Type": "application/json" } }
-    );
-    expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith(mockLogs);
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual(mockFiles);
+    });
   });
 
-  test('returns all logs if file_id not provided', async () => {
-    const req = { body: {} };
-    axios.post.mockResolvedValue({ status: 200, data: [] });
+  describe('revokeViewAccess', () => {
+    it('should successfully revoke view access', async () => {
+      mockAxios.post.mockResolvedValue({
+        status: 200,
+        data: { message: 'Access revoked' }
+      });
 
-    await fileController.getAccesslog(req, res);
+      const response = await request(app)
+        .post('/revokeViewAccess')
+        .send({
+          fileId: 'file123',
+          userId: 'user123',
+          recipientId: 'recipient456'
+        });
 
-    expect(axios.post).toHaveBeenCalledWith(
-      expect.stringContaining('/getAccesslog'),
-      {},
-      expect.any(Object)
-    );
-    expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith([]);
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ message: 'View access revoked successfully' });
+    });
+
+    it('should return 400 when required fields are missing', async () => {
+      const response = await request(app)
+        .post('/revokeViewAccess')
+        .send({
+          fileId: 'file123',
+          userId: 'user123'
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.text).toBe('Missing fileId, userId or recipientId');
+    });
   });
-
-  test('returns 500 on error', async () => {
-    const req = { body: {} };
-    axios.post.mockRejectedValue(new Error('Server error'));
-
-    await fileController.getAccesslog(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.send).toHaveBeenCalledWith("Failed to get access log");
-  });
-});
-
-describe('addTags', () => {
-  const res = { status: jest.fn().mockReturnThis(), send: jest.fn() };
-
-  beforeEach(() => jest.clearAllMocks());
-
-  test('returns 400 if required fields missing', async () => {
-    const req = { body: { fileId: '', tags: null } };
-
-    await fileController.addTags(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.send).toHaveBeenCalledWith("Missing required fields: fileId or tags");
-  });
-
-  test('returns success if tags added', async () => {
-    const req = { body: { fileId: 'file1', tags: ['tag1', 'tag2'] } };
-
-    axios.post.mockResolvedValue({ status: 200, data: 'Tagged' });
-
-    await fileController.addTags(req, res);
-
-    expect(axios.post).toHaveBeenCalledWith(
-      expect.stringContaining('/addTags'),
-      req.body,
-      expect.any(Object)
-    );
-    expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.send).toHaveBeenCalledWith('Tagged');
-  });
-
-  test('returns 500 on error', async () => {
-    const req = { body: { fileId: 'file1', tags: ['tag1'] } };
-
-    axios.post.mockRejectedValue(new Error('Server error'));
-
-    await fileController.addTags(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.send).toHaveBeenCalledWith("Failed to add tags to the file");
-  });
-});
-
-describe('addUserToTable', () => {
-  const res = { status: jest.fn().mockReturnThis(), send: jest.fn() };
-
-  beforeEach(() => jest.clearAllMocks());
-
-  test('returns 400 if userId missing', async () => {
-    const req = { body: {} };
-
-    await fileController.addUserToTable(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.send).toHaveBeenCalledWith("Missing UserId");
-  });
-
-  test('returns success if user added', async () => {
-    const req = { body: { userId: 'user123' } };
-
-    axios.post.mockResolvedValue({ status: 200, data: 'User added' });
-
-    await fileController.addUserToTable(req, res);
-
-    expect(axios.post).toHaveBeenCalledWith(
-      expect.stringContaining('/addUser'),
-      { userId: 'user123' },
-      expect.any(Object)
-    );
-    expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.send).toHaveBeenCalledWith('User added');
-  });
-
-  test('returns 500 on error', async () => {
-    const req = { body: { userId: 'user123' } };
-
-    axios.post.mockRejectedValue(new Error('Database down'));
-
-    await fileController.addUserToTable(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.send).toHaveBeenCalledWith("Failed to add Users to the Table");
-  });
-});
-
-describe('removeFileTags', () => {
-  const res = { status: jest.fn().mockReturnThis(), send: jest.fn() };
-
-  beforeEach(() => jest.clearAllMocks());
-
-  test('returns 400 if fileId or tags are missing', async () => {
-    const req = { body: {} };
-
-    await fileController.removeFileTags(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.send).toHaveBeenCalledWith("Missing required fields: fileId or tags");
-  });
-
-  test('calls backend and returns success response', async () => {
-    const req = { body: { fileId: 'file123', tags: ['tag1', 'tag2'] } };
-
-    axios.post.mockResolvedValue({ status: 200, data: 'Tags removed' });
-
-    await fileController.removeFileTags(req, res);
-
-    expect(axios.post).toHaveBeenCalledWith(
-      expect.stringContaining('/removeTags'),
-      req.body,
-      { headers: { 'Content-Type': 'application/json' } }
-    );
-    expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.send).toHaveBeenCalledWith('Tags removed');
-  });
-
-  test('returns 500 on axios failure', async () => {
-    const req = { body: { fileId: 'file123', tags: ['tag1'] } };
-
-    axios.post.mockRejectedValue(new Error('Network error'));
-
-    await fileController.removeFileTags(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.send).toHaveBeenCalledWith("Failed to remove tags to the file");
-  });
-});
-
-describe('downloadSentFile', () => {
-  const res = {
-    status: jest.fn().mockReturnThis(),
-    send: jest.fn(),
-    json: jest.fn(),
-  };
-
-  beforeEach(() => jest.clearAllMocks());
-
-  test('returns 400 if filepath is missing', async () => {
-    const req = { body: {} };
-
-    await fileController.downloadSentFile(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.send).toHaveBeenCalledWith("file path is required");
-  });
-
-  test('returns JSON metadata list on success', async () => {
-    const req = { body: { filepath: 'path/to/file' } };
-    const mockMetadata = [{ key: 'value' }];
-
-    axios.post.mockResolvedValue({ status: 200, data: mockMetadata });
-
-    await fileController.downloadSentFile(req, res);
-
-    expect(axios.post).toHaveBeenCalledWith(
-      expect.stringContaining('/downloadSentFile'),
-      { filepath: 'path/to/file' },
-      { headers: { "Content-Type": "application/json" } }
-    );
-    expect(res.json).toHaveBeenCalledWith(mockMetadata);
-  });
-
-  test('returns error status if backend response is not 200', async () => {
-    const req = { body: { filepath: 'path/to/file' } };
-
-    axios.post.mockResolvedValue({ status: 404, data: null });
-
-    await fileController.downloadSentFile(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(404);
-    expect(res.send).toHaveBeenCalledWith("Error retrieving the sent file");
-  });
-
-  test('returns 500 on exception', async () => {
-    const req = { body: { filepath: 'file.xyz' } };
-
-    axios.post.mockRejectedValue(new Error('Timeout'));
-
-    await fileController.downloadSentFile(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.send).toHaveBeenCalledWith("Error retrieving the sent file");
-  });
-});
-
-
 });

@@ -5,7 +5,7 @@ const VaultController = require("./vaultController");
 
 class UserController {
   async register(req, res) {
-	  console.log("I can get here");
+    console.log("I can get here");
     try {
       const { username, email, password } = req.body;
       const {
@@ -57,14 +57,14 @@ class UserController {
           opks_private,
         });
         if (!vaultres || vaultres.error) {
-		console.log("Inside the if statement vaultres");
+          console.log("Inside the if statement vaultres");
           return res.status(500).json({
             success: false,
             message: vaultres.error || "Failed to store private keys in vault.",
           });
         }
       }
-	    console.log("The is before the 201");
+      console.log("The is before the 201");
       return res.status(201).json({
         success: true,
         message: "User registered successfully.",
@@ -109,6 +109,39 @@ class UserController {
       });
     }
   }
+
+  async getUserInfoFromEmail(req, res) {
+    try {
+      const { email } = req.params;
+      if (!email) {
+        return res.status(400).json({
+          success: false,
+          message: "No email provided",
+        });
+      }
+
+      const userInfo = await userService.getUserInfoFromEmail(email);
+
+      if (!userInfo) {
+        return res.status(404).json({
+          success: false,
+          message: `User with email ${email} not found`,
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: userInfo,
+      });
+    } catch (error) {
+      console.error("Error fetching user info:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error",
+      });
+    }
+  }
+
 
   async getPublicKeys(req, res) {
     try {
@@ -550,7 +583,7 @@ class UserController {
       if (!avatar_url && avatar_url !== null) {
         return res.status(400).json({ success: false, message: 'Avatar URL required (or null to remove)' });
       }
-      
+
       const updatedUrl = await userService.updateAvatarUrl(userId, avatar_url);
       res.status(200).json({ success: true, data: { avatar_url: updatedUrl } });
     } catch (error) {
@@ -561,7 +594,7 @@ class UserController {
 
   async googleAuth(req, res) {
     try {
-      const { email, name, picture, google_id } = req.body;
+      const { email, name, picture, google_id, keyBundle } = req.body;
 
       if (!email || !google_id) {
         return res.status(400).json({
@@ -588,7 +621,7 @@ class UserController {
         if (!existingUser.google_id) {
           const { data: updatedUser, error: updateError } = await supabase
             .from("users")
-            .update({ 
+            .update({
               google_id: google_id,
               avatar_url: picture || existingUser.avatar_url
             })
@@ -605,15 +638,32 @@ class UserController {
         }
       } else {
         isNewUser = true;
+        
+        // For new Google users, we need key bundle data
+        if (!keyBundle || !keyBundle.ik_public || !keyBundle.spk_public || 
+            !keyBundle.opks_public || !keyBundle.nonce || 
+            !keyBundle.signedPrekeySignature || !keyBundle.salt) {
+          return res.status(400).json({
+            success: false,
+            message: "Key bundle is required for new user registration.",
+          });
+        }
+
         const { data: newUser, error: createError } = await supabase
           .from("users")
           .insert({
             username: name || email.split('@')[0],
             email: email,
-            password_hash: null,
+            password: null,
             google_id: google_id,
             avatar_url: picture,
-            is_verified: true,
+            is_verified: false,
+            ik_public: keyBundle.ik_public,
+            spk_public: keyBundle.spk_public,
+            opks_public: keyBundle.opks_public,
+            nonce: keyBundle.nonce,
+            signedPrekeySignature: keyBundle.signedPrekeySignature,
+            salt: keyBundle.salt,
           })
           .select()
           .single();
@@ -623,24 +673,86 @@ class UserController {
         }
         user = newUser;
 
+        // Store private keys in vault
+        const vaultres = await VaultController.storeKeyBundle({
+          encrypted_id: user.id,
+          ik_private_key: keyBundle.ik_private_key,
+          spk_private_key: keyBundle.spk_private_key,
+          opks_private: keyBundle.opks_private,
+        });
+        
+        if (!vaultres || vaultres.error) {
+          console.log("Failed to store private keys in vault for Google user");
+          return res.status(500).json({
+            success: false,
+            message: vaultres.error || "Failed to store private keys in vault.",
+          });
+        }
+
+        // Send verification email for new Google users using the same endpoint as frontend
         try {
-          await VaultController.createVault(user.id, "My Secure Vault", "Default vault created with your account.");
-        } catch (vaultError) {
-          console.warn("Failed to create default vault for Google user:", vaultError.message);
+          const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+          const response = await fetch(`${frontendUrl}/api/auth/send-verification`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              email: user.email,
+              userId: user.id,
+              userName: user.username || "User"
+            }),
+          });
+
+          if (response.ok) {
+            console.log("Verification email sent to Google user:", user.email);
+          } else {
+            const errorData = await response.json();
+            console.error("Failed to send verification email:", errorData.error);
+          }
+        } catch (emailError) {
+          console.error("Failed to send verification email to Google user:", emailError);
         }
       }
 
-      const token = await userService.generateToken(user.id);
+      // Only generate token for existing verified users
+      let token = null;
+      if (!isNewUser && user.is_verified) {
+        token = await userService.generateToken(user.id, user.email);
+      }
+
+      let keyBundle_response = null;
+      if (!isNewUser) {
+        try {
+          const vaultResult = await VaultController.retrieveKeyBundle(user.id);
+          if (vaultResult && !vaultResult.error) {
+            keyBundle_response = vaultResult;
+          }
+        } catch (vaultError) {
+          console.warn("Failed to retrieve keys for existing Google user:", vaultError.message);
+        }
+      }
 
       res.status(200).json({
         success: true,
-        message: isNewUser ? "Account created successfully" : "Login successful",
-        token,
-        user: {
-          id: user.id,
-          username: user.username,
-          email: user.email,
-          avatar_url: user.avatar_url,
+        message: isNewUser ? "Account created successfully. Please verify your email." : "Login successful",
+        data: {
+          token,
+          user: {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            avatar_url: user.avatar_url,
+            is_verified: user.is_verified,
+            ik_public: user.ik_public,
+            spk_public: user.spk_public,
+            opks_public: user.opks_public,
+            nonce: user.nonce,
+            signedPrekeySignature: user.signedPrekeySignature,
+            salt: user.salt,
+          },
+          keyBundle: keyBundle_response,
+          isNewUser: isNewUser,
         },
       });
     } catch (error) {

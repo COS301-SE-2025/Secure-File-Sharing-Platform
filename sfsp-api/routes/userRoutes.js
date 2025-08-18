@@ -7,7 +7,7 @@ const router = express.Router();
 router.post('/register', userController.register);
 router.post('/login', userController.login);
 router.post('/logout', authMiddleware, userController.logout);
-router.post('/google', userController.googleAuth);
+router.post('/google-auth', userController.googleAuth);
 
 router.get('/profile', authMiddleware, userController.getProfile);
 router.delete('/profile', authMiddleware, userController.deleteProfile);
@@ -18,6 +18,7 @@ router.post('/send-reset-pin', authMiddleware, userController.sendResetPIN);
 router.post('/change-password', authMiddleware, userController.changePassword);
 router.get('/public-keys/:userId', userController.getPublicKeys);
 router.get('/getUserId/:email', userController.getUserIdFromEmail);
+router.get('/getUserInfo/:email', userController.getUserInfoFromEmail);
 router.post('/get-token', userController.getUserToken);
 router.get('/token-info', userController.getUserInfoFromToken);
 router.get('/notifications', authMiddleware, userController.getNotificationSettings);

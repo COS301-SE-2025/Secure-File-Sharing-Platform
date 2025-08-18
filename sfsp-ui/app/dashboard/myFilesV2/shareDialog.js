@@ -103,8 +103,7 @@ export function ShareDialog({ open, onOpenChange, file }) {
         }
 
         const json = await response.json();
-        const recipientId = json.data.id;
-
+        const recipientId = json.data.userId;
         console.log("Recipient Id is:", recipientId);
         console.log("FileId", file.id);
 
@@ -125,6 +124,8 @@ export function ShareDialog({ open, onOpenChange, file }) {
         });
 
         // Send the notification
+        console.log("Senders email is:", senderEmail);
+        console.log("Recipients emails is: ", email);
         await fetch("http://localhost:5000/api/notifications/add", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
