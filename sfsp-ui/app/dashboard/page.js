@@ -577,11 +577,29 @@ const fetchFiles = async () => {
             {recentLogs.length > 0 ? (
               recentLogs.map((log, idx) => (
                 <div key={idx} className="flex items-start gap-2">
-                  <img
-                    src={log.avatar || "/default-avatar.png"}
-                    alt={log.user}
-                    className="w-8 h-8 rounded-full"
-                  />
+                  {log.avatar ? (
+                    <img
+                      src={log.avatar}
+                      alt={log.user}
+                      className="w-8 h-8 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-bold text-xs">
+                      {(() => {
+                        if (!log.user) return '??';
+                        const parts = log.user.split(/[_\-\s\.]+/).filter(part => 
+                          part.length > 0 && !/^\d+$/.test(part)
+                        );
+                        if (parts.length >= 2) {
+                          return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
+                        } else if (parts.length === 1) {
+                          return parts[0].slice(0, 2).toUpperCase();
+                        } else {
+                          return log.user.slice(0, 2).toUpperCase();
+                        }
+                      })()}
+                    </div>
+                  )}
                   <div className="flex flex-col">
                     <span className="font-semibold">{log.user}</span>
                     <span className="text-xs text-gray-500 dark:text-gray-400">

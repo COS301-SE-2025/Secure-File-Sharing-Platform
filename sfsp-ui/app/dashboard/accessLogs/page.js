@@ -339,7 +339,19 @@ export default function AccessLogsPage() {
                           />
                         ) : (
                           <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-bold">
-                            {log.user[0]}
+                            {(() => {
+                              if (!log.user) return '??';
+                              const parts = log.user.split(/[_\-\s\.]+/).filter(part => 
+                                part.length > 0 && !/^\d+$/.test(part)
+                              );
+                              if (parts.length >= 2) {
+                                return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
+                              } else if (parts.length === 1) {
+                                return parts[0].slice(0, 2).toUpperCase();
+                              } else {
+                                return log.user.slice(0, 2).toUpperCase();
+                              }
+                            })()}
                           </div>
                         )}
                         <div>

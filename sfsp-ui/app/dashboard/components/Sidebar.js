@@ -232,7 +232,19 @@ export default function Sidebar() {
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  user?.username?.slice(0, 2).toUpperCase() || '??'
+                  (() => {
+                    if (!user?.username) return '??';
+                    const parts = user.username.split(/[_\-\s\.]+/).filter(part => 
+                      part.length > 0 && !/^\d+$/.test(part)
+                    );
+                    if (parts.length >= 2) {
+                      return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
+                    } else if (parts.length === 1) {
+                      return parts[0].slice(0, 2).toUpperCase();
+                    } else {
+                      return user.username.slice(0, 2).toUpperCase();
+                    }
+                  })()
                 )}
               </div>
             </button>
@@ -293,7 +305,23 @@ export default function Sidebar() {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    user?.username?.slice(0, 2).toUpperCase() || '??'
+                    (() => {
+                      if (!user?.username) return '??';
+                      // Split by common separators and filter out empty strings and numbers-only parts
+                      const parts = user.username.split(/[_\-\s\.]+/).filter(part => 
+                        part.length > 0 && !/^\d+$/.test(part)
+                      );
+                      if (parts.length >= 2) {
+                        // Take first letter of first two meaningful parts
+                        return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
+                      } else if (parts.length === 1) {
+                        // Take first two letters of the single meaningful part
+                        return parts[0].slice(0, 2).toUpperCase();
+                      } else {
+                        // Fallback to first two characters if no meaningful parts found
+                        return user.username.slice(0, 2).toUpperCase();
+                      }
+                    })()
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
