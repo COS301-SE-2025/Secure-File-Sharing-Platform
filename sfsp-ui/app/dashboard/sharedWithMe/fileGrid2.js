@@ -1,4 +1,4 @@
-//app/dashboard/myFilesV2/fileGrid.js
+// app/dashboard/sharedWithMe/fileGrid.js
 
 "use client";
 
@@ -7,7 +7,6 @@ import {
   FileIcon,
   Download,
   Share,
-  Folder,
   FileText,
   Image,
   Video,
@@ -43,15 +42,11 @@ export function FileGrid({
   onRevokeViewAccess,
   onClick,
   onDoubleClick,
-  onMoveFile,
-  onEnterFolder,
-  onGoBack,
-  currentPath,
+  onMoveFile, // can remove if not needed for files-only
 }) {
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const [menuFile, setMenuFile] = useState(null);
   const menuRef = useRef(null);
-  const [draggedFile, setDraggedFile] = useState(null);
 
   const [toast, setToast] = useState(null);
 
@@ -61,7 +56,6 @@ export function FileGrid({
   };
 
   const iconMap = {
-    folder: <Folder className="h-8 w-8 text-blue-500" />,
     podcast: <Headphones className="h-8 w-8 text-pink-500" />,
     pdf: <FileText className="h-8 w-8 text-red-500" />,
     document: <FileText className="h-8 w-8 text-gray-500" />,
@@ -95,27 +89,21 @@ export function FileGrid({
     tsx: <FileText className="h-8 w-8 text-blue-400" />,
     json: <FileText className="h-8 w-8 text-lime-500" />,
     xml: <FileText className="h-8 w-8 text-lime-500" />,
-    unknown: <FileText className="h-8 w-8 text-gray-300" />,
     md: <FileCode className="h-8 w-8 text-cyan-600" />,
     markdown: <FileCode className="h-8 w-8 text-cyan-600" />,
+    unknown: <FileText className="h-8 w-8 text-gray-300" />,
   };
 
   const getIcon = (file) => {
-    if (file.type === "folder") {
-      console.log("Folder icon selected");
-      return <Folder className="h-8 w-8 text-blue-500" />;
-    }
     return iconMap[file.type] || <FileIcon className="h-8 w-8 text-gray-500" />;
   };
 
-  // Check if file is view-only (either from tags or viewOnly property)
   const isViewOnly = (file) => {
-    return file.viewOnly || (file.fileTags && file.fileTags.includes("view-only")) || (file.tags && file.tags.includes("view-only"));
-  };
-
-  // Check if current user is the owner (assuming owner files don't have "received" tag)
-  const isOwner = (file) => {
-    return !file.tags || !file.tags.includes("received");
+    return (
+      file.viewOnly ||
+      (file.fileTags && file.fileTags.includes("view-only")) ||
+      (file.tags && file.tags.includes("view-only"))
+    );
   };
 
   const handleContextMenu = (e, file) => {
@@ -146,26 +134,16 @@ export function FileGrid({
         body: JSON.stringify({ fileId: file.id, tags }),
       });
 
-      if (!res.ok) {
-        throw new Error("Failed to tag file as deleted");
-      }
-
-      console.log(`File ${file.name} marked as deleted`);
+      if (!res.ok) throw new Error("Failed to tag file as deleted");
 
       const token = localStorage.getItem("token");
-      if (!token) return;
-
-      try {
-        const profileRes = await fetch(
-          "http://localhost:5000/api/users/profile",
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
+      if (token) {
+        const profileRes = await fetch("http://localhost:5000/api/users/profile", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
         const profileResult = await profileRes.json();
-        if (!profileRes.ok)
-          throw new Error(profileResult.message || "Failed to fetch profile");
+        if (!profileRes.ok) throw new Error(profileResult.message || "Failed to fetch profile");
 
         await fetch("http://localhost:5000/api/files/addAccesslog", {
           method: "POST",
@@ -177,46 +155,14 @@ export function FileGrid({
             message: `User ${profileResult.data.email} deleted the file.`,
           }),
         });
-      } catch (err) {
-        console.error("Failed to fetch user profile:", err.message);
       }
 
-      if (onDelete) {
-        onDelete(file);
-      }
+      onDelete?.(file);
     } catch (err) {
       console.error("Delete failed:", err);
       showToast("Failed to delete file");
     } finally {
       setMenuFile(null);
-    }
-  };
-
-  const handleDragStart = (e, file) => {
-    setDraggedFile(file);
-    e.dataTransfer.effectAllowed = "move";
-  };
-
-  const handleDragOver = (e, folder) => {
-    if (
-      draggedFile &&
-      folder.type === "folder" &&
-      draggedFile.id !== folder.id
-    ) {
-      e.preventDefault(); // allows drop
-    }
-  };
-
-  const handleDrop = (e, folder) => {
-    e.preventDefault();
-    if (
-      draggedFile &&
-      folder.type === "folder" &&
-      draggedFile.id !== folder.id
-    ) {
-      const newPath = folder.cid || folder.path || folder.name;
-      onMoveFile?.(draggedFile, newPath); // <-- You will define this in your parent component
-      setDraggedFile(null);
     }
   };
 
@@ -227,117 +173,75 @@ export function FileGrid({
         {files.map((file) => (
           <div
             key={file.id}
-            draggable={file.type !== "folder"}
-            onDragStart={(e) => handleDragStart(e, file)}
-            onDragOver={(e) => handleDragOver(e, file)}
-            onDrop={(e) => handleDrop(e, file)}
-            onClick={() => {
-              if (file.type !== "folder") {
-                onClick?.(file);
-              }
-            }}
-            onDoubleClick={() => {
-              if (file.type === "folder") {
-                onEnterFolder?.(file.name);
-              } else {
-                onDoubleClick?.(file);
-              }
-            }}
+            onClick={() => onClick?.(file)}
+            onDoubleClick={() => onDoubleClick?.(file)}
             onContextMenu={(e) => handleContextMenu(e, file)}
             className="relative group bg-white rounded-lg border border-gray-300 p-4 hover:shadow-lg transition-shadow cursor-pointer dark:bg-gray-200 dark:hover:bg-blue-100"
           >
-            {/* FOLDER DESIGN */}
-            {file.type === "folder" ? (
-              <div className="flex flex-col items-center text-center space-y-2">
-                <div className="relative">
-                  <Folder className="h-20 w-20 text-blue-500" />
-                </div>
-                <h3 className="text-base font-bold text-gray-900 truncate" title={file.name}>
-                  {file.name}
-                </h3>
+            <div className="flex items-center justify-between mb-3">
+              <div className="relative">{getIcon(file)}
+                {isViewOnly(file) && (
+                  <div className="absolute -top-1 -right-1 bg-blue-500 rounded-full p-1">
+                    <Eye className="h-3 w-3 text-white" />
+                  </div>
+                )}
               </div>
-            ) : (
-              // FILE DESIGN
-              <>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="relative">
-                    {getIcon(file)}
 
-                    {/* View-only indicator */}
-                    {isViewOnly(file) && (
-                      <div className="absolute -top-1 -right-1 bg-blue-500 rounded-full p-1">
-                        <Eye className="h-3 w-3 text-white" />
-                      </div>
-                    )}
-                  </div>
+              <div className="flex items-center gap-1">
+                {file.starred && <Star className="h-4 w-4 text-yellow-500 fill-current" />}
+                {file.shared && <span className="px-1 py-0.5 text-xs bg-gray-200 rounded">Shared</span>}
+              </div>
+            </div>
 
-                  <div className="flex items-center gap-1">
-                    {file.starred && (
-                      <Star className="h-4 w-4 text-yellow-500 fill-current" />
-                    )}
-                    {file.shared && (
-                      <span className="px-1 py-0.5 text-xs bg-gray-200 rounded">Shared</span>
-                    )}
-                  </div>
-                </div>
+            <h3 className="font-medium text-gray-900 text-sm mb-1 truncate" title={file.name}>
+              {file.name}
+            </h3>
 
-                <h3
-                  className="font-medium text-gray-900 text-sm mb-1 truncate"
-                  title={file.name}
+            <div className="mb-2">
+              <span
+                className={`px-2 py-1 rounded-full text-xs ${isViewOnly(file)
+                  ? "bg-blue-100 text-blue-800 dark:bg-blue-200"
+                  : "bg-green-100 text-green-800 dark:bg-green-200"
+                  }`}
+              >
+                {isViewOnly(file) ? "View Only" : "Full Access"}
+              </span>
+            </div>
+
+            <div className="text-xs text-gray-500 space-y-1">
+              <p>{file.size}</p>
+              <p>Modified {file.modified}</p>
+            </div>
+
+            <div className="absolute bottom-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              {!isViewOnly(file) && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onShare(file);
+                  }}
+                  className="p-1 hover:bg-gray-100 rounded dark:text-black"
+                  title="Share"
                 >
-                  {file.name}
-                </h3>
+                  <Share className="h-3 w-3" />
+                </button>
+              )}
 
-                <div className="mb-2">
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs ${isViewOnly(file)
-                      ? "bg-blue-100 text-blue-800 dark:bg-blue-200"
-                      : "bg-green-100 text-green-800 dark:bg-green-200"
-                      }`}
-                  >
-                    {isViewOnly(file) ? "View Only" : "Full Access"}
-                  </span>
-                </div>
-
-                <div className="text-xs text-gray-500 space-y-1">
-                  <p>{file.size}</p>
-                  <p>Modified {file.modified}</p>
-                </div>
-
-                {/* Quick Actions on Hover */}
-                <div className="absolute bottom-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-
-                  {!isViewOnly(file) && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onShare(file);
-                      }}
-                      className="p-1 hover:bg-gray-100 rounded dark:text-black"
-                      title="Share"
-                    >
-                      <Share className="h-3 w-3" />
-                    </button>
-                  )}
-
-                  {!isViewOnly(file) && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDownload(file);
-                      }}
-                      className="p-1 hover:bg-gray-100 rounded dark:text-black"
-                      title="Download"
-                    >
-                      <Download className="h-3 w-3" />
-                    </button>
-                  )}
-                </div>
-              </>
-            )}
+              {!isViewOnly(file) && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDownload(file);
+                  }}
+                  className="p-1 hover:bg-gray-100 rounded dark:text-black"
+                  title="Download"
+                >
+                  <Download className="h-3 w-3" />
+                </button>
+              )}
+            </div>
           </div>
         ))}
-
       </div>
 
       {/* Context Menu */}
@@ -363,23 +267,17 @@ export function FileGrid({
 
           <button
             onClick={() => {
-              if (!isViewOnly(menuFile)) {
-                onDownload(menuFile);
-              }
+              if (!isViewOnly(menuFile)) onDownload(menuFile);
               setMenuFile(null);
             }}
-            className={`w-full text-left px-4 py-2 flex items-center gap-2 ${menuFile?.type === "folder"
-              ? "hidden"
-              : isViewOnly(menuFile)
-                ? "opacity-50 cursor-not-allowed"
-                : "hover:bg-gray-100 dark:hover:bg-blue-200"
+            className={`w-full text-left px-4 py-2 flex items-center gap-2 ${isViewOnly(menuFile) ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-100 dark:hover:bg-blue-200"
               }`}
-            disabled={menuFile?.type !== "folder" && isViewOnly(menuFile)}
+            disabled={isViewOnly(menuFile)}
           >
             <Download className="h-4 w-4" /> Download
           </button>
 
-          {menuFile?.type !== "folder" && <hr className="my-1" />}
+          <hr className="my-1" />
 
           <button
             onClick={() => {
@@ -406,13 +304,10 @@ export function FileGrid({
               onViewActivity(menuFile);
               setMenuFile(null);
             }}
-            className={`w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 dark:hover:bg-blue-200 ${menuFile?.type === "folder" ? "hidden" : ""
-              }`}
+            className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 dark:hover:bg-blue-200"
           >
             <MoreVertical className="h-4 w-4" /> Activity Logs
           </button>
-
-          {menuFile?.type !== "folder" && <hr className="my-1" />}
 
           {(isViewOnly(menuFile) || menuFile.allow_view_sharing) && onRevokeViewAccess && (
             <button
@@ -420,8 +315,7 @@ export function FileGrid({
                 onRevokeViewAccess(menuFile);
                 setMenuFile(null);
               }}
-              className={`w-full text-left px-4 py-2 hover:bg-orange-50 text-orange-600 flex items-center gap-2 dark:hover:bg-orange-200 dark:text-orange-600 ${menuFile?.type === "folder" ? "hidden" : ""
-                }`}
+              className="w-full text-left px-4 py-2 hover:bg-orange-50 text-orange-600 flex items-center gap-2 dark:hover:bg-orange-200 dark:text-orange-600"
             >
               <EyeOff className="h-4 w-4" /> Revoke View Access
             </button>

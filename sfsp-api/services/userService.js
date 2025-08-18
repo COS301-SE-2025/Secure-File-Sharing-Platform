@@ -106,16 +106,16 @@ class UserService {
     }
   }
 
-  async getUserInfoFromEmail(email) {
+  async getUserInfoFromID(userId) {
     try {
       const { data, error } = await supabase
         .from("users")
         .select("username, avatar_url,email")
-        .eq("email", email)
+        .eq("id", userId)
         .single();
 
       if (error || !data) {
-        throw new Error("This user email was not found");
+        throw new Error("This userId was not found");
       }
 
       return data;

@@ -2,7 +2,7 @@
 
 'use client';
 
-import {useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import Image from 'next/image';
@@ -43,7 +43,7 @@ export default function Sidebar() {
     const newState = !isCollapsed;
     setIsCollapsed(newState);
     localStorage.setItem('sidebarCollapsed', JSON.stringify(newState));
-    
+
     if (!newState) {
       setDropdownOpen(false);
       setSettingsOpen(false);
@@ -107,11 +107,10 @@ export default function Sidebar() {
         ? safePathname === '/dashboard'
         : safePathname.startsWith(path);
 
-    return `flex items-center gap-3 p-3 rounded-lg transition-colors ${
-      isActive
+    return `flex items-center gap-3 p-3 rounded-lg transition-colors ${isActive
         ? 'text-black dark:text-white font-bold bg-blue-300 dark:bg-gray-700'
         : 'hover:bg-blue-300 dark:hover:bg-gray-700'
-    } ${isCollapsed && !isHovered ? 'justify-center tooltip-container' : ''}`;
+      } ${isCollapsed && !isHovered ? 'justify-center tooltip-container' : ''}`;
   };
 
   const navigationItems = [
@@ -125,13 +124,10 @@ export default function Sidebar() {
   return (
     <aside
       data-testid="sidebar"
-      className={`${
-        showExpanded ? 'w-64' : 'w-16'
-      } bg-gray-200 text-gray-800 dark:bg-gray-800 dark:text-white p-6 shadow-md hidden md:block relative transition-all duration-300 ease-in-out`}
+      className={`fixed top-0 left-0 h-screen ${showExpanded ? 'w-64' : 'w-16'} bg-gray-200 text-gray-800 dark:bg-gray-800 dark:text-white p-6 shadow-md hidden md:flex flex-col transition-all duration-300 ease-in-out z-40`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => {
         setIsHovered(false);
-        // Close dropdowns when sidebar collapses
         if (isCollapsed) {
           setDropdownOpen(false);
           setSettingsOpen(false);
@@ -185,8 +181,8 @@ export default function Sidebar() {
           const Icon = item.icon;
           return (
             <div key={item.href} className="relative group">
-              <a 
-                href={item.href} 
+              <a
+                href={item.href}
                 className={linkClasses(item.href)}
               >
                 <Icon size={20} />
