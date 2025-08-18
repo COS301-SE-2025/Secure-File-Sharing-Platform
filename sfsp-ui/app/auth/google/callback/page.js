@@ -23,7 +23,7 @@ export default function GoogleCallbackPage() {
             const storedState = sessionStorage.getItem("googleOAuthState");
 
             if (error === "access_denied") {
-            router.push("/auth");
+            router.push("/auth?error=oauth_cancelled");
             return;
             }
 
@@ -38,7 +38,7 @@ export default function GoogleCallbackPage() {
             }
 
             if (state !== storedState) {
-            router.push("/auth?error=state_mismatch");
+            router.push("/auth?error=invalid_state");
             return;
             }
 
@@ -181,6 +181,9 @@ export default function GoogleCallbackPage() {
         sessionStorage.setItem("unlockToken", "session-unlock");
         await storeUserKeysSecurely(userKeys, derivedKey);
 
+        // Clear any existing persisted state before setting new user data
+        localStorage.removeItem('encryption-store');
+        
         useEncryptionStore.setState({
             encryptionKey: derivedKey,
             userId: user.id,
@@ -189,6 +192,25 @@ export default function GoogleCallbackPage() {
 
         const rawToken = token.replace(/^Bearer\s/, "");
         localStorage.setItem("token", rawToken);
+
+        // Add user to the PostgreSQL database using the route for addUser in file routes
+        try {
+            const addUserRes = await fetch("http://localhost:5000/api/files/addUser", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                userId: user.id,
+                }),
+            });
+
+            if (!addUserRes.ok) {
+                console.error("Failed to add user to PostgreSQL database");
+            } else {
+                console.log("User successfully added to PostgreSQL database");
+            }
+        } catch (error) {
+            console.error("Error adding user to PostgreSQL database:", error);
+        }
 
         router.push("/dashboard");
         } catch (error) {
@@ -231,6 +253,25 @@ export default function GoogleCallbackPage() {
 
         if (isNewUser) {
             setLoaderMessage("Account created! Please check your email for verification...");
+            
+            // Add user to the PostgreSQL database using the route for addUser in file routes
+            try {
+              const addUserRes = await fetch("http://localhost:5000/api/files/addUser", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  userId: user.id,
+                }),
+              });
+
+              if (!addUserRes.ok) {
+                console.error("Failed to add new Google user to PostgreSQL database");
+              } else {
+                console.log("New Google user successfully added to PostgreSQL database");
+              }
+            } catch (error) {
+              console.error("Error adding new Google user to PostgreSQL database:", error);
+            }
             
             setTimeout(() => {
             router.push(`/auth/verify-email?email=${encodeURIComponent(googleUser.email)}&userId=${user.id}`);

@@ -5,6 +5,30 @@ describe("Auth page - Integration", () => {
   });
 
   it("should switch to the signup form when clicking 'Sign Up' and submit successfully", () => {
+    // Set up API mocks before any interactions
+    cy.intercept('POST', 'http://localhost:5000/api/users/register', {
+      statusCode: 200,
+      body: {
+        success: true,
+        message: "User registered successfully.",
+        data: {
+          token: null, // No token for unverified users
+          user: {
+            id: '123',
+            email: 'testuser@example.com',
+            username: 'Test User',
+            is_verified: false, // User needs to verify email
+          },
+        },
+      },
+    }).as('signupRequest');
+
+    // Mock the file service user addition
+    cy.intercept('POST', 'http://localhost:5000/api/files/addUser', {
+      statusCode: 200,
+      body: { success: true }
+    }).as('addUserRequest');
+
     // First, click on the "Sign Up" tab to switch to the signup form
     cy.get("div").contains("Sign Up").click();
 
@@ -15,48 +39,34 @@ describe("Auth page - Integration", () => {
     const signupData = {
       name: "Test User",
       email: "testuser@example.com",
-      password: "password123",
-      confirmPassword: "password123",
+      password: "TestPassword123!",  // Strong password that meets all requirements
+      confirmPassword: "TestPassword123!",
     };
 
     cy.get('input[name="name"]').type(signupData.name);
     cy.get('input[name="email"]').type(signupData.email);
     cy.get('input[name="password"]').type(signupData.password);
-    cy.get('input[name="confirmPassword"]').type(signupData.confirmPassword);
+    
+    // Wait for password requirements to be validated before typing confirm password
+    cy.wait(500);
+    
+    cy.get('input[name="confirmPassword"]').should('not.be.disabled').type(signupData.confirmPassword);
     cy.get('button[type="submit"]').click(); // Submit the form
-
-    // Mocking the signup API response
-    cy.intercept('POST', 'http://localhost:5000/api/users/register', {
-      statusCode: 200,
-      body: {
-        success: true,
-        message: "User successfully registered!",
-        data: {
-          token: 'mock-signup-token',
-          user: {
-            id: '123',
-            email: signupData.email,
-            name: signupData.name,
-          },
-          keyBundle: {
-            ik_private_key: 'mock-ik-private-key',
-            spk_private_key: 'mock-spk-private-key',
-            opks_private: 'mock-opks-private',
-          },
-        },
-      },
-    }).as('signupRequest');
 
     // Wait for the signup API call to complete
     cy.wait('@signupRequest');
+    cy.wait('@addUserRequest');
 
-    // Assert that the success message is displayed
-    cy.contains("User successfully registered!");
+    // Assert that the success message is displayed (updated message)
+    cy.contains("Account created successfully! Please check your email for verification.", { timeout: 10000 });
 
-    // Assert that the token is saved in localStorage
+    // Assert that no token is saved in localStorage for unverified users
     cy.window().then((window) => {
-      expect(window.localStorage.getItem('token')).to.equal('mock-signup-token');
+      expect(window.localStorage.getItem('token')).to.be.null;
     });
+
+    // Assert that the user is redirected to verification page (increased timeout)
+    cy.url({ timeout: 10000 }).should('include', '/auth/verify-email');
 
   });
 

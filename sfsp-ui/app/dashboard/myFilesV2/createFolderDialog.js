@@ -60,7 +60,7 @@ const Label = ({ htmlFor, children }) => (
   </label>
 );
 
-export function CreateFolderDialog({ open, onOpenChange, currentPath }) {
+export function CreateFolderDialog({ open, onOpenChange, currentPath,onFolderCreated }) {
   const [folderName, setFolderName] = useState("");
 
   const createFolder = async () => {
@@ -93,6 +93,7 @@ export function CreateFolderDialog({ open, onOpenChange, currentPath }) {
       }
 
       console.log("Folder created successfully");
+      onFolderCreated?.();
       setFolderName("");
       onOpenChange(false);
     } catch (err) {

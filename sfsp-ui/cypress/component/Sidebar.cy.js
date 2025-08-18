@@ -54,6 +54,10 @@ describe('<Sidebar />', () => {
         </AppRouterMockProvider>
         );
         cy.wait('@getProfile');
+        
+        // Click the toggle button to expand the sidebar 
+        cy.get('[data-testid="sidebar-toggle"]').click();
+        
         cy.get('[data-testid="sidebar"]').within(() => {
         cy.get('[data-testid="profile-button"]').should('be.visible');
         cy.contains('TestUser').should('be.visible');
@@ -74,17 +78,21 @@ describe('<Sidebar />', () => {
             <Sidebar />
         </AppRouterMockProvider>
         );
+        
+        // Expand the sidebar by clicking the toggle button
+        cy.get('[data-testid="sidebar-toggle"]').click();
+        
         cy.get('[data-testid="sidebar"]').within(() => {
-        cy.get('[data-testid="settings-dropdown"]').first().should('be.visible');
+        // Wait for the sidebar to expand and show settings
+        cy.get('[data-testid="settings-dropdown"]').should('be.visible');
         cy.get('[data-testid="settings-dropdown"]').should('have.length', 1);
 
-        cy.get('[data-testid="settings-dropdown"]').first().click();
-        cy.get('[data-testid="settings-dropdown"]').should('have.length', 2);
+        cy.get('[data-testid="settings-dropdown"]').click();
         cy.contains('Account Settings').should('be.visible');
         cy.contains('Dark Mode').should('be.visible');
 
         cy.get('[data-testid="settings-dropdown"]').first().click();
-        cy.get('[data-testid="settings-dropdown"]').should('have.length', 1);
+        cy.contains('Account Settings').should('not.exist');
         });
     });
 });

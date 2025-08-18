@@ -1,4 +1,5 @@
 const bcrypt = require("bcrypt");
+const axios = require("axios");
 const { supabase } = require("../config/database");
 const userService = require("../services/userService");
 const VaultController = require("./vaultController");
@@ -63,6 +64,19 @@ class UserController {
             message: vaultres.error || "Failed to store private keys in vault.",
           });
         }
+
+        // Send verification email for new regular users
+        try {
+          await userService.sendVerificationCode(
+            result.user.id,
+            result.user.email,
+            result.user.username || "User"
+          );
+          console.log("Verification email sent to new user:", result.user.email);
+        } catch (emailError) {
+          console.error("Failed to send verification email to new user:", emailError);
+          // Don't fail registration if email sending fails
+        }
       }
       console.log("The is before the 201");
       return res.status(201).json({
@@ -72,9 +86,33 @@ class UserController {
       });
     } catch (error) {
       console.error("Error registering user:", error);
+      
+      // Return specific error messages for known issues
+      if (error.message.includes("User already exists")) {
+        return res.status(409).json({
+          success: false,
+          message: "An account with this email address already exists. Please use a different email or try logging in.",
+        });
+      }
+      
+      if (error.message.includes("Failed to create user")) {
+        return res.status(400).json({
+          success: false,
+          message: "Failed to create account. Please check your information and try again.",
+        });
+      }
+      
+      if (error.message.includes("Failed to store private keys")) {
+        return res.status(500).json({
+          success: false,
+          message: "Account created but failed to secure your keys. Please try registering again.",
+        });
+      }
+      
+      // Generic fallback for unexpected errors
       return res.status(500).json({
         success: false,
-        message: "Internal server error.",
+        message: "An unexpected error occurred while creating your account. Please try again.",
       });
     }
   }
@@ -110,22 +148,22 @@ class UserController {
     }
   }
 
-  async getUserInfoFromEmail(req, res) {
+  async getUserInfoFromID(req, res) {
     try {
-      const { email } = req.params;
-      if (!email) {
+      const { userId} = req.params;
+      if (!userId) {
         return res.status(400).json({
           success: false,
-          message: "No email provided",
+          message: "No userID provided",
         });
       }
 
-      const userInfo = await userService.getUserInfoFromEmail(email);
+      const userInfo = await userService.getUserInfoFromID(userId);
 
       if (!userInfo) {
         return res.status(404).json({
           success: false,
-          message: `User with email ${email} not found`,
+          message: `User with userId ${userId} not found`,
         });
       }
 
@@ -636,6 +674,19 @@ class UserController {
         } else {
           user = existingUser;
         }
+
+        // Ensure user is added to PostgreSQL database via file service (for both new and existing users)
+        try {
+          const postgresRes = await axios.post(
+            `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/addUser`,
+            { userId: user.id },
+            { headers: { "Content-Type": "application/json" } }
+          );
+          console.log("User successfully ensured in PostgreSQL database");
+        } catch (postgresError) {
+          console.error("Failed to add user to PostgreSQL database:", postgresError.message);
+          // Don't fail the login if PostgreSQL insertion fails
+        }
       } else {
         isNewUser = true;
         
@@ -689,27 +740,28 @@ class UserController {
           });
         }
 
-        // Send verification email for new Google users using the same endpoint as frontend
+        // Add user to PostgreSQL database via file service
         try {
-          const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-          const response = await fetch(`${frontendUrl}/api/auth/send-verification`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              email: user.email,
-              userId: user.id,
-              userName: user.username || "User"
-            }),
-          });
+          const postgresRes = await axios.post(
+            `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/addUser`,
+            { userId: user.id },
+            { headers: { "Content-Type": "application/json" } }
+          );
+          console.log("Google user successfully added to PostgreSQL database");
+        } catch (postgresError) {
+          console.error("Failed to add Google user to PostgreSQL database:", postgresError.message);
+          // Don't fail the registration if PostgreSQL insertion fails
+        }
 
-          if (response.ok) {
-            console.log("Verification email sent to Google user:", user.email);
-          } else {
-            const errorData = await response.json();
-            console.error("Failed to send verification email:", errorData.error);
-          }
+        // Send verification email for new Google users using the backend service
+        try {
+          await userService.sendVerificationCode(
+            user.id,
+            user.email,
+            user.username || "User",
+            'google_signin'
+          );
+          console.log("Verification email sent to Google user:", user.email);
         } catch (emailError) {
           console.error("Failed to send verification email to Google user:", emailError);
         }
