@@ -58,6 +58,9 @@ export default function DashboardHomePage() {
   const [viewerContent, setViewerContent] = useState(null);
   const [previewFile, setPreviewFile] = useState(null);
   const [previewContent, setPreviewContent] = useState(null);
+const [logs, setLogs] = useState([]);          // Stores all fetched logs
+const [recentLogs, setRecentLogs] = useState([]); // Stores top 3 most recent / filtered logs
+const [actionFilter, setActionFilter] = useState("All actions"); // Current action filter
 
 
   const formatTimestamp = (timestamp) => {
@@ -72,57 +75,61 @@ export default function DashboardHomePage() {
     return `${Math.floor(hours / 24)}d ago`;
   };
 
-  const fetchFiles = async () => {
+const fetchFiles = async () => {
+  try {
+    if (!userId) {
+      console.error("Cannot fetch files: Missing userId in store.");
+      return [];
+    }
+
+    const res = await fetch("http://localhost:5000/api/files/metadata", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId }),
+    });
+
+    let data;
     try {
-      if (!userId) {
-        console.error("Cannot fetch files: Missing userId in store.");
-        return;
-      }
+      data = await res.json();
+    } catch (e) {
+      const text = await res.text();
+      console.error("Failed to parse JSON:", text);
+      return [];
+    }
 
-      const res = await fetch("http://localhost:5000/api/files/metadata", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId }),
-      });
+    const sortedFiles = data.sort(
+      (a, b) => new Date(b.date) - new Date(a.date)
+    );
 
-      let data;
-      try {
-        data = await res.json();
-      } catch (e) {
-        const text = await res.text();
-        console.error("Failed to parse JSON:", text);
-        return;
-      }
+    setRecentFiles(sortedFiles.slice(0, 3));
 
     const formatted = data
-    .filter((f) => {
-      const tags = f.tags ? f.tags.replace(/[{}]/g, "").split(",") : [];
-      return (
-        !tags.includes("deleted") &&
-        !tags.some((tag) => tag.trim().startsWith("deleted_time:"))
-      );
-    })
-    .map((f) => ({
-      id: f.fileId || "",
-      name: f.fileName || "Unnamed file",
-      size: formatFileSize(f.fileSize || 0),
-      type: getFileType(f.fileType || ""),
-      modified: f.createdAt ? new Date(f.createdAt).toLocaleDateString() : "",
-      createdAt: f.createdAt || "", // Keep raw date for sorting
-      shared: false,
-      starred: false,
-    }));
+      .filter((f) => {
+        const tags = f.tags ? f.tags.replace(/[{}]/g, "").split(",") : [];
+        return (
+          !tags.includes("deleted") &&
+          !tags.some((tag) => tag.trim().startsWith("deleted_time:"))
+        );
+      })
+      .map((f) => ({
+        id: f.fileId || "",
+        name: f.fileName || "Unnamed file",
+        size: formatFileSize(f.fileSize || 0),
+        type: getFileType(f.fileType || ""),
+        modified: f.createdAt ? new Date(f.createdAt).toLocaleDateString() : "",
+        shared: false,
+        starred: false,
+      }));
 
+    setFiles(formatted);
 
-  const sortedFiles = [...formatted].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    return formatted; // ← add this
+  } catch (err) {
+    console.error("Failed to fetch files:", err);
+    return [];
+  }
+};
 
-  setRecentFiles(sortedFiles.slice(0, 3)); // Take the top 3 most recent
-  setFiles(formatted); // You may want to keep the unsorted full list
-
-      } catch (err) {
-        console.error("Failed to fetch files:", err);
-      }
-    };
 
   const handleLoadFile = async (file) => {
     if (!file?.fileName) {
@@ -300,6 +307,64 @@ export default function DashboardHomePage() {
       console.error('Failed to clear notification:', error);
     }
   };
+  const fetchAllLogs = async () => {
+  setLoading(true);
+
+  try {
+    const files = await fetchFiles();
+
+    // Ensure files is an array
+    if (!Array.isArray(files)) {
+      console.error("fetchFiles did not return an array:", files);
+      setLogs([]);
+      setRecentLogs([]);
+      return;
+    }
+
+    const allLogs = [];
+
+    for (const file of files) {
+      try {
+        const res = await fetch("http://localhost:5000/api/files/getAccesslog", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ file_id: file.fileId }),
+        });
+
+        if (!res.ok) continue;
+        const fileLogs = await res.json();
+
+        for (const log of fileLogs) {
+          allLogs.push({
+            user: log.message?.split(/\s+/)[0] || "Unknown",
+            action: log.action?.toLowerCase() || "",
+            file: file.fileName || "Unnamed",
+            date: new Date(log.timestamp).toLocaleString(),
+          });
+        }
+      } catch (err) {
+        console.error(`Error fetching logs for file ${file.fileId}:`, err);
+      }
+    }
+
+    setLogs(allLogs);
+
+    const filteredLogs = allLogs
+      .filter(log => actionFilter === "All actions" || log.action === actionFilter.toLowerCase())
+      .filter(log => {
+        const q = search.toLowerCase();
+        return log.user.toLowerCase().includes(q) || log.action.toLowerCase().includes(q) || log.file.toLowerCase().includes(q) || log.date.toLowerCase().includes(q);
+      });
+
+    setRecentLogs(filteredLogs.slice(0, 3));
+
+  } catch (err) {
+    console.error("Failed to fetch all logs:", err);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const fetchFilesMetadata = useCallback(async () => {
     try {
@@ -344,8 +409,9 @@ export default function DashboardHomePage() {
       fetchFilesMetadata();
       fetchFiles();
       fetchNotifications();
+      fetchAllLogs()
     }
-  }, [userId, fetchFilesMetadata]);
+  }, [userId, fetchFilesMetadata, actionFilter]);
 
   const stats = [
     {
@@ -494,38 +560,46 @@ export default function DashboardHomePage() {
             </div>
           </div>
 
-          {/* Activity Logs (Static Data) */}
-          <div
-            className="h-60 w-full lg:col-span-2 p-6 flex flex-col justify-start
-             bg-gray-200 dark:bg-gray-800 rounded-lg shadow hover:shadow-lg
-             transition-shadow overflow-hidden"
-          >
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-full">
-                <AlertCircleIcon className="text-green-600 dark:text-green-400" size={28} />
-              </div>
-              <p className="text-xl font-bold text-gray-500 dark:text-gray-400">Activity Logs</p>
+      {/* Activity Logs (Dynamic Data) */}
+        <div className="h-60 w-full lg:col-span-2 p-6 flex flex-col justify-start
+                        bg-gray-200 dark:bg-gray-800 rounded-lg shadow hover:shadow-lg
+                        transition-shadow overflow-hidden">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-full">
+              <AlertCircleIcon className="text-green-600 dark:text-green-400" size={28} />
             </div>
+            <p className="text-xl font-bold text-gray-500 dark:text-gray-400">
+              Activity Logs
+            </p>
+          </div>
 
-            <div className="overflow-y-auto space-y-2 pr-2 text-sm text-gray-700 dark:text-gray-200">
-              <div className="flex items-start gap-2">
-                <Clock className="w-4 h-4 mt-1 text-gray-600 dark:text-gray-300" />
-                <div>
-                  <p className="text-sm leading-tight">Uploaded "report.pdf"</p>
-                  <p className="text-xs text-gray-500">Today, 11:30 AM</p>
+          <div className="overflow-y-auto space-y-2 pr-2 text-sm text-gray-700 dark:text-gray-200">
+            {recentLogs.length > 0 ? (
+              recentLogs.map((log, idx) => (
+                <div key={idx} className="flex items-start gap-2">
+                  <img
+                    src={log.avatar || "/default-avatar.png"}
+                    alt={log.user}
+                    className="w-8 h-8 rounded-full"
+                  />
+                  <div className="flex flex-col">
+                    <span className="font-semibold">{log.user}</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      {log.action} <strong>{log.file}</strong> at {log.date}
+                    </span>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-start gap-2">
-                <Clock className="w-4 h-4 mt-1 text-gray-600 dark:text-gray-300" />
-                <div>
-                  <p className="text-sm leading-tight">Deleted "old_notes.txt"</p>
-                  <p className="text-xs text-gray-500">Yesterday, 4:10 PM</p>
-                </div>
-              </div>
-            </div>
+              ))
+            ) : (
+              <p className="text-gray-500 dark:text-gray-400">No recent activity.</p>
+            )}
           </div>
         </div>
+
       </div>
+    </div>
+
+
 
       {/* Recent Files */}
       <div className="mt-12 max-w-5xl mx-auto">
