@@ -110,22 +110,22 @@ class UserController {
     }
   }
 
-  async getUserInfoFromEmail(req, res) {
+  async getUserInfoFromID(req, res) {
     try {
-      const { email } = req.params;
-      if (!email) {
+      const { userId} = req.params;
+      if (!userId) {
         return res.status(400).json({
           success: false,
-          message: "No email provided",
+          message: "No userID provided",
         });
       }
 
-      const userInfo = await userService.getUserInfoFromEmail(email);
+      const userInfo = await userService.getUserInfoFromID(userId);
 
       if (!userInfo) {
         return res.status(404).json({
           success: false,
-          message: `User with email ${email} not found`,
+          message: `User with userId ${userId} not found`,
         });
       }
 
