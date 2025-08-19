@@ -1056,7 +1056,7 @@ export default function AccountSettings() {
               {passwordStep === 'newPassword' && (
                 <div className="space-y-4">
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                    Now enter your new password. Make sure it's strong and secure.
+                    Now enter your new password. Make sure it&apos;s strong and secure.
                   </p>
                   <div>
                     <label htmlFor="newPassword" className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
@@ -1132,7 +1132,7 @@ export default function AccountSettings() {
                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Email me when:</p>
                     <div className="space-y-3">
                       <div className="flex items-center justify-between py-2">
-                        <span className="text-sm text-gray-900 dark:text-white">I'm running out of space</span>
+                        <span className="text-sm text-gray-900 dark:text-white">I&apos;m running out of space</span>
                         <label className="relative inline-flex items-center cursor-pointer">
                           <input
                             type="checkbox"
