@@ -18,6 +18,17 @@ import {
   EyeOff
 } from "lucide-react";
 
+function Toast({ message, type = "info", onClose }) {
+  return (
+    <div className={`fixed inset-0 flex items-center justify-center z-50 pointer-events-none`}>
+      <div className={`bg-red-300 border ${type === "error" ? "border-red-300" : "border-blue-500"} text-gray-900 rounded shadow-lg px-6 py-3 pointer-events-auto`}>
+        <span>{message}</span>
+        <button onClick={onClose} className="ml-4 font-bold">×</button>
+      </div>
+    </div>
+  );
+}
+
 export function FileList({
   files,
   onShare,
@@ -35,6 +46,13 @@ export function FileList({
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const [menuFile, setMenuFile] = useState(null);
   const menuRef = useRef(null);
+
+  const [toast, setToast] = useState(null);
+
+  const showToast = (message, type = "info", duration = 3000) => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), duration);
+  };
 
   const iconMap = {
     folder: <Folder className="h-5 w-5 text-blue-500" />,
@@ -120,7 +138,7 @@ export function FileList({
       }
     } catch (err) {
       console.error("Delete failed:", err);
-      alert("Failed to delete file");
+      showToast("Failed to delete file");
     } finally {
       setMenuFile(null);
     }
@@ -160,7 +178,8 @@ export function FileList({
   };
 
   return (
-    <>
+    <div>
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
       <table className="w-full bg-white rounded-lg ">
         <thead>
           <tr className="bg-gray-300 dark:bg-gray-700">
@@ -217,24 +236,44 @@ export function FileList({
                 </span>
               </td>
               <td className="p-2 flex gap-2">
-                <button onClick={() => onShare(file)} title="Share">
-                  <Share className="h-4 w-4" />
-                </button>
-                {!isViewOnly(file) && (
+                {!isViewOnly(file) ? (
                   <button
-                    onClick={() => onDownload(file)}
-                    title="Download"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onShare(file);
+                    }}
+                    className="p-1 hover:bg-gray-100 rounded dark:text-black"
+                    title="Share"
                   >
-                    <Download className="h-4 w-4" />
+                    <Share className="h-3 w-3" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={(e) => e.stopPropagation()}
+                    className="p-1 opacity-50 cursor-not-allowed rounded dark:text-black"
+                    title="Share disabled for view-only files"
+                  >
+                    <Share className="h-3 w-3" />
                   </button>
                 )}
-                {isViewOnly(file) && (
+                {!isViewOnly(file) ? (
                   <button
-                    onClick={() => alert("This file is view-only and cannot be downloaded")}
-                    title="Download disabled for view-only files"
-                    className="opacity-50 cursor-not-allowed"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDownload(file);
+                    }}
+                    className="p-1 hover:bg-gray-100 rounded dark:text-black"
+                    title="Download"
                   >
-                    <Download className="h-4 w-4" />
+                    <Download className="h-3 w-3" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={(e) => e.stopPropagation()}
+                    className="p-1 opacity-50 cursor-not-allowed rounded dark:text-black"
+                    title="Download disabled for view-only files"
+                  >
+                    <Download className="h-3 w-3" />
                   </button>
                 )}
               </td>
@@ -250,14 +289,16 @@ export function FileList({
           className="absolute z-50 bg-white border rounded-md shadow-lg w-48 text-sm dark:bg-gray-200 dark:text-gray-900"
           style={{ top: menuPosition.y, left: menuPosition.x }}
         >
-          {/* Shared Buttons */}
           <button
             onClick={() => {
-              onShare(menuFile);
+              if (!isViewOnly(menuFile)) onShare(menuFile);
               setMenuFile(null);
             }}
-            className={`w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 dark:hover:bg-blue-200 ${menuFile?.type === "folder" ? "hidden" : ""
+            className={`w-full text-left px-4 py-2 flex items-center gap-2 ${isViewOnly(menuFile)
+              ? "opacity-50 cursor-not-allowed"
+              : "hover:bg-gray-100 dark:hover:bg-blue-200"
               }`}
+            disabled={isViewOnly(menuFile)}
           >
             <Share className="h-4 w-4" /> Share
           </button>
@@ -266,8 +307,6 @@ export function FileList({
             onClick={() => {
               if (!isViewOnly(menuFile)) {
                 onDownload(menuFile);
-              } else {
-                alert("This file is view-only and cannot be downloaded");
               }
               setMenuFile(null);
             }}
@@ -352,6 +391,6 @@ export function FileList({
           </button>
         </div>
       )}
-    </>
+    </div>
   );
 }

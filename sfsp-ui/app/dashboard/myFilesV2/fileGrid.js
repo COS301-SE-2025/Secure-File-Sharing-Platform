@@ -23,6 +23,17 @@ import {
   EyeOff,
 } from "lucide-react";
 
+function Toast({ message, type = "info", onClose }) {
+  return (
+    <div className={`fixed inset-0 flex items-center justify-center z-50 pointer-events-none`}>
+      <div className={`bg-red-300 border ${type === "error" ? "border-red-300" : "border-blue-500"} text-gray-900 rounded shadow-lg px-6 py-3 pointer-events-auto`}>
+        <span>{message}</span>
+        <button onClick={onClose} className="ml-4 font-bold">×</button>
+      </div>
+    </div>
+  );
+}
+
 export function FileGrid({
   files,
   onShare,
@@ -43,6 +54,13 @@ export function FileGrid({
   const [menuFile, setMenuFile] = useState(null);
   const menuRef = useRef(null);
   const [draggedFile, setDraggedFile] = useState(null);
+
+  const [toast, setToast] = useState(null);
+
+  const showToast = (message, type = "info", duration = 3000) => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), duration);
+  };
 
   const iconMap = {
     folder: <Folder className="h-8 w-8 text-blue-500" />,
@@ -197,7 +215,7 @@ export function FileGrid({
       }
     } catch (err) {
       console.error("Delete failed:", err);
-      alert("Failed to delete file");
+      showToast("Failed to delete file");
     } finally {
       setMenuFile(null);
     }
@@ -232,7 +250,8 @@ export function FileGrid({
   };
 
   return (
-    <>
+    <div>
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
         {files.map((file) => (
           <div
@@ -322,16 +341,19 @@ export function FileGrid({
 
                 {/* Quick Actions on Hover */}
                 <div className="absolute bottom-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onShare(file);
-                    }}
-                    className="p-1 hover:bg-gray-100 rounded dark:text-black"
-                    title="Share"
-                  >
-                    <Share className="h-3 w-3" />
-                  </button>
+
+                  {!isViewOnly(file) && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onShare(file);
+                      }}
+                      className="p-1 hover:bg-gray-100 rounded dark:text-black"
+                      title="Share"
+                    >
+                      <Share className="h-3 w-3" />
+                    </button>
+                  )}
 
                   {!isViewOnly(file) && (
                     <button
@@ -359,15 +381,16 @@ export function FileGrid({
           className="absolute z-50 bg-white border rounded-md shadow-lg w-48 text-sm dark:bg-gray-200 dark:text-gray-900"
           style={{ top: menuPosition.y, left: menuPosition.x }}
         >
-          {/* Shared Buttons */}
           <button
             onClick={() => {
-              onShare(menuFile);
+              if (!isViewOnly(menuFile)) onShare(menuFile);
               setMenuFile(null);
             }}
-            className={`w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 dark:hover:bg-blue-200 ${
-              menuFile?.type === "folder" ? "hidden" : ""
-            }`}
+            className={`w-full text-left px-4 py-2 flex items-center gap-2 ${isViewOnly(menuFile)
+              ? "opacity-50 cursor-not-allowed"
+              : "hover:bg-gray-100 dark:hover:bg-blue-200"
+              }`}
+            disabled={isViewOnly(menuFile)}
           >
             <Share className="h-4 w-4" /> Share
           </button>
@@ -376,8 +399,6 @@ export function FileGrid({
             onClick={() => {
               if (!isViewOnly(menuFile)) {
                 onDownload(menuFile);
-              } else {
-                alert("This file is view-only and cannot be downloaded");
               }
               setMenuFile(null);
             }}
@@ -467,6 +488,6 @@ export function FileGrid({
           </button>
         </div>
       )}
-    </>
+    </div>
   );
 }

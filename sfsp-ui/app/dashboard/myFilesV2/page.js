@@ -19,6 +19,17 @@ import { FullViewModal } from "./fullViewModal";
 import { RevokeAccessDialog } from "./revokeAccessDialog";
 import { ChangeShareMethodDialog } from "./changeShareMethodDialog";
 
+function Toast({ message, type = "info", onClose }) {
+  return (
+    <div className={`fixed inset-0 flex items-center justify-center z-50 pointer-events-none`}>
+      <div className={`bg-red-300 border ${type === "error" ? "border-red-300" : "border-blue-500"} text-gray-900 rounded shadow-lg px-6 py-3 pointer-events-auto`}>
+        <span>{message}</span>
+        <button onClick={onClose} className="ml-4 font-bold">×</button>
+      </div>
+    </div>
+  );
+}
+
 function getFileType(mimeType) {
   if (!mimeType) return "unknown";
   if (mimeType.includes("pdf")) return "pdf";
@@ -76,6 +87,13 @@ export default function MyFiles() {
   const [previewFile, setPreviewFile] = useState(null);
   const [viewerFile, setViewerFile] = useState(null);
   const [viewerContent, setViewerContent] = useState(null);
+
+  const [toast, setToast] = useState(null);
+
+  const showToast = (message, type = "info", duration = 3000) => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), duration);
+  };
 
   const normalizePath = (path) =>
     path?.startsWith("files/") ? path.slice(6) : path || "";
@@ -160,6 +178,8 @@ export default function MyFiles() {
         .map((f) => {
           const tags = f.tags ? f.tags.replace(/[{}]/g, "").split(",") : [];
           const isViewOnlyFile = tags.includes("view-only");
+          const isFolder =
+            !f.fileType || f.fileType.toLowerCase() === "folder"; // ✅ detect folder
 
           return {
             id: f.fileId || "",
@@ -174,31 +194,40 @@ export default function MyFiles() {
             shared: false,
             starred: false,
             viewOnly: isViewOnlyFile,
-            tags: tags, // Keep tags for easier checking
+            tags,
             allow_view_sharing: f.allow_view_sharing || false,
+            isFolder,
           };
         });
 
-      console.log("Formatted (filtered) files:", formatted);
-      setFiles(formatted);
+      const sorted = formatted.sort((a, b) => {
+        if (a.isFolder && !b.isFolder) return -1;
+        if (!a.isFolder && b.isFolder) return 1;
+        return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+      });
+
+      console.log("Sorted files:", sorted);
+      setFiles(sorted);
     } catch (err) {
       console.error("Failed to fetch files:", err);
     }
   };
 
+
   useEffect(() => {
     fetchFiles();
   }, []);
 
+
   const handleDownload = async (file) => {
     if (isViewOnly(file)) {
-      alert("This file is view-only and cannot be downloaded.");
+      showToast("This file is view-only and cannot be downloaded.","error");
       return;
     }
 
     const { encryptionKey, userId } = useEncryptionStore.getState();
     if (!encryptionKey) {
-      alert("Missing encryption key");
+      showToast("Missing encryption key","error");
       return;
     }
 
@@ -215,14 +244,11 @@ export default function MyFiles() {
 
       const nonceBase64 = res.headers.get("X-Nonce");
       const fileName = res.headers.get("X-File-Name");
-      if (!nonceBase64 || !fileName)
-        throw new Error("Missing nonce or filename");
+      if (!nonceBase64 || !fileName) throw new Error("Missing nonce or filename");
 
-      const nonce = sodium.from_base64(
-        nonceBase64,
-        sodium.base64_variants.ORIGINAL
-      );
+      const nonce = sodium.from_base64(nonceBase64, sodium.base64_variants.ORIGINAL);
 
+      // Convert to stream reader
       const reader = res.body.getReader();
       const chunks = [];
       let totalLength = 0;
@@ -235,6 +261,7 @@ export default function MyFiles() {
         totalLength += value.length;
       }
 
+      // Merge chunks into single Uint8Array
       const encryptedFile = new Uint8Array(totalLength);
       let offset = 0;
       for (const chunk of chunks) {
@@ -242,13 +269,12 @@ export default function MyFiles() {
         offset += chunk.length;
       }
 
-      const decrypted = sodium.crypto_secretbox_open_easy(
-        encryptedFile,
-        nonce,
-        encryptionKey
-      );
+      // Decrypt the file
+      const decrypted = sodium.crypto_secretbox_open_easy(encryptedFile, nonce, encryptionKey);
       if (!decrypted) throw new Error("Decryption failed");
 
+      // Download file
+      //const decompressed = pako.ungzip(decrypted);
       const blob = new Blob([decrypted]);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -260,14 +286,15 @@ export default function MyFiles() {
       console.log(`✅ Downloaded and decrypted ${fileName}`);
     } catch (err) {
       console.error("Download error:", err);
-      alert("Download failed");
+      showToast("Download failed","error");
     }
   };
+
 
   const handleLoadFile = async (file) => {
     const { encryptionKey, userId } = useEncryptionStore.getState();
     if (!encryptionKey) {
-      alert("Missing encryption key");
+      showToast("Missing encryption key","error");
       return null;
     }
 
@@ -296,10 +323,7 @@ export default function MyFiles() {
         throw new Error("Missing nonce or fileName in response headers");
       }
 
-      const nonce = sodium.from_base64(
-        nonceBase64,
-        sodium.base64_variants.ORIGINAL
-      );
+      const nonce = sodium.from_base64(nonceBase64, sodium.base64_variants.ORIGINAL);
 
       // Use streaming reader to reduce memory spikes
       const reader = res.body.getReader();
@@ -322,29 +346,23 @@ export default function MyFiles() {
       }
 
       // Decrypt file
-      const decrypted = sodium.crypto_secretbox_open_easy(
-        encryptedFile,
-        nonce,
-        encryptionKey
-      );
+      const decrypted = sodium.crypto_secretbox_open_easy(encryptedFile, nonce, encryptionKey);
       if (!decrypted) throw new Error("Decryption failed");
 
       //const decompressed = pako.ungzip(decrypted);
       return { fileName, decrypted };
     } catch (err) {
       console.error("Load file error:", err);
-      alert("Failed to load file: " + err.message);
+      showToast("Failed to load file: " + err.message,"error");
       return null;
     }
   };
 
+
   const handlePreview = async (file) => {
     console.log("Inside handlePreview");
     if (file.type === "folder") {
-      setPreviewContent({
-        url: null,
-        text: "This is a folder. Double-click to open.",
-      });
+      setPreviewContent({ url: null, text: "This is a folder. Double-click to open." });
       setPreviewFile(file);
       return;
     }
@@ -355,16 +373,10 @@ export default function MyFiles() {
     let contentUrl = null;
     let textSnippet = null;
 
-    if (
-      file.type.startsWith("image") ||
-      file.type.startsWith("video") ||
-      file.type.startsWith("audio")
-    ) {
+    if (file.type.startsWith("image") || file.type.startsWith("video") || file.type.startsWith("audio")) {
       contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
     } else if (file.type === "pdf") {
-      contentUrl = URL.createObjectURL(
-        new Blob([result.decrypted], { type: "application/pdf" })
-      );
+      contentUrl = URL.createObjectURL(new Blob([result.decrypted], { type: "application/pdf" }));
     } else if (["txt", "json", "csv"].some((ext) => file.type.includes(ext))) {
       textSnippet = new TextDecoder().decode(result.decrypted).slice(0, 1000);
     }
@@ -373,12 +385,10 @@ export default function MyFiles() {
     setPreviewFile(file);
   };
 
+
   const handleOpenFullView = async (file) => {
     if (file.type === "folder") {
-      setPreviewContent({
-        url: null,
-        text: "This is a folder. Double-click to open.",
-      });
+      setPreviewContent({ url: null, text: "This is a folder. Double-click to open." });
       setPreviewFile(file);
       return;
     }
@@ -389,16 +399,10 @@ export default function MyFiles() {
     let contentUrl = null;
     let textFull = null;
 
-    if (
-      file.type.startsWith("image") ||
-      file.type.startsWith("video") ||
-      file.type.startsWith("audio")
-    ) {
+    if (file.type.startsWith("image") || file.type.startsWith("video") || file.type.startsWith("audio")) {
       contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
     } else if (file.type === "pdf") {
-      contentUrl = URL.createObjectURL(
-        new Blob([result.decrypted], { type: "application/pdf" })
-      );
+      contentUrl = URL.createObjectURL(new Blob([result.decrypted], { type: "application/pdf" }));
     } else if (["txt", "json", "csv"].some((ext) => file.type.includes(ext))) {
       textFull = new TextDecoder().decode(result.decrypted);
     }
@@ -445,7 +449,7 @@ export default function MyFiles() {
     if (res.ok) {
       fetchFiles();
     } else {
-      alert("Failed to move file");
+      showToast("Failed to move file","error");
     }
   };
 
@@ -682,6 +686,7 @@ export default function MyFiles() {
           open={isCreateFolderOpen}
           onOpenChange={setIsCreateFolderOpen}
           currentPath={currentPath}
+          onFolderCreated={fetchFiles}
         />
         <ShareDialog
           open={isShareOpen}
@@ -711,6 +716,14 @@ export default function MyFiles() {
           content={viewerContent}
           onClose={setViewerFile}
         />
+
+        {toast && (
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            onClose={() => setToast(null)}
+          />
+        )}
       </div>
     </div>
   );
