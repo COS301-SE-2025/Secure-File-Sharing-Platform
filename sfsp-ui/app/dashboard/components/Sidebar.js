@@ -4,6 +4,7 @@ import { useRef, useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import Image from 'next/image';
+import { UserAvatar } from '@/app/lib/avatarUtils';
 import {
   FileText,
   Grid3X3,
@@ -223,17 +224,12 @@ export default function Sidebar({ expanded, setExpanded, isHovered, setIsHovered
                 className="flex items-center gap-3 p-3 w-full text-left rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 onClick={() => setDropdownOpen((prev) => !prev)}
               >
-                <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-bold overflow-hidden">
-                  {user?.avatar_url ? (
-                    <img
-                      src={user.avatar_url}
-                      alt="Avatar"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    user?.username?.slice(0, 2).toUpperCase() || '??'
-                  )}
-                </div>
+                <UserAvatar
+                  avatarUrl={user?.avatar_url}
+                  username={user?.username}
+                  size="w-10 h-10"
+                  alt="Avatar"
+                />
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium truncate">
                     {user?.username || 'Loading...'}
@@ -301,17 +297,12 @@ export default function Sidebar({ expanded, setExpanded, isHovered, setIsHovered
               className="flex items-center justify-center p-3 w-full rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               onClick={() => setDropdownOpen((prev) => !prev)}
             >
-              <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-bold overflow-hidden">
-                {user?.avatar_url ? (
-                  <img
-                    src={user.avatar_url}
-                    alt="Avatar"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  user?.username?.slice(0, 2).toUpperCase() || '??'
-                )}
-              </div>
+              <UserAvatar
+                avatarUrl={user?.avatar_url}
+                username={user?.username}
+                size="w-10 h-10"
+                alt="Avatar"
+              />
             </button>
 
             {dropdownOpen && (

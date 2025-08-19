@@ -1,0 +1,94 @@
+[33me439b1a[m[33m ([m[1;36mHEAD -> [m[1;32mfeature/ui/refreshToken[m[33m, [m[1;31morigin/feature/ui/refreshToken[m[33m)[m HEAD@{0}: commit: Intelligent username avatar
+[33meeb56db[m HEAD@{1}: merge origin/ui: Fast-forward
+[33m02d7c39[m HEAD@{2}: checkout: moving from ui to feature/ui/refreshToken
+[33m42187c8[m[33m ([m[1;31morigin/feature/ui/accessLogs_dashboard[m[33m, [m[1;32mui[m[33m)[m HEAD@{3}: pull: Fast-forward
+[33m072d8c3[m HEAD@{4}: pull: Fast-forward
+[33m5966933[m HEAD@{5}: checkout: moving from feature/ui/refreshToken to ui
+[33m02d7c39[m HEAD@{6}: commit: Pushing to UI
+[33m7a014b3[m HEAD@{7}: merge origin/ui: Merge made by the 'ort' strategy.
+[33m0528141[m HEAD@{8}: commit: Google signed in users can now successfully upload and things and can send hey
+[33m51d3950[m HEAD@{9}: commit: working on Google signed in users being able to upload and send files
+[33mf6604f4[m HEAD@{10}: commit: some component and integration tests fixed
+[33m11e9448[m HEAD@{11}: commit: Tests and fixes
+[33m5966933[m HEAD@{12}: merge origin/ui: Fast-forward
+[33m8390f13[m HEAD@{13}: checkout: moving from ui to feature/ui/refreshToken
+[33m5966933[m HEAD@{14}: pull: Fast-forward
+[33m5e5aa85[m HEAD@{15}: pull: Fast-forward
+[33mdd74ab7[m HEAD@{16}: checkout: moving from feature/ui/refreshToken to ui
+[33m8390f13[m HEAD@{17}: pull: Fast-forward
+[33m24d403c[m HEAD@{18}: checkout: moving from feature/ui/dashboard to feature/ui/refreshToken
+[33ma2a90bc[m[33m ([m[1;32mfeature/ui/dashboard[m[33m)[m HEAD@{19}: checkout: moving from feature/ui/refreshToken to feature/ui/dashboard
+[33m24d403c[m HEAD@{20}: commit: userService slight channge
+[33m1aa523e[m HEAD@{21}: checkout: moving from feature/ui/dashboard to feature/ui/refreshToken
+[33ma2a90bc[m[33m ([m[1;32mfeature/ui/dashboard[m[33m)[m HEAD@{22}: checkout: moving from feature/ui/refreshToken to feature/ui/dashboard
+[33m1aa523e[m HEAD@{23}: commit: Google Sign in but this time it properly uses HashiCorp Vault
+[33m0dde963[m HEAD@{24}: commit: HashiCorp vault fix with user register and login
+[33m7d4f7e8[m HEAD@{25}: merge origin/ui: Merge made by the 'ort' strategy.
+[33m06c9215[m HEAD@{26}: commit: Google OAuth e2e and integration tests
+[33ma019731[m HEAD@{27}: commit: hide the Password Requirements box when the user moves to the next input field
+[33m420260a[m HEAD@{28}: merge origin/ui: Merge made by the 'ort' strategy.
+[33m3c0c1b1[m HEAD@{29}: commit: loading fix and package json
+[33mca77d0a[m HEAD@{30}: commit: small fixes
+[33m7ea8da7[m HEAD@{31}: commit: resloved merge conflicts from the package dot json
+[33mcc64d76[m HEAD@{32}: commit (merge): Merge remote-tracking branch 'origin/ui' into feature/ui/refreshToken
+[33mfa6f436[m HEAD@{33}: reset: moving to origin/feature/ui/refreshToken
+[33mfa6f436[m HEAD@{34}: reset: moving to HEAD
+[33mfa6f436[m HEAD@{35}: commit: 2 step authentication with goggle sign, you recieve an email to verify your secureshare sign-in, works really well actually, lowkey proud just killing time with this commit because HyperPerform brudda eyyy man
+[33mcb62c8e[m HEAD@{36}: commit: loading screen duplicate fixed ey, copilot had to fix that one, im tryna enjoy this new JID album, Glory goes hard
+[33m343f63d[m HEAD@{37}: merge origin/ui: Merge made by the 'ort' strategy.
+[33ma107ace[m HEAD@{38}: commit: Google sign in jwt generation on the backend
+[33m3fb26c0[m HEAD@{39}: commit: Sign in with google implementation
+[33m3d05f1b[m HEAD@{40}: reset: moving to origin/feature/ui/refreshToken
+[33m3d05f1b[m HEAD@{41}: commit: Continue with google implementation, not fully functional but this is to save progress eh
+[33m1b03dd4[m HEAD@{42}: merge origin/ui: Fast-forward
+[33mba1def0[m HEAD@{43}: merge origin/ui: Merge made by the 'ort' strategy.
+[33m28ca6ab[m HEAD@{44}: reset: moving to 28ca6ab
+[33m672b819[m HEAD@{45}: merge origin/ui: Merge made by the 'ort' strategy.
+[33mcc6d549[m HEAD@{46}: merge origin: Merge made by the 'ort' strategy.
+[33m28ca6ab[m HEAD@{47}: commit: password long error message pruned, realtime update as user types password, disable confirm password until requirements met
+[33mabad129[m HEAD@{48}: commit: side bar fixes
+[33m44e85c8[m HEAD@{49}: merge origin/ui: Merge made by the 'ort' strategy.
+[33me9be42b[m HEAD@{50}: commit: Logout button fix, hot fix
+[33m69ed830[m HEAD@{51}: commit: Search bar in help center wasn't working as it should, but now it is fixed
+[33m5a3708b[m HEAD@{52}: commit: Account settings side bar mechanisms additions for cohesiveness and consistency across
+[33mb00d4cc[m HEAD@{53}: merge origin/ui: Merge made by the 'ort' strategy.
+[33me57e4fc[m HEAD@{54}: commit: making the sidebar collapsible and all that. i dont buy much, i buy land bro
+[33mb8c94d7[m HEAD@{55}: commit: small stuff
+[33mb5bfea0[m HEAD@{56}: commit: Adding answers, quick solutions to the helper center, also fixing the eye button to move with the input field ayy
+[33m07c0eec[m HEAD@{57}: merge origin/ui: Fast-forward
+[33m7f55a75[m[33m ([m[1;31morigin/feature/ui/accSettings[m[33m)[m HEAD@{58}: reset: moving to origin/feature/ui/refreshToken
+[33m7f55a75[m[33m ([m[1;31morigin/feature/ui/accSettings[m[33m)[m HEAD@{59}: Branch: renamed refs/heads/feature/ui/accSettings to refs/heads/feature/ui/refreshToken
+[33m7f55a75[m[33m ([m[1;31morigin/feature/ui/accSettings[m[33m)[m HEAD@{61}: commit: Final touch ups on the settings page, fixed the sidebar settings dropdown behaviour, replaced the windows ref with a modal for the platform design consistency
+[33mcf7a2e2[m HEAD@{62}: commit: strong password enforcement, loader screen implementation, inline error corporation when you get errors og
+[33m27f4904[m HEAD@{63}: commit: Account settings page, sections implementation, separations, collapsible deletion of account, removing confirmation modal because it is so unnecessary eh
+[33m924a558[m HEAD@{64}: commit: Account settings toggle mode fix
+[33m4e2dc10[m HEAD@{65}: commit: Account settings with some refurbishment ey, idk
+[33m48fff93[m HEAD@{66}: commit: upload photo in Account Settings functionality implementation
+[33maf15a2f[m HEAD@{67}: commit: token authorization
+[33mf9bea52[m HEAD@{68}: commit: Notification centre in account settings
+[33mdd74ab7[m HEAD@{69}: merge ui: Fast-forward
+[33m3963dbf[m HEAD@{70}: checkout: moving from ui to feature/ui/accSettings
+[33mdd74ab7[m HEAD@{71}: pull origin ui: Fast-forward
+[33m3963dbf[m HEAD@{72}: checkout: moving from feature/ui/accSettings to ui
+[33m3963dbf[m HEAD@{73}: checkout: moving from ui to feature/ui/accSettings
+[33m3963dbf[m HEAD@{74}: checkout: moving from main to ui
+[33m86d6646[m[33m ([m[1;32mmain[m[33m)[m HEAD@{75}: pull origin main: Fast-forward
+[33m69cc030[m HEAD@{76}: checkout: moving from dev to main
+[33ma72cf92[m[33m ([m[1;32mdev[m[33m)[m HEAD@{77}: checkout: moving from ui to dev
+[33m3963dbf[m HEAD@{78}: reset: moving to HEAD
+[33m3963dbf[m HEAD@{79}: checkout: moving from dev to ui
+[33ma72cf92[m[33m ([m[1;32mdev[m[33m)[m HEAD@{80}: checkout: moving from ui to dev
+[33m3963dbf[m HEAD@{81}: pull: Fast-forward
+[33m192443c[m HEAD@{82}: checkout: moving from feature/ui/helpcenter to ui
+[33mfb7afdc[m HEAD@{83}: commit: Integration tests
+[33m11eb753[m HEAD@{84}: merge origin/ui: Fast-forward
+[33m6fb8252[m HEAD@{85}: commit: duplication removals
+[33mfe70e02[m HEAD@{86}: merge origin/feature/ui/helpcenter: Merge made by the 'ort' strategy.
+[33mbc737c5[m HEAD@{87}: pull origin ui (finish): returning to refs/heads/feature/ui/helpcenter
+[33mbc737c5[m HEAD@{88}: pull origin ui (pick): Go Unittests, and some fixes ehgit add .git add .
+[33ma63c001[m HEAD@{89}: pull origin ui (pick): patches
+[33md62e3e5[m HEAD@{90}: pull origin ui (start): checkout d62e3e533dd6335be830cc625d6f4710c8e355ab
+[33mce2dbb4[m HEAD@{91}: commit: Go Unittests, and some fixes ehgit add .git add .
+[33m214e2d8[m HEAD@{92}: pull --no-rebase origin ui: Merge made by the 'ort' strategy.
+[33mcef173b[m HEAD@{93}: commit: patches
+[33m9e7d6bd[m HEAD@{94}: pull

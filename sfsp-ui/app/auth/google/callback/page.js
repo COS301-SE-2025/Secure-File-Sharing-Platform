@@ -256,21 +256,21 @@ export default function GoogleCallbackPage() {
             
             // Add user to the PostgreSQL database using the route for addUser in file routes
             try {
-              const addUserRes = await fetch("http://localhost:5000/api/files/addUser", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  userId: user.id,
-                }),
-              });
+                const addUserRes = await fetch("http://localhost:5000/api/files/addUser", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                    userId: user.id,
+                    }),
+                });
 
-              if (!addUserRes.ok) {
-                console.error("Failed to add new Google user to PostgreSQL database");
-              } else {
-                console.log("New Google user successfully added to PostgreSQL database");
-              }
+                if (!addUserRes.ok) {
+                    console.error("Failed to add new Google user to PostgreSQL database");
+                } else {
+                    console.log("New Google user successfully added to PostgreSQL database");
+                }
             } catch (error) {
-              console.error("Error adding new Google user to PostgreSQL database:", error);
+                console.error("Error adding new Google user to PostgreSQL database:", error);
             }
             
             setTimeout(() => {

@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from '@/app/dashboard/components/Sidebar';
 import Topbar from '@/app/dashboard/components/Topbar';
 import { DashboardSearchProvider } from '@/app/dashboard/components/DashboardSearchContext';
@@ -8,12 +8,24 @@ export default function DashboardLayout({ children }) {
   const [expanded, setExpanded] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
+  useEffect(() => {
+    const savedExpanded = localStorage.getItem('sidebarExpanded');
+    if (savedExpanded !== null) {
+      setExpanded(savedExpanded === 'true');
+    }
+  }, []);
+
+  const handleSetExpanded = (newExpanded) => {
+    setExpanded(newExpanded);
+    localStorage.setItem('sidebarExpanded', newExpanded.toString());
+  };
+
   return (
     <DashboardSearchProvider>
       <div className="flex min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-white">
         <Sidebar
           expanded={expanded}
-          setExpanded={setExpanded}
+          setExpanded={handleSetExpanded}
           isHovered={isHovered}
           setIsHovered={setIsHovered}
         />
