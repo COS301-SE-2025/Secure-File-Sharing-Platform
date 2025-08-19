@@ -9,12 +9,12 @@ export function FullViewModal({ file, content, onClose }) {
         <>
           {/* overlay */}
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-40"
+            className="fixed inset-0 bg-black/60 z-40"
             onClick={() => onClose(null)}
           ></div>
 
           {/* modal */}
-          <div className="fixed left-1/2 top-1/2 z-50 max-w-5xl w-full transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg shadow-lg p-6 overflow-y-auto max-h-[90vh]">
+          <div className="fixed left-1/2 top-1/2 z-50 max-w-5xl w-full transform -translate-x-1/2 -translate-y-1/2 bg-white dark:bg-gray-200 rounded-lg shadow-lg p-6 overflow-y-auto max-h-[90vh]">
             <div className="flex justify-between items-center mb-4">
               <h2
                 className="text-lg font-semibold truncate max-w-[80%] text-gray-700"
