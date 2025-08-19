@@ -266,12 +266,14 @@ func GetSharedViewFilesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rows, err := DB.Query(`
-		SELECT svf.id, svf.sender_id, svf.file_id, svf.metadata, svf.shared_at, svf.expires_at,
+		SELECT svf.id, svf.sender_id, svf.recipient_id, svf.file_id, svf.metadata, svf.shared_at, svf.expires_at,
 			   f.file_name, f.file_type, f.file_size, f.description
 		FROM shared_files_view svf
 		JOIN files f ON svf.file_id = f.id
-		WHERE svf.recipient_id = $1 OR svf.sender_id = $1 AND svf.revoked = FALSE AND svf.access_granted = TRUE
-		AND (svf.expires_at IS NULL OR svf.expires_at > CURRENT_TIMESTAMP)
+		WHERE (svf.recipient_id = $1 OR svf.sender_id = $1) 
+		  AND svf.revoked = FALSE 
+		  AND svf.access_granted = TRUE
+		  AND (svf.expires_at IS NULL OR svf.expires_at > CURRENT_TIMESTAMP)
 		ORDER BY svf.shared_at DESC
 	`, req.UserID)
 
@@ -285,14 +287,14 @@ func GetSharedViewFilesHandler(w http.ResponseWriter, r *http.Request) {
 	var files []map[string]interface{}
 	for rows.Next() {
 		var (
-			shareID, senderID, fileID, fileName, fileType, description string
-			fileSize                                                   int64
-			metadata                                                   string
-			sharedAt                                                   time.Time
-			expiresAtPtr                                               *time.Time
+			shareID, senderID, recipientID, fileID, fileName, fileType, description string
+			fileSize                                                                 int64
+			metadata                                                                 string
+			sharedAt                                                                 time.Time
+			expiresAtPtr                                                             *time.Time
 		)
 		err := rows.Scan(
-			&shareID, &senderID, &fileID, &metadata,
+			&shareID, &senderID, &recipientID, &fileID, &metadata,
 			&sharedAt, &expiresAtPtr, &fileName, &fileType,
 			&fileSize, &description,
 		)
@@ -304,6 +306,7 @@ func GetSharedViewFilesHandler(w http.ResponseWriter, r *http.Request) {
 		file := map[string]interface{}{
 			"share_id":    shareID,
 			"sender_id":   senderID,
+			"recipient_id": recipientID,
 			"file_id":     fileID,
 			"metadata":    metadata,
 			"shared_at":   sharedAt,
@@ -323,6 +326,7 @@ func GetSharedViewFilesHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(files)
 }
+
 
 func GetViewFileAccessLogs(w http.ResponseWriter, r *http.Request) {
 	var req struct {

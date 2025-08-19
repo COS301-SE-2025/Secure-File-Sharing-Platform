@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { PanelLeftClose, PanelLeftOpen, ArrowLeft, User, Shield, Bell, Palette, Camera, Trash2, Sun, Moon, ChevronUp, ChevronDown } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
+import { UserAvatar } from '@/app/lib/avatarUtils';
 import axios from 'axios';
 
 const API_BASE_URL = 'http://localhost:5000/api/users';
@@ -687,13 +688,13 @@ export default function AccountSettings() {
 
         <div className="p-6">
           <div className="flex items-center gap-4 mb-8">
-            <div className="w-10 h-10 bg-gray-200 dark:bg-gray-300 rounded-full flex items-center justify-center text-gray-600 dark:text-gray-600 font-bold overflow-hidden">
-              {user?.avatar_url ? (
-                <img src={user.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
-              ) : (
-                user?.username?.slice(0, 2).toUpperCase() || '??'
-              )}
-            </div>
+            <UserAvatar
+              avatarUrl={user?.avatar_url}
+              username={user?.username}
+              size="w-10 h-10"
+              className="bg-gray-200 dark:bg-gray-300 text-gray-600 dark:text-gray-600"
+              alt="Avatar"
+            />
             <h1 className="text-2xl text-blue-600 dark:text-blue-400">{user?.username || 'Loading...'}</h1>
           </div>
 
@@ -717,17 +718,14 @@ export default function AccountSettings() {
                   </div>
                 )}
                 <div className="flex items-center gap-4">
-                  {user?.avatar_url ? (
-                    <img
-                      src={user.avatar_url}
-                      alt="User avatar"
-                      className="w-16 h-16 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-16 h-16 bg-gray-200 dark:bg-gray-300 rounded-full flex items-center justify-center text-gray-600 dark:text-gray-600 font-semibold text-2xl">
-                      {user?.username?.slice(0, 2).toUpperCase() || '??'}
-                    </div>
-                  )}
+                  <UserAvatar
+                    avatarUrl={user?.avatar_url}
+                    username={user?.username}
+                    size="w-16 h-16"
+                    textSize="text-2xl"
+                    className="bg-gray-200 dark:bg-gray-300 text-gray-600 dark:text-gray-600"
+                    alt="User avatar"
+                  />
                   <div className="flex gap-2">
                     <button
                       type="button"
@@ -1056,7 +1054,7 @@ export default function AccountSettings() {
               {passwordStep === 'newPassword' && (
                 <div className="space-y-4">
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                    Now enter your new password. Make sure it's strong and secure.
+                    Now enter your new password. Make sure it&apos;s strong and secure.
                   </p>
                   <div>
                     <label htmlFor="newPassword" className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
@@ -1132,7 +1130,7 @@ export default function AccountSettings() {
                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Email me when:</p>
                     <div className="space-y-3">
                       <div className="flex items-center justify-between py-2">
-                        <span className="text-sm text-gray-900 dark:text-white">I'm running out of space</span>
+                        <span className="text-sm text-gray-900 dark:text-white">I&apos;m running out of space</span>
                         <label className="relative inline-flex items-center cursor-pointer">
                           <input
                             type="checkbox"

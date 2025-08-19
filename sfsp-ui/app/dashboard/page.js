@@ -13,6 +13,17 @@ import { useEncryptionStore } from "@/app/SecureKeyStorage";
 
 // Helper functions
 
+function Toast({ message, type = "info", onClose }) {
+  return (
+    <div className={`fixed inset-0 flex items-center justify-center z-50 pointer-events-none`}>
+      <div className={`bg-red-300 border ${type === "error" ? "border-red-300" : "border-blue-500"} text-gray-900 rounded shadow-lg px-6 py-3 pointer-events-auto`}>
+        <span>{message}</span>
+        <button onClick={onClose} className="ml-4 font-bold">×</button>
+      </div>
+    </div>
+  );
+}
+
 function getFileType(mimeType) {
   if (!mimeType) return "unknown";
   if (mimeType.includes("pdf")) return "pdf";
@@ -58,9 +69,16 @@ export default function DashboardHomePage() {
   const [viewerContent, setViewerContent] = useState(null);
   const [previewFile, setPreviewFile] = useState(null);
   const [previewContent, setPreviewContent] = useState(null);
-const [logs, setLogs] = useState([]);          // Stores all fetched logs
-const [recentLogs, setRecentLogs] = useState([]); // Stores top 3 most recent / filtered logs
-const [actionFilter, setActionFilter] = useState("All actions"); // Current action filter
+  const [logs, setLogs] = useState([]);          // Stores all fetched logs
+  const [recentLogs, setRecentLogs] = useState([]); // Stores top 3 most recent / filtered logs
+  const [actionFilter, setActionFilter] = useState("All actions"); // Current action filter
+
+  const [toast, setToast] = useState(null);
+
+  const showToast = (message, type = "info", duration = 3000) => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), duration);
+  };
 
 
   const formatTimestamp = (timestamp) => {
@@ -75,70 +93,70 @@ const [actionFilter, setActionFilter] = useState("All actions"); // Current acti
     return `${Math.floor(hours / 24)}d ago`;
   };
 
-const fetchFiles = async () => {
-  try {
-    if (!userId) {
-      console.error("Cannot fetch files: Missing userId in store.");
-      return [];
-    }
-
-    const res = await fetch("http://localhost:5000/api/files/metadata", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId }),
-    });
-
-    let data;
+  const fetchFiles = async () => {
     try {
-      data = await res.json();
-    } catch (e) {
-      const text = await res.text();
-      console.error("Failed to parse JSON:", text);
+      if (!userId) {
+        console.error("Cannot fetch files: Missing userId in store.");
+        return [];
+      }
+
+      const res = await fetch("http://localhost:5000/api/files/metadata", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+
+      let data;
+      try {
+        data = await res.json();
+      } catch (e) {
+        const text = await res.text();
+        console.error("Failed to parse JSON:", text);
+        return [];
+      }
+
+      const sortedFiles = data.sort(
+        (a, b) => new Date(b.date) - new Date(a.date)
+      );
+
+      setRecentFiles(sortedFiles.slice(0, 3));
+
+      const formatted = data
+        .filter((f) => {
+          const tags = f.tags ? f.tags.replace(/[{}]/g, "").split(",") : [];
+          return (
+            !tags.includes("deleted") &&
+            !tags.some((tag) => tag.trim().startsWith("deleted_time:"))
+          );
+        })
+        .map((f) => ({
+          id: f.fileId || "",
+          name: f.fileName || "Unnamed file",
+          size: formatFileSize(f.fileSize || 0),
+          type: getFileType(f.fileType || ""),
+          modified: f.createdAt ? new Date(f.createdAt).toLocaleDateString() : "",
+          shared: false,
+          starred: false,
+        }));
+
+      setFiles(formatted);
+
+      return formatted; // ← add this
+    } catch (err) {
+      console.error("Failed to fetch files:", err);
       return [];
     }
-
-    const sortedFiles = data.sort(
-      (a, b) => new Date(b.date) - new Date(a.date)
-    );
-
-    setRecentFiles(sortedFiles.slice(0, 3));
-
-    const formatted = data
-      .filter((f) => {
-        const tags = f.tags ? f.tags.replace(/[{}]/g, "").split(",") : [];
-        return (
-          !tags.includes("deleted") &&
-          !tags.some((tag) => tag.trim().startsWith("deleted_time:"))
-        );
-      })
-      .map((f) => ({
-        id: f.fileId || "",
-        name: f.fileName || "Unnamed file",
-        size: formatFileSize(f.fileSize || 0),
-        type: getFileType(f.fileType || ""),
-        modified: f.createdAt ? new Date(f.createdAt).toLocaleDateString() : "",
-        shared: false,
-        starred: false,
-      }));
-
-    setFiles(formatted);
-
-    return formatted; // ← add this
-  } catch (err) {
-    console.error("Failed to fetch files:", err);
-    return [];
-  }
-};
+  };
 
 
   const handleLoadFile = async (file) => {
     if (!file?.fileName) {
-      alert("File name missing!");
+      showToast("File name missing!","error");
       return null;
     }
     const { encryptionKey, userId } = useEncryptionStore.getState();
     if (!encryptionKey) {
-      alert("Missing encryption key");
+      showToast("Missing encryption key","error");
       return null;
     }
 
@@ -148,10 +166,10 @@ const fetchFiles = async () => {
       const res = await fetch("http://localhost:5000/api/files/download", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-       body: JSON.stringify({
-  userId,
-  fileId: file.fileId || file.id, // ✅ Ensure correct field
-}),
+        body: JSON.stringify({
+          userId,
+          fileId: file.fileId || file.id, // ✅ Ensure correct field
+        }),
       });
 
       if (!res.ok) {
@@ -182,7 +200,7 @@ const fetchFiles = async () => {
       return { fileName, decrypted };
     } catch (err) {
       console.error("Load file error:", err);
-      alert("Failed to load file");
+      showToast("Failed to load file","error");
       return null;
     }
   };
@@ -232,7 +250,7 @@ const fetchFiles = async () => {
   };
 
 
-  
+
 
   const fetchNotifications = async () => {
     const token = localStorage.getItem("token");
@@ -308,62 +326,62 @@ const fetchFiles = async () => {
     }
   };
   const fetchAllLogs = async () => {
-  setLoading(true);
+    setLoading(true);
 
-  try {
-    const files = await fetchFiles();
+    try {
+      const files = await fetchFiles();
 
-    // Ensure files is an array
-    if (!Array.isArray(files)) {
-      console.error("fetchFiles did not return an array:", files);
-      setLogs([]);
-      setRecentLogs([]);
-      return;
-    }
+      // Ensure files is an array
+      if (!Array.isArray(files)) {
+        console.error("fetchFiles did not return an array:", files);
+        setLogs([]);
+        setRecentLogs([]);
+        return;
+      }
 
-    const allLogs = [];
+      const allLogs = [];
 
-    for (const file of files) {
-      try {
-        const res = await fetch("http://localhost:5000/api/files/getAccesslog", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ file_id: file.fileId }),
+      for (const file of files) {
+        try {
+          const res = await fetch("http://localhost:5000/api/files/getAccesslog", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ file_id: file.fileId }),
+          });
+
+          if (!res.ok) continue;
+          const fileLogs = await res.json();
+
+          for (const log of fileLogs) {
+            allLogs.push({
+              user: log.message?.split(/\s+/)[0] || "Unknown",
+              action: log.action?.toLowerCase() || "",
+              file: file.fileName || "Unnamed",
+              date: new Date(log.timestamp).toLocaleString(),
+            });
+          }
+        } catch (err) {
+          console.error(`Error fetching logs for file ${file.fileId}:`, err);
+        }
+      }
+
+      setLogs(allLogs);
+
+      const filteredLogs = allLogs
+        .filter(log => actionFilter === "All actions" || log.action === actionFilter.toLowerCase())
+        .filter(log => {
+          const q = search.toLowerCase();
+          return log.user.toLowerCase().includes(q) || log.action.toLowerCase().includes(q) || log.file.toLowerCase().includes(q) || log.date.toLowerCase().includes(q);
         });
 
-        if (!res.ok) continue;
-        const fileLogs = await res.json();
+      setRecentLogs(filteredLogs.slice(0, 3));
 
-        for (const log of fileLogs) {
-          allLogs.push({
-            user: log.message?.split(/\s+/)[0] || "Unknown",
-            action: log.action?.toLowerCase() || "",
-            file: file.fileName || "Unnamed",
-            date: new Date(log.timestamp).toLocaleString(),
-          });
-        }
-      } catch (err) {
-        console.error(`Error fetching logs for file ${file.fileId}:`, err);
-      }
+    } catch (err) {
+      console.error("Failed to fetch all logs:", err);
+    } finally {
+      setLoading(false);
     }
-
-    setLogs(allLogs);
-
-    const filteredLogs = allLogs
-      .filter(log => actionFilter === "All actions" || log.action === actionFilter.toLowerCase())
-      .filter(log => {
-        const q = search.toLowerCase();
-        return log.user.toLowerCase().includes(q) || log.action.toLowerCase().includes(q) || log.file.toLowerCase().includes(q) || log.date.toLowerCase().includes(q);
-      });
-
-    setRecentLogs(filteredLogs.slice(0, 3));
-
-  } catch (err) {
-    console.error("Failed to fetch all logs:", err);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
 
   const fetchFilesMetadata = useCallback(async () => {
@@ -387,13 +405,13 @@ const fetchFiles = async () => {
         return tags.includes('deleted');
       });
 
-	const receivedFiles = data.filter(file => {
-		const tags = parseTagString(file.tags);
-	return tags.includes("received");
-		});
+      const receivedFiles = data.filter(file => {
+        const tags = parseTagString(file.tags);
+        return tags.includes("received");
+      });
 
-      
- 
+
+
       setFileCount(activeFiles.length);
       setTrashedFilesCount(deletedFiles.length);
       setReceivedFilesCount(receivedFiles.length);
@@ -455,7 +473,7 @@ const fetchFiles = async () => {
                 {item.icon}
               </div>
               <div>
-                <p className="text-lg font-bold text-gray-500 dark:text-gray-400">
+                <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
                   {item.label}
                 </p>
                 <p className="text-xl font-bold">{item.value}</p>
@@ -468,7 +486,7 @@ const fetchFiles = async () => {
               key={idx}
               onClick={() => setIsUploadOpen(true)}
               className="flex items-center gap-4 p-7 w-full text-left
-                         bg-blue-600 hover:bg-blue-700
+                         bg-blue-500 hover:bg-blue-700
                          text-white rounded-lg shadow transition-shadow"
             >
               {CardContent}
@@ -560,62 +578,44 @@ const fetchFiles = async () => {
             </div>
           </div>
 
-      {/* Activity Logs (Dynamic Data) */}
-        <div className="h-60 w-full lg:col-span-2 p-6 flex flex-col justify-start
+          {/* Activity Logs (Dynamic Data) */}
+          <div className="h-60 w-full lg:col-span-2 p-6 flex flex-col justify-start
                         bg-gray-200 dark:bg-gray-800 rounded-lg shadow hover:shadow-lg
                         transition-shadow overflow-hidden">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-full">
-              <AlertCircleIcon className="text-green-600 dark:text-green-400" size={28} />
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-full">
+                <AlertCircleIcon className="text-green-600 dark:text-green-400" size={28} />
+              </div>
+              <p className="text-xl font-bold text-gray-500 dark:text-gray-400">
+                Activity Logs
+              </p>
             </div>
-            <p className="text-xl font-bold text-gray-500 dark:text-gray-400">
-              Activity Logs
-            </p>
-          </div>
 
-          <div className="overflow-y-auto space-y-2 pr-2 text-sm text-gray-700 dark:text-gray-200">
-            {recentLogs.length > 0 ? (
-              recentLogs.map((log, idx) => (
-                <div key={idx} className="flex items-start gap-2">
-                  {log.avatar ? (
+            <div className="overflow-y-auto space-y-2 pr-2 text-sm text-gray-700 dark:text-gray-200">
+              {recentLogs.length > 0 ? (
+                recentLogs.map((log, idx) => (
+                  <div key={idx} className="flex items-start gap-2">
                     <img
-                      src={log.avatar}
+                      src={log.avatar || "/default-avatar.png"}
                       alt={log.user}
-                      className="w-8 h-8 rounded-full object-cover"
+                      className="w-8 h-8 rounded-full"
                     />
-                  ) : (
-                    <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-bold text-xs">
-                      {(() => {
-                        if (!log.user) return '??';
-                        const parts = log.user.split(/[_\-\s\.]+/).filter(part => 
-                          part.length > 0 && !/^\d+$/.test(part)
-                        );
-                        if (parts.length >= 2) {
-                          return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
-                        } else if (parts.length === 1) {
-                          return parts[0].slice(0, 2).toUpperCase();
-                        } else {
-                          return log.user.slice(0, 2).toUpperCase();
-                        }
-                      })()}
+                    <div className="flex flex-col">
+                      <span className="font-semibold">{log.user}</span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        {log.action} <strong>{log.file}</strong> at {log.date}
+                      </span>
                     </div>
-                  )}
-                  <div className="flex flex-col">
-                    <span className="font-semibold">{log.user}</span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                      {log.action} <strong>{log.file}</strong> at {log.date}
-                    </span>
                   </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-gray-500 dark:text-gray-400">No recent activity.</p>
-            )}
+                ))
+              ) : (
+                <p className="text-gray-500 dark:text-gray-400">No recent activity.</p>
+              )}
+            </div>
           </div>
-        </div>
 
+        </div>
       </div>
-    </div>
 
 
 
@@ -639,12 +639,12 @@ const fetchFiles = async () => {
                     {formatTimestamp(file.date || file.createdAt)}
                   </p>
                 </div>
-               <button
-                onClick={() => handleOpenPreview(file)}
-                className="text-blue-500 hover:underline"
-              >
-                Open
-              </button>
+                <button
+                  onClick={() => handleOpenPreview(file)}
+                  className="text-blue-500 hover:underline"
+                >
+                  Open
+                </button>
 
               </li>
             ))
@@ -659,19 +659,27 @@ const fetchFiles = async () => {
         />
       )}
       {previewFile && (
-      <PreviewDrawer
-        file={previewFile}
-        content={previewContent}
-        onClose={() => setPreviewFile(null)}
-        onOpenFullView={(file) => {
-          setPreviewFile(null);
-          handleOpenFullView(file);
-        }}
-        onSaveDescription={async (id, description) => {
-          console.log("Save description for:", id, description);
-        }}
-      />
-)}
+        <PreviewDrawer
+          file={previewFile}
+          content={previewContent}
+          onClose={() => setPreviewFile(null)}
+          onOpenFullView={(file) => {
+            setPreviewFile(null);
+            handleOpenFullView(file);
+          }}
+          onSaveDescription={async (id, description) => {
+            console.log("Save description for:", id, description);
+          }}
+        />
+      )}
+
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
 
     </div>
   )

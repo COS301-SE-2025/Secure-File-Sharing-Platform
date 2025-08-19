@@ -247,8 +247,17 @@ export async function ReceiveFile(fileData) {
   // 3️⃣ Derive shared secret with X3DH
   const ikPrivKey = userKeys.identity_private_key;
   const spkPrivKey = userKeys.signedpk_private_key;
+  
+  // Debug: Log available OPK IDs and the requested one
+  console.log("🔍 DEBUG - Available OPK IDs:", userKeys.oneTimepks_private.map(opk => opk.opk_id));
+  console.log("🔍 DEBUG - Requested OPK ID:", opk_id);
+  console.log("🔍 DEBUG - Full userKeys structure:", userKeys);
+  
   const opkMatch = userKeys.oneTimepks_private.find((opk) => opk.opk_id === opk_id);
-  if (!opkMatch) throw new Error("Matching OPK not found");
+  if (!opkMatch) {
+    console.error("❌ Matching OPK not found. Available:", userKeys.oneTimepks_private.map(opk => opk.opk_id), "Requested:", opk_id);
+    throw new Error("Matching OPK not found");
+  }
 
   const spkPrivKeyCurve = sodium.crypto_sign_ed25519_sk_to_curve25519(spkPrivKey);
   const ikPrivKeyCurve = sodium.crypto_sign_ed25519_sk_to_curve25519(ikPrivKey);
