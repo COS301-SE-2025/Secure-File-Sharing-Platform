@@ -92,7 +92,7 @@ export function RevokeAccessDialog({ open, onOpenChange, file }) {
       setUsers(userDetails.filter((user) => user !== null));
     } catch (error) {
       console.error("Error fetching users with access:", error);
-      alert("Failed to fetch users with access");
+      showToast("Failed to fetch users with access", 'error');
     } finally {
       setLoading(false);
     }
@@ -103,7 +103,7 @@ export function RevokeAccessDialog({ open, onOpenChange, file }) {
     try {
       const token = localStorage.getItem("token");
       if (!token) {
-        alert("Please log in to revoke access");
+        showToast("Please log in to revoke access", 'error', 3);
         return;
       }
 
@@ -116,7 +116,7 @@ export function RevokeAccessDialog({ open, onOpenChange, file }) {
 
       const profileResult = await profileRes.json();
       if (!profileRes.ok) {
-        alert("Failed to get user profile");
+        showToast("Failed to get user profile", 'info');
         return;
       }
 
@@ -139,11 +139,11 @@ export function RevokeAccessDialog({ open, onOpenChange, file }) {
         throw new Error("Failed to revoke access");
       }
 
-      alert("Access revoked successfully");
+      showToast("Access revoked successfully", 'info');
       fetchUsersWithAccess(); // Refresh the list
     } catch (error) {
       console.error("Error revoking access:", error);
-      alert("Failed to revoke access: " + error.message);
+      showToast("Failed to revoke access: " + error.message, "error");
     } finally {
       setRevoking(null);
     }

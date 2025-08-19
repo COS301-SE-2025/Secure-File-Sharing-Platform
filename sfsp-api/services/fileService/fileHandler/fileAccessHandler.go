@@ -87,7 +87,7 @@ func GetUsersWithFileAccessHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rows, err := DB.Query(`SELECT DISTINCT user_id FROM access_logs WHERE file_id = $1`, fileID)
+	rows, err := DB.Query(`SELECT DISTINCT recipient_id FROM shared_files_view WHERE file_id = $1`, fileID)
 	if err != nil {
 		log.Println("Failed to query users with file access:", err)
 		http.Error(w, "Failed to get users with file access", http.StatusInternalServerError)
