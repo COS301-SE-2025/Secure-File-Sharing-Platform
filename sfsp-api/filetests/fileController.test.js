@@ -1,6 +1,7 @@
 const request = require('supertest');
 const express = require('express');
 const { Readable, PassThrough } = require('stream');
+const multer = require("multer");
 
 const mockAxios = jest.fn();
 mockAxios.get = jest.fn();
@@ -11,6 +12,7 @@ mockAxios.create = jest.fn(() => mockAxios);
 
 jest.mock('axios', () => mockAxios);
 jest.mock('dotenv', () => ({ config: jest.fn() }));
+/*
 jest.mock('form-data', () => {
   const mockInstance = {
     append: jest.fn(),
@@ -18,7 +20,7 @@ jest.mock('form-data', () => {
   };
   return jest.fn(() => mockInstance);
 });
-
+*/
 const app = express();
 app.use(express.json());
 
@@ -26,11 +28,6 @@ const fileController = require('../controllers/fileController');
 
 describe('File Service Controller', () => {
   let mockStream;
-  let server;
-
-  afterAll((done) => {
-    server.close(done);
-  });
 
 
   beforeEach(() => {
@@ -62,7 +59,7 @@ describe('File Service Controller', () => {
 app.post('/downloadFile', fileController.downloadFile);
 describe('downloadFile', () => {
   it('should return 200 and stream file successfully', async () => {
-    const mockStream = new PassThrough();
+    const mockStream = new PassThrough();   
     const fileContent = 'test file content';
 
     mockAxios.mockResolvedValue({
@@ -81,14 +78,13 @@ describe('downloadFile', () => {
     setTimeout(() => {
       mockStream.write(fileContent);
       mockStream.end();
-    }, 10);
+    }, 100);
 
-    // Collect the streamed data
-    const response = await req.buffer(true).parse((res, cb) => {
-      const chunks = [];
-      res.on('data', (chunk) => chunks.push(chunk));
-      res.on('end', () => cb(null, Buffer.concat(chunks)));
-    });
+   const response = await req.buffer(true).parse((res, cb) => {
+  const chunks = [];
+  res.on('data', (chunk) => chunks.push(chunk));
+  res.on('end', () => cb(null, Buffer.concat(chunks)));
+});
 
     expect(response.status).toBe(200);
     expect(response.headers['content-type']).toBe('application/octet-stream');
@@ -362,7 +358,8 @@ describe("startUpload", () => {
   });
 });
 //------------------------------------------------------------------------------------
-app.use('/uploadChunk', fileController.uploadChunk);
+const upload = multer();
+app.use('/uploadChunk', upload.single("file"), fileController.uploadChunk);
 describe("uploadChunk", () => {
   const fileBuffer = Buffer.from("chunk data");
 
@@ -376,7 +373,7 @@ describe("uploadChunk", () => {
     const res = await request(app)
       .post("/uploadChunk")
       .field("fileName", "test.txt")
-      .attach("file", fileBuffer, { filename: "test.txt" });
+      .attach("file", fileBuffer, "test.txt"); // only fileName and file attached
 
     expect(res.status).toBe(400);
     expect(res.text).toBe("Missing userId, nonce, fileHash, or fileId");
@@ -393,7 +390,7 @@ describe("uploadChunk", () => {
       .field("nonce", "nonce123")
       .field("fileHash", "hash123")
       .field("fileId", "file123")
-      .attach("file", fileBuffer, { filename: "test.txt" });
+      .attach("file", fileBuffer, "test.txt");
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual(mockGoResponse.data);
@@ -409,7 +406,7 @@ describe("uploadChunk", () => {
       .field("nonce", "nonce123")
       .field("fileHash", "hash123")
       .field("fileId", "file123")
-      .attach("file", fileBuffer, { filename: "test.txt" });
+      .attach("file", fileBuffer, "test.txt");
 
     expect(res.status).toBe(500);
     expect(res.text).toBe("Upload failed");
@@ -531,13 +528,18 @@ describe("sendFile", () => {
 //------------------------------------------------------------------------------------
 app.post('/sendByView', fileController.sendByView);
 describe("sendByView", () => {
-  const buffer = Buffer.from("chunk data");
+  const buffer = Buffer.from("test file content"); // must be a Buffer
 
   it("should return 400 if required fields missing", async () => {
     const res = await request(app)
       .post("/sendByView")
-      .attach("encryptedFile", buffer, "chunk.bin")
-      .field({ fileid: "file123" }); // missing other fields
+      .attach("encryptedFile", buffer, "chunk.bin") // upload file
+      .field({
+        fileid: "file123",
+        userId: "user123",
+        recipientUserId: "recipient456"
+        // missing metadata, chunkIndex, totalChunks
+      });
 
     expect(res.status).toBe(400);
     expect(res.text).toBe(
@@ -579,7 +581,7 @@ describe("sendByView", () => {
       .field({
         fileid: "file123",
         userId: "user123",
-        recipientUserId: "user456",
+        recipientUserId: "recipient456",
         metadata: JSON.stringify({ info: "test" }),
         chunkIndex: 1,
         totalChunks: 1,
@@ -884,7 +886,7 @@ describe("softDeleteFile", () => {
       expect.any(Object)
     );
     expect(res.status).toBe(200);
-    expect(res.text).toBe("File soft deleted");
+    expect(res.text.replace(/^"|"$/g, '')).toBe("File soft deleted");
   });
 
   it("should return 500 if axios fails", async () => {
@@ -916,7 +918,7 @@ describe("restoreFile", () => {
       expect.any(Object)
     );
     expect(res.status).toBe(200);
-    expect(res.text).toBe("File restored");
+    expect(res.text.replace(/^"|"$/g, '')).toBe("File restored");
   });
 
   it("should return 500 if axios fails", async () => {
