@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { Eye, Download, Share2, Edit, Clock, Trash2, Undo2 } from 'lucide-react';
+import { Eye, Download, Share2, Edit, Clock, Trash2, Undo2, Ban } from 'lucide-react';
 import { useDashboardSearch } from '@/app/dashboard/components/DashboardSearchContext';
 import { useEncryptionStore } from '@/app/SecureKeyStorage';
 import jsPDF from "jspdf";
@@ -306,6 +306,7 @@ export default function AccessLogsPage() {
                 <option>Shared</option>
                 <option>Created</option>
                 <option>Trash</option>
+                <option>revoked_view</option>
               </select>
             </div>
 
@@ -399,6 +400,7 @@ export default function AccessLogsPage() {
                           {log.action === 'restored' && <><Undo2 size={16} className="text-green-500" /> Restored</>}
                           {log.action === 'shared_view' && <><Share2 size={16} className="text-green-500" /> Shared_View</>}
                           {log.action === 'viewed' && <><Eye size={16} className="text-green-500" /> Viewed</>}
+                          {log.action === 'revoked_view' && <><Ban size={16} className="text-blue-500" /> Revoked</>}
                         </div>
                       </td>
                       <td className="py-4">{log.file}</td>

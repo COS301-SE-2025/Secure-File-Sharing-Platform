@@ -270,7 +270,7 @@ export function PreviewDrawer({
                   </div>
 
                   {/* Dropdown Menu */}
-                  {openMenuUserId === user.recipient_id && (
+                  {/* {openMenuUserId === user.recipient_id && (
                     <div className=" absolute top-full left-0 mt-1 w-32 bg-white border border-gray-200 rounded-md shadow-md z-20">
                       <button
                         onClick={(e) => {
@@ -283,7 +283,7 @@ export function PreviewDrawer({
                         Revoke Access
                       </button>
                     </div>
-                  )}
+                  )} */}
                 </li>
               ))}
             </ul>
