@@ -25,10 +25,18 @@ app.use(express.json());
 const fileController = require('../controllers/fileController'); 
 
 describe('File Service Controller', () => {
+  let mockStream;
+  let server;
+
+  afterAll((done) => {
+    server.close(done);
+  });
+
+
   beforeEach(() => {
     jest.clearAllMocks();
     process.env.FILE_SERVICE_URL = 'http://localhost:8081';
-    
+
     mockAxios.get.mockReset();
     mockAxios.post.mockReset();
 
@@ -36,9 +44,22 @@ describe('File Service Controller', () => {
       status: 200,
       data: { success: true }
     });
+
+    mockStream = null; // reset before each test
   });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+    jest.restoreAllMocks();
+    if (mockStream) {
+      mockStream.destroy();   // 🔹 prevent open handle leaks
+      mockStream = null;
+    }
+  });
+
+
 //------------------------------------------------------------------------------------
-app.post('/download', fileController.downloadFile);
+app.post('/downloadFile', fileController.downloadFile);
 describe('downloadFile', () => {
   it('should return 200 and stream file successfully', async () => {
     const mockStream = new PassThrough();
@@ -53,7 +74,7 @@ describe('downloadFile', () => {
     });
 
     const req = request(app)
-      .post('/download')
+      .post('/downloadFile')
       .send({ userId: 'user123', fileId: 'file456' });
 
     // Write the data after next tick
@@ -78,7 +99,7 @@ describe('downloadFile', () => {
 
     it('should return 400 when userId or fileId is missing', async () => {
       const response = await request(app)
-        .post('/download')
+        .post('/downloadFile')
         .send({ userId: 'user123' });
 
       expect(response.status).toBe(400);
@@ -94,7 +115,7 @@ describe('downloadFile', () => {
       });
 
       const responsePromise = request(app)
-        .post('/download')
+        .post('/downloadFile')
         .send({ userId: 'user123', fileId: 'file456' });
 
       setTimeout(() => {
@@ -113,7 +134,7 @@ describe('downloadFile', () => {
       mockAxios.mockRejectedValue(new Error('Network error'));
 
       const response = await request(app)
-        .post('/download')
+        .post('/downloadFile')
         .send({ userId: 'user123', fileId: 'file456' });
 
       expect(response.status).toBe(500);
@@ -266,7 +287,7 @@ describe("downloadViewFile", () => {
   });
 });
 //------------------------------------------------------------------------------------
-app.post('/metadata', fileController.getMetaData);
+app.post('/getMetadata', fileController.getMetaData);
 describe('getMetaData', () => {
     it('should successfully retrieve metadata', async () => {
       const mockMetadata = [
@@ -280,7 +301,7 @@ describe('getMetaData', () => {
       });
 
       const response = await request(app)
-        .post('/metadata')
+        .post('/getMetadata')
         .send({ userId: 'user123' });
 
       expect(response.status).toBe(200);
@@ -289,7 +310,7 @@ describe('getMetaData', () => {
 
     it('should return 400 when userId is missing', async () => {
       const response = await request(app)
-        .post('/metadata')
+        .post('/getMetadata')
         .send({});
 
       expect(response.status).toBe(400);
@@ -300,7 +321,7 @@ describe('getMetaData', () => {
       mockAxios.post.mockRejectedValue(new Error('Service unavailable'));
 
       const response = await request(app)
-        .post('/metadata')
+        .post('/getMetadata')
         .send({ userId: 'user123' });
 
       expect(response.status).toBe(500);
@@ -907,7 +928,6 @@ describe("restoreFile", () => {
     expect(res.text).toBe("Restore failed");
   });
 });
-
 //------------------------------------------------------------------------------------
 app.post('/createFolder', fileController.createFolder);
 describe("createFolder", () => {
