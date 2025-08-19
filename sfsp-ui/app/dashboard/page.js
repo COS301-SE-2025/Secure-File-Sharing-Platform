@@ -1,13 +1,22 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { FileText, Users, Clock, TrashIcon, UploadCloud, ListCheckIcon, AlertCircleIcon } from 'lucide-react';
+import axios from 'axios';
+
+import { 
+  FileText, 
+  Users, 
+  TrashIcon, 
+  UploadCloud, 
+  ListCheckIcon, 
+  AlertCircleIcon 
+} from 'lucide-react';
+
 import { UploadDialog } from "./myFilesV2/uploadDialog";
-import { useDashboardSearch } from "./components/DashboardSearchContext";
 import { FullViewModal } from "./myFilesV2/fullViewModal";
 import { PreviewDrawer } from "./myFilesV2/previewDrawer";
+import { useDashboardSearch } from "./components/DashboardSearchContext";
 
-import axios from 'axios';
 import { getSodium } from "@/app/lib/sodium";
 import { useEncryptionStore } from "@/app/SecureKeyStorage";
 
@@ -58,9 +67,9 @@ export default function DashboardHomePage() {
   const [viewerContent, setViewerContent] = useState(null);
   const [previewFile, setPreviewFile] = useState(null);
   const [previewContent, setPreviewContent] = useState(null);
-const [logs, setLogs] = useState([]);          // Stores all fetched logs
-const [recentLogs, setRecentLogs] = useState([]); // Stores top 3 most recent / filtered logs
-const [actionFilter, setActionFilter] = useState("All actions"); // Current action filter
+  const [logs, setLogs] = useState([]);          
+  const [recentLogs, setRecentLogs] = useState([]); 
+  const [actionFilter, setActionFilter] = useState("All actions"); 
 
 
   const formatTimestamp = (timestamp) => {
@@ -123,7 +132,7 @@ const fetchFiles = async () => {
 
     setFiles(formatted);
 
-    return formatted; // ← add this
+    return formatted;
   } catch (err) {
     console.error("Failed to fetch files:", err);
     return [];
@@ -229,10 +238,7 @@ const fetchFiles = async () => {
 
     setPreviewContent({ url: contentUrl, text: textFull });
     setPreviewFile(file);
-  };
-
-
-  
+  };  
 
   const fetchNotifications = async () => {
     const token = localStorage.getItem("token");
@@ -365,7 +371,6 @@ const fetchFiles = async () => {
   }
 };
 
-
   const fetchFilesMetadata = useCallback(async () => {
     try {
       const res = await fetch('http://localhost:5000/api/files/metadata', {
@@ -387,10 +392,10 @@ const fetchFiles = async () => {
         return tags.includes('deleted');
       });
 
-	const receivedFiles = data.filter(file => {
+	  const receivedFiles = data.filter(file => {
 		const tags = parseTagString(file.tags);
-	return tags.includes("received");
-		});
+	  return tags.includes("received");
+	});
 
       
  
