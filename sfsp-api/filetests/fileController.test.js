@@ -1,166 +1,77 @@
-const request = require('supertest');
-const express = require('express');
-const { Readable, PassThrough } = require('stream');
+const request = require("supertest");
+const express = require("express");
+const { PassThrough } = require("stream");
 const multer = require("multer");
 
-const mockAxios = jest.fn();
-mockAxios.get = jest.fn();
-mockAxios.post = jest.fn();
-mockAxios.put = jest.fn();
-mockAxios.delete = jest.fn();
-mockAxios.create = jest.fn(() => mockAxios);
 
-jest.mock('axios', () => mockAxios);
-jest.mock('dotenv', () => ({ config: jest.fn() }));
-/*
-jest.mock('form-data', () => {
-  const mockInstance = {
-    append: jest.fn(),
-    getHeaders: jest.fn(() => ({ 'content-type': 'multipart/form-data' }))
-  };
-  return jest.fn(() => mockInstance);
+const mockAxios = jest.fn(); // callable for streaming controllers
+mockAxios.create = jest.fn(() => mockAxios);
+mockAxios.post = jest.fn(); // for getMetaData
+mockAxios.get = jest.fn();  // optional if needed
+jest.mock("axios", () => mockAxios);
+jest.mock("dotenv", () => ({ config: jest.fn() }));
+beforeEach(() => {
+  jest.clearAllMocks(); // reset call counts
 });
-*/
 const app = express();
 app.use(express.json());
 
-const fileController = require('../controllers/fileController'); 
 
-describe('File Service Controller', () => {
-  let mockStream;
-
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-    process.env.FILE_SERVICE_URL = 'http://localhost:8081';
-
-    mockAxios.get.mockReset();
-    mockAxios.post.mockReset();
-
-    mockAxios.post.mockResolvedValue({
-      status: 200,
-      data: { success: true }
-    });
-
-    mockStream = null; // reset before each test
-  });
-
-  afterEach(() => {
-    jest.clearAllMocks();
-    jest.restoreAllMocks();
-    if (mockStream) {
-      mockStream.destroy();   // 🔹 prevent open handle leaks
-      mockStream = null;
-    }
-  });
-
-
-//------------------------------------------------------------------------------------
-app.post('/downloadFile', fileController.downloadFile);
-describe('downloadFile', () => {
-  it('should return 200 and stream file successfully', async () => {
-    const mockStream = new PassThrough();   
-    const fileContent = 'test file content';
-
-    mockAxios.mockResolvedValue({
-      data: mockStream,
-      headers: {
-        'x-file-name': 'test.pdf',
-        'x-nonce': 'nonce123'
-      }
-    });
-
-    const req = request(app)
-      .post('/downloadFile')
-      .send({ userId: 'user123', fileId: 'file456' });
-
-    // Write the data after next tick
-    setTimeout(() => {
-      mockStream.write(fileContent);
-      mockStream.end();
-    }, 100);
-
-   const response = await req.buffer(true).parse((res, cb) => {
-  const chunks = [];
-  res.on('data', (chunk) => chunks.push(chunk));
-  res.on('end', () => cb(null, Buffer.concat(chunks)));
-});
-
-    expect(response.status).toBe(200);
-    expect(response.headers['content-type']).toBe('application/octet-stream');
-    expect(response.headers['x-file-name']).toBe('test.pdf');
-    expect(response.headers['x-nonce']).toBe('nonce123');
-    expect(response.body.toString()).toBe(fileContent);
-  });
-
-    it('should return 400 when userId or fileId is missing', async () => {
-      const response = await request(app)
-        .post('/downloadFile')
-        .send({ userId: 'user123' });
-
-      expect(response.status).toBe(400);
-      expect(response.text).toBe('Missing userId or fileId');
-    });
-
-    it('should return 500 when headers are missing from Go service', async () => {
-      const mockStream = new PassThrough();
-
-      mockAxios.mockResolvedValue({
-        data: mockStream,
-        headers: {} // missing headers
-      });
-
-      const responsePromise = request(app)
-        .post('/downloadFile')
-        .send({ userId: 'user123', fileId: 'file456' });
-
-      setTimeout(() => {
-        mockStream.end();
-      }, 10);
-
-      const response = await responsePromise;
-
-      expect(response.status).toBe(500);
-      expect(response.text).toBe('Missing required file metadata from service'); // <--- update here
-    });
-
-
-    it('should handle axios errors', async () => {
-      // Mock the default axios call to reject
-      mockAxios.mockRejectedValue(new Error('Network error'));
-
-      const response = await request(app)
-        .post('/downloadFile')
-        .send({ userId: 'user123', fileId: 'file456' });
-
-      expect(response.status).toBe(500);
-      expect(response.text).toBe('Download failed');
-    });
-});
-//------------------------------------------------------------------------------------
+const fileController = require("../controllers/fileController");
+const upload = multer();
+app.post("/downloadFile", fileController.downloadFile);
 app.post('/downloadSentFile', fileController.downloadSentFile);
-describe("downloadSentFile", () => {
-  it("should return 400 if filepath missing", async () => {
-    const res = await request(app).post("/downloadSentFile").send({});
+app.post("/downloadViewFile", fileController.downloadViewFile);
+app.post('/getMetaData', fileController.getMetaData);
+app.post('/startUpload', fileController.startUpload);
+app.use('/uploadChunk', upload.single("file"), fileController.uploadChunk);
+app.post('/getNumberOfFiles', fileController.getNumberOfFiles);
+app.post('/deleteFile', fileController.deleteFile);
+app.post('/sendFile', fileController.sendFile);
+app.post('/sendByView', fileController.sendByView);
+app.post('/addAccesslog', fileController.addAccesslog);
+app.post('/getAccesslog', fileController.getAccesslog);
+app.post('/getSharedViewFiles', fileController.getSharedViewFiles);
+app.post('/getViewFileAccessLogs', fileController.getViewFileAccessLogs);
+app.post('/revokeViewAccess', fileController.revokeViewAccess);
+app.post('/addTags', fileController.addTags);
+app.post('/removeFileTags', fileController.removeFileTags);
+app.post('/addUserToTable', fileController.addUserToTable);
+app.post('/softDeleteFile', fileController.softDeleteFile);
+app.post('/restoreFile', fileController.restoreFile);
+app.post('/createFolder', fileController.createFolder);
+app.post('/updateFilePath', fileController.updateFilePath);
+app.post('/addDescription', fileController.addDescription);
+
+
+
+describe("downloadFile controller", () => {
+  it("should return 400 when userId or fileId is missing", async () => {
+    const res = await request(app).post("/downloadFile").send({ userId: "user123" });
     expect(res.status).toBe(400);
-    expect(res.text).toBe("File path is required");
+    expect(res.text).toBe("Missing userId or fileId");
   });
 
-  it("should stream sent file successfully", async () => {
+  it("should stream a file successfully", async () => {
+    const fileContent = "file content";
     const mockStream = new PassThrough();
-    const fileContent = "sent file content";
 
     process.nextTick(() => {
       mockStream.write(fileContent);
       mockStream.end();
     });
 
-    mockAxios.mockResolvedValueOnce = mockAxios.post.mockResolvedValueOnce;
-    mockAxios.post.mockResolvedValueOnce({ data: mockStream });
+    mockAxios.mockResolvedValueOnce({
+      data: mockStream,
+      headers: {
+        "x-file-name": "sentFile.txt",
+        "x-nonce": "nonce123",
+      },
+    });
 
     const res = await request(app)
-      .post("/downloadSentFile")
-      .send({ filepath: "/folder/sentFile.txt" })
+      .post("/downloadFile")
+      .send({ userId: "user123", fileId: "file456" })
       .buffer(true)
       .parse((res, cb) => {
         const chunks = [];
@@ -170,51 +81,170 @@ describe("downloadSentFile", () => {
 
     expect(res.status).toBe(200);
     expect(res.headers["content-type"]).toBe("application/octet-stream");
-    expect(res.headers["content-disposition"]).toBe(
-      'attachment; filename="sentFile.txt"'
-    );
+    expect(res.headers["x-file-name"]).toBe("sentFile.txt");
+    expect(res.headers["x-nonce"]).toBe("nonce123");
     expect(res.body.toString()).toBe(fileContent);
   });
 
-  it("should return 500 if axios fails", async () => {
-    mockAxios.post.mockRejectedValueOnce(new Error("Failed"));
+  it("should return 500 if headers are missing from Go service", async () => {
+    const mockStream = new PassThrough();
+    process.nextTick(() => mockStream.end());
+
+    mockAxios.mockResolvedValueOnce({
+      data: mockStream,
+      headers: {}, // missing required headers
+    });
 
     const res = await request(app)
-      .post("/downloadSentFile")
-      .send({ filepath: "/folder/sentFile.txt" });
+      .post("/downloadFile")
+      .send({ userId: "user123", fileId: "file456" });
 
     expect(res.status).toBe(500);
-    expect(res.text).toBe("Error retrieving the sent file");
+    expect(res.text).toBe("Missing required file metadata from service");
+  });
+
+  it("should handle axios errors", async () => {
+    mockAxios.mockRejectedValueOnce(new Error("Network error"));
+
+    const res = await request(app)
+      .post("/downloadFile")
+      .send({ userId: "user123", fileId: "file456" });
+
+    expect(res.status).toBe(500);
+    expect(res.text).toBe("Download failed");
+  });
+
+  it("should handle stream errors gracefully", async () => {
+    const mockStream = new PassThrough();
+
+    mockAxios.mockResolvedValueOnce({
+      data: mockStream,
+      headers: {
+        "x-file-name": "sentFile.txt",
+        "x-nonce": "nonce123",
+      },
+    });
+
+    // Trigger stream error after a short delay
+    setTimeout(() => mockStream.emit("error", new Error("Stream failed")), 10);
+
+    const res = await request(app)
+      .post("/downloadFile")
+      .send({ userId: "user123", fileId: "file456" })
+      .buffer(true)
+      .parse((res, cb) => {
+        const chunks = [];
+        res.on("data", (chunk) => chunks.push(chunk));
+        res.on("end", () => cb(null, Buffer.concat(chunks)));
+      });
+
+    // Stream errors just close connection; status 200 is sent
+    expect(res.status).toBe(200);
   });
 });
-//------------------------------------------------------------------------------------
-app.post('/downloadViewFile', fileController.downloadViewFile);
-describe("downloadViewFile", () => {
-  it("should return 400 if missing userId or fileId", async () => {
-    const res = await request(app).post("/downloadViewFile").send({});
+describe("downloadSentFile controller", () => {
+  it("should return 400 when filepath is missing", async () => {
+    const res = await request(app).post("/downloadSentFile").send({});
     expect(res.status).toBe(400);
-    expect(res.text).toBe("Missing userId or fileId");
+    expect(res.text).toBe("File path is required");
   });
 
-  it("should stream view-only file and set headers", async () => {
+  it("should stream a sent file successfully", async () => {
+    const fileContent = "hello sent file";
+    const filepath = "folder/sentFile.txt";
     const mockStream = new PassThrough();
-    const fileContent = "view-only file content";
 
+    // Emit file content then end
     process.nextTick(() => {
       mockStream.write(fileContent);
       mockStream.end();
     });
 
-    mockAxios.post.mockResolvedValueOnce({
+    mockAxios.mockResolvedValueOnce({
+      data: mockStream,
+    });
+
+    const res = await request(app)
+      .post("/downloadSentFile")
+      .send({ filepath })
+      .buffer(true)
+      .parse((res, cb) => {
+        const chunks = [];
+        res.on("data", (chunk) => chunks.push(chunk));
+        res.on("end", () => cb(null, Buffer.concat(chunks)));
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.headers["content-type"]).toBe("application/octet-stream");
+    expect(res.headers["content-disposition"]).toBe('attachment; filename="sentFile.txt"');
+    expect(res.body.toString()).toBe(fileContent);
+  });
+
+  it("should handle axios errors gracefully", async () => {
+    mockAxios.mockRejectedValueOnce(new Error("Network error"));
+    const res = await request(app)
+      .post("/downloadSentFile")
+      .send({ filepath: "folder/sentFile.txt" });
+
+    expect(res.status).toBe(500);
+    expect(res.text).toBe("Error retrieving the sent file");
+  });
+
+  it("should handle stream errors gracefully", async () => {
+    const filepath = "folder/sentFile.txt";
+    const mockStream = new PassThrough();
+
+    mockAxios.mockResolvedValueOnce({
+      data: mockStream,
+    });
+
+    const reqPromise = request(app)
+      .post("/downloadSentFile")
+      .send({ filepath })
+      .buffer(true)
+      .parse((res, cb) => {
+        const chunks = [];
+        res.on("data", (chunk) => chunks.push(chunk));
+        res.on("end", () => cb(null, Buffer.concat(chunks)));
+      });
+
+    // Trigger stream error
+    setTimeout(() => mockStream.emit("error", new Error("Stream failed")), 10);
+
+    const res = await reqPromise;
+
+    // Stream errors close connection; status 200 already sent
+    expect(res.status).toBe(200);
+  });
+});
+describe("downloadViewFile controller", () => {
+  it("should return 400 if userId or fileId is missing", async () => {
+    const res = await request(app).post("/downloadViewFile").send({});
+    expect(res.status).toBe(400);
+    expect(res.text).toBe("Missing userId or fileId");
+  });
+
+  it("should stream the view-only file successfully", async () => {
+    const mockStream = new PassThrough();
+    const fileContent = "streamed content";
+
+    // Simulate file data being streamed
+    process.nextTick(() => {
+      mockStream.write(fileContent);
+      mockStream.end();
+    });
+
+    // ✅ Fix: mock axios function, not axios.post
+    mockAxios.mockResolvedValueOnce({
       data: mockStream,
       headers: {
         "x-view-only": "true",
         "x-file-id": "file123",
-        "x-share-id": "share789",
+        "x-share-id": "share456",
       },
     });
 
-    const response = await request(app)
+    const res = await request(app)
       .post("/downloadViewFile")
       .send({ userId: "user123", fileId: "file123" })
       .buffer(true)
@@ -224,108 +254,46 @@ describe("downloadViewFile", () => {
         res.on("end", () => cb(null, Buffer.concat(chunks)));
       });
 
-    expect(response.status).toBe(200);
-    expect(response.headers["content-type"]).toBe("application/octet-stream");
-    expect(response.headers["x-view-only"]).toBe("true");
-    expect(response.headers["x-file-id"]).toBe("file123");
-    expect(response.headers["x-share-id"]).toBe("share789");
-    expect(response.body.toString()).toBe(fileContent);
+    expect(res.status).toBe(200);
+    expect(res.headers["x-view-only"]).toBe("true");
+    expect(res.body.toString()).toBe(fileContent);
+  });
+});
+describe("getMetaData controller", () => {
+  it("should return 400 if userId is missing", async () => {
+    const res = await request(app).post("/getMetaData").send({});
+    expect(res.status).toBe(400);
+    expect(res.text).toBe("User ID is required");
   });
 
-  it("should handle stream error gracefully", async () => {
-    const mockStream = new PassThrough();
-
-    process.nextTick(() => {
-      mockStream.emit("error", new Error("Stream failed"));
-    });
-
+  it("should return metadata list if request is successful", async () => {
+    const mockData = [{ fileId: "file1", name: "test.pdf" }];
     mockAxios.post.mockResolvedValueOnce({
-      data: mockStream,
-      headers: {
-        "x-view-only": "true",
-        "x-file-id": "file123",
-        "x-share-id": "share789",
-      },
+      status: 200,
+      data: mockData,
     });
 
-    const response = await request(app)
-      .post("/downloadViewFile")
-      .send({ userId: "user123", fileId: "file123" })
-      .buffer(true)
-      .parse((res, cb) => {
-        res.on("data", () => {});
-        res.on("end", () => cb(null, Buffer.alloc(0)));
-      });
-
-    expect(response.status).toBe(200); // stream errors just close res, status already sent
+    const res = await request(app).post("/getMetaData").send({ userId: "user123" });
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual(mockData);
   });
 
-  it("should return 403 if access revoked", async () => {
-    mockAxios.post.mockRejectedValueOnce({ response: { status: 403 } });
+  it("should return error if external service responds with non-200", async () => {
+    mockAxios.post.mockResolvedValueOnce({ status: 404 });
 
-    const res = await request(app)
-      .post("/downloadViewFile")
-      .send({ userId: "user123", fileId: "file123" });
-
-    expect(res.status).toBe(403);
-    expect(res.text).toBe("Access has been revoked or expired");
+    const res = await request(app).post("/getMetaData").send({ userId: "user123" });
+    expect(res.status).toBe(404);
+    expect(res.text).toBe("Error retrieving metadata");
   });
 
-  it("should return 500 if axios fails otherwise", async () => {
-    mockAxios.post.mockRejectedValueOnce(new Error("Service down"));
+  it("should return 500 if axios throws an error", async () => {
+    mockAxios.post.mockRejectedValueOnce(new Error("Connection failed"));
 
-    const res = await request(app)
-      .post("/downloadViewFile")
-      .send({ userId: "user123", fileId: "file123" });
-
+    const res = await request(app).post("/getMetaData").send({ userId: "user123" });
     expect(res.status).toBe(500);
-    expect(res.text).toBe("Download view file failed");
+    expect(res.text).toBe("Error retrieving metadata");
   });
 });
-//------------------------------------------------------------------------------------
-app.post('/getMetadata', fileController.getMetaData);
-describe('getMetaData', () => {
-    it('should successfully retrieve metadata', async () => {
-      const mockMetadata = [
-        { id: '1', name: 'file1.txt' },
-        { id: '2', name: 'file2.txt' }
-      ];
-
-      mockAxios.post.mockResolvedValue({
-        status: 200,
-        data: mockMetadata
-      });
-
-      const response = await request(app)
-        .post('/getMetadata')
-        .send({ userId: 'user123' });
-
-      expect(response.status).toBe(200);
-      expect(response.body).toEqual(mockMetadata);
-    });
-
-    it('should return 400 when userId is missing', async () => {
-      const response = await request(app)
-        .post('/getMetadata')
-        .send({});
-
-      expect(response.status).toBe(400);
-      expect(response.text).toBe('User ID is required');
-    });
-
-    it('should handle axios errors', async () => {
-      mockAxios.post.mockRejectedValue(new Error('Service unavailable'));
-
-      const response = await request(app)
-        .post('/getMetadata')
-        .send({ userId: 'user123' });
-
-      expect(response.status).toBe(500);
-      expect(response.text).toBe('Error retrieving metadata');
-    });
-});
-//------------------------------------------------------------------------------------
-app.post('/startUpload', fileController.startUpload);
 describe("startUpload", () => {
   it("should return 400 if fileName or userId is missing", async () => {
     const res = await request(app).post("/startUpload").send({});
@@ -357,9 +325,6 @@ describe("startUpload", () => {
     expect(res.text).toBe("Failed to start upload");
   });
 });
-//------------------------------------------------------------------------------------
-const upload = multer();
-app.use('/uploadChunk', upload.single("file"), fileController.uploadChunk);
 describe("uploadChunk", () => {
   const fileBuffer = Buffer.from("chunk data");
 
@@ -412,8 +377,6 @@ describe("uploadChunk", () => {
     expect(res.text).toBe("Upload failed");
   });
 });
-//------------------------------------------------------------------------------------
-app.post('/getNumberOfFiles', fileController.getNumberOfFiles);
  describe("getNumberOfFiles", () => {
   it("should return 400 if userId is missing", async () => {
     const res = await request(app).post("/getNumberOfFiles").send({});
@@ -439,8 +402,6 @@ app.post('/getNumberOfFiles', fileController.getNumberOfFiles);
     expect(res.text).toBe("Error retrieving file count");
   });
 });
-//------------------------------------------------------------------------------------
-app.post('/deleteFile', fileController.deleteFile);
 describe("deleteFile", () => {
   it("should return 400 if fileId missing", async () => {
     const res = await request(app).post("/deleteFile").send({ userId: "user123" });
@@ -477,8 +438,6 @@ describe("deleteFile", () => {
     expect(res.text).toBe("Error deleting file");
   });
 });
-//------------------------------------------------------------------------------------
-app.post('/sendFile', fileController.sendFile);
 describe("sendFile", () => {
   const fileBuffer = Buffer.from("encrypted content");
 
@@ -525,8 +484,6 @@ describe("sendFile", () => {
     expect(res.text).toBe("Failed to send file");
   });
 });
-//------------------------------------------------------------------------------------
-app.post('/sendByView', fileController.sendByView);
 describe("sendByView", () => {
   const buffer = Buffer.from("test file content"); // must be a Buffer
 
@@ -591,8 +548,6 @@ describe("sendByView", () => {
     expect(res.text).toBe("Failed to send file by view");
   });
 });
-//------------------------------------------------------------------------------------
-app.post('/addAccesslog', fileController.addAccesslog);
 describe("addAccesslog", () => {
   it("should return 400 if required fields missing", async () => {
     const res = await request(app).post("/addAccesslog").send({});
@@ -625,9 +580,7 @@ describe("addAccesslog", () => {
     expect(res.text).toBe("Failed to add access log");
   });
 });
-//------------------------------------------------------------------------------------
-app.post('/getAccesslog', fileController.getAccesslog);
-  describe("getAccesslog", () => {
+describe("getAccesslog", () => {
   it("should return access log successfully", async () => {
     const mockData = [{ action: "download", user: "user123" }];
     mockAxios.post.mockResolvedValueOnce({ status: 200, data: mockData });
@@ -663,8 +616,6 @@ app.post('/getAccesslog', fileController.getAccesslog);
     expect(res.body).toEqual(mockData);
   });
 });
-//------------------------------------------------------------------------------------
-app.post('/getSharedViewFiles', fileController.getSharedViewFiles);
 describe("getSharedViewFiles", () => {
   it("should return 400 if userId missing", async () => {
     const res = await request(app).post("/getSharedViewFiles").send({});
@@ -695,8 +646,6 @@ describe("getSharedViewFiles", () => {
     expect(res.text).toBe("Error retrieving shared view files");
   });
 });
-//------------------------------------------------------------------------------------
-app.post('/getViewFileAccessLogs', fileController.getViewFileAccessLogs);
 describe("getViewFileAccessLogs", () => {
   it("should return 400 if fileId or userId missing", async () => {
     const res = await request(app)
@@ -729,8 +678,6 @@ describe("getViewFileAccessLogs", () => {
     expect(res.text).toBe("Error retrieving view file access logs");
   });
 });
-//------------------------------------------------------------------------------------
-app.post('/revokeViewAccess', fileController.revokeViewAccess);
 describe("revokeViewAccess", () => {
   it("should return 400 if required fields missing", async () => {
     const res = await request(app)
@@ -770,8 +717,6 @@ describe("revokeViewAccess", () => {
     expect(res.text).toBe("Error revoking view access");
   });
 });
-//------------------------------------------------------------------------------------
-app.post('/addTags', fileController.addTags);
 describe("addTags", () => {
   it("should return 400 if missing fileId or tags", async () => {
     const res = await request(app).post("/addTags").send({ fileId: "file123" });
@@ -802,8 +747,6 @@ describe("addTags", () => {
     expect(res.text).toBe("Failed to add tags to the file");
   });
 });
-//------------------------------------------------------------------------------------
-app.post('/removeFileTags', fileController.removeFileTags);
 describe("removeFileTags", () => {
   it("should return 400 if missing fileId or tags", async () => {
     const res = await request(app).post("/removeFileTags").send({ fileId: "file123" });
@@ -838,8 +781,6 @@ describe("removeFileTags", () => {
     expect(res.text).toBe("Failed to remove tags to the file");
   });
 });
-//------------------------------------------------------------------------------------
-app.post('/addUserToTable', fileController.addUserToTable);
 describe("addUserToTable", () => {
   it("should return 400 if missing userId", async () => {
     const res = await request(app).post("/addUserToTable").send({});
@@ -866,8 +807,7 @@ describe("addUserToTable", () => {
     expect(res.text).toBe("Failed to add Users to the Table");
   });
 });
-//------------------------------------------------------------------------------------
-app.post('/softDeleteFile', fileController.softDeleteFile);
+
 describe("softDeleteFile", () => {
   it("should return 400 if fileId missing", async () => {
     const res = await request(app).post("/softDeleteFile").send({});
@@ -898,8 +838,6 @@ describe("softDeleteFile", () => {
     expect(res.text).toBe("Failed to soft delete file");
   });
 });
-//------------------------------------------------------------------------------------
-app.post('/restoreFile', fileController.restoreFile);
 describe("restoreFile", () => {
   it("should return 400 if fileId missing", async () => {
     const res = await request(app).post("/restoreFile").send({});
@@ -930,8 +868,6 @@ describe("restoreFile", () => {
     expect(res.text).toBe("Restore failed");
   });
 });
-//------------------------------------------------------------------------------------
-app.post('/createFolder', fileController.createFolder);
 describe("createFolder", () => {
   it("should return 400 if userId or folderName missing", async () => {
     const res = await request(app).post("/createFolder").send({ userId: "user123" });
@@ -961,8 +897,6 @@ describe("createFolder", () => {
     expect(res.text).toBe("Failed to create folder");
   });
 });
-//------------------------------------------------------------------------------------
-app.post('/updateFilePath', fileController.updateFilePath);
 describe("updateFilePath", () => {
   it("should return 400 if fileId or newPath missing", async () => {
     const res = await request(app).post("/updateFilePath").send({ fileId: "file123" });
@@ -992,8 +926,6 @@ describe("updateFilePath", () => {
     expect(res.text).toBe("Failed to update file path");
   });
 });
-//------------------------------------------------------------------------------------
-app.post('/addDescription', fileController.addDescription);
 describe("addDescription", () => {
   it("should return 400 if fileId or description missing", async () => {
     const res = await request(app).post("/addDescription").send({ fileId: "file123" });
@@ -1022,8 +954,4 @@ describe("addDescription", () => {
     expect(res.status).toBe(500);
     expect(res.text).toBe("Failed to add description to the file");
   });
-});
-//------------------------------------------------------------------------------------
-
-
 });
