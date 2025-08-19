@@ -68,7 +68,7 @@ export default function DashboardHomePage() {
   const [previewFile, setPreviewFile] = useState(null);
   const [previewContent, setPreviewContent] = useState(null);
   const [logs, setLogs] = useState([]);          
-  const [recentLogs, setRecentLogs] = useState([]); 
+  const [recentAccessLogs, setRecentAccessLogs] = useState([]);
   const [actionFilter, setActionFilter] = useState("All actions"); 
 
 
@@ -313,63 +313,77 @@ const fetchFiles = async () => {
       console.error('Failed to clear notification:', error);
     }
   };
-  const fetchAllLogs = async () => {
-  setLoading(true);
-
+  
+const fetchRecentAccessLogs = async () => {
   try {
-    const files = await fetchFiles();
+    const userId = useEncryptionStore.getState().userId;
+    if (!userId) return [];
 
-    // Ensure files is an array
-    if (!Array.isArray(files)) {
-      console.error("fetchFiles did not return an array:", files);
-      setLogs([]);
-      setRecentLogs([]);
-      return;
-    }
+    // Fetch files
+    const res = await fetch("http://localhost:5000/api/files/metadata", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId }),
+    });
+    let files = await res.json();
+    if (!Array.isArray(files)) files = [];
+
+    // Filter out deleted files
+    files = files.filter(f => {
+      const tags = f.tags ? f.tags.replace(/[{}]/g, "").split(",") : [];
+      return !tags.includes("deleted") && !tags.some(tag => tag.trim().startsWith("deleted_time:"));
+    });
 
     const allLogs = [];
 
     for (const file of files) {
       try {
-        const res = await fetch("http://localhost:5000/api/files/getAccesslog", {
+        const logRes = await fetch("http://localhost:5000/api/files/getAccesslog", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ file_id: file.fileId }),
         });
-
-        if (!res.ok) continue;
-        const fileLogs = await res.json();
+        if (!logRes.ok) continue;
+        const fileLogs = await logRes.json();
 
         for (const log of fileLogs) {
+          if (log.file_id !== file.fileId) continue;
+
+          // Get user info
+          let userName = "Unknown User";
+          let avatar = "/default-avatar.png";
+          try {
+            const userRes = await fetch(`http://localhost:5000/api/users/getUserInfo/${log.user_id}`);
+            if (userRes.ok) {
+              const userInfo = await userRes.json();
+              if (userInfo?.data?.username) {
+                userName = userInfo.data.username;
+                avatar = userInfo.data.avatar_url || avatar;
+              }
+            }
+          } catch {}
+
           allLogs.push({
-            user: log.message?.split(/\s+/)[0] || "Unknown",
-            action: log.action?.toLowerCase() || "",
-            file: file.fileName || "Unnamed",
-            date: new Date(log.timestamp).toLocaleString(),
+            user: userName,
+            avatar,
+            action: log.action || "",
+            file: file.fileName || "Unnamed File",
+            timestamp: log.timestamp,
+            dateFormatted: new Date(log.timestamp).toLocaleString(),
           });
         }
-      } catch (err) {
-        console.error(`Error fetching logs for file ${file.fileId}:`, err);
-      }
+      } catch {}
     }
 
-    setLogs(allLogs);
-
-    const filteredLogs = allLogs
-      .filter(log => actionFilter === "All actions" || log.action === actionFilter.toLowerCase())
-      .filter(log => {
-        const q = search.toLowerCase();
-        return log.user.toLowerCase().includes(q) || log.action.toLowerCase().includes(q) || log.file.toLowerCase().includes(q) || log.date.toLowerCase().includes(q);
-      });
-
-    setRecentLogs(filteredLogs.slice(0, 3));
-
+    // Sort by timestamp and take top 3
+    allLogs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    setRecentAccessLogs(allLogs.slice(0, 3));
   } catch (err) {
-    console.error("Failed to fetch all logs:", err);
-  } finally {
-    setLoading(false);
+    console.error("Failed to fetch recent access logs:", err);
+    setRecentAccessLogs([]);
   }
 };
+
 
   const fetchFilesMetadata = useCallback(async () => {
     try {
@@ -414,7 +428,7 @@ const fetchFiles = async () => {
       fetchFilesMetadata();
       fetchFiles();
       fetchNotifications();
-      fetchAllLogs()
+      fetchRecentAccessLogs()
     }
   }, [userId, fetchFilesMetadata, actionFilter]);
 
@@ -579,8 +593,8 @@ const fetchFiles = async () => {
           </div>
 
           <div className="overflow-y-auto space-y-2 pr-2 text-sm text-gray-700 dark:text-gray-200">
-            {recentLogs.length > 0 ? (
-              recentLogs.map((log, idx) => (
+            {recentAccessLogs.length > 0 ? (
+              recentAccessLogs.map((log, idx) => (
                 <div key={idx} className="flex items-start gap-2">
                   <img
                     src={log.avatar || "/default-avatar.png"}

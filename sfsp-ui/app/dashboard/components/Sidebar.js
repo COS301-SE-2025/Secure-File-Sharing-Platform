@@ -1,14 +1,23 @@
-//app/dashboard/components/Sidebar.js
-
 'use client';
 
 import { useRef, useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import Image from 'next/image';
-import { FileText, Grid3X3, Users, Clock, Trash2, Settings, ChevronDown, LogOut, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import {
+  FileText,
+  Grid3X3,
+  Users,
+  Clock,
+  Trash2,
+  Settings,
+  ChevronDown,
+  LogOut,
+  PanelLeftClose,
+  PanelLeftOpen,
+} from 'lucide-react';
 
-export default function Sidebar() {
+export default function Sidebar({ expanded, setExpanded, isHovered, setIsHovered }) {
   const pathname = usePathname();
   const router = useRouter();
   const settingsDropdownRef = useRef(null);
@@ -16,17 +25,8 @@ export default function Sidebar() {
   const [user, setUser] = useState(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(true);
-  const [isHovered, setIsHovered] = useState(false);
 
-  useEffect(() => {
-    const savedState = localStorage.getItem('sidebarCollapsed');
-    if (savedState !== null) {
-      setIsCollapsed(JSON.parse(savedState));
-    }
-  }, []);
-
-  const showExpanded = !isCollapsed || isHovered;
+  const showExpanded = expanded || isHovered;
 
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -40,11 +40,8 @@ export default function Sidebar() {
   };
 
   const toggleSidebar = () => {
-    const newState = !isCollapsed;
-    setIsCollapsed(newState);
-    localStorage.setItem('sidebarCollapsed', JSON.stringify(newState));
-
-    if (!newState) {
+    setExpanded(!expanded);
+    if (expanded) {
       setDropdownOpen(false);
       setSettingsOpen(false);
     }
@@ -76,17 +73,19 @@ export default function Sidebar() {
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (
-        (settingsDropdownRef.current && !settingsDropdownRef.current.contains(event.target)) &&
-        (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target))
+        (settingsDropdownRef.current &&
+          !settingsDropdownRef.current.contains(event.target)) &&
+        (profileDropdownRef.current &&
+          !profileDropdownRef.current.contains(event.target))
       ) {
         setSettingsOpen(false);
         setDropdownOpen(false);
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside);
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
 
@@ -110,7 +109,7 @@ export default function Sidebar() {
     return `flex items-center gap-3 p-3 rounded-lg transition-colors ${isActive
         ? 'text-black dark:text-white font-bold bg-blue-300 dark:bg-gray-700'
         : 'hover:bg-blue-300 dark:hover:bg-gray-700'
-      } ${isCollapsed && !isHovered ? 'justify-center tooltip-container' : ''}`;
+      } ${!showExpanded ? 'justify-center tooltip-container' : ''}`;
   };
 
   const navigationItems = [
@@ -124,18 +123,20 @@ export default function Sidebar() {
   return (
     <aside
       data-testid="sidebar"
-      className={`fixed top-0 left-0 h-screen ${showExpanded ? 'w-64' : 'w-16'} bg-gray-200 text-gray-800 dark:bg-gray-800 dark:text-white p-6 shadow-md hidden md:flex flex-col transition-all duration-300 ease-in-out z-40`}
+      className={`fixed top-0 left-0 h-screen ${showExpanded ? 'w-64' : 'w-16'
+        } bg-gray-200 text-gray-800 dark:bg-gray-800 dark:text-white 
+        p-6 shadow-md hidden md:flex flex-col transition-all duration-300 ease-in-out z-40`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => {
         setIsHovered(false);
-        if (isCollapsed) {
+        if (!expanded) {
           setDropdownOpen(false);
           setSettingsOpen(false);
         }
       }}
     >
       {/* Logo and Title */}
-      {showExpanded && (
+      {showExpanded ? (
         <div className="flex items-center gap-3 mb-8">
           <Image
             src="/img/shield-emp-black.png"
@@ -153,10 +154,7 @@ export default function Sidebar() {
           />
           <span className="text-xl font-bold tracking-tight">SecureShare</span>
         </div>
-      )}
-
-      {/* Collapsed Logo */}
-      {!showExpanded && (
+      ) : (
         <div className="flex justify-center mb-8">
           <Image
             src="/img/shield-emp-black.png"
@@ -181,15 +179,11 @@ export default function Sidebar() {
           const Icon = item.icon;
           return (
             <div key={item.href} className="relative group">
-              <a
-                href={item.href}
-                className={linkClasses(item.href)}
-              >
+              <a href={item.href} className={linkClasses(item.href)}>
                 <Icon size={20} />
                 {showExpanded && <span>{item.label}</span>}
               </a>
-              {/* Tooltip for collapsed state */}
-              {isCollapsed && !isHovered && (
+              {!showExpanded && (
                 <div className="absolute left-full ml-2 top-1/2 transform -translate-y-1/2 bg-gray-900 dark:bg-gray-700 text-white text-xs px-2 py-1 rounded opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10">
                   {item.label}
                 </div>
@@ -200,83 +194,27 @@ export default function Sidebar() {
       </nav>
 
       {/* Bottom Section */}
-      <div className={`absolute bottom-6 ${showExpanded ? 'left-6 right-6' : 'left-2 right-2'} flex flex-col gap-3`}>
+      <div
+        className={`absolute bottom-6 ${showExpanded ? 'left-6 right-6' : 'left-2 right-2'
+          } flex flex-col gap-3`}
+      >
         {/* Pin/Unpin Button */}
         <button
           data-testid="sidebar-toggle"
           onClick={toggleSidebar}
           className="flex items-center justify-center p-3 rounded-lg hover:bg-blue-300 dark:hover:bg-gray-700 transition-colors border-t border-gray-300 dark:border-gray-600 pt-3"
-          title={isCollapsed ? 'Pin Sidebar Open' : 'Auto-Hide Sidebar'}
+          title={expanded ? 'Auto-Hide Sidebar' : 'Pin Sidebar Open'}
         >
-          {isCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
+          {expanded ? <PanelLeftClose size={20} /> : <PanelLeftOpen size={20} />}
           {showExpanded && (
             <span className="ml-2 text-sm">
-              {isCollapsed ? 'Pin Open' : 'Auto-Hide'}
+              {expanded ? 'Auto-Hide' : 'Pin Open'}
             </span>
           )}
         </button>
 
-        {/* Collapsed Profile (shows all options in dropdown) */}
-        {isCollapsed && !isHovered && (
-          <div className="relative" ref={profileDropdownRef}>
-            <button
-              data-testid="profile-button"
-              className="flex items-center justify-center p-3 w-full rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              onClick={() => setDropdownOpen((prev) => !prev)}
-            >
-              <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-bold overflow-hidden">
-                {user?.avatar_url ? (
-                  <img
-                    src={user.avatar_url}
-                    alt="Avatar"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  user?.username?.slice(0, 2).toUpperCase() || '??'
-                )}
-              </div>
-            </button>
-
-            {dropdownOpen && (
-              <div className="absolute left-0 bottom-16 w-48 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg z-20">
-                <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-600">
-                  <div className="text-sm font-medium truncate">{user?.username || 'Loading...'}</div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                    {user?.email || ''}
-                  </div>
-                </div>
-                <a
-                  href="../../Settings/accountSettings/"
-                  className="block px-4 py-2 text-sm hover:bg-blue-300 dark:hover:bg-gray-600"
-                >
-                  Account Settings
-                </a>
-                {mounted && (
-                  <button
-                    onClick={toggleTheme}
-                    className="w-full text-left px-4 py-2 text-sm hover:bg-blue-300 dark:hover:bg-gray-600"
-                  >
-                    {resolvedTheme === 'dark' ? 'Light Mode' : 'Dark Mode'}
-                  </button>
-                )}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    handleLogout(e);
-                  }}
-                  className="flex items-center gap-2 px-4 py-2 w-full text-left text-sm text-red-600 hover:bg-red-100 dark:hover:bg-gray-900 dark:text-red-400"
-                >
-                  <LogOut size={16} />
-                  Logout
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Expanded Profile + Settings */}
-        {showExpanded && (
+        {/* Profile + Settings */}
+        {showExpanded ? (
           <>
             {/* User Dropdown */}
             <div className="relative" ref={profileDropdownRef}>
@@ -297,7 +235,9 @@ export default function Sidebar() {
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium truncate">{user?.username || 'Loading...'}</div>
+                  <div className="text-sm font-medium truncate">
+                    {user?.username || 'Loading...'}
+                  </div>
                   <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
                     {user?.email || ''}
                   </div>
@@ -308,11 +248,7 @@ export default function Sidebar() {
               {dropdownOpen && (
                 <div className="mt-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg">
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      e.preventDefault();
-                      handleLogout(e);
-                    }}
+                    onClick={handleLogout}
                     className="flex items-center gap-2 px-4 py-2 w-full text-left text-sm text-red-600 hover:bg-red-100 dark:hover:bg-gray-900 dark:text-red-400"
                   >
                     <LogOut size={16} />
@@ -357,6 +293,61 @@ export default function Sidebar() {
               )}
             </div>
           </>
+        ) : (
+          // Collapsed Profile
+          <div className="relative" ref={profileDropdownRef}>
+            <button
+              data-testid="profile-button"
+              className="flex items-center justify-center p-3 w-full rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              onClick={() => setDropdownOpen((prev) => !prev)}
+            >
+              <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-bold overflow-hidden">
+                {user?.avatar_url ? (
+                  <img
+                    src={user.avatar_url}
+                    alt="Avatar"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  user?.username?.slice(0, 2).toUpperCase() || '??'
+                )}
+              </div>
+            </button>
+
+            {dropdownOpen && (
+              <div className="absolute left-0 bottom-16 w-48 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg z-20">
+                <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-600">
+                  <div className="text-sm font-medium truncate">
+                    {user?.username || 'Loading...'}
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                    {user?.email || ''}
+                  </div>
+                </div>
+                <a
+                  href="../../Settings/accountSettings/"
+                  className="block px-4 py-2 text-sm hover:bg-blue-300 dark:hover:bg-gray-600"
+                >
+                  Account Settings
+                </a>
+                {mounted && (
+                  <button
+                    onClick={toggleTheme}
+                    className="w-full text-left px-4 py-2 text-sm hover:bg-blue-300 dark:hover:bg-gray-600"
+                  >
+                    {resolvedTheme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+                  </button>
+                )}
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-2 px-4 py-2 w-full text-left text-sm text-red-600 hover:bg-red-100 dark:hover:bg-gray-900 dark:text-red-400"
+                >
+                  <LogOut size={16} />
+                  Logout
+                </button>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </aside>

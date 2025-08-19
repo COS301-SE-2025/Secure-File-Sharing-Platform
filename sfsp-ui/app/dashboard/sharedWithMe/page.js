@@ -16,6 +16,17 @@ import { PreviewDrawer } from "../myFilesV2/previewDrawer";
 import { FullViewModal } from "../myFilesV2/fullViewModal";
 import pako from "pako";
 
+function Toast({ message, type = "info", onClose }) {
+  return (
+    <div className={`fixed inset-0 flex items-center justify-center z-50 pointer-events-none`}>
+      <div className={`bg-red-300 border ${type === "error" ? "border-red-300" : "border-blue-500"} text-gray-900 rounded shadow-lg px-6 py-3 pointer-events-auto`}>
+        <span>{message}</span>
+        <button onClick={onClose} className="ml-4 font-bold">×</button>
+      </div>
+    </div>
+  );
+}
+
 function getFileType(mimeType) {
   if (!mimeType) return "unknown";
   if (mimeType.includes("pdf")) return "pdf";
@@ -68,6 +79,13 @@ export default function MyFiles() {
   const [previewFile, setPreviewFile] = useState(null);
   const [viewerFile, setViewerFile] = useState(null);
   const [viewerContent, setViewerContent] = useState(null);
+
+  const [toast, setToast] = useState(null);
+
+  const showToast = (message, type = "info", duration = 3000) => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), duration);
+  };
 
   // Filtered files based on search keyword
   const filteredVisibleFiles = files.filter((file) => {
@@ -162,13 +180,13 @@ export default function MyFiles() {
   // Download file
   const handleDownload = async (file) => {
     if (isViewOnly(file)) {
-      alert("This file is view-only and cannot be downloaded.");
+      showToast("This file is view-only and cannot be downloaded.","error");
       return;
     }
 
     const { encryptionKey, userId } = useEncryptionStore.getState();
     if (!encryptionKey) {
-      alert("Missing encryption key");
+      showToast("Missing encryption key","error");
       return;
     }
 
@@ -221,7 +239,7 @@ export default function MyFiles() {
       console.log(`✅ Downloaded and decrypted ${fileName}`);
     } catch (err) {
       console.error("Download error:", err);
-      alert("Download failed");
+      showToast("Download failed","error");
     }
   };
 
@@ -229,7 +247,7 @@ export default function MyFiles() {
   const handleLoadFile = async (file) => {
     const { encryptionKey, userId } = useEncryptionStore.getState();
     if (!encryptionKey) {
-      alert("Missing encryption key");
+      showToast("Missing encryption key","error");
       return null;
     }
 
@@ -277,7 +295,7 @@ export default function MyFiles() {
       return { fileName, decrypted };
     } catch (err) {
       console.error("Load file error:", err);
-      alert("Failed to load file: " + err.message);
+      showToast("Failed to load file: " + err.message,"error");
       return null;
     }
   };
@@ -331,14 +349,14 @@ export default function MyFiles() {
   const handleRevokeViewAccess = async (file) => {
     try {
       const token = localStorage.getItem("token");
-      if (!token) return alert("Please log in to revoke access");
+      if (!token) return showToast("Please log in to revoke access","info");
 
       const profileRes = await fetch("http://localhost:5000/api/users/profile", {
         headers: { Authorization: `Bearer ${token}` },
       });
 
       const profileResult = await profileRes.json();
-      if (!profileRes.ok) return alert("Failed to get user profile");
+      if (!profileRes.ok) return showToast("Failed to get user profile","error");
 
       const userId = profileResult.data.id;
 
@@ -348,12 +366,12 @@ export default function MyFiles() {
         body: JSON.stringify({ userId }),
       });
 
-      if (!sharedFilesRes.ok) return alert("Failed to get shared files");
+      if (!sharedFilesRes.ok) return showToast("Failed to get shared files","error");
 
       const sharedFiles = await sharedFilesRes.json();
       const fileShares = sharedFiles.filter(share => share.file_id === file.id);
 
-      if (fileShares.length === 0) return alert("No view-only shares found for this file");
+      if (fileShares.length === 0) return showToast("No view-only shares found for this file","error");
 
       for (const share of fileShares) {
         const revokeRes = await fetch("http://localhost:5000/api/files/revokeViewAccess", {
@@ -365,11 +383,11 @@ export default function MyFiles() {
         if (!revokeRes.ok) console.error(`Failed to revoke access for recipient ${share.recipient_id}`);
       }
 
-      alert("View access revoked successfully");
+      showToast("View access revoked successfully","success");
       fetchFiles();
     } catch (err) {
       console.error("Error revoking view access:", err);
-      alert("Failed to revoke view access");
+      showToast("Failed to revoke view access","error");
     }
   };
 
@@ -483,6 +501,14 @@ export default function MyFiles() {
           content={viewerContent}
           onClose={setViewerFile}
         />
+
+        {toast && (
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            onClose={() => setToast(null)}
+          />
+        )}
       </div>
     </div>
   );

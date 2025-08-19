@@ -1,16 +1,27 @@
-//app/dashboard/layout.js
-
 'use client';
+import { useState } from 'react';
 import Sidebar from '@/app/dashboard/components/Sidebar';
 import Topbar from '@/app/dashboard/components/Topbar';
 import { DashboardSearchProvider } from '@/app/dashboard/components/DashboardSearchContext';
 
 export default function DashboardLayout({ children }) {
+  const [expanded, setExpanded] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+
   return (
     <DashboardSearchProvider>
       <div className="flex min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-white">
-        <Sidebar />
-        <main className="flex-1 flex flex-col ml-16 md:ml-64 transition-all duration-300 pt-16">
+        <Sidebar
+          expanded={expanded}
+          setExpanded={setExpanded}
+          isHovered={isHovered}
+          setIsHovered={setIsHovered}
+        />
+        <main
+          className={`flex-1 flex flex-col pt-16 transition-all duration-300 ${
+            expanded ? 'ml-64' : isHovered ? 'ml-64' : 'ml-16'
+          }`}
+        >
           <Topbar />
           {children}
         </main>

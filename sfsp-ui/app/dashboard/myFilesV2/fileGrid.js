@@ -3,6 +3,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { Settings, UserMinus } from "lucide-react";
 import {
   FileIcon,
   Download,
@@ -40,13 +41,14 @@ export function FileGrid({
   onViewActivity,
   onDownload,
   onDelete,
-  onRevokeViewAccess,
   onClick,
   onDoubleClick,
   onMoveFile,
   onEnterFolder,
   onGoBack,
   currentPath,
+  onRevokeAccess,
+  onChangeShareMode,
 }) {
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const [menuFile, setMenuFile] = useState(null);
@@ -110,12 +112,39 @@ export function FileGrid({
 
   // Check if file is view-only (either from tags or viewOnly property)
   const isViewOnly = (file) => {
-    return file.viewOnly || (file.fileTags && file.fileTags.includes("view-only")) || (file.tags && file.tags.includes("view-only"));
+    if (file.viewOnly) return true;
+
+    // Handle fileTags as array or string
+    if (file.fileTags) {
+      if (Array.isArray(file.fileTags)) {
+        return file.fileTags.includes("view-only");
+      } else if (typeof file.fileTags === "string") {
+        return file.fileTags.includes("view-only");
+      }
+    }
+
+    // Handle tags as array or string
+    if (file.tags) {
+      if (Array.isArray(file.tags)) {
+        return file.tags.includes("view-only");
+      } else if (typeof file.tags === "string") {
+        return file.tags.includes("view-only");
+      }
+    }
+
+    return false;
   };
 
-  // Check if current user is the owner (assuming owner files don't have "received" tag)
   const isOwner = (file) => {
-    return !file.tags || !file.tags.includes("received");
+    if (!file.tags) return true;
+
+    if (Array.isArray(file.tags)) {
+      return !file.tags.includes("received");
+    } else if (typeof file.tags === "string") {
+      return !file.tags.includes("received");
+    }
+
+    return true;
   };
 
   const handleContextMenu = (e, file) => {
@@ -252,7 +281,10 @@ export function FileGrid({
                 <div className="relative">
                   <Folder className="h-20 w-20 text-blue-500" />
                 </div>
-                <h3 className="text-base font-bold text-gray-900 truncate" title={file.name}>
+                <h3
+                  className="text-base font-bold text-gray-900 truncate"
+                  title={file.name}
+                >
                   {file.name}
                 </h3>
               </div>
@@ -276,7 +308,9 @@ export function FileGrid({
                       <Star className="h-4 w-4 text-yellow-500 fill-current" />
                     )}
                     {file.shared && (
-                      <span className="px-1 py-0.5 text-xs bg-gray-200 rounded">Shared</span>
+                      <span className="px-1 py-0.5 text-xs bg-gray-200 rounded">
+                        Shared
+                      </span>
                     )}
                   </div>
                 </div>
@@ -290,10 +324,11 @@ export function FileGrid({
 
                 <div className="mb-2">
                   <span
-                    className={`px-2 py-1 rounded-full text-xs ${isViewOnly(file)
-                      ? "bg-blue-100 text-blue-800 dark:bg-blue-200"
-                      : "bg-green-100 text-green-800 dark:bg-green-200"
-                      }`}
+                    className={`px-2 py-1 rounded-full text-xs ${
+                      isViewOnly(file)
+                        ? "bg-blue-100 text-blue-800 dark:bg-blue-200"
+                        : "bg-green-100 text-green-800 dark:bg-green-200"
+                    }`}
                   >
                     {isViewOnly(file) ? "View Only" : "Full Access"}
                   </span>
@@ -337,7 +372,6 @@ export function FileGrid({
             )}
           </div>
         ))}
-
       </div>
 
       {/* Context Menu */}
@@ -368,12 +402,13 @@ export function FileGrid({
               }
               setMenuFile(null);
             }}
-            className={`w-full text-left px-4 py-2 flex items-center gap-2 ${menuFile?.type === "folder"
-              ? "hidden"
-              : isViewOnly(menuFile)
+            className={`w-full text-left px-4 py-2 flex items-center gap-2 ${
+              menuFile?.type === "folder"
+                ? "hidden"
+                : isViewOnly(menuFile)
                 ? "opacity-50 cursor-not-allowed"
                 : "hover:bg-gray-100 dark:hover:bg-blue-200"
-              }`}
+            }`}
             disabled={menuFile?.type !== "folder" && isViewOnly(menuFile)}
           >
             <Download className="h-4 w-4" /> Download
@@ -406,24 +441,42 @@ export function FileGrid({
               onViewActivity(menuFile);
               setMenuFile(null);
             }}
-            className={`w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 dark:hover:bg-blue-200 ${menuFile?.type === "folder" ? "hidden" : ""
-              }`}
+            className={`w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 dark:hover:bg-blue-200 ${
+              menuFile?.type === "folder" ? "hidden" : ""
+            }`}
           >
             <MoreVertical className="h-4 w-4" /> Activity Logs
           </button>
 
           {menuFile?.type !== "folder" && <hr className="my-1" />}
 
-          {(isViewOnly(menuFile) || menuFile.allow_view_sharing) && onRevokeViewAccess && (
+          {/* Manage Access Button */}
+          {isOwner(menuFile) && (
             <button
               onClick={() => {
-                onRevokeViewAccess(menuFile);
+                onRevokeAccess(menuFile); // Change from setIsRevokeAccessOpen(true)
                 setMenuFile(null);
               }}
-              className={`w-full text-left px-4 py-2 hover:bg-orange-50 text-orange-600 flex items-center gap-2 dark:hover:bg-orange-200 dark:text-orange-600 ${menuFile?.type === "folder" ? "hidden" : ""
-                }`}
+              className={`w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 dark:hover:bg-blue-200 ${
+                menuFile?.type === "folder" ? "hidden" : ""
+              }`}
             >
-              <EyeOff className="h-4 w-4" /> Revoke View Access
+              <UserMinus className="h-4 w-4" /> Manage Access
+            </button>
+          )}
+
+          {/* Change Share Method Button */}
+          {isOwner(menuFile) && (
+            <button
+              onClick={() => {
+                onChangeShareMode(menuFile); // Change from setIsChangeMethodOpen(true)
+                setMenuFile(null);
+              }}
+              className={`w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 dark:hover:bg-blue-200 ${
+                menuFile?.type === "folder" ? "hidden" : ""
+              }`}
+            >
+              <Settings className="h-4 w-4" /> Change Share Methods
             </button>
           )}
 

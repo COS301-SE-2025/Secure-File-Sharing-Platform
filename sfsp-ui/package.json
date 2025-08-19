@@ -42,12 +42,11 @@
     "react-dom": "^19.0.0",
     "react-toastify": "^11.0.5",
     "uuid": "^11.1.0",
-    "xlsx": "^0.18.5",
     "zustand": "^5.0.5"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
-    "@tailwindcss/postcss": "^4",
+    "@tailwindcss/postcss": "^4.1.11",
     "@testing-library/user-event": "^14.6.1",
     "autoprefixer": "^10.4.21",
     "css-loader": "^7.1.2",

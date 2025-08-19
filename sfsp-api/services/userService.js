@@ -5,6 +5,28 @@ const nodemailer = require("nodemailer");
 const { supabase } = require("../config/database");
 
 class UserService {
+  async getUserById(userId) {
+    try {
+      const { data, error } = await supabase
+        .from("users")
+        .select("*")
+        .eq("id", userId)
+        .single();
+
+      if (error) {
+        throw new Error("User not found");
+      }
+
+      return {
+        id: data.id,
+        username: data.username,
+        email: data.email
+      };
+    } catch (error) {
+      throw new Error("Fetching user by ID failed: " + error.message);
+    }
+  }
+
   async register(userData) {
     const {
       username,
