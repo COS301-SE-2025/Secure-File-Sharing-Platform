@@ -14,6 +14,7 @@ router.post('/getNumberOFFiles', fileController.getNumberOfFiles);
 // access logs endpoints
 router.post('/addAccesslog', fileController.addAccesslog);
 router.post('/getAccesslog', fileController.getAccesslog);
+router.post('/usersWithFileAccess', fileController.getUsersWithFileAccess);
 
 router.post('/send', fileController.sendFile);
 router.post('/addTags', fileController.addTags);
@@ -34,5 +35,6 @@ router.post('/getViewAccess', fileController.getSharedViewFiles);
 router.post('/sendByView', fileController.sendByView);
 router.post('/getViewAccesslogs', fileController.getViewFileAccessLogs);
 router.post('/downloadViewFile', fileController.downloadViewFile);
+router.post('/changeShareMethod', fileController.changeShareMethod);
 
 module.exports = router;

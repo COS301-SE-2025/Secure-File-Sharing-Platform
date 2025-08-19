@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Upload, FolderPlus, Grid, List } from "lucide-react";
+import { Upload, FolderPlus, Grid, List, Route } from "lucide-react";
 import { ShareDialog } from "./shareDialog";
 import { UploadDialog } from "./uploadDialog";
 import { FileDetailsDialog } from "./fileDetailsDialog";
@@ -16,7 +16,8 @@ import { useEncryptionStore } from "@/app/SecureKeyStorage";
 import { getSodium } from "@/app/lib/sodium";
 import { PreviewDrawer } from "./previewDrawer";
 import { FullViewModal } from "./fullViewModal";
-import pako from "pako";
+import { RevokeAccessDialog } from "./revokeAccessDialog";
+import { ChangeShareMethodDialog } from "./changeShareMethodDialog";
 
 function Toast({ message, type = "info", onClose }) {
   return (
@@ -79,6 +80,8 @@ export default function MyFiles() {
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isActivityOpen, setIsActivityOpen] = useState(false);
+  const [isRevokeAccessOpen, setIsRevokeAccessOpen] = useState(false);
+  const [isChangeMethodOpen, setIsChangeMethodOpen] = useState(false);
 
   const [previewContent, setPreviewContent] = useState(null);
   const [previewFile, setPreviewFile] = useState(null);
@@ -128,25 +131,12 @@ export default function MyFiles() {
     if (file.tags) {
       if (Array.isArray(file.tags)) {
         tags = file.tags;
-      } else if (typeof file.tags === 'string') {
+      } else if (typeof file.tags === "string") {
         tags = file.tags.replace(/[{}]/g, "").split(",");
       }
     }
 
     return tags.includes("view-only") || file.viewOnly;
-  };
-
-  const isOwner = (file) => {
-    let tags = [];
-    if (file.tags) {
-      if (Array.isArray(file.tags)) {
-        tags = file.tags;
-      } else if (typeof file.tags === 'string') {
-        tags = file.tags.replace(/[{}]/g, "").split(",");
-      }
-    }
-
-    return !tags.includes("received");
   };
 
   const fetchFiles = async () => {
@@ -476,69 +466,14 @@ export default function MyFiles() {
     setIsActivityOpen(true);
   };
 
-  const handleRevokeViewAccess = async (file) => {
-    try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        showToast("Please log in to revoke access","error");
-        return;
-      }
+  const handleChangeShareMode = (file) => {
+    setSelectedFile(file);
+    setIsChangeMethodOpen(true);
+  };
 
-      // Get user profile to get userId
-      const profileRes = await fetch("http://localhost:5000/api/users/profile", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      const profileResult = await profileRes.json();
-      if (!profileRes.ok) {
-        showToast("Failed to get user profile","error");
-        return;
-      }
-
-      const userId = profileResult.data.id;
-
-      // Get shared view files to find recipients
-      const sharedFilesRes = await fetch("http://localhost:5000/api/files/getViewAccess", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId }),
-      });
-
-      if (!sharedFilesRes.ok) {
-        showToast("Failed to get shared files","error");
-        return;
-      }
-
-      const sharedFiles = await sharedFilesRes.json();
-      const fileShares = sharedFiles.filter(share => share.file_id === file.id);
-
-      if (fileShares.length === 0) {
-        showToast("No view-only shares found for this file","error");
-        return;
-      }
-
-      for (const share of fileShares) {
-        const revokeRes = await fetch("http://localhost:5000/api/files/revokeViewAccess", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            fileId: file.id,
-            userId: userId,
-            recipientId: share.recipient_id
-          }),
-        });
-
-        if (!revokeRes.ok) {
-          console.error(`Failed to revoke access for recipient ${share.recipient_id}`);
-        }
-      }
-
-      showToast("View access revoked successfully","success");
-      fetchFiles(); // Refresh the file list
-    } catch (err) {
-      console.error("Error revoking view access:", err);
-      showToast("Failed to revoke view access","error");
-    }
+  const openRevokeAccessDialog = (file) => {
+    setSelectedFile(file);
+    setIsRevokeAccessOpen(true);
   };
 
   const renderBreadcrumbs = () => {
@@ -582,8 +517,7 @@ export default function MyFiles() {
               stroke="currentColor"
               strokeWidth="2"
               viewBox="0 0 24 24"
-            >
-            </svg>
+            ></svg>
           </button>
         </div>
       </div>
@@ -606,19 +540,21 @@ export default function MyFiles() {
             {/* View Toggle */}
             <div className="flex items-center bg-white rounded-lg border p-1 dark:bg-gray-200">
               <button
-                className={`px-3 py-1 rounded ${viewMode === "grid"
-                  ? "bg-blue-500 text-white"
-                  : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
-                  }`}
+                className={`px-3 py-1 rounded ${
+                  viewMode === "grid"
+                    ? "bg-blue-500 text-white"
+                    : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
+                }`}
                 onClick={() => setViewMode("grid")}
               >
                 <Grid className="h-4 w-4" />
               </button>
               <button
-                className={`px-3 py-1 rounded ${viewMode === "list"
-                  ? "bg-blue-500 text-white"
-                  : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
-                  }`}
+                className={`px-3 py-1 rounded ${
+                  viewMode === "list"
+                    ? "bg-blue-500 text-white"
+                    : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
+                }`}
                 onClick={() => setViewMode("list")}
               >
                 <List className="h-4 w-4" />
@@ -662,7 +598,7 @@ export default function MyFiles() {
 
         {/*File */}
         {filteredVisibleFiles.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-96 text-center text-gray-700 dark:text-gray-500 dark:text-gray-400  rounded-lg p-10">
+          <div className="flex flex-col items-center justify-center h-96 text-center text-gray-700 dark:text-gray-500  rounded-lg p-10">
             <svg
               className="w-16 h-16 mb-4 text-gray-500 dark:text-gray-300"
               fill="none"
@@ -677,7 +613,9 @@ export default function MyFiles() {
               />
             </svg>
             <h2 className="text-lg font-semibold">No files found</h2>
-            <p className="text-sm text-gray-400">Upload or create folders to get started</p>
+            <p className="text-sm text-gray-400">
+              Upload or create folders to get started
+            </p>
           </div>
         ) : viewMode === "grid" ? (
           <FileGrid
@@ -687,7 +625,8 @@ export default function MyFiles() {
             onViewActivity={openActivityDialog}
             onDownload={handleDownload}
             onDelete={fetchFiles}
-            onRevokeViewAccess={handleRevokeViewAccess}
+            onRevokeAccess={() => setIsRevokeAccessOpen(true)}
+            onChangeShareMode={() => setIsChangeMethodOpen(true)}
             onClick={handlePreview}
             onDoubleClick={handleOpenFullView}
             onMoveFile={handleMoveFile}
@@ -709,7 +648,8 @@ export default function MyFiles() {
             onViewActivity={openActivityDialog}
             onDownload={handleDownload}
             onDelete={fetchFiles}
-            onRevokeViewAccess={handleRevokeViewAccess}
+            onRevokeAccess={openRevokeAccessDialog}
+            onChangeShareMode={handleChangeShareMode}
             onClick={handlePreview}
             onDoubleClick={handleOpenFullView}
             onMoveFile={handleMoveFile}
@@ -725,8 +665,17 @@ export default function MyFiles() {
           />
         )}
 
-
         {/* Dialogs */}
+        <RevokeAccessDialog
+          open={isRevokeAccessOpen}
+          onOpenChange={setIsRevokeAccessOpen}
+          file={selectedFile}
+        />
+        <ChangeShareMethodDialog
+          open={isChangeMethodOpen}
+          onOpenChange={setIsChangeMethodOpen}
+          file={selectedFile}
+        />
         <UploadDialog
           open={isUploadOpen}
           onOpenChange={setIsUploadOpen}
