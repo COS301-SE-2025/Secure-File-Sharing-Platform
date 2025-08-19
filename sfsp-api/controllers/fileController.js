@@ -73,106 +73,6 @@ exports.downloadFile = async (req, res) => {
   }
 };
 
-exports.downloadSentFile = async (req, res) => {
-  const { filepath } = req.body;
-
-  if (!filepath) {
-    return res.status(400).send("File path is required");
-  }
-
-  try {
-    // 🔹 1. Request Go service with streaming
-    const response = await axios({
-      method: "post",
-      url: `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/downloadSentFile`,
-      data: { filePath: filepath },
-      headers: { "Content-Type": "application/json" },
-      responseType: "stream", // ⭐ Stream instead of buffering
-    });
-
-    // 🔹 2. Forward headers
-    res.set({
-      "Content-Type": "application/octet-stream",
-      "Access-Control-Expose-Headers": "Content-Disposition",
-      "Content-Disposition": `attachment; filename="${filepath.split("/").pop()}"`,
-    });
-
-    // 🔹 3. Pipe Go backend stream → frontend
-    response.data.pipe(res);
-
-    // Optional logging
-    response.data.on("end", () => {
-      console.log(`✅ Finished streaming sent file: ${filepath}`);
-    });
-
-    response.data.on("error", (err) => {
-      console.error("❌ Stream error from Go service:", err.message);
-      res.end(); // Close client connection
-    });
-
-  } catch (err) {
-    console.error("❌ Error retrieving sent file:", err.message);
-    if (!res.headersSent) {
-      res.status(500).send("Error retrieving the sent file");
-    } else {
-      res.end(); // Ensure connection closes
-    }
-  }
-};
-
-exports.downloadViewFile = async (req, res) => {
-  const { userId, fileId } = req.body;
-
-  if (!userId || !fileId) {
-    return res.status(400).send("Missing userId or fileId");
-  }
-
-  try {
-    const response = await axios({
-      method: "post",
-      url: `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/downloadViewFile`,
-      data: { userId, fileId },
-      headers: { "Content-Type": "application/json" },
-      responseType: "stream",
-    });
-
-    const viewOnly = response.headers["x-view-only"] || "true";
-    const fileIdHeader = response.headers["x-file-id"] || fileId;
-    const shareIdHeader = response.headers["x-share-id"] || "";
-
-    res.set({
-      "Content-Type": "application/octet-stream",
-      "X-View-Only": viewOnly,
-      "X-File-Id": fileIdHeader,
-      "X-Share-Id": shareIdHeader,
-      "Access-Control-Expose-Headers": "X-View-Only, X-File-Id, X-Share-Id",
-    });
-
-    console.log(
-      `Streaming view-only file back to client -> fileId: ${fileIdHeader}, shareId: ${shareIdHeader}`
-    );
-
-    response.data.pipe(res);
-
-    response.data.on("end", () => {
-      console.log(`Finished streaming view-only (You should watch fight club) file: ${fileIdHeader}`);
-    });
-
-    response.data.on("error", (err) => {
-      console.error("Stream error from Go service:", err.message);
-      res.end(); 
-    });
-
-  } catch (err) {
-    console.error("Download view file error:", err.message);
-
-    if (err.response && err.response.status === 403) {
-      return res.status(403).send("Access has been revoked or expired");
-    }
-    return res.status(500).send("Download view file failed");
-  }
-};
-
 exports.getMetaData = async (req, res) => {
   const userId = req.body.userId;
   console.log("📦 Received metadata request:", req.body);
@@ -369,6 +269,7 @@ exports.deleteFile = async (req, res) => {
   }
 };
 
+
 exports.sendFile = [
   upload.single("encryptedFile"),
   async (req, res) => {
@@ -418,6 +319,249 @@ exports.sendFile = [
     }
   },
 ];
+
+exports.addAccesslog = async (req, res) => {
+  const { file_id, user_id, action, message } = req.body;
+  if (!file_id || !user_id || !action || !message) {
+    return res
+      .status(400)
+      .send("Missing required fields: file_id, user_id, action or message");
+  }
+  try {
+    const response = await axios.post(
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/addAccesslog`,
+      { file_id, user_id, action, message },
+      { headers: { "Content-Type": "application/json" } }
+    );
+    res.status(response.status).send(response.data);
+  } catch (err) {
+    console.error("Add access log error:", err.message);
+    res.status(500).send("Failed to add access log");
+  }
+};
+
+exports.getAccesslog = async (req, res) => {
+  const { file_id } = req.body;
+  try {
+    const response = await axios.post(
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/getAccesslog`,
+      file_id ? { file_id } : {},
+      { headers: { "Content-Type": "application/json" } }
+    );
+    res.status(response.status).json(response.data);
+  } catch (err) {
+    console.error("Get access log error:", err.message);
+    res.status(500).send("Failed to get access log");
+  }
+};
+
+exports.addTags = async (req, res) => {
+  const { fileId, tags } = req.body;
+  if (!fileId || !tags) {
+    return res.status(400).send("Missing required fields: fileId or tags");
+  }
+  try {
+    const response = await axios.post(
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/addTags`,
+      { fileId, tags },
+      { headers: { "Content-Type": "application/json" } }
+    );
+    res.status(response.status).send(response.data);
+  } catch (err) {
+    console.error("Add Tags error:", err.message);
+    res.status(500).send("Failed to add tags to the file");
+  }
+};
+
+exports.addUserToTable = async (req, res) => {
+  const { userId } = req.body;
+
+  if (!userId) {
+    return res.status(400).send("Missing UserId");
+  }
+  try {
+    const response = await axios.post(
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/addUser`,
+      { userId },
+      { headers: { "Content-Type": "application/json" } }
+    );
+    res.status(response.status).send(response.data);
+  } catch (err) {
+    console.error("Add Users error:", err.message);
+    res.status(500).send("Failed to add Users to the Table");
+  }
+};
+
+exports.softDeleteFile = async (req, res) => {
+  const { fileId } = req.body;
+  if (!fileId) {
+    return res.status(400).send("Missing fileId");
+  }
+
+  try {
+    const response = await axios.post(
+      `${
+        process.env.FILE_SERVICE_URL || "http://localhost:8081"
+      }/softDeleteFile`,
+      { fileId },
+      { headers: { "Content-Type": "application/json" } }
+    );
+    res.status(response.status).json(response.data);
+  } catch (err) {
+    console.error("Soft delete error:", err.message);
+    res.status(500).send("Failed to soft delete file"); // <-- match test expectation
+  }
+};
+
+exports.restoreFile = async (req, res) => {
+  const { fileId } = req.body;
+  if (!fileId) {
+    return res.status(400).send("Missing fileId");
+  }
+
+  try {
+    const response = await axios.post(
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/restoreFile`,
+      { fileId },
+      { headers: { "Content-Type": "application/json" } }
+    );
+    res.status(response.status).json(response.data);
+  } catch (err) {
+    console.error("Restore error:", err.message);
+    res.status(500).send("Restore failed");
+  }
+};
+
+exports.removeFileTags = async (req, res) => {
+  const { fileId, tags } = req.body;
+  if (!fileId || !tags) {
+    return res.status(400).send("Missing required fields: fileId or tags");
+  }
+  try {
+    const response = await axios.post(
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/removeTags`,
+      { fileId, tags },
+      { headers: { "Content-Type": "application/json" } }
+    );
+    res.status(response.status).send(response.data);
+  } catch (err) {
+    console.error("remove Tags error:", err.message);
+    res.status(500).send("Failed to remove tags to the file");
+  }
+};
+
+
+
+exports.downloadSentFile = async (req, res) => {
+  const { filepath } = req.body;
+
+  if (!filepath) {
+    return res.status(400).send("File path is required");
+  }
+
+  try {
+    // 🔹 1. Request Go service with streaming
+    const response = await axios({
+      method: "post",
+      url: `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/downloadSentFile`,
+      data: { filePath: filepath },
+      headers: { "Content-Type": "application/json" },
+      responseType: "stream", // ⭐ Stream instead of buffering
+    });
+
+    // 🔹 2. Forward headers
+    res.set({
+      "Content-Type": "application/octet-stream",
+      "Access-Control-Expose-Headers": "Content-Disposition",
+      "Content-Disposition": `attachment; filename="${filepath.split("/").pop()}"`,
+    });
+
+    // 🔹 3. Pipe Go backend stream → frontend
+    response.data.pipe(res);
+
+    // Optional logging
+    response.data.on("end", () => {
+      console.log(`✅ Finished streaming sent file: ${filepath}`);
+    });
+
+    response.data.on("error", (err) => {
+      console.error("❌ Stream error from Go service:", err.message);
+      res.end(); // Close client connection
+    });
+
+  } catch (err) {
+    console.error("❌ Error retrieving sent file:", err.message);
+    if (!res.headersSent) {
+      res.status(500).send("Error retrieving the sent file");
+    } else {
+      res.end(); // Ensure connection closes
+    }
+  }
+};
+
+exports.addDescription = async (req, res) => {
+  const { fileId, description } = req.body;
+
+  if (!fileId || !description) {
+    return res.status(400).send("Missing fileId or description");
+  }
+
+  try {
+    const response = await axios.post(
+      `${
+        process.env.FILE_SERVICE_URL || "http://localhost:8081"
+      }/addDescription`,
+      { fileId, description },
+      { headers: { "Content-Type": "application/json" } }
+    );
+    res.status(response.status).send(response.data);
+  } catch (err) {
+    console.error("Add description error:", err.message);
+    res.status(500).send("Failed to add description to the file");
+  }
+};
+
+exports.createFolder = async (req, res) => {
+  const { userId, folderName, parentPath, description } = req.body;
+
+  if (!userId || !folderName) {
+    return res.status(400).send("Missing userId or folderName");
+  }
+
+  try {
+    const response = await axios.post(
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/createFolder`,
+      { userId, folderName, parentPath, description },
+      { headers: { "Content-Type": "application/json" } }
+    );
+    res.status(response.status).json(response.data);
+  } catch (err) {
+    console.error("Create folder error:", err.message);
+    res.status(500).send("Failed to create folder");
+  }
+};
+
+exports.updateFilePath = async (req, res) => {
+  const { fileId, newPath } = req.body;
+
+  if (!fileId || !newPath) {
+    return res.status(400).send("Missing fileId or newPath");
+  }
+
+  try {
+    const response = await axios.post(
+      `${
+        process.env.FILE_SERVICE_URL || "http://localhost:8081"
+      }/updateFilePath`,
+      { fileId, newPath },
+      { headers: { "Content-Type": "application/json" } }
+    );
+    res.status(response.status).json(response.data);
+  } catch (err) {
+    console.error("Update file path error:", err.message);
+    res.status(500).send("Failed to update file path");
+  }
+};
 
 exports.sendByView = [
   upload.single("encryptedFile"),
@@ -486,40 +630,6 @@ exports.sendByView = [
   },
 ];
 
-exports.addAccesslog = async (req, res) => {
-  const { file_id, user_id, action, message } = req.body;
-  if (!file_id || !user_id || !action || !message) {
-    return res
-      .status(400)
-      .send("Missing required fields: file_id, user_id, action or message");
-  }
-  try {
-    const response = await axios.post(
-      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/addAccesslog`,
-      { file_id, user_id, action, message },
-      { headers: { "Content-Type": "application/json" } }
-    );
-    res.status(response.status).send(response.data);
-  } catch (err) {
-    console.error("Add access log error:", err.message);
-    res.status(500).send("Failed to add access log");
-  }
-};
-
-exports.getAccesslog = async (req, res) => {
-  const { file_id } = req.body;
-  try {
-    const response = await axios.post(
-      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/getAccesslog`,
-      file_id ? { file_id } : {},
-      { headers: { "Content-Type": "application/json" } }
-    );
-    res.status(response.status).json(response.data);
-  } catch (err) {
-    console.error("Get access log error:", err.message);
-    res.status(500).send("Failed to get access log");
-  }
-};
 exports.getSharedViewFiles = async (req, res) => {
   const { userId } = req.body;
 
@@ -602,65 +712,61 @@ exports.revokeViewAccess = async (req, res) => {
     res.status(500).send("Error revoking view access");
   }
 };
-exports.addTags = async (req, res) => {
-  const { fileId, tags } = req.body;
-  if (!fileId || !tags) {
-    return res.status(400).send("Missing required fields: fileId or tags");
+
+
+exports.downloadViewFile = async (req, res) => {
+  const { userId, fileId } = req.body;
+
+  if (!userId || !fileId) {
+    return res.status(400).send("Missing userId or fileId");
   }
+
   try {
-    const response = await axios.post(
-      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/addTags`,
-      { fileId, tags },
-      { headers: { "Content-Type": "application/json" } }
+    const response = await axios({
+      method: "post",
+      url: `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/downloadViewFile`,
+      data: { userId, fileId },
+      headers: { "Content-Type": "application/json" },
+      responseType: "stream",
+    });
+
+    const viewOnly = response.headers["x-view-only"] || "true";
+    const fileIdHeader = response.headers["x-file-id"] || fileId;
+    const shareIdHeader = response.headers["x-share-id"] || "";
+
+    res.set({
+      "Content-Type": "application/octet-stream",
+      "X-View-Only": viewOnly,
+      "X-File-Id": fileIdHeader,
+      "X-Share-Id": shareIdHeader,
+      "Access-Control-Expose-Headers": "X-View-Only, X-File-Id, X-Share-Id",
+    });
+
+    console.log(
+      `Streaming view-only file back to client -> fileId: ${fileIdHeader}, shareId: ${shareIdHeader}`
     );
-    res.status(response.status).send(response.data);
+
+    response.data.pipe(res);
+
+    response.data.on("end", () => {
+      console.log(`Finished streaming view-only (You should watch fight club) file: ${fileIdHeader}`);
+    });
+
+    response.data.on("error", (err) => {
+      console.error("Stream error from Go service:", err.message);
+      res.end(); 
+    });
+
   } catch (err) {
-    console.error("Add Tags error:", err.message);
-    res.status(500).send("Failed to add tags to the file");
+    console.error("Download view file error:", err.message);
+
+    if (err.response && err.response.status === 403) {
+      return res.status(403).send("Access has been revoked or expired");
+    }
+    return res.status(500).send("Download view file failed");
   }
 };
 
-<<<<<<< HEAD
-exports.removeFileTags = async (req, res) => {
-  const { fileId, tags } = req.body;
-  if (!fileId || !tags) {
-    return res.status(400).send("Missing required fields: fileId or tags");
-  }
-  try {
-    const response = await axios.post(
-      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/removeTags`,
-      { fileId, tags },
-      { headers: { "Content-Type": "application/json" } }
-    );
-    res.status(response.status).send(response.data);
-  } catch (err) {
-    console.error("remove Tags error:", err.message);
-    res.status(500).send("Failed to remove tags to the file");
-  }
-};
-
-exports.addUserToTable = async (req, res) => {
-  const { userId } = req.body;
-
-  if (!userId) {
-    return res.status(400).send("Missing UserId");
-  }
-  try {
-    const response = await axios.post(
-      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/addUser`,
-      { userId },
-      { headers: { "Content-Type": "application/json" } }
-    );
-    res.status(response.status).send(response.data);
-  } catch (err) {
-    console.error("Add Users error:", err.message);
-    res.status(500).send("Failed to add Users to the Table");
-  }
-};
-
-exports.softDeleteFile = async (req, res) => {
-  const { fileId } = req.body;
-=======
 exports.changeShareMethod = [
   upload.single("encryptedFile"),
   async (req, res) =>{
@@ -709,116 +815,11 @@ exports.changeShareMethod = [
 exports.getUsersWithFileAccess = async (req, res) => {
   const { fileId } = req.body;
 
->>>>>>> ui
   if (!fileId) {
     return res.status(400).send("Missing fileId");
   }
 
   try {
-<<<<<<< HEAD
-    const response = await axios.post(
-      `${
-        process.env.FILE_SERVICE_URL || "http://localhost:8081"
-      }/softDeleteFile`,
-      { fileId },
-      { headers: { "Content-Type": "application/json" } }
-    );
-    res.status(response.status).json(response.data);
-  } catch (err) {
-    console.error("Soft delete error:", err.message);
-    res.status(500).send("Failed to soft delete file"); // <-- match test expectation
-  }
-};
-
-exports.restoreFile = async (req, res) => {
-  const { fileId } = req.body;
-  if (!fileId) {
-    return res.status(400).send("Missing fileId");
-  }
-
-  try {
-    const response = await axios.post(
-      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/restoreFile`,
-      { fileId },
-      { headers: { "Content-Type": "application/json" } }
-    );
-    res.status(response.status).json(response.data);
-  } catch (err) {
-    console.error("Restore error:", err.message);
-    res.status(500).send("Restore failed");
-  }
-};
-
-
-exports.createFolder = async (req, res) => {
-  const { userId, folderName, parentPath, description } = req.body;
-
-  if (!userId || !folderName) {
-    return res.status(400).send("Missing userId or folderName");
-  }
-
-  try {
-    const response = await axios.post(
-      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/createFolder`,
-      { userId, folderName, parentPath, description },
-      { headers: { "Content-Type": "application/json" } }
-    );
-    res.status(response.status).json(response.data);
-  } catch (err) {
-    console.error("Create folder error:", err.message);
-    res.status(500).send("Failed to create folder");
-  }
-};
-
-exports.updateFilePath = async (req, res) => {
-  const { fileId, newPath } = req.body;
-
-  if (!fileId || !newPath) {
-    return res.status(400).send("Missing fileId or newPath");
-  }
-
-  try {
-    const response = await axios.post(
-      `${
-        process.env.FILE_SERVICE_URL || "http://localhost:8081"
-      }/updateFilePath`,
-      { fileId, newPath },
-      { headers: { "Content-Type": "application/json" } }
-    );
-    res.status(response.status).json(response.data);
-  } catch (err) {
-    console.error("Update file path error:", err.message);
-    res.status(500).send("Failed to update file path");
-  }
-};
-
-exports.addDescription = async (req, res) => {
-  const { fileId, description } = req.body;
-
-  if (!fileId || !description) {
-    return res.status(400).send("Missing fileId or description");
-  }
-
-  try {
-    const response = await axios.post(
-      `${
-        process.env.FILE_SERVICE_URL || "http://localhost:8081"
-      }/addDescription`,
-      { fileId, description },
-      { headers: { "Content-Type": "application/json" } }
-    );
-    res.status(response.status).send(response.data);
-  } catch (err) {
-    console.error("Add description error:", err.message);
-    res.status(500).send("Failed to add description to the file");
-  }
-};
-
-
-
-
-
-=======
     const response = await axios.get(
       `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/usersWithFileAccess`,
       { params: { fileId } },
@@ -834,4 +835,3 @@ exports.addDescription = async (req, res) => {
     res.status(500).send("Error getting users with file access");
   }
 };
->>>>>>> ui
