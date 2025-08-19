@@ -71,3 +71,46 @@ func GetAccesslogHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(logs)
 }
+
+func GetUsersWithFileAccessHandler(w http.ResponseWriter, r *http.Request) {
+	fileID := r.URL.Query().Get("fileId")
+	if fileID == "" {
+		http.Error(w, "fileId is required", http.StatusBadRequest)
+		return
+	}
+
+	var ownerID string
+	err := DB.QueryRow(`SELECT owner_id FROM files WHERE id = $1`, fileID).Scan(&ownerID)
+	if err != nil {
+		log.Println("Failed to get file owner:", err)
+		http.Error(w, "Failed to get file owner", http.StatusInternalServerError)
+		return
+	}
+
+	rows, err := DB.Query(`SELECT DISTINCT recipient_id FROM shared_files_view WHERE file_id = $1`, fileID)
+	if err != nil {
+		log.Println("Failed to query users with file access:", err)
+		http.Error(w, "Failed to get users with file access", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	users := []string{}
+	for rows.Next() {
+		var userID string
+		if err := rows.Scan(&userID); err != nil {
+			log.Println("Failed to scan user ID:", err)
+			continue
+		}
+		users = append(users, userID)
+	}
+
+	var response = map[string]any{
+		"owner": ownerID,
+		"users": users,
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
