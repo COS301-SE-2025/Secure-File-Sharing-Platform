@@ -228,7 +228,6 @@ export function PreviewDrawer({
             <div>Type: {file?.type}</div>
             <div>Size: {file?.size}</div>
             <div>Modified: {file?.modified}</div>
-            {file?.path && <div>Location: {file.path}</div>}
           </div>
         </div>
 

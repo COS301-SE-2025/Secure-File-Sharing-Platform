@@ -473,7 +473,7 @@ export default function DashboardHomePage() {
                 {item.icon}
               </div>
               <div>
-                <p className="text-lg font-bold text-gray-500 dark:text-gray-400">
+                <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
                   {item.label}
                 </p>
                 <p className="text-xl font-bold">{item.value}</p>
@@ -486,7 +486,7 @@ export default function DashboardHomePage() {
               key={idx}
               onClick={() => setIsUploadOpen(true)}
               className="flex items-center gap-4 p-7 w-full text-left
-                         bg-blue-600 hover:bg-blue-700
+                         bg-blue-500 hover:bg-blue-700
                          text-white rounded-lg shadow transition-shadow"
             >
               {CardContent}
