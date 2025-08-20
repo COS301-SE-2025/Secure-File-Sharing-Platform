@@ -1,13 +1,15 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { Search,FileText,Shield,Users,Settings,BookOpen,ChevronLeft,ChevronRight,MessageCircle,HelpCircle,ArrowRight,ChevronDown,ChevronUp,Star,Clock,Zap } from 'lucide-react';
+import { Search,ChevronLeft,ChevronRight,MessageCircle,HelpCircle,ArrowRight,ChevronDown,ChevronUp,Star,Clock,Zap } from 'lucide-react';
+import { helpSections } from './helpSections';
 
     const HelpCenter = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [currentSlide, setCurrentSlide] = useState(0);
     const [isAutoPlaying, setIsAutoPlaying] = useState(true);
     const [openSections, setOpenSections] = useState({});
+    const [openItems, setOpenItems] = useState({});
 
     const toggleSection = (section) => {
         setOpenSections((prev) => ({
@@ -16,90 +18,22 @@ import { Search,FileText,Shield,Users,Settings,BookOpen,ChevronLeft,ChevronRight
         }));
     };
 
-    const helpSections = [
-        {
-        id: 'file-management',
-        title: 'File Management',
-        icon: FileText,
-        description: 'Master your files with powerful management tools',
-        items: [
-            'How to upload files securely',
-            'Downloading files and folders',
-            'Sharing files with individuals or groups',
-            'Setting file expiration dates',
-            'Revoking file access permissions',
-            'Recovering deleted files',
-            'Organizing files with folders'
-        ]
-        },
-        {
-        id: 'security-privacy',
-        title: 'Security & Privacy',
-        icon: Shield,
-        description: 'Keep your data safe with enterprise-grade security',
-        items: [
-            'How your data is secured (AES-256 encryption)',
-            'Setting up Two-Factor Authentication (2FA)',
-            'Understanding access logs and activity tracking',
-            'Password security best practices',
-            'Reporting a security issue or breach',
-            'Data encryption in transit and at rest',
-            'Compliance with privacy regulations'
-        ]
-        },
-        {
-        id: 'account-access',
-        title: 'Account & Access',
-        icon: Users,
-        description: 'Manage your account and user permissions effortlessly',
-        items: [
-            'Creating your secure account',
-            'Email verification process',
-            'Password reset and recovery',
-            'Managing user groups and permissions',
-            'Updating profile information',
-            'Account deactivation process',
-            'Switching between organizations'
-        ]
-        },
-        {
-        id: 'troubleshooting',
-        title: 'Troubleshooting',
-        icon: Settings,
-        description: 'Quick solutions to common issues and problems',
-        items: [
-            "Can't upload files? Check file size limits",
-            'Resolving "Access denied" errors',
-            'Why is my file download slow?',
-            'Common file format compatibility issues',
-            'Browser compatibility problems',
-            'Network connectivity issues'
-        ]
-        },
-        {
-        id: 'policies',
-        title: 'Policies & Legal',
-        icon: BookOpen,
-        description: 'Understand our terms, policies, and compliance',
-        items: [
-            'Terms of Service',
-            'Privacy Policy',
-            'Data retention and deletion policy',
-            'Acceptable Use Policy',
-            'POPIA compliance information',
-            'Cookie policy',
-            'Service Level Agreement (SLA)'
-        ]
-        }
-    ];
-
     const filteredSections = helpSections.filter(
         (section) =>
         section.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        section.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
         section.items.some((item) =>
-            item.toLowerCase().includes(searchQuery.toLowerCase())
+            item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            item.details.toLowerCase().includes(searchQuery.toLowerCase())
         )
     );
+
+    const toggleItem = (sectionId, itemIndex) => {
+        setOpenItems((prev) => ({
+        ...prev,
+        [`${sectionId}-${itemIndex}`]: !prev[`${sectionId}-${itemIndex}`],
+        }));
+    };
 
     useEffect(() => {
         if (isAutoPlaying && filteredSections.length > 0) {
@@ -133,27 +67,27 @@ import { Search,FileText,Shield,Users,Settings,BookOpen,ChevronLeft,ChevronRight
             {/* Left Content */}
             <div className="flex-1 max-w-3xl">
                 <div className="mb-8">
-                <h1 className="text-3xl font-extrabold tracking-tight text-blue-600 dark:text-blue-400 mb-4">
-                    Help Center
-                </h1>
-                <p className="text-lg text-gray-600 dark:text-slate-300 leading-relaxed">
-                    Welcome to the Help Center. Here you&apos;ll find answers, guides, and
-                    support for using the Secure File Sharing Platform effectively.
-                </p>
+                    <h1 className="text-3xl font-extrabold tracking-tight text-blue-600 dark:text-blue-400 mb-4">
+                        Help Center
+                    </h1>
+                    <p className="text-lg text-gray-600 dark:text-slate-300 leading-relaxed">
+                        Welcome to the Help Center. Here you&apos;ll find answers, guides, and
+                        support for using the Secure File Sharing Platform effectively.
+                    </p>
                 </div>
 
                 {/* enhanced Search Bar */}
                 <div className="mb-8">
-                <div className="relative max-w-2xl">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                    <input
-                    type="text"
-                    placeholder="Search for help articles, guides, or FAQs..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
-                    />
-                </div>
+                    <div className="relative max-w-2xl">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                        <input
+                        type="text"
+                        placeholder="Search for help articles, guides, or FAQs..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
+                        />
+                    </div>
                 </div>
 
                 {/* some Quick Stats */}
@@ -201,7 +135,7 @@ import { Search,FileText,Shield,Users,Settings,BookOpen,ChevronLeft,ChevronRight
                 <Image
                     src="/img/helpCenter.png"
                     alt="Help Center Support"
-                    width={800}     // replace with real size
+                    width={800}
                     height={400}
                     className="relative max-w-full h-auto w-full max-w-lg rounded-lg shadow-lg"
                 />
@@ -220,7 +154,7 @@ import { Search,FileText,Shield,Users,Settings,BookOpen,ChevronLeft,ChevronRight
                 </p>
             </div>
 
-            {/*Accordion Style, Carousel */}
+            {/* Accordion Style (Desktop) */}
             <div className="hidden md:block">
                 <div className="space-y-4">
                 {filteredSections.map((section) => {
@@ -250,27 +184,43 @@ import { Search,FileText,Shield,Users,Settings,BookOpen,ChevronLeft,ChevronRight
                             </div>
                         </div>
                         <span className="text-blue-600 ml-4">
-                            {isOpen ? (
-                            <ChevronUp size={20} />
-                            ) : (
-                            <ChevronDown size={20} />
-                            )}
+                            {isOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                         </span>
                         </button>
-                        
                         {isOpen && (
                         <div className="px-6 pb-4">
                             <div className="border-t border-gray-200 dark:border-gray-600 pt-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                 {section.items.map((item, index) => (
-                                <div
-                                    key={index}
+                                <div key={index}>
+                                    <div
+                                    onClick={() => toggleItem(section.id, index)}
                                     className="flex items-start space-x-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors group"
-                                >
+                                    role="button"
+                                    tabIndex={0}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' || e.key === ' ') {
+                                        toggleItem(section.id, index);
+                                        }
+                                    }}
+                                    >
                                     <div className="w-2 h-2 bg-blue-600 rounded-full mt-2 flex-shrink-0"></div>
                                     <span className="text-gray-700 dark:text-gray-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                                    {item}
+                                        {item.title}
                                     </span>
+                                    <span className="ml-auto text-blue-600">
+                                        {openItems[`${section.id}-${index}`] ? (
+                                        <ChevronUp size={16} />
+                                        ) : (
+                                        <ChevronDown size={16} />
+                                        )}
+                                    </span>
+                                    </div>
+                                    {openItems[`${section.id}-${index}`] && (
+                                    <div className="ml-8 p-3 text-gray-600 dark:text-gray-300 text-sm transition-all duration-300">
+                                        {item.details}
+                                    </div>
+                                    )}
                                 </div>
                                 ))}
                             </div>
@@ -283,7 +233,7 @@ import { Search,FileText,Shield,Users,Settings,BookOpen,ChevronLeft,ChevronRight
                 </div>
             </div>
 
-            {/*Carousel Style */}
+            {/* Carousel Style (Mobile Phone) */}
             <div className="block md:hidden">
                 {filteredSections.length > 0 && (
                 <div className="relative">
@@ -292,7 +242,7 @@ import { Search,FileText,Shield,Users,Settings,BookOpen,ChevronLeft,ChevronRight
                         {filteredSections.map((section, index) => {
                         const IconComponent = section.icon;
                         const isActive = index === currentSlide;
-                        
+
                         return (
                             <div
                             key={section.id}
@@ -310,17 +260,37 @@ import { Search,FileText,Shield,Users,Settings,BookOpen,ChevronLeft,ChevronRight
                                     <p className="text-gray-600 dark:text-slate-300">{section.description}</p>
                                 </div>
                                 </div>
-                                
                                 <div className="space-y-3">
                                 {section.items.map((item, itemIndex) => (
+                                    <div key={itemIndex}>
                                     <div
-                                    key={itemIndex}
-                                    className="flex items-start space-x-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors"
+                                        onClick={() => toggleItem(section.id, itemIndex)}
+                                        className="flex items-start space-x-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors group"
+                                        role="button"
+                                        tabIndex={0}
+                                        onKeyDown={(e) => {
+                                        if (e.key === 'Enter' || e.key === ' ') {
+                                            toggleItem(section.id, itemIndex);
+                                        }
+                                        }}
                                     >
-                                    <div className="w-2 h-2 bg-blue-600 rounded-full mt-2 flex-shrink-0"></div>
-                                    <span className="text-gray-700 dark:text-gray-300">
-                                        {item}
-                                    </span>
+                                        <div className="w-2 h-2 bg-blue-600 rounded-full mt-2 flex-shrink-0"></div>
+                                        <span className="text-gray-700 dark:text-gray-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                        {item.title}
+                                        </span>
+                                        <span className="ml-auto text-blue-600">
+                                        {openItems[`${section.id}-${itemIndex}`] ? (
+                                            <ChevronUp size={16} />
+                                        ) : (
+                                            <ChevronDown size={16} />
+                                        )}
+                                        </span>
+                                    </div>
+                                    {openItems[`${section.id}-${itemIndex}`] && (
+                                        <div className="ml-8 p-3 text-gray-600 dark:text-gray-300 text-sm transition-all duration-300">
+                                        {item.details}
+                                        </div>
+                                    )}
                                     </div>
                                 ))}
                                 </div>

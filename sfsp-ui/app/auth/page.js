@@ -1,10 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import Loader from '@/app/dashboard/components/Loader';
 import { getSodium } from "@/app/lib/sodium";
+import { EyeClosed, Eye } from 'lucide-react';
 import { v4 as uuidv4 } from "uuid";
 //import * as sodium from 'libsodium-wrappers-sumo';
 import { generateLinearEasing } from "framer-motion";
@@ -21,7 +23,20 @@ export default function AuthPage() {
   const router = useRouter();
   const [tab, setTab] = useState("login");
   const [isLoading, setIsLoading] = useState(false);
+  const [loaderMessage, setLoaderMessage] = useState("Loading...");
   const [message, setMessage] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showSignupPassword, setShowSignupPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+  const [passwordRequirements, setPasswordRequirements] = useState({
+    hasMinLength: false,
+    hasUppercase: false,
+    hasLowercase: false,
+    hasNumber: false,
+    hasSpecialChar: false,
+  });
 
   const [loginData, setLoginData] = useState({ email: "", password: "" });
   const [signupData, setSignupData] = useState({
@@ -32,6 +47,53 @@ export default function AuthPage() {
     agreeToTerms: false,
   });
 
+  // Handle Google OAuth errors from URL parameters
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const error = urlParams.get('error');
+    
+    if (error) {
+      switch (error) {
+        case 'oauth_error':
+          setMessage('Google authentication was cancelled or failed. Please try again.');
+          break;
+        case 'oauth_cancelled':
+          setMessage('Google authentication was cancelled.');
+          break;
+        case 'missing_code':
+          setMessage('Google authentication failed. Missing authorization code.');
+          break;
+        case 'code_expired':
+          setMessage('Authorization code has expired. Please try again.');
+          break;
+        case 'code_reused':
+          setMessage('This authorization code has already been used. Please try again.');
+          break;
+        case 'invalid_state':
+          setMessage('Invalid authentication state. Please try again.');
+          break;
+        case 'authentication_failed':
+          setMessage('Failed to authenticate with our servers. Please try again.');
+          break;
+        case 'oauth_init_failed':
+          setMessage('Failed to initiate Google authentication. Please check your internet connection.');
+          break;
+        default:
+          setMessage('An error occurred during Google authentication. Please try again.');
+      }
+      
+      // Clean up URL parameters
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+    }
+
+    // Clean up any pending Google auth state
+    const authInProgress = localStorage.getItem('googleAuthInProgress');
+    if (authInProgress) {
+      localStorage.removeItem('googleAuthInProgress');
+    }
+  }, []);
+
   function handleChange(setter) {
     return (event) => {
       const { name, value } = event.target;
@@ -39,12 +101,36 @@ export default function AuthPage() {
         ...prev,
         [name]: value,
       }));
+      
+      if (name === 'password' && setter === setSignupData) {
+        checkPasswordRequirements(value);
+      }
+      
+      if (fieldErrors[name]) {
+        setFieldErrors((prev) => ({
+          ...prev,
+          [name]: '',
+        }));
+      }
     };
   }
+
+  const checkPasswordRequirements = (password) => {
+    setPasswordRequirements({
+      hasMinLength: password.length >= 8,
+      hasUppercase: /[A-Z]/.test(password),
+      hasLowercase: /[a-z]/.test(password),
+      hasNumber: /\d/.test(password),
+      hasSpecialChar: /[!@#$%^&*]/.test(password),
+    });
+  };
+
+  const allPasswordRequirementsMet = Object.values(passwordRequirements).every(req => req);
 
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
+    setLoaderMessage("Signing you in...");
     setMessage(null);
 
     console.log(loginData.email);
@@ -72,6 +158,7 @@ export default function AuthPage() {
         id,
         salt,
         nonce,
+        is_verified,
         //private keys
         //public keys
         ik_public,
@@ -82,6 +169,15 @@ export default function AuthPage() {
 
       const { ik_private_key, opks_private, spk_private_key } = result.data.keyBundle;
       const { token } = result.data;
+
+      // Check if user needs email verification
+      if (!is_verified) {
+        setLoaderMessage("Please verify your email first...");
+        setTimeout(() => {
+          router.push(`/auth/verify-email?email=${encodeURIComponent(loginData.email)}&userId=${id}`);
+        }, 1500);
+        return;
+      }
 
       //we don't need to securely store the user ID but I will store it in the Zustand store for easy access
       useEncryptionStore.getState().setUserId(id);
@@ -163,6 +259,7 @@ export default function AuthPage() {
       setTimeout(() => {
         router.push("/dashboard");
       }, 1000);
+      
     } catch (err) {
       console.error("Login error:", err);
       setMessage(
@@ -177,20 +274,37 @@ export default function AuthPage() {
     e.preventDefault();
     const { name, email, password, confirmPassword } = signupData;
     setIsLoading(true);
+    setLoaderMessage("Creating your SecureShare account...");
     setMessage(null);
 
-    // Validation
-    if (!name || !email || !password || !confirmPassword) {
-      return setError("All fields are required.");
+    setFieldErrors({});
+
+    let errors = {};
+
+    if (!name) {
+      errors.name = "Name is required.";
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return setError("Please enter a valid email address.");
+
+    if (!email) {
+      errors.email = "Email is required.";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errors.email = "Please enter a valid email address.";
     }
-    if (password.length < 6) {
-      return setError("Password must be at least 6 characters.");
+
+    if (!allPasswordRequirementsMet) {
+      errors.password = "Please meet all password requirements.";
     }
-    if (password !== confirmPassword) {
-      return setError("Passwords do not match.");
+
+    if (!confirmPassword) {
+      errors.confirmPassword = "Please confirm your password.";
+    } else if (password !== confirmPassword) {
+      errors.confirmPassword = "Passwords do not match.";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setIsLoading(false);
+      return;
     }
 
     try {
@@ -233,6 +347,7 @@ export default function AuthPage() {
 
       const { token, user } = result.data;
 
+      // Generate derived key and prepare user keys regardless of verification status
       const derivedKey = sodium.crypto_pwhash(
         32,
         password,
@@ -255,7 +370,6 @@ export default function AuthPage() {
       }
 
       console.log("Decrypted ik private is: ", decryptedIkPrivateKey);
-      console.log("End if sign up");
 
       const userKeys = {
         identity_private_key: decryptedIkPrivateKey,
@@ -275,6 +389,7 @@ export default function AuthPage() {
         nonce: sodium.from_base64(nonce),
       };
 
+      // Store encryption keys regardless of verification status
       await storeDerivedKeyEncrypted(derivedKey);
       sessionStorage.setItem("unlockToken", "session-unlock");
       await storeUserKeysSecurely(userKeys, derivedKey);
@@ -285,14 +400,115 @@ export default function AuthPage() {
         userKeys: userKeys,
       });
 
-      localStorage.setItem("token", token.replace(/^Bearer\s/, ""));
+      console.log("User keys stored successfully:", userKeys);
+
+      // Check if user needs email verification
+      if (!user.is_verified) {
+        setLoaderMessage("Account created! Please check your email for verification...");
+        
+        // Add user to PostgreSQL database before redirecting to verification
+        try {
+          const addUserRes = await fetch("http://localhost:5000/api/files/addUser", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userId: user.id,
+            }),
+          });
+
+          if (!addUserRes.ok) {
+            console.error("Failed to add user to PostgreSQL database");
+          } else {
+            console.log("User successfully added to PostgreSQL database");
+          }
+        } catch (error) {
+          console.error("Error adding user to PostgreSQL database:", error);
+        }
+
+        // Store token for unverified users too
+        const rawToken = token.replace(/^Bearer\s/, "");
+        localStorage.setItem("token", rawToken);
+
+        setTimeout(() => {
+          router.push(`/auth/verify-email?email=${encodeURIComponent(user.email)}&userId=${user.id}`);
+        }, 1500);
+        return;
+      }
+
+      // For verified users, proceed with normal flow
+      const rawToken = token.replace(/^Bearer\s/, "");
+      localStorage.setItem("token", rawToken);
       setMessage("User successfully registered!");
-      router.push("/dashboard");
+
+      // Add user to PostgreSQL database (for verified users)
+      try {
+        const addUserRes = await fetch("http://localhost:5000/api/files/addUser", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: user.id,
+          }),
+        });
+
+        if (!addUserRes.ok) {
+          console.error("Failed to add user to PostgreSQL database");
+        } else {
+          console.log("User successfully added to PostgreSQL database");
+        }
+      } catch (error) {
+        console.error("Error adding user to PostgreSQL database:", error);
+      }
+
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 1000);
     } catch (err) {
       console.error("Signup error:", err);
       setMessage(err.message || "Something went wrong. Please try again.");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleGoogleAuth = async () => {
+    try {
+      setIsLoading(true);
+      setLoaderMessage("Redirecting to Google...");
+      
+      const authInProgress = localStorage.getItem('googleAuthInProgress');
+      if (authInProgress) {
+        setMessage('Google authentication is already in progress. Please wait...');
+        setIsLoading(false);
+        return;
+      }
+
+      const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+      const redirectUri = 'http://localhost:3000/auth/google/callback';
+      const scope = 'openid email profile';
+      
+      const state = crypto.randomUUID();
+      sessionStorage.setItem('googleOAuthState', state);
+      
+      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+        `client_id=${encodeURIComponent(clientId)}&` +
+        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+        `response_type=code&` +
+        `scope=${encodeURIComponent(scope)}&` +
+        `state=${encodeURIComponent(state)}&` +
+        `access_type=offline&` +
+        `prompt=consent`;
+
+      localStorage.setItem('googleAuthInProgress', 'true');
+      
+      localStorage.removeItem('lastUsedGoogleCode');
+      
+      window.location.href = authUrl;
+
+    } catch (error) {
+      console.error('Google OAuth error:', error);
+      setMessage('Failed to initiate Google authentication. Please try again.');
+      setIsLoading(false);
+      localStorage.removeItem('googleAuthInProgress');
     }
   };
 
@@ -304,7 +520,6 @@ export default function AuthPage() {
   async function GenerateX3DHKeys(password) {
     const sodium = await getSodium();
 
-    // Identity keypair and signedkey pair (Ed25519) 
     const ik = sodium.crypto_sign_keypair();
     const spk = sodium.crypto_sign_keypair();
 
@@ -314,19 +529,16 @@ export default function AuthPage() {
     console.log("SPK private", spk.privateKey);
     console.log("SPK public", spk.publicKey);
 
-    // Sign the SPK public key using the Ed25519 identity key should be 64 bits, all of the above
     const spkSignature = sodium.crypto_sign_detached(
       spk.publicKey,
       ik.privateKey
     );
 
-    // One-Time PreKeys (X25519)
     const opks = Array.from({ length: 10 }, () => ({
       opk_id: crypto.randomUUID(),
       keypair: sodium.crypto_box_keypair(),
     }));
 
-    // Derive encryption key from password
     const salt = sodium.randombytes_buf(sodium.crypto_pwhash_SALTBYTES);
     console.log("Salt is: ", salt)
     const derivedKey = sodium.crypto_pwhash(
@@ -340,7 +552,6 @@ export default function AuthPage() {
 
     console.log("Derivedkey is: ", derivedKey);
 
-    // Encrypt identity private key
     const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
     console.log("Nonce is:", nonce);
     const encryptedIK = sodium.crypto_secretbox_easy(
@@ -357,7 +568,6 @@ export default function AuthPage() {
     console.log("End key generation");
 
     return {
-      // Public
       ik_public: sodium.to_base64(ik.publicKey),
       spk_public: sodium.to_base64(spk.publicKey),
       signedPrekeySignature: sodium.to_base64(spkSignature),
@@ -366,22 +576,21 @@ export default function AuthPage() {
         publicKey: sodium.to_base64(opk.keypair.publicKey),
       })),
 
-      // Private (encrypted where appropriate)
-      ik_private_key: sodium.to_base64(encryptedIK), // 🔐 encrypted
-      spk_private_key: sodium.to_base64(spk.privateKey), // not encrypted
+      ik_private_key: sodium.to_base64(encryptedIK),
+      spk_private_key: sodium.to_base64(spk.privateKey),
       opks_private: opks.map((opk) => ({
         opk_id: opk.opk_id,
         private_key: sodium.to_base64(opk.keypair.privateKey),
       })),
 
-      // Crypto parameters
       salt: sodium.to_base64(salt),
       nonce: sodium.to_base64(nonce),
     };
   }
 
   return (
-    <div className="min-h-screen bg-white flex">
+    <div className="min-h-screen bg-white flex" data-testid="auth-page">
+      {isLoading && <Loader message={loaderMessage} />}
       {/* Left Panel */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 relative overflow-hidden">
         <div className="absolute inset-0 bg-blue-600 bg-opacity-10 dark:bg-gray-900" />
@@ -430,12 +639,12 @@ export default function AuthPage() {
               onClick={() => {
                 setTab("login");
                 setMessage(null);
+                setFieldErrors({});
               }}
-              className={`cursor-pointer text-center pb-2 font-medium transition-all ${
-                tab === "login"
-                  ? "text-blue-600 font-bold text-lg border-b-2 border-blue-600"
-                  : "text-gray-500 hover:text-blue-600"
-              }`}
+              className={`cursor-pointer text-center pb-2 font-medium transition-all ${tab === "login"
+                ? "text-blue-600 font-bold text-lg border-b-2 border-blue-600"
+                : "text-gray-500 hover:text-blue-600"
+                }`}
             >
               Log In
             </div>
@@ -443,12 +652,12 @@ export default function AuthPage() {
               onClick={() => {
                 setTab("signup");
                 setMessage(null);
+                setFieldErrors({});
               }}
-              className={`cursor-pointer text-center pb-2 font-medium transition-all ${
-                tab === "signup"
-                  ? "text-blue-600 font-bold text-lg border-b-2 border-blue-600"
-                  : "text-gray-500 hover:text-blue-600"
-              }`}
+              className={`cursor-pointer text-center pb-2 font-medium transition-all ${tab === "signup"
+                ? "text-blue-600 font-bold text-lg border-b-2 border-blue-600"
+                : "text-gray-500 hover:text-blue-600"
+                }`}
             >
               Sign Up
             </div>
@@ -457,11 +666,10 @@ export default function AuthPage() {
           {/* Messages */}
           {message && (
             <div
-              className={`p-3 rounded-md text-sm mb-4 ${
-                message.includes("successful")
-                  ? "bg-green-100 text-green-700"
-                  : "bg-red-100 text-red-700"
-              }`}
+              className={`p-3 rounded-md text-sm mb-4 ${message.includes("successful")
+                ? "bg-green-100 text-green-700"
+                : "bg-red-100 text-red-700"
+                }`}
             >
               {message}
             </div>
@@ -506,15 +714,29 @@ export default function AuthPage() {
                   >
                     Password
                   </label>
-                  <input
-                    id="login-password"
-                    name="password"
-                    type="password"
-                    value={loginData.password}
-                    onChange={handleChange(setLoginData)}
-                    required
-                    className="w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
-                  />
+                  <div className="relative">
+                    <input
+                      id="login-password"
+                      name="password"
+                      type={showLoginPassword ? 'text' : 'password'}
+                      value={loginData.password}
+                      onChange={handleChange(setLoginData)}
+                      required
+                      className="w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowLoginPassword(!showLoginPassword)}
+                      className="absolute inset-y-0 right-0 flex items-center pr-3"
+                      aria-label={showLoginPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showLoginPassword ? (
+                        <Eye className="h-5 w-5 text-gray-500 hover:text-gray-700" />
+                      ) : (
+                        <EyeClosed className="h-5 w-5 text-gray-500 hover:text-gray-700" />
+                      )}
+                    </button>
+                  </div>
                 </div>
                 <div className="flex items-center justify-between">
                   <Link
@@ -542,11 +764,10 @@ export default function AuthPage() {
                 {/* Google login button */}
                 <button
                   type="button"
-                  onClick={() => {
-                    //Replace this with Google OAuth logic
-                    window.location.href = "/api/auth/google";
-                  }}
-                  className="w-full flex items-center justify-center space-x-2 border dark:border-gray-400 border-gray-300 rounded-md py-2 hover:bg-gray-100 transition"
+                  onClick={handleGoogleAuth}
+                  disabled={isLoading}
+                  className="w-full flex items-center justify-center space-x-2 border dark:border-gray-400 border-gray-300 rounded-md py-2 hover:bg-gray-100 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  data-testid="google-oauth-button"
                 >
                   <svg
                     className="w-5 h-5"
@@ -604,8 +825,12 @@ export default function AuthPage() {
                     value={signupData.name}
                     onChange={handleChange(setSignupData)}
                     required
-                    className="w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 "
+                    className={`w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${fieldErrors.name ? 'border-red-500' : ''
+                      }`}
                   />
+                  {fieldErrors.name && (
+                    <p className="text-red-500 text-sm mt-1">{fieldErrors.name}</p>
+                  )}
                 </div>
                 <div>
                   <label
@@ -621,8 +846,12 @@ export default function AuthPage() {
                     value={signupData.email}
                     onChange={handleChange(setSignupData)}
                     required
-                    className="w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900  "
+                    className={`w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${fieldErrors.email ? 'border-red-500' : ''
+                      }`}
                   />
+                  {fieldErrors.email && (
+                    <p className="text-red-500 text-sm mt-1">{fieldErrors.email}</p>
+                  )}
                 </div>
                 <div>
                   <label
@@ -631,15 +860,75 @@ export default function AuthPage() {
                   >
                     Password
                   </label>
-                  <input
-                    id="password"
-                    name="password"
-                    type="password"
-                    value={signupData.password}
-                    onChange={handleChange(setSignupData)}
-                    required
-                    className="w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900  "
-                  />
+                  <div className="relative flex items-center">
+                    <input
+                      id="password"
+                      name="password"
+                      type={showSignupPassword ? 'text' : 'password'}
+                      value={signupData.password}
+                      onChange={handleChange(setSignupData)}
+                      onFocus={() => setIsPasswordFocused(true)}
+                      onBlur={() => setIsPasswordFocused(false)}
+                      required
+                      className={`w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${fieldErrors.password ? 'border-red-500' : ''
+                        }`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowSignupPassword(!showSignupPassword)}
+                      className="absolute inset-y-0 right-0 flex items-center pr-3"
+                      aria-label={showSignupPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showSignupPassword ? (
+                        <Eye className="h-5 w-5 text-gray-500 hover:text-gray-700" />
+                      ) : (
+                        <EyeClosed className="h-5 w-5 text-gray-500 hover:text-gray-700" />
+                      )}
+                    </button>
+                  </div>
+                  
+                  {/* Password Requirements Checklist */}
+                  {isPasswordFocused && signupData.password && (
+                    <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-100 rounded-md border">
+                      <p className="text-sm font-medium text-gray-700 mb-2">Password Requirements:</p>
+                      <div className="space-y-1">
+                        <div className={`flex items-center text-sm ${passwordRequirements.hasMinLength ? 'text-green-600' : 'text-gray-500'}`}>
+                          <div className={`w-4 h-4 rounded-full mr-2 flex items-center justify-center ${passwordRequirements.hasMinLength ? 'bg-green-500' : 'bg-gray-300'}`}>
+                            {passwordRequirements.hasMinLength && <span className="text-white text-xs">✓</span>}
+                          </div>
+                          At least 8 characters
+                        </div>
+                        <div className={`flex items-center text-sm ${passwordRequirements.hasUppercase ? 'text-green-600' : 'text-gray-500'}`}>
+                          <div className={`w-4 h-4 rounded-full mr-2 flex items-center justify-center ${passwordRequirements.hasUppercase ? 'bg-green-500' : 'bg-gray-300'}`}>
+                            {passwordRequirements.hasUppercase && <span className="text-white text-xs">✓</span>}
+                          </div>
+                          At least one uppercase letter
+                        </div>
+                        <div className={`flex items-center text-sm ${passwordRequirements.hasLowercase ? 'text-green-600' : 'text-gray-500'}`}>
+                          <div className={`w-4 h-4 rounded-full mr-2 flex items-center justify-center ${passwordRequirements.hasLowercase ? 'bg-green-500' : 'bg-gray-300'}`}>
+                            {passwordRequirements.hasLowercase && <span className="text-white text-xs">✓</span>}
+                          </div>
+                          At least lowercase letter
+                        </div>
+                        <div className={`flex items-center text-sm ${passwordRequirements.hasNumber ? 'text-green-600' : 'text-gray-500'}`}>
+                          <div className={`w-4 h-4 rounded-full mr-2 flex items-center justify-center ${passwordRequirements.hasNumber ? 'bg-green-500' : 'bg-gray-300'}`}>
+                            {passwordRequirements.hasNumber && <span className="text-white text-xs">✓</span>}
+                          </div>
+                          At least one number
+                        </div>
+                        <div className={`flex items-center text-sm ${passwordRequirements.hasSpecialChar ? 'text-green-600' : 'text-gray-500'}`}>
+                          <div className={`w-4 h-4 rounded-full mr-2 flex items-center justify-center ${passwordRequirements.hasSpecialChar ? 'bg-green-500' : 'bg-gray-300'}`}>
+                            {passwordRequirements.hasSpecialChar && <span className="text-white text-xs">✓</span>}
+                          </div>
+                          At least one special character (!@#$%^&*)
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {fieldErrors.password && (
+                    <p className="text-red-500 text-sm mt-1">{fieldErrors.password}</p>
+                  )}
                 </div>
                 <div>
                   <label
@@ -648,15 +937,37 @@ export default function AuthPage() {
                   >
                     Confirm Password
                   </label>
-                  <input
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    type="password"
-                    value={signupData.confirmPassword}
-                    onChange={handleChange(setSignupData)}
-                    required
-                    className="w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900  "
-                  />
+                    <div className="relative">
+                      <input
+                        id="confirmPassword"
+                        name="confirmPassword"
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        value={signupData.confirmPassword}
+                        onChange={handleChange(setSignupData)}
+                        disabled={!allPasswordRequirementsMet}
+                        required
+                        className={`w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${
+                          fieldErrors.confirmPassword ? 'border-red-500' : ''
+                        } ${!allPasswordRequirementsMet ? 'bg-gray-100 cursor-not-allowed opacity-50' : ''}`}
+                        placeholder={!allPasswordRequirementsMet ? 'Enter password' : ''}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        disabled={!allPasswordRequirementsMet}
+                        className={`absolute inset-y-0 right-0 flex items-center pr-3 ${!allPasswordRequirementsMet ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+                      >
+                        {showConfirmPassword ? (
+                          <Eye className="h-5 w-5 text-gray-500 hover:text-gray-700" />
+                        ) : (
+                          <EyeClosed className="h-5 w-5 text-gray-500 hover:text-gray-700" />
+                        )}
+                      </button>
+                    </div>
+                  {fieldErrors.confirmPassword && (
+                    <p className="text-red-500 text-sm mt-1">{fieldErrors.confirmPassword}</p>
+                  )}
                 </div>
 
                 {message && (
@@ -705,11 +1016,10 @@ export default function AuthPage() {
                 {/* Google Sign Up button */}
                 <button
                   type="button"
-                  onClick={() => {
-                    // Replace with your actual Google signup route
-                    window.location.href = "/api/auth/google";
-                  }}
-                  className="w-full flex items-center justify-center space-x-2 border dark:border-gray-400 border-gray-300 rounded-md py-2 hover:bg-gray-100 transition"
+                  onClick={handleGoogleAuth}
+                  disabled={isLoading}
+                  className="w-full flex items-center justify-center space-x-2 border dark:border-gray-400 border-gray-300 rounded-md py-2 hover:bg-gray-100 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  data-testid="google-oauth-button"
                 >
                   <svg
                     className="w-5 h-5"

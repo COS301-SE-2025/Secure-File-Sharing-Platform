@@ -131,7 +131,7 @@ describe("UserService", () => {
       });
 
       const res = await userService.getUserIdFromEmail("a@b.com");
-      expect(res).toEqual({ id: "abc123" });
+      expect(res).toEqual({ userIdd: "abc123" });
     });
   });
 
@@ -440,7 +440,8 @@ describe("UserService", () => {
 
       const result = await userService.getUserIdFromEmail("user@example.com");
 
-      expect(result).toEqual({ id: "user123" });
+      expect(result).toEqual({ userId: "user123" });
+
     });
 
     it("should throw if user not found", async () => {

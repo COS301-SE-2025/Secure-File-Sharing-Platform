@@ -1,9 +1,33 @@
 //app/dashboard/myFilesV2/fileList.js
 
-'use client';
+"use client";
 
-import React, { useState, useEffect, useRef } from 'react';
-import { FileIcon, Download, Share, Folder, FileText, Image, Video, Star, MoreVertical, } from 'lucide-react';
+import React, { useState, useEffect, useRef } from "react";
+import {
+  FileIcon,
+  Download,
+  Share,
+  Folder,
+  FileText,
+  Image,
+  Video,
+  Star,
+  MoreVertical,
+  X,
+  Eye,
+  EyeOff
+} from "lucide-react";
+
+function Toast({ message, type = "info", onClose }) {
+  return (
+    <div className={`fixed inset-0 flex items-center justify-center z-50 pointer-events-none`}>
+      <div className={`bg-red-300 border ${type === "error" ? "border-red-300" : "border-blue-500"} text-gray-900 rounded shadow-lg px-6 py-3 pointer-events-auto`}>
+        <span>{message}</span>
+        <button onClick={onClose} className="ml-4 font-bold">×</button>
+      </div>
+    </div>
+  );
+}
 
 export function FileList({
   files,
@@ -12,10 +36,23 @@ export function FileList({
   onViewActivity,
   onDownload,
   onDelete,
+  onClick,
+  onDoubleClick,
+  onMoveFile,
+  onEnterFolder,
+  onRevokeViewAccess,
+  onChangeShareMethod, // <-- Add this prop
 }) {
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const [menuFile, setMenuFile] = useState(null);
   const menuRef = useRef(null);
+
+  const [toast, setToast] = useState(null);
+
+  const showToast = (message, type = "info", duration = 3000) => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), duration);
+  };
 
   const iconMap = {
     folder: <Folder className="h-5 w-5 text-blue-500" />,
@@ -25,8 +62,13 @@ export function FileList({
     video: <Video className="h-5 w-5 text-purple-500" />,
   };
 
-  const getIcon = (type) =>
-    iconMap[type] || <FileIcon className="h-5 w-5 text-gray-500" />;
+  const getIcon = (file) => {
+    if (file.type === "folder") {
+      console.log("Folder icon selected");
+      return <Folder className="h-5 w-5 text-blue-500" />;
+    }
+    return iconMap[file.type] || <FileIcon className="h-5 w-5 text-gray-500" />;
+  };
 
   const handleContextMenu = (e, file) => {
     e.preventDefault();
@@ -41,8 +83,8 @@ export function FileList({
   };
 
   useEffect(() => {
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
   }, []);
 
   const handleDelete = async (file) => {
@@ -66,12 +108,16 @@ export function FileList({
       if (!token) return;
 
       try {
-        const profileRes = await fetch("http://localhost:5000/api/users/profile", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const profileRes = await fetch(
+          "http://localhost:5000/api/users/profile",
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
 
         const profileResult = await profileRes.json();
-        if (!profileRes.ok) throw new Error(profileResult.message || "Failed to fetch profile");
+        if (!profileRes.ok)
+          throw new Error(profileResult.message || "Failed to fetch profile");
 
         await fetch("http://localhost:5000/api/files/addAccesslog", {
           method: "POST",
@@ -83,7 +129,6 @@ export function FileList({
             message: `User ${profileResult.data.email} deleted the file.`,
           }),
         });
-
       } catch (err) {
         console.error("Failed to fetch user profile:", err.message);
       }
@@ -93,20 +138,55 @@ export function FileList({
       }
     } catch (err) {
       console.error("Delete failed:", err);
-      alert("Failed to delete file");
+      showToast("Failed to delete file");
     } finally {
       setMenuFile(null);
     }
   };
 
+  const handleDragStart = (e, file) => {
+    setDraggedFile(file);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e, folder) => {
+    if (
+      draggedFile &&
+      folder.type === "folder" &&
+      draggedFile.id !== folder.id
+    ) {
+      e.preventDefault(); // allows drop
+    }
+  };
+
+  const handleDrop = (e, folder) => {
+    e.preventDefault();
+    if (
+      draggedFile &&
+      folder.type === "folder" &&
+      draggedFile.id !== folder.id
+    ) {
+      const newPath = folder.cid || folder.path || folder.name;
+      onMoveFile?.(draggedFile, newPath);
+      setDraggedFile(null);
+    }
+  };
+
+  // Check if file is view-only (either from tags or viewOnly property)
+  const isViewOnly = (file) => {
+    return file.viewOnly || (file.tags && file.tags.includes("view-only"));
+  };
+
   return (
-    <>
+    <div>
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
       <table className="w-full bg-white rounded-lg ">
         <thead>
           <tr className="bg-gray-300 dark:bg-gray-700">
             <th className="text-left p-2">Name</th>
             <th className="text-left p-2">Size</th>
             <th className="text-left p-2">Modified</th>
+            <th className="text-left p-2">Type</th>
             <th className="text-left p-2">Actions</th>
           </tr>
         </thead>
@@ -114,23 +194,88 @@ export function FileList({
           {files.map((file) => (
             <tr
               key={file.id}
+              draggable={file.type !== "folder"}
+              onDragStart={(e) => handleDragStart(e, file)}
+              onDragOver={(e) => handleDragOver(e, file)}
+              onDrop={(e) => handleDrop(e, file)}
+              onClick={() => {
+                if (file.type !== "folder") {
+                  onClick?.(file);
+                }
+              }}
+              onDoubleClick={() => {
+                if (file.type === "folder") {
+                  onEnterFolder?.(file.name);
+                } else {
+                  onDoubleClick?.(file);
+                }
+              }}
               onContextMenu={(e) => handleContextMenu(e, file)}
               className="hover:bg-gray-200 cursor-pointer dark:hover:bg-blue-100"
             >
               <td className="p-2 flex items-center gap-2">
-                {getIcon(file.type)}
+                {getIcon(file)}
                 <span className="font-medium">{file.name}</span>
-                {file.starred && <Star className="h-4 w-4 text-yellow-500 fill-current" />}
+                {file.starred && (
+                  <Star className="h-4 w-4 text-yellow-500 fill-current" />
+                )}
+                {isViewOnly(file) && (
+                  <Eye className="h-4 w-4 text-blue-500" title="View Only" />
+                )}
               </td>
-              <td className="p-2">{file.size}</td>
+              <td className="p-2">
+                {file.type === "folder" ? "" : file.size}
+              </td>
               <td className="p-2">{file.modified}</td>
+              <td className="p-2">
+                <span className={`px-2 py-1 rounded-full text-xs ${isViewOnly(file)
+                  ? 'bg-blue-100 text-blue-800 dark:bg-blue-200'
+                  : 'bg-green-100 text-green-800 dark:bg-green-200'
+                  }`}>
+                  {isViewOnly(file) ? 'View Only' : 'Full Access'}
+                </span>
+              </td>
               <td className="p-2 flex gap-2">
-                <button onClick={() => onShare(file)} title="Share">
-                  <Share className="h-4 w-4" />
-                </button>
-                <button onClick={() => onDownload(file)} title="Download">
-                  <Download className="h-4 w-4" />
-                </button>
+                {!isViewOnly(file) ? (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onShare(file);
+                    }}
+                    className="p-1 hover:bg-gray-100 rounded dark:text-black"
+                    title="Share"
+                  >
+                    <Share className="h-3 w-3" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={(e) => e.stopPropagation()}
+                    className="p-1 opacity-50 cursor-not-allowed rounded dark:text-black"
+                    title="Share disabled for view-only files"
+                  >
+                    <Share className="h-3 w-3" />
+                  </button>
+                )}
+                {!isViewOnly(file) ? (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDownload(file);
+                    }}
+                    className="p-1 hover:bg-gray-100 rounded dark:text-black"
+                    title="Download"
+                  >
+                    <Download className="h-3 w-3" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={(e) => e.stopPropagation()}
+                    className="p-1 opacity-50 cursor-not-allowed rounded dark:text-black"
+                    title="Download disabled for view-only files"
+                  >
+                    <Download className="h-3 w-3" />
+                  </button>
+                )}
               </td>
             </tr>
           ))}
@@ -146,25 +291,47 @@ export function FileList({
         >
           <button
             onClick={() => {
-              onShare(menuFile);
+              if (!isViewOnly(menuFile)) onShare(menuFile);
               setMenuFile(null);
             }}
-            className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 dark:hover:bg-blue-200"
+            className={`w-full text-left px-4 py-2 flex items-center gap-2 ${isViewOnly(menuFile)
+              ? "opacity-50 cursor-not-allowed"
+              : "hover:bg-gray-100 dark:hover:bg-blue-200"
+              }`}
+            disabled={isViewOnly(menuFile)}
           >
             <Share className="h-4 w-4" /> Share
           </button>
 
           <button
             onClick={() => {
-              onDownload(menuFile);
+              if (!isViewOnly(menuFile)) {
+                onDownload(menuFile);
+              }
               setMenuFile(null);
             }}
-            className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 dark:hover:bg-blue-200"
+            className={`w-full text-left px-4 py-2 flex items-center gap-2 ${menuFile?.type === "folder"
+              ? "hidden"
+              : isViewOnly(menuFile)
+                ? "opacity-50 cursor-not-allowed"
+                : "hover:bg-gray-100 dark:hover:bg-blue-200"
+              }`}
+            disabled={menuFile?.type !== "folder" && isViewOnly(menuFile)}
           >
             <Download className="h-4 w-4" /> Download
           </button>
 
-          <hr />
+          {menuFile?.type !== "folder" && <hr className="my-1" />}
+
+          <button
+            onClick={() => {
+              onClick?.(menuFile);
+              setMenuFile(null);
+            }}
+            className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 dark:hover:bg-blue-200"
+          >
+            <Eye className="h-4 w-4" /> Preview
+          </button>
 
           <button
             onClick={() => {
@@ -181,21 +348,49 @@ export function FileList({
               onViewActivity(menuFile);
               setMenuFile(null);
             }}
-            className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 dark:hover:bg-blue-200"
+            className={`w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 dark:hover:bg-blue-200 ${menuFile?.type === "folder" ? "hidden" : ""
+              }`}
           >
             <MoreVertical className="h-4 w-4" /> Activity Logs
           </button>
 
-          <hr />
+          {menuFile?.type !== "folder" && <hr className="my-1" />}
+
+          {/* Revoke View Access */}
+          {(isViewOnly(menuFile) || menuFile.allow_view_sharing) && onRevokeViewAccess && (
+            <button
+              onClick={() => {
+                onRevokeViewAccess(menuFile);
+                setMenuFile(null);
+              }}
+              className={`w-full text-left px-4 py-2 hover:bg-orange-50 text-orange-600 flex items-center gap-2 dark:hover:bg-orange-200 dark:text-orange-600 ${menuFile?.type === "folder" ? "hidden" : ""
+                }`}
+            >
+              <EyeOff className="h-4 w-4" /> Revoke View Access
+            </button>
+          )}
+
+          {/* Change Share Method */}
+          {onChangeShareMethod && menuFile?.type !== "folder" && (
+            <button
+              onClick={() => {
+                onChangeShareMethod(menuFile);
+                setMenuFile(null);
+              }}
+              className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 dark:hover:bg-blue-200"
+            >
+              <Share className="h-4 w-4" /> Change Share Method
+            </button>
+          )}
 
           <button
             onClick={() => handleDelete(menuFile)}
             className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 flex items-center gap-2 dark:hover:bg-red-200 dark:text-red-600"
           >
-            Delete
+            <X className="h-4 w-4" /> Delete
           </button>
         </div>
       )}
-    </>
+    </div>
   );
 }

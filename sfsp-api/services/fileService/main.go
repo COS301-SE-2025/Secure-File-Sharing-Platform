@@ -14,8 +14,6 @@ import (
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/metadata"
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
 	"github.com/joho/godotenv"
-	//"go.mongodb.org/mongo-driver/mongo"
-	//"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 func main() {
@@ -27,15 +25,7 @@ func main() {
 
 	log.Println("Starting File Service...")
 	log.Println("Environment variables loaded successfully")
-	//log.Println("mongoURI:", os.Getenv("MONGO_URI"))
 	log.Println("ownCloud URL:", os.Getenv("OWNCLOUD_URL"))
-
-	// mongoURI := os.Getenv("MONGO_URI")
-	// client, het := database.InitMongo(mongoURI)
-	// if het != nil {
-	//     log.Fatalf("Failed to connect to MongoDB: %v", het)
-	// }
-	//fileHandler.SetMongoClient(client)
 
 	db, err := database.InitPostgre()
 	if err != nil {
@@ -56,9 +46,10 @@ func main() {
 	//initialize ownCloud client
 	owncloud.InitOwnCloud(os.Getenv("OWNCLOUD_URL"), os.Getenv("OWNCLOUD_USERNAME"), os.Getenv("OWNCLOUD_PASSWORD"))
 
+	http.HandleFunc("/startUpload", fileHandler.StartUploadHandler)
 	http.HandleFunc("/upload", fileHandler.UploadHandler)
 	http.HandleFunc("/download", fileHandler.DownloadHandler)
-
+	
 	// access log endpoints
 	http.HandleFunc("/addAccesslog", fileHandler.AddAccesslogHandler)
 	http.HandleFunc("/getAccesslog", fileHandler.GetAccesslogHandler)
@@ -70,6 +61,7 @@ func main() {
 	http.HandleFunc("/notifications/add", fileHandler.AddNotificationHandler)
 	// metadata endpoints
 	http.HandleFunc("/metadata", metadata.GetUserFilesHandler)
+	http.HandleFunc("/addDescription", metadata.AddDescriptionHandler)
 	http.HandleFunc("/getFileMetadata", metadata.ListFileMetadataHandler)
 	http.HandleFunc("/getNumberOfFiles", metadata.GetUserFileCountHandler)
 	http.HandleFunc("/addPendingFiles", metadata.AddReceivedFileHandler)
@@ -81,9 +73,23 @@ func main() {
 	http.HandleFunc("/removeTags", metadata.RemoveTagsFromFileHandler)
 	http.HandleFunc("/downloadSentFile", fileHandler.DownloadSentFile)
 
+	// view files endpoints newly added
+	http.HandleFunc("/sendByView", fileHandler.SendByViewHandler)
+	http.HandleFunc("/revokeViewAccess", fileHandler.RevokeViewAccessHandler)
+	http.HandleFunc("/getSharedViewFiles", fileHandler.GetSharedViewFilesHandler)
+	http.HandleFunc("/getViewFileAccessLogs", fileHandler.GetViewFileAccessLogs)
+	http.HandleFunc("/downloadViewFile", fileHandler.DownloadViewFileHandler)
+
 	//test from here
-	http.HandleFunc("/addSentFiles", metadata.AddSentFileHandler) //I will combine this with the addPendingFiles endpoint later
+	http.HandleFunc("/addSentFiles", metadata.AddSentFileHandler)
 	http.HandleFunc("/getSentFiles", metadata.GetSentFilesHandler)
 
+	// Folder handling
+	http.HandleFunc("/createFolder", fileHandler.CreateFolderHandler)
+	http.HandleFunc("/updateFilePath", metadata.UpdateFilePathHandler)
+
+	//changeMethod
+	http.HandleFunc("/changeMethod", fileHandler.ChangeShareMethodHandler)
+	http.HandleFunc("/usersWithFileAccess", fileHandler.GetUsersWithFileAccessHandler)
 	log.Fatal(http.ListenAndServe(":8081", nil))
 }

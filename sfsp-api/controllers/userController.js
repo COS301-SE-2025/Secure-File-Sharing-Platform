@@ -1,10 +1,12 @@
 const bcrypt = require("bcrypt");
+const axios = require("axios");
 const { supabase } = require("../config/database");
 const userService = require("../services/userService");
 const VaultController = require("./vaultController");
 
 class UserController {
   async register(req, res) {
+    console.log("I can get here");
     try {
       const { username, email, password } = req.body;
       const {
@@ -49,21 +51,35 @@ class UserController {
         salt,
       });
       if (result && result.user && result.user.id) {
+        
         const vaultres = await VaultController.storeKeyBundle({
           encrypted_id: result.user.id,
           ik_private_key,
           spk_private_key,
           opks_private,
         });
-
         if (!vaultres || vaultres.error) {
+          console.log("Inside the if statement vaultres");
           return res.status(500).json({
             success: false,
             message: vaultres.error || "Failed to store private keys in vault.",
           });
         }
-      }
 
+        // Send verification email for new regular users
+        try {
+          await userService.sendVerificationCode(
+            result.user.id,
+            result.user.email,
+            result.user.username || "User"
+          );
+          console.log("Verification email sent to new user:", result.user.email);
+        } catch (emailError) {
+          console.error("Failed to send verification email to new user:", emailError);
+          // Don't fail registration if email sending fails
+        }
+      }
+      console.log("The is before the 201");
       return res.status(201).json({
         success: true,
         message: "User registered successfully.",
@@ -71,9 +87,33 @@ class UserController {
       });
     } catch (error) {
       console.error("Error registering user:", error);
+      
+      // Return specific error messages for known issues
+      if (error.message.includes("User already exists")) {
+        return res.status(409).json({
+          success: false,
+          message: "An account with this email address already exists. Please use a different email or try logging in.",
+        });
+      }
+      
+      if (error.message.includes("Failed to create user")) {
+        return res.status(400).json({
+          success: false,
+          message: "Failed to create account. Please check your information and try again.",
+        });
+      }
+      
+      if (error.message.includes("Failed to store private keys")) {
+        return res.status(500).json({
+          success: false,
+          message: "Account created but failed to secure your keys. Please try registering again.",
+        });
+      }
+      
+      // Generic fallback for unexpected errors
       return res.status(500).json({
         success: false,
-        message: "Internal server error.",
+        message: "An unexpected error occurred while creating your account. Please try again.",
       });
     }
   }
@@ -108,6 +148,39 @@ class UserController {
       });
     }
   }
+
+  async getUserInfoFromID(req, res) {
+    try {
+      const { userId} = req.params;
+      if (!userId) {
+        return res.status(400).json({
+          success: false,
+          message: "No userID provided",
+        });
+      }
+
+      const userInfo = await userService.getUserInfoFromID(userId);
+
+      if (!userInfo) {
+        return res.status(404).json({
+          success: false,
+          message: `User with userId ${userId} not found`,
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: userInfo,
+      });
+    } catch (error) {
+      console.error("Error fetching user info:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error",
+      });
+    }
+  }
+
 
   async getPublicKeys(req, res) {
     try {
@@ -157,6 +230,8 @@ class UserController {
         const keyBundle = await VaultController.retrieveKeyBundle(
           result.user.id
         );
+        console.log("🔍 DEBUG - Retrieved vault keys for user:", result.user.id);
+        console.log("🔍 DEBUG - Retrieved OPKs:", keyBundle.opks_private?.map(opk => opk.opk_id));
         result.keyBundle = keyBundle;
       }
 
@@ -505,6 +580,272 @@ class UserController {
       return res.status(500).json({
         success: false,
         message: "Internal server error."
+      });
+    }
+  }
+
+  async updateNotificationSettings(req, res) {
+    try {
+      const userId = req.user.id;
+      const notificationSettings = req.body;
+
+      if (!notificationSettings) {
+        return res.status(400).json({ error: 'Notification settings are required' });
+      }
+
+      const updatedSettings = await userService.updateNotificationSettings(userId, notificationSettings);
+
+      return res.status(200).json({
+        message: 'Notification settings updated successfully',
+        data: updatedSettings,
+      });
+    } catch (error) {
+      return res.status(500).json({ error: error.message });
+    }
+  }
+
+  async getNotificationSettings(req, res) {
+    try {
+      const userId = req.user.id;
+      const { notificationSettings, email, username } = await userService.getNotificationSettings(userId);
+      return res.status(200).json({ data: { notificationSettings, email, username } });
+    } catch (error) {
+      return res.status(500).json({ error: error.message });
+    }
+  }
+
+  async getUserById(req, res) {
+    try{
+      const { userId } = req.params;
+      if (!userId) {
+        return res.status(400).json({
+          success: false,
+          message: "User ID is required.",
+        });
+      }
+
+      const user = await userService.getUserById(userId);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found.",
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: user,
+      });
+    } catch (error) {
+      console.error("Error fetching user by ID:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error.",
+      });
+    }
+  }
+
+  async updateAvatarUrl(req, res) {
+    try {
+
+      console.log('Received updateAvatarUrl request:', { userId: req.user.id, avatar_url: req.body.avatar_url });
+      const userId = req.user.id;
+      const { avatar_url } = req.body;
+
+      if (!avatar_url && avatar_url !== null) {
+        return res.status(400).json({ success: false, message: 'Avatar URL required (or null to remove)' });
+      }
+
+      const updatedUrl = await userService.updateAvatarUrl(userId, avatar_url);
+      res.status(200).json({ success: true, data: { avatar_url: updatedUrl } });
+    } catch (error) {
+      console.error('Error in updateAvatarUrl:', error.message);
+      res.status(500).json({ success: false, message: error.message });
+    }
+  }
+
+  async googleAuth(req, res) {
+    try {
+      const { email, name, picture, google_id, keyBundle } = req.body;
+
+      if (!email || !google_id) {
+        return res.status(400).json({
+          success: false,
+          message: "Email and Google ID are required.",
+        });
+      }
+
+      // Check if user exists with this email
+      const { data: existingUser, error: checkError } = await supabase
+        .from("users")
+        .select("*")
+        .eq("email", email)
+        .single();
+
+      let user;
+      let isNewUser = false;
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        throw new Error("Database error: " + checkError.message);
+      }
+
+      if (existingUser) {
+        if (!existingUser.google_id) {
+          const { data: updatedUser, error: updateError } = await supabase
+            .from("users")
+            .update({
+              google_id: google_id,
+              avatar_url: picture || existingUser.avatar_url
+            })
+            .eq("id", existingUser.id)
+            .select()
+            .single();
+
+          if (updateError) {
+            throw new Error("Failed to update user with Google ID: " + updateError.message);
+          }
+          user = updatedUser;
+        } else {
+          user = existingUser;
+        }
+
+        // Ensure user is added to PostgreSQL database via file service (for both new and existing users)
+        try {
+          const postgresRes = await axios.post(
+            `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/addUser`,
+            { userId: user.id },
+            { headers: { "Content-Type": "application/json" } }
+          );
+          console.log("User successfully ensured in PostgreSQL database");
+        } catch (postgresError) {
+          console.error("Failed to add user to PostgreSQL database:", postgresError.message);
+          // Don't fail the login if PostgreSQL insertion fails
+        }
+      } else {
+        isNewUser = true;
+        
+        // For new Google users, we need key bundle data
+        if (!keyBundle || !keyBundle.ik_public || !keyBundle.spk_public || 
+            !keyBundle.opks_public || !keyBundle.nonce || 
+            !keyBundle.signedPrekeySignature || !keyBundle.salt) {
+          return res.status(400).json({
+            success: false,
+            message: "Key bundle is required for new user registration.",
+          });
+        }
+
+        const { data: newUser, error: createError } = await supabase
+          .from("users")
+          .insert({
+            username: name || email.split('@')[0],
+            email: email,
+            password: null,
+            google_id: google_id,
+            avatar_url: picture,
+            is_verified: false,
+            ik_public: keyBundle.ik_public,
+            spk_public: keyBundle.spk_public,
+            opks_public: keyBundle.opks_public,
+            nonce: keyBundle.nonce,
+            signedPrekeySignature: keyBundle.signedPrekeySignature,
+            salt: keyBundle.salt,
+          })
+          .select()
+          .single();
+
+        if (createError) {
+          throw new Error("Failed to create user: " + createError.message);
+        }
+        user = newUser;
+
+        // Store private keys in vault
+        const vaultres = await VaultController.storeKeyBundle({
+          encrypted_id: user.id,
+          ik_private_key: keyBundle.ik_private_key,
+          spk_private_key: keyBundle.spk_private_key,
+          opks_private: keyBundle.opks_private,
+        });
+        
+        if (!vaultres || vaultres.error) {
+          console.log("Failed to store private keys in vault for Google user");
+          return res.status(500).json({
+            success: false,
+            message: vaultres.error || "Failed to store private keys in vault.",
+          });
+        }
+
+        // Add user to PostgreSQL database via file service
+        try {
+          const postgresRes = await axios.post(
+            `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/addUser`,
+            { userId: user.id },
+            { headers: { "Content-Type": "application/json" } }
+          );
+          console.log("Google user successfully added to PostgreSQL database");
+        } catch (postgresError) {
+          console.error("Failed to add Google user to PostgreSQL database:", postgresError.message);
+          // Don't fail the registration if PostgreSQL insertion fails
+        }
+
+        // Send verification email for new Google users using the backend service
+        try {
+          await userService.sendVerificationCode(
+            user.id,
+            user.email,
+            user.username || "User",
+            'google_signin'
+          );
+          console.log("Verification email sent to Google user:", user.email);
+        } catch (emailError) {
+          console.error("Failed to send verification email to Google user:", emailError);
+        }
+      }
+
+      // Only generate token for existing verified users
+      let token = null;
+      if (!isNewUser && user.is_verified) {
+        token = await userService.generateToken(user.id, user.email);
+      }
+
+      let keyBundle_response = null;
+      if (!isNewUser) {
+        try {
+          const vaultResult = await VaultController.retrieveKeyBundle(user.id);
+          if (vaultResult && !vaultResult.error) {
+            keyBundle_response = vaultResult;
+          }
+        } catch (vaultError) {
+          console.warn("Failed to retrieve keys for existing Google user:", vaultError.message);
+        }
+      }
+
+      res.status(200).json({
+        success: true,
+        message: isNewUser ? "Account created successfully. Please verify your email." : "Login successful",
+        data: {
+          token,
+          user: {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            avatar_url: user.avatar_url,
+            is_verified: user.is_verified,
+            ik_public: user.ik_public,
+            spk_public: user.spk_public,
+            opks_public: user.opks_public,
+            nonce: user.nonce,
+            signedPrekeySignature: user.signedPrekeySignature,
+            salt: user.salt,
+          },
+          keyBundle: keyBundle_response,
+          isNewUser: isNewUser,
+        },
+      });
+    } catch (error) {
+      console.error("Google OAuth error:", error.message);
+      res.status(500).json({
+        success: false,
+        message: error.message || "Google authentication failed",
       });
     }
   }

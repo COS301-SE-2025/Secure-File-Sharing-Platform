@@ -4,21 +4,20 @@ import (
 	//"encoding/base64"
 	"encoding/json"
 	//"fmt"
-	"log"
 	"net/http"
-
+	"log"
 	//"os"
-	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/metadata"
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
+	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/metadata"
 )
 
-type DeleteRequest struct {
+type deleteRequest struct{
 	FileId string `json:"fileId"`
 	UserID string `json:"userId"`
 }
 
-func DeleteFileHandler(w http.ResponseWriter, r *http.Request) {
-	var req DeleteRequest
+func DeleteFileHandler(w http.ResponseWriter, r *http.Request){
+	var req deleteRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
@@ -55,5 +54,6 @@ func DeleteFileHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{
 		"message": "File successfully deleted",
+
 	})
 }

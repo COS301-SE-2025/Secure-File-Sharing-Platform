@@ -55,9 +55,9 @@
 			<div id="nav">
 				<select id="files">
 				
-				<option value="file0">github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto/decrypt.go (92.9%)</option>
+				<option value="file0">github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto/decrypt.go (81.8%)</option>
 				
-				<option value="file1">github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto/encrypt.go (84.6%)</option>
+				<option value="file1">github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto/encrypt.go (76.5%)</option>
 				
 				<option value="file2">github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/database/Mongo.go (0.0%)</option>
 				
@@ -65,27 +65,44 @@
 				
 				<option value="file4">github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/database/files.go (100.0%)</option>
 				
-				<option value="file5">github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler/deleteHandler.go (100.0%)</option>
+				<option value="file5">github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler/NotificationHandler.go (76.8%)</option>
 				
-				<option value="file6">github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler/downloadHandler.go (0.0%)</option>
+				<option value="file6">github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler/deleteHandler.go (100.0%)</option>
 				
-				<option value="file7">github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler/fileAccessHandler.go (0.0%)</option>
+				<option value="file7">github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler/downloadHandler.go (86.9%)</option>
 				
-				<option value="file8">github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler/sendHandler.go (85.7%)</option>
+				<option value="file8">github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler/fileAccessHandler.go (94.6%)</option>
 				
-				<option value="file9">github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler/uploadHandler.go (0.0%)</option>
+				<option value="file9">github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler/folderHandler.go (100.0%)</option>
 				
-				<option value="file10">github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/metadata/metadata.go (94.7%)</option>
+				<option value="file10">github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler/sendByViewHandler.go (69.7%)</option>
 				
-				<option value="file11">github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud/OwnCloud.go (0.0%)</option>
+				<option value="file11">github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler/sendHandler.go (81.9%)</option>
+				
+				<option value="file12">github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler/uploadHandler.go (85.4%)</option>
+				
+				<option value="file13">github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/main.go (0.0%)</option>
+				
+				<option value="file14">github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/metadata/metadata.go (80.1%)</option>
+				
+				<option value="file15">github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud/OwnCloud.go (79.7%)</option>
 				
 				</select>
 			</div>
 			<div id="legend">
 				<span>not tracked</span>
 			
-				<span class="cov0">not covered</span>
-				<span class="cov8">covered</span>
+				<span class="cov0">no coverage</span>
+				<span class="cov1">low coverage</span>
+				<span class="cov2">*</span>
+				<span class="cov3">*</span>
+				<span class="cov4">*</span>
+				<span class="cov5">*</span>
+				<span class="cov6">*</span>
+				<span class="cov7">*</span>
+				<span class="cov8">*</span>
+				<span class="cov9">*</span>
+				<span class="cov10">high coverage</span>
 			
 			</div>
 		</div>
@@ -96,34 +113,30 @@
 import (
         "crypto/aes"
         "crypto/cipher"
-        "errors"
+        "io"
+        "fmt"
 )
 
-var DecryptBytes = func(data []byte, key string) ([]byte, error) <span class="cov8" title="1">{
+func DecryptStream(input io.Reader, key string) (io.Reader, error) <span class="cov10" title="4">{
         keyBytes := []byte(key)
-        if len(keyBytes) != 32 </span><span class="cov8" title="1">{
-                return nil, errors.New("AES key must be 32 bytes")
+        if len(keyBytes) != 32 </span><span class="cov5" title="2">{
+                return nil, fmt.Errorf("AES key must be 32 bytes long")
         }</span>
 
-        <span class="cov8" title="1">if len(data) &lt; aes.BlockSize </span><span class="cov8" title="1">{
-                return nil, errors.New("ciphertext too short")
+        // Read IV first
+        <span class="cov5" title="2">iv := make([]byte, aes.BlockSize)
+        if _, err := io.ReadFull(input, iv); err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to read IV: %v", err)
         }</span>
 
-        <span class="cov8" title="1">iv := data[:aes.BlockSize]
-        ciphertext := data[aes.BlockSize:]
-
-        block, err := aes.NewCipher(keyBytes)
+        <span class="cov5" title="2">block, err := aes.NewCipher(keyBytes)
         if err != nil </span><span class="cov0" title="0">{
-                return nil, err
+                return nil, fmt.Errorf("failed to create cipher: %v", err)
         }</span>
 
-        <span class="cov8" title="1">stream := cipher.NewCFBDecrypter(block, iv)
-        decrypted := make([]byte, len(ciphertext))
-        stream.XORKeyStream(decrypted, ciphertext)
-
-        return decrypted, nil</span>
-}
-</pre>
+        <span class="cov5" title="2">stream := cipher.NewCFBDecrypter(block, iv)
+        return &amp;cipher.StreamReader{S: stream, R: input}, nil</span>
+}</pre>
 		
 		<pre class="file" id="file1" style="display: none">package crypto
 
@@ -135,30 +148,39 @@ import(
         "io"
 )
 
-var EncryptBytes = func(data []byte, key string) ([]byte, error) <span class="cov8" title="1">{
+var EncryptStream = func(input io.Reader, output io.Writer, key string) error <span class="cov10" title="6">{
         keyBytes := []byte(key)
-        if len(keyBytes) != 32 </span><span class="cov8" title="1">{
-                return nil, fmt.Errorf("AES key must be 32 bytes long")
+        if len(keyBytes) != 32 </span><span class="cov1" title="1">{
+                return fmt.Errorf("AES key must be 32 bytes long")
         }</span>
 
-        <span class="cov8" title="1">block, err := aes.NewCipher(keyBytes)
+        <span class="cov9" title="5">block, err := aes.NewCipher(keyBytes)
         if err != nil </span><span class="cov0" title="0">{
-                return nil, fmt.Errorf("failed to create cipher: %v", err)
+                return fmt.Errorf("failed to create cipher: %v", err)
         }</span>
 
-        <span class="cov8" title="1">iv := make([]byte, aes.BlockSize)
+        // Generate IV
+        <span class="cov9" title="5">iv := make([]byte, aes.BlockSize)
         if _, err := io.ReadFull(rand.Reader, iv); err != nil </span><span class="cov0" title="0">{
-                return nil, fmt.Errorf("failed to generate IV: %v", err)
+                return fmt.Errorf("failed to generate IV: %v", err)
         }</span>
 
-        <span class="cov8" title="1">ciphertext := make([]byte, len(data))
-        stream := cipher.NewCFBEncrypter(block, iv)
-        stream.XORKeyStream(ciphertext, data)
+        // Write IV to the beginning of the output
+        <span class="cov9" title="5">if _, err := output.Write(iv); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to write IV: %v", err)
+        }</span>
 
-        // Prepend IV
-        return append(iv, ciphertext...), nil</span>
-}
-</pre>
+        // Encrypt in chunks
+        <span class="cov9" title="5">stream := cipher.NewCFBEncrypter(block, iv)
+        writer := &amp;cipher.StreamWriter{S: stream, W: output}
+
+        _, err = io.Copy(writer, input)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("encryption failed: %v", err)
+        }</span>
+
+        <span class="cov9" title="5">return nil</span>
+}</pre>
 		
 		<pre class="file" id="file2" style="display: none">package database
 
@@ -188,7 +210,6 @@ func InitMongo(uri string) (*mongo.Client, error) <span class="cov0" title="0">{
     <span class="cov0" title="0">log.Println("✅ MongoDB connected")
     return client, nil</span>
 }
-
 </pre>
 		
 		<pre class="file" id="file3" style="display: none">package database
@@ -197,13 +218,16 @@ import (
         "database/sql"
         "fmt"
         "log"
-        _"github.com/lib/pq"
+
+        _ "github.com/lib/pq"
+
         //"github.com/joho/godotenv"
         "os"
 )
+
 // Package database provides functions to connect to a PostgreSQL database.
 
-//connect to the PostgreSQL database
+// connect to the PostgreSQL database
 func InitPostgre() (*sql.DB, error) <span class="cov0" title="0">{
         db, err := sql.Open("postgres", os.Getenv("POSTGRES_URI"))
         if err != nil </span><span class="cov0" title="0">{
@@ -216,7 +240,8 @@ func InitPostgre() (*sql.DB, error) <span class="cov0" title="0">{
 
         <span class="cov0" title="0">log.Println("✅ PostgreSQL connected")
         return db, nil</span>
-}</pre>
+}
+</pre>
 		
 		<pre class="file" id="file4" style="display: none">package database
 
@@ -237,17 +262,482 @@ type FileMetadata struct {
         Path        string
 }
 
-func SaveMetadata(db *sql.DB, meta FileMetadata) error <span class="cov8" title="1">{
+func SaveMetadata(db *sql.DB, meta FileMetadata) error <span class="cov10" title="2">{
         _, err := db.Exec(`
                 INSERT INTO files (id, owner_id, file_name, file_type, file_size, cid, nonce, encrypted_file_key, created_at)
                 VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8)
         `, meta.UserID, meta.FileName, meta.FileType, meta.FileSize, meta.Path, meta.Nonce, "", meta.UploadTime)
 
         return err
-}</span>
-</pre>
+}</pre>
 		
 		<pre class="file" id="file5" style="display: none">package fileHandler
+
+import (
+        "database/sql"
+        "encoding/json"
+        "fmt"
+        "log"
+        "net/http"
+)
+
+type Notification struct {
+        ID        string `json:"id"`
+        Type      string `json:"type"`
+        From      string `json:"from"`
+        To        string `json:"to"`
+        FileName  string `json:"file_name"`
+        FileID    string `json:"file_id"`
+        Message   string `json:"message"`
+        Timestamp string `json:"timestamp"`
+        Status    string `json:"status"`
+        Read      bool   `json:"read"`
+}
+
+func NotificationHandler(w http.ResponseWriter, r *http.Request) <span class="cov6" title="5">{
+        if r.Method != http.MethodGet </span><span class="cov1" title="1">{
+                w.WriteHeader(http.StatusMethodNotAllowed)
+                json.NewEncoder(w).Encode(map[string]interface{}{
+                        "success": false,
+                        "error":   "Method not allowed",
+                })
+                return
+        }</span>
+
+        <span class="cov5" title="4">userID := r.URL.Query().Get("id")
+        if userID == "" </span><span class="cov1" title="1">{
+                w.WriteHeader(http.StatusBadRequest)
+                json.NewEncoder(w).Encode(map[string]interface{}{
+                        "success": false,
+                        "error":   "Missing user ID",
+                })
+                return
+        }</span>
+
+        <span class="cov4" title="3">if DB == nil </span><span class="cov0" title="0">{
+                w.WriteHeader(http.StatusInternalServerError)
+                json.NewEncoder(w).Encode(map[string]interface{}{
+                        "success": false,
+                        "error":   "Database not initialized",
+                })
+                return
+        }</span>
+
+        <span class="cov4" title="3">rows, err := DB.Query(`SELECT id, type, "from", "to", file_name, file_id, message, timestamp, status, read 
+                FROM notifications WHERE "to" = $1`, userID)
+        if err != nil </span><span class="cov1" title="1">{
+                log.Printf("Error querying notifications: %v", err)
+                w.WriteHeader(http.StatusInternalServerError)
+                json.NewEncoder(w).Encode(map[string]interface{}{
+                        "success": false,
+                        "error":   "Failed to fetch notifications",
+                })
+                return
+        }</span>
+        <span class="cov3" title="2">defer rows.Close()
+
+        notifications := []Notification{}
+        for rows.Next() </span><span class="cov3" title="2">{
+                var n Notification
+                if err := rows.Scan(&amp;n.ID, &amp;n.Type, &amp;n.From, &amp;n.To, &amp;n.FileName, &amp;n.FileID, &amp;n.Message, &amp;n.Timestamp, &amp;n.Status, &amp;n.Read); err != nil </span><span class="cov0" title="0">{
+                        log.Printf("Error scanning notification row: %v", err)
+                        continue</span>
+                }
+                <span class="cov3" title="2">notifications = append(notifications, n)</span>
+        }
+
+        <span class="cov3" title="2">w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(map[string]interface{}{
+                "success":       true,
+                "notifications": notifications,
+        })</span>
+}
+
+func MarkAsReadHandler(w http.ResponseWriter, r *http.Request) <span class="cov7" title="6">{
+        if r.Method != http.MethodPost </span><span class="cov1" title="1">{
+                w.WriteHeader(http.StatusMethodNotAllowed)
+                json.NewEncoder(w).Encode(map[string]interface{}{
+                        "success": false,
+                        "error":   "Method not allowed",
+                })
+                return
+        }</span>
+
+        <span class="cov6" title="5">var req struct {
+                ID string `json:"id"`
+        }
+
+        if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov1" title="1">{
+                w.WriteHeader(http.StatusBadRequest)
+                json.NewEncoder(w).Encode(map[string]interface{}{
+                        "success": false,
+                        "error":   "Invalid request body",
+                })
+                return
+        }</span>
+
+        <span class="cov5" title="4">if req.ID == "" </span><span class="cov1" title="1">{
+                w.WriteHeader(http.StatusBadRequest)
+                json.NewEncoder(w).Encode(map[string]interface{}{
+                        "success": false,
+                        "error":   "Missing notification ID",
+                })
+                return
+        }</span>
+
+        <span class="cov4" title="3">if DB == nil </span><span class="cov0" title="0">{
+                w.WriteHeader(http.StatusInternalServerError)
+                json.NewEncoder(w).Encode(map[string]interface{}{
+                        "success": false,
+                        "error":   "Database not initialized",
+                })
+                return
+        }</span>
+
+        <span class="cov4" title="3">result, err := DB.Exec("UPDATE notifications SET read = TRUE WHERE id = $1", req.ID)
+        if err != nil </span><span class="cov1" title="1">{
+                log.Printf("Error updating notification read status: %v", err)
+                w.WriteHeader(http.StatusInternalServerError)
+                json.NewEncoder(w).Encode(map[string]interface{}{
+                        "success": false,
+                        "error":   "Failed to update notification",
+                })
+                return
+        }</span>
+
+        <span class="cov3" title="2">rowsAffected, _ := result.RowsAffected()
+        if rowsAffected == 0 </span><span class="cov1" title="1">{
+                w.WriteHeader(http.StatusNotFound)
+                json.NewEncoder(w).Encode(map[string]interface{}{
+                        "success": false,
+                        "error":   "Notification not found",
+                })
+                return
+        }</span>
+
+        <span class="cov1" title="1">w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(map[string]interface{}{
+                "success": true,
+                "message": "Notification marked as read",
+        })</span>
+}
+
+func RespondToShareRequestHandler(w http.ResponseWriter, r *http.Request) <span class="cov10" title="13">{
+        if r.Method != http.MethodPost </span><span class="cov1" title="1">{
+                w.WriteHeader(http.StatusMethodNotAllowed)
+                json.NewEncoder(w).Encode(map[string]interface{}{
+                        "success": false,
+                        "error":   "Method not allowed",
+                })
+                return
+        }</span>
+
+        <span class="cov9" title="12">var req struct {
+                ID     string `json:"id"`
+                Status string `json:"status"`
+        }
+
+        if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov0" title="0">{
+                w.WriteHeader(http.StatusBadRequest)
+                json.NewEncoder(w).Encode(map[string]interface{}{
+                        "success": false,
+                        "error":   "Invalid request body",
+                })
+                return
+        }</span>
+
+        <span class="cov9" title="12">if req.ID == "" || req.Status == "" </span><span class="cov3" title="2">{
+                w.WriteHeader(http.StatusBadRequest)
+                json.NewEncoder(w).Encode(map[string]interface{}{
+                        "success": false,
+                        "error":   "Missing ID or status",
+                })
+                return
+        }</span>
+
+        <span class="cov9" title="10">if req.Status != "accepted" &amp;&amp; req.Status != "declined" &amp;&amp; req.Status != "pending" </span><span class="cov4" title="3">{
+                w.WriteHeader(http.StatusBadRequest)
+                json.NewEncoder(w).Encode(map[string]interface{}{
+                        "success": false,
+                        "error":   "Invalid status. Must be 'accepted' or 'declined' or 'pending'",
+                })
+                return
+        }</span>
+
+        <span class="cov7" title="7">if DB == nil </span><span class="cov0" title="0">{
+                w.WriteHeader(http.StatusInternalServerError)
+                json.NewEncoder(w).Encode(map[string]interface{}{
+                        "success": false,
+                        "error":   "Database not initialized",
+                })
+                return
+        }</span>
+
+        // ✅ Update notification status
+        <span class="cov7" title="7">result, err := DB.Exec("UPDATE notifications SET status = $1, read = TRUE WHERE id = $2", req.Status, req.ID)
+        if err != nil </span><span class="cov0" title="0">{
+                log.Printf("Error updating notification status: %v", err)
+                w.WriteHeader(http.StatusInternalServerError)
+                json.NewEncoder(w).Encode(map[string]interface{}{
+                        "success": false,
+                        "error":   "Failed to update notification",
+                })
+                return
+        }</span>
+
+        <span class="cov7" title="7">rowsAffected, _ := result.RowsAffected()
+        if rowsAffected == 0 </span><span class="cov1" title="1">{
+                w.WriteHeader(http.StatusNotFound)
+                json.NewEncoder(w).Encode(map[string]interface{}{
+                        "success": false,
+                        "error":   "Notification not found",
+                })
+                return
+        }</span>
+
+        //fetch the file id from the god damn notifications table
+        <span class="cov7" title="6">if req.Status == "accepted" </span><span class="cov4" title="3">{
+                var fileID, metadata, senderId, recipientId string
+                var receivedFileId sql.NullString
+                var isViewOnly = false
+
+                // Step 1: Get notification info
+                err := DB.QueryRow(`
+                SELECT n.file_id, n."from", n."to", n."received_file_id"
+                FROM notifications n
+                WHERE n.id = $1
+        `, req.ID).Scan(&amp;fileID, &amp;senderId, &amp;recipientId, &amp;receivedFileId)
+
+                if err != nil </span><span class="cov1" title="1">{
+                        log.Printf("Error fetching notification info: %v", err)
+                        w.WriteHeader(http.StatusInternalServerError)
+                        json.NewEncoder(w).Encode(map[string]interface{}{
+                                "success": false,
+                                "error":   "Failed to retrieve notification info",
+                        })
+                        return
+                }</span>
+
+                <span class="cov3" title="2">if receivedFileId.Valid </span><span class="cov1" title="1">{
+                        err = DB.QueryRow(`
+                                SELECT metadata
+                                FROM received_files
+                                WHERE file_id = $1 AND recipient_id = $2 AND id = $3
+                        `, fileID, recipientId, receivedFileId.String).Scan(&amp;metadata)
+                }</span> else<span class="cov1" title="1"> {
+                        isViewOnly = true
+                        err = DB.QueryRow(`
+                        SELECT metadata 
+                        FROM shared_files_view
+                        WHERE sender_id = $1 AND recipient_id = $2 AND file_id = $3
+                `, senderId, recipientId, fileID).Scan(&amp;metadata)
+                }</span>
+
+                <span class="cov3" title="2">if err != nil </span><span class="cov0" title="0">{
+                        log.Printf("Error fetching received file metadata: %v", err)
+                        w.WriteHeader(http.StatusInternalServerError)
+                        json.NewEncoder(w).Encode(map[string]interface{}{
+                                "success": false,
+                                "error":   "Failed to retrieve file metadata",
+                        })
+                        return
+                }</span>
+
+                // Step 3: Get file info from files table
+                <span class="cov3" title="2">var fileName, fileType, fileCID string
+                var fileSize int64
+
+                err = DB.QueryRow(`
+                SELECT file_name, file_type, cid, file_size
+                FROM files
+                WHERE id = $1
+        `, fileID).Scan(&amp;fileName, &amp;fileType, &amp;fileCID, &amp;fileSize)
+
+                if err != nil </span><span class="cov0" title="0">{
+                        log.Printf("Error fetching file details: %v", err)
+                        w.WriteHeader(http.StatusInternalServerError)
+                        json.NewEncoder(w).Encode(map[string]interface{}{
+                                "success": false,
+                                "error":   "Failed to retrieve file details",
+                        })
+                        return
+                }</span>
+
+                <span class="cov3" title="2">w.Header().Set("Content-Type", "application/json")
+                json.NewEncoder(w).Encode(map[string]interface{}{
+                        "success": true,
+                        "message": "Notification status updated",
+                        "fileData": map[string]interface{}{
+                                "file_id":      fileID,
+                                "sender_id":    senderId,
+                                "recipient_id": recipientId,
+                                "file_name":    fileName,
+                                "file_type":    fileType,
+                                "cid":          fileCID,
+                                "file_size":    fileSize,
+                                "metadata":     metadata,
+                                "viewOnly":     isViewOnly,
+                        },
+                })
+                return</span>
+        }
+}
+
+func ClearNotificationHandler(w http.ResponseWriter, r *http.Request) <span class="cov5" title="4">{
+        if r.Method != http.MethodPost </span><span class="cov1" title="1">{
+                w.WriteHeader(http.StatusMethodNotAllowed)
+                json.NewEncoder(w).Encode(map[string]interface{}{
+                        "success": false,
+                        "error":   "Method not allowed",
+                })
+                return
+        }</span>
+
+        <span class="cov4" title="3">var req struct {
+                ID string `json:"id"`
+        }
+        if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov0" title="0">{
+                w.WriteHeader(http.StatusBadRequest)
+                json.NewEncoder(w).Encode(map[string]interface{}{
+                        "success": false,
+                        "error":   "Invalid request body",
+                })
+                return
+        }</span>
+
+        <span class="cov4" title="3">if req.ID == "" </span><span class="cov1" title="1">{
+                w.WriteHeader(http.StatusBadRequest)
+                json.NewEncoder(w).Encode(map[string]interface{}{
+                        "success": false,
+                        "error":   "Missing notification ID",
+                })
+                return
+        }</span>
+
+        <span class="cov3" title="2">if DB == nil </span><span class="cov0" title="0">{
+                w.WriteHeader(http.StatusInternalServerError)
+                json.NewEncoder(w).Encode(map[string]interface{}{
+                        "success": false,
+                        "error":   "Database not initialized",
+                })
+                return
+        }</span>
+
+        <span class="cov3" title="2">result, err := DB.Exec("DELETE FROM notifications WHERE id = $1", req.ID)
+        if err != nil </span><span class="cov0" title="0">{
+                log.Printf("Error deleting notification: %v", err)
+                w.WriteHeader(http.StatusInternalServerError)
+                json.NewEncoder(w).Encode(map[string]interface{}{
+                        "success": false,
+                        "error":   "Failed to delete notification",
+                })
+                return
+        }</span>
+
+        <span class="cov3" title="2">rowsAffected, _ := result.RowsAffected()
+        if rowsAffected == 0 </span><span class="cov1" title="1">{
+                w.WriteHeader(http.StatusNotFound)
+                json.NewEncoder(w).Encode(map[string]interface{}{
+                        "success": false,
+                        "error":   "Notification not found",
+                })
+                return
+        }</span>
+
+        <span class="cov1" title="1">w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(map[string]interface{}{
+                "success": true,
+                "message": "Notification deleted",
+        })</span>
+}
+
+func AddNotificationHandler(w http.ResponseWriter, r *http.Request) <span class="cov6" title="5">{
+        if r.Method != http.MethodPost </span><span class="cov1" title="1">{
+                w.WriteHeader(http.StatusMethodNotAllowed)
+                json.NewEncoder(w).Encode(map[string]interface{}{
+                        "success": false,
+                        "error":   "Method not allowed",
+                })
+                return
+        }</span>
+
+        <span class="cov5" title="4">var notification struct {
+                Type           string `json:"type"`
+                From           string `json:"from"`
+                To             string `json:"to"`
+                FileName       string `json:"file_name"`
+                FileID         string `json:"file_id"`
+                Message        string `json:"message"`
+                ReceivedFileID string `json:"receivedFileID"`
+                ViewOnly       bool   `json:"viewOnly"`
+        }
+
+        if err := json.NewDecoder(r.Body).Decode(&amp;notification); err != nil </span><span class="cov0" title="0">{
+                w.WriteHeader(http.StatusBadRequest)
+                json.NewEncoder(w).Encode(map[string]interface{}{
+                        "success": false,
+                        "error":   "Invalid request body",
+                })
+                return
+        }</span>
+
+        <span class="cov5" title="4">if notification.Type == "" || notification.From == "" || notification.To == "" ||
+                notification.FileName == "" || notification.FileID == "" </span><span class="cov1" title="1">{
+                w.WriteHeader(http.StatusBadRequest)
+                json.NewEncoder(w).Encode(map[string]interface{}{
+                        "success": false,
+                        "error":   "Missing required fields",
+                })
+                fmt.Println("Notification details:", notification)
+                return
+        }</span>
+
+        <span class="cov4" title="3">if DB == nil </span><span class="cov0" title="0">{
+                w.WriteHeader(http.StatusInternalServerError)
+                json.NewEncoder(w).Encode(map[string]interface{}{
+                        "success": false,
+                        "error":   "Database not initialized",
+                })
+                return
+        }</span>
+
+        <span class="cov4" title="3">var notificationID string
+        var err error
+
+        if notification.ViewOnly || notification.ReceivedFileID == "" </span><span class="cov3" title="2">{
+                err = DB.QueryRow(`INSERT INTO notifications 
+                        (type, "from", "to", file_name, file_id, message, status) 
+                        VALUES ($1, $2, $3, $4, $5, $6, 'pending') RETURNING id`,
+                        notification.Type, notification.From, notification.To,
+                        notification.FileName, notification.FileID, notification.Message).Scan(&amp;notificationID)
+        }</span> else<span class="cov1" title="1"> {
+                err = DB.QueryRow(`INSERT INTO notifications 
+                        (type, "from", "to", file_name, file_id, received_file_id, message, status) 
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending') RETURNING id`,
+                        notification.Type, notification.From, notification.To,
+                        notification.FileName, notification.FileID, notification.ReceivedFileID, notification.Message).Scan(&amp;notificationID)
+        }</span>
+
+        <span class="cov4" title="3">if err != nil </span><span class="cov1" title="1">{
+                log.Printf("Error adding notification: %v", err)
+                w.WriteHeader(http.StatusInternalServerError)
+                json.NewEncoder(w).Encode(map[string]interface{}{
+                        "success": false,
+                        "error":   "Failed to add notification",
+                })
+                return
+        }</span>
+
+        <span class="cov3" title="2">w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(map[string]interface{}{
+                "success": true,
+                "message": "Notification added",
+                "id":      notificationID,
+        })</span>
+}
+</pre>
+		
+		<pre class="file" id="file6" style="display: none">package fileHandler
 
 import (
         //"encoding/base64"
@@ -265,60 +755,64 @@ type deleteRequest struct{
         UserID string `json:"userId"`
 }
 
-func DeleteFileHandler(w http.ResponseWriter, r *http.Request)<span class="cov8" title="1">{
+func DeleteFileHandler(w http.ResponseWriter, r *http.Request)<span class="cov10" title="6">{
         var req deleteRequest
         err := json.NewDecoder(r.Body).Decode(&amp;req)
-        if err != nil </span><span class="cov8" title="1">{
+        if err != nil </span><span class="cov1" title="1">{
                 http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
                 return
         }</span>
 
-        <span class="cov8" title="1">if req.FileId == "" </span><span class="cov8" title="1">{
+        <span class="cov9" title="5">if req.FileId == "" </span><span class="cov1" title="1">{
                 log.Println("No fileId provided")
                 http.Error(w, "Missing fileId", http.StatusBadRequest)
                 return
         }</span>
 
-        <span class="cov8" title="1">if req.UserID == "" </span><span class="cov8" title="1">{
+        <span class="cov7" title="4">if req.UserID == "" </span><span class="cov1" title="1">{
                 log.Println("No UserId provided")
                 http.Error(w, "Missing UserID", http.StatusBadRequest)
                 return
         }</span>
 
-        <span class="cov8" title="1">err = owncloud.DeleteFile(req.FileId, req.UserID)
-        if err != nil </span><span class="cov8" title="1">{
+        <span class="cov6" title="3">err = owncloud.DeleteFile(req.FileId, req.UserID)
+        if err != nil </span><span class="cov1" title="1">{
                 log.Println("OwnCloud deletefailed failed:", err)
                 http.Error(w, "File delete failed", http.StatusInternalServerError)
                 return
         }</span>
 
-        <span class="cov8" title="1">err = metadata.DeleteFileMetadata(req.FileId)
-        if err != nil </span><span class="cov8" title="1">{
+        <span class="cov4" title="2">err = metadata.DeleteFileMetadata(req.FileId)
+        if err != nil </span><span class="cov1" title="1">{
                 log.Println("Metadata failed to delete:", err)
                 http.Error(w, "File delete failed", http.StatusInternalServerError)
                 return
         }</span>
 
         // Respond with success and fileID
-        <span class="cov8" title="1">w.Header().Set("Content-Type", "application/json")
+        <span class="cov1" title="1">w.Header().Set("Content-Type", "application/json")
         json.NewEncoder(w).Encode(map[string]string{
                 "message": "File successfully deleted",
 
         })</span>
 }</pre>
 		
-		<pre class="file" id="file6" style="display: none">package fileHandler
+		<pre class="file" id="file7" style="display: none">package fileHandler
 
 import (
-        "encoding/base64"
+        //"encoding/base64"
         "encoding/json"
         "fmt"
         "net/http"
         "log"
-        "os"
+        //"os"
         "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
-        "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto"
+        //"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto"
         //"database/sql"
+        "io"
+        "crypto/sha256"
+        "encoding/hex"
+        //"bytes"
         //_ "github.com/lib/pq" // PostgreSQL driver
 )
 
@@ -331,7 +825,7 @@ import (
 
 type DownloadRequest struct {
         UserID string `json:"userId"`
-        FileName string `json:"fileName"`
+        FileId string `json:"fileId"`
 }
 
 type DownloadResponse struct {
@@ -340,69 +834,118 @@ type DownloadResponse struct {
         Nonce       string `json:"nonce"`
 }
 
-func DownloadHandler(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
-        var req DownloadRequest
-        if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov0" title="0">{
-                http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
-                return
-        }</span>
+func DownloadHandler(w http.ResponseWriter, r *http.Request) <span class="cov10" title="4">{
+    var req DownloadRequest
+    if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov1" title="1">{
+        http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+        return
+    }</span>
 
-        <span class="cov0" title="0">if req.UserID == "" || req.FileName == "" </span><span class="cov0" title="0">{
-                http.Error(w, "Missing userId or fileName", http.StatusBadRequest)
-                return
-        }</span>
+    <span class="cov8" title="3">if req.UserID == "" || req.FileId == "" </span><span class="cov1" title="1">{
+        http.Error(w, "Missing userId or fileId", http.StatusBadRequest)
+        return
+    }</span>
+    <span class="cov5" title="2">log.Println("Got download request:", req.UserID, req.FileId)
 
-        <span class="cov0" title="0">fmt.Println("User id is: ", req.UserID)
-        fmt.Println("File name is: ", req.FileName)
-        var fileID, nonce string
-        err := DB.QueryRow(`
-                SELECT id, nonce FROM files
-                WHERE owner_id = $1 AND file_name = $2
-        `, req.UserID, req.FileName).Scan(&amp;fileID, &amp;nonce)
+    var fileName, nonce, fileHash, cid string
+    err := DB.QueryRow(`
+        SELECT file_name, nonce, file_hash, cid FROM files
+        WHERE owner_id = $1 AND id = $2
+    `, req.UserID, req.FileId).Scan(&amp;fileName, &amp;nonce, &amp;fileHash, &amp;cid)
+    if err != nil </span><span class="cov1" title="1">{
+        log.Println("❌ Failed to retrieve file metadata:", err)
+        http.Error(w, "File not found", http.StatusNotFound)
+        return
+    }</span>
 
-        if err != nil </span><span class="cov0" title="0">{
-                log.Println("Failed to retrieve file metadata:", err)
-                http.Error(w, "File not found", http.StatusNotFound)
-                return
-        }</span>
+    <span class="cov1" title="1">log.Println("✅ Found file:", fileName, "nonce:", nonce, "cid:", cid)
 
-        <span class="cov0" title="0">fmt.Println("File ID is: ",fileID)
+    // 🔁 Stream file from OwnCloud final location
+    stream, err := owncloud.DownloadFileStream(req.FileId)
+    if err != nil </span><span class="cov0" title="0">{
+        log.Println("❌ OwnCloud download failed:", err)
+        http.Error(w, "Download failed", http.StatusInternalServerError)
+        return
+    }</span>
+    <span class="cov1" title="1">defer stream.Close()
 
-        data, err := owncloud.DownloadFile(fileID, req.UserID)
-        if err != nil </span><span class="cov0" title="0">{
-                http.Error(w, fmt.Sprintf("Download failed: %v", err), http.StatusInternalServerError)
-                fmt.Println("Download Failed")
-                return
-        }</span>
+    // Hash verification while streaming
+    hasher := sha256.New()
+    tee := io.TeeReader(stream, hasher)
 
-        <span class="cov0" title="0">aesKey := os.Getenv("AES_KEY")
-        if len(aesKey) != 32 </span><span class="cov0" title="0">{
-                http.Error(w, "Invalid AES key", http.StatusInternalServerError)
-                return
-        }</span>
+    log.Println("Filename is:", fileName)
+    log.Println("Nonce is: ",nonce)
 
-        <span class="cov0" title="0">plain, err := crypto.DecryptBytes(data, aesKey)
-        if err != nil </span><span class="cov0" title="0">{
-                http.Error(w, fmt.Sprintf("Decryption failed: %v", err), http.StatusInternalServerError)
-                return
-        }</span>
+    // HTTP headers for browser &amp; Node client
+    w.Header().Set("Content-Type", "application/octet-stream")
+    w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, fileName))
+    w.Header().Set("X-File-Name", fileName)
+    w.Header().Set("X-Nonce", nonce)
+    w.WriteHeader(http.StatusOK)
 
-        <span class="cov0" title="0">base64Data := base64.StdEncoding.EncodeToString(plain)
+    // Stream file to client with buffer
+    buf := make([]byte, 32*1024)
+    if _, err := io.CopyBuffer(w, tee, buf); err != nil </span><span class="cov0" title="0">{
+        log.Println("❌ Failed to stream file:", err)
+        return
+    }</span>
 
-        //fmt.Println("FileContent is: ",base64Data)
-
-        res := DownloadResponse{
-                FileName:    req.FileName,
-                FileContent: base64Data,
-                Nonce:       nonce,
-        }
-
-        w.Header().Set("Content-Type", "application/json")
-        json.NewEncoder(w).Encode(res)</span>
+    // Verify hash at the end
+    <span class="cov1" title="1">computedHash := hex.EncodeToString(hasher.Sum(nil))
+    if computedHash != fileHash </span><span class="cov1" title="1">{
+        log.Printf("❌ Hash mismatch: expected %s, got %s", fileHash, computedHash)
+    }</span> else<span class="cov0" title="0"> {
+        log.Println("✅ File integrity check passed, hash:", computedHash)
+    }</span>
 }
+
+
+type DownloadSentRequest struct {
+        FilePath string `json:"filePath"`
+}
+
+
+
+func DownloadSentFile(w http.ResponseWriter, r *http.Request) <span class="cov10" title="4">{
+    var req DownloadSentRequest
+    if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov1" title="1">{
+        http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+        return
+    }</span>
+
+    <span class="cov8" title="3">if req.FilePath == "" </span><span class="cov1" title="1">{
+        http.Error(w, "Missing FilePath", http.StatusBadRequest)
+        return
+    }</span>
+
+    <span class="cov5" title="2">log.Println("Downloading sent file (stream):", req.FilePath)
+
+    stream, err := owncloud.DownloadSentFileStream(req.FilePath)
+    if err != nil </span><span class="cov1" title="1">{
+        log.Println("OwnCloud download failed:", err)
+        http.Error(w, "Download failed", http.StatusInternalServerError)
+        return
+    }</span>
+    <span class="cov1" title="1">defer stream.Close()
+
+    w.Header().Set("Content-Type", "application/octet-stream")
+    w.WriteHeader(http.StatusOK)
+
+    hasher := sha256.New()
+    tee := io.TeeReader(stream, hasher)
+
+    if _, err := io.Copy(w, tee); err != nil </span><span class="cov0" title="0">{
+        log.Println("Failed to stream sent file:", err)
+        return
+    }</span>
+
+    <span class="cov1" title="1">computedHash := hex.EncodeToString(hasher.Sum(nil))
+    log.Println("Sent file streamed successfully, you should watch Delicious in Dungeon. Hash:", computedHash)</span>
+}
+
 </pre>
 		
-		<pre class="file" id="file7" style="display: none">package fileHandler
+		<pre class="file" id="file8" style="display: none">package fileHandler
 
 import (
         "database/sql"
@@ -411,169 +954,69 @@ import (
         "net/http"
 )
 
-func AddAccesslogHandler(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+//var DB DBInterface = nil
+
+func AddAccesslogHandler(w http.ResponseWriter, r *http.Request) <span class="cov10" title="4">{
         type reqBody struct {
-                FileID string `json:"file_id"`
-                UserID string `json:"user_id"`
-                Action string `json:"action"`
+                FileID  string `json:"file_id"`
+                UserID  string `json:"user_id"`
+                Action  string `json:"action"`
+                MESSAGE string `json:"message"`
         }
         var req reqBody
-        if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov0" title="0">{
+        if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov1" title="1">{
                 http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
                 return
         }</span>
-        <span class="cov0" title="0">if req.FileID == "" || req.UserID == "" || req.Action == "" </span><span class="cov0" title="0">{
+        <span class="cov8" title="3">if req.FileID == "" || req.UserID == "" || req.Action == "" </span><span class="cov1" title="1">{
                 http.Error(w, "Missing required fields", http.StatusBadRequest)
                 return
         }</span>
-        <span class="cov0" title="0">_, err := DB.Exec(`INSERT INTO access_logs (file_id, user_id, action) VALUES ($1, $2, $3)`, req.FileID, req.UserID, req.Action)
-        if err != nil </span><span class="cov0" title="0">{
+        <span class="cov5" title="2">_, err := DB.Exec(`INSERT INTO access_logs (file_id, user_id, action, message) VALUES ($1, $2, $3, $4)`, req.FileID, req.UserID, req.Action, req.MESSAGE)
+        if err != nil </span><span class="cov1" title="1">{
                 log.Println("Failed to insert access log:", err)
                 http.Error(w, "Failed to add access log", http.StatusInternalServerError)
                 return
         }</span>
-        <span class="cov0" title="0">w.WriteHeader(http.StatusCreated)
-        w.Write([]byte("Access log added successfully"))</span>
+        <span class="cov1" title="1">w.WriteHeader(http.StatusCreated)
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(map[string]string{"message": "Access log added successfully"})</span>
 }
 
-func RemoveAccesslogHandler(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
-        id := r.URL.Query().Get("id")
-        if id == "" </span><span class="cov0" title="0">{
-                http.Error(w, "Missing log id", http.StatusBadRequest)
-                return
-        }</span>
-        <span class="cov0" title="0">_, err := DB.Exec(`DELETE FROM access_logs WHERE id = $1`, id)
-        if err != nil </span><span class="cov0" title="0">{
-                log.Println("Failed to delete access log:", err)
-                http.Error(w, "Failed to remove access log", http.StatusInternalServerError)
-                return
-        }</span>
-        <span class="cov0" title="0">w.Write([]byte("Access log removed successfully"))</span>
-}
-
-func GetAccesslogHandler(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+func GetAccesslogHandler(w http.ResponseWriter, r *http.Request) <span class="cov8" title="3">{
         fileID := r.URL.Query().Get("file_id")
         var rows *sql.Rows
         var err error
-        if fileID != "" </span><span class="cov0" title="0">{
-                rows, err = DB.Query(`SELECT id, file_id, user_id, action, timestamp FROM access_logs WHERE file_id = $1 ORDER BY timestamp DESC`, fileID)
-        }</span> else<span class="cov0" title="0"> {
-                rows, err = DB.Query(`SELECT id, file_id, user_id, action, timestamp FROM access_logs ORDER BY timestamp DESC`)
+        if fileID != "" </span><span class="cov1" title="1">{
+                rows, err = DB.Query(`SELECT id, file_id, user_id, action, message, timestamp FROM access_logs WHERE file_id = $1 ORDER BY timestamp DESC`, fileID)
+        }</span> else<span class="cov5" title="2"> {
+                rows, err = DB.Query(`SELECT id, file_id, user_id, action, message, timestamp FROM access_logs ORDER BY timestamp DESC`)
         }</span>
-        <span class="cov0" title="0">if err != nil </span><span class="cov0" title="0">{
+        <span class="cov8" title="3">if err != nil </span><span class="cov1" title="1">{
                 log.Println("Failed to query access logs:", err)
                 http.Error(w, "Failed to get access logs", http.StatusInternalServerError)
                 return
         }</span>
-        <span class="cov0" title="0">defer rows.Close()
-        logs := []map[string]interface{}{}
-        for rows.Next() </span><span class="cov0" title="0">{
-                var id, fileID, userID, action string
+        <span class="cov5" title="2">defer rows.Close()
+        logs := []map[string]any{}
+        for rows.Next() </span><span class="cov10" title="4">{
+                var id, fileID, userID, action, message string
                 var timestamp string
-                if err := rows.Scan(&amp;id, &amp;fileID, &amp;userID, &amp;action, &amp;timestamp); err != nil </span><span class="cov0" title="0">{
+                if err := rows.Scan(&amp;id, &amp;fileID, &amp;userID, &amp;action, &amp;message, &amp;timestamp); err != nil </span><span class="cov0" title="0">{
                         log.Println("Failed to scan access log row:", err)
                         continue</span>
                 }
-                <span class="cov0" title="0">logs = append(logs, map[string]interface{}{
+                <span class="cov10" title="4">logs = append(logs, map[string]any{
                         "id":        id,
                         "file_id":   fileID,
                         "user_id":   userID,
                         "action":    action,
+                        "message":   message,
                         "timestamp": timestamp,
                 })</span>
         }
-        <span class="cov0" title="0">w.Header().Set("Content-Type", "application/json")
+        <span class="cov5" title="2">w.Header().Set("Content-Type", "application/json")
         json.NewEncoder(w).Encode(logs)</span>
-}
-</pre>
-		
-		<pre class="file" id="file8" style="display: none">package fileHandler
-
-import (
-        "encoding/json"
-        "encoding/base64"
-        "fmt"
-        "log"
-        "net/http"
-        "time"
-
-        "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/metadata"
-        "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
-)
-
-type SendFilePayload struct {
-        FileID           string                 `json:"fileid"`
-        FilePath         string                 `json:"filePath"`
-        UserID           string                 `json:"userId"`
-        RecipientID      string                 `json:"recipientUserId"`
-        EncryptedFile    string                 `json:"encryptedFile"`       // base64
-        EncryptedAESKey  string                 `json:"encryptedAesKey"`
-        EKPublicKey      string                 `json:"ekPublicKey"`
-        Metadata         map[string]interface{} `json:"metadata"`            // includes nonce, ikPub, etc.
-}
-
-func SendFileHandler(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
-        var req SendFilePayload
-        if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov8" title="1">{
-                http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
-                return
-        }</span>
-
-        // Decode base64 file content
-        <span class="cov8" title="1">fileBytes, err := base64.RawURLEncoding.DecodeString(req.EncryptedFile)
-        if err != nil </span><span class="cov8" title="1">{
-                log.Println("Failed to decode encrypted file:", err)
-                http.Error(w, "Invalid encrypted file format", http.StatusBadRequest)
-                return
-        }</span>
-
-        // Upload to OwnCloud
-        <span class="cov8" title="1">targetPath := fmt.Sprintf("files/%s/sent", req.UserID)
-        if err := owncloud.UploadFile(targetPath, req.FileID, fileBytes); err != nil </span><span class="cov8" title="1">{
-                log.Println("OwnCloud upload failed:", err)
-                http.Error(w, "Failed to store encrypted file", http.StatusInternalServerError)
-                return
-        }</span>
-
-        <span class="cov8" title="1">metadataJSON, err := json.Marshal(req.Metadata)
-    if err != nil </span><span class="cov0" title="0">{
-           log.Println("Failed to serialize metadata:", err)
-           http.Error(w, "Invalid metadata format", http.StatusBadRequest)
-           return
-    }</span>
-
-        // Insert into received_files
-        <span class="cov8" title="1">if err := metadata.InsertReceivedFile(
-                DB,
-                req.RecipientID,
-                req.UserID,
-                req.FileID,
-                string(metadataJSON),   
-                time.Now().Add(48*time.Hour),
-        ); err != nil </span><span class="cov8" title="1">{
-                log.Println("Failed to insert received file:", err)
-                http.Error(w, "Failed to track received file", http.StatusInternalServerError)
-                return
-        }</span>
-
-        // Insert into sent_files
-        <span class="cov8" title="1">if err := metadata.InsertSentFile(
-                DB,
-                req.UserID,
-                req.RecipientID,
-                req.FileID,
-                req.EncryptedAESKey,
-                req.EKPublicKey,
-        ); err != nil </span><span class="cov0" title="0">{
-                log.Println("Failed to insert sent file:", err)
-        }</span>
-
-        // Respond
-        <span class="cov8" title="1">w.Header().Set("Content-Type", "application/json")
-        json.NewEncoder(w).Encode(map[string]string{
-                "message": "File sent successfully",
-        })
-        fmt.Println("File sent successfully")</span>
 }
 </pre>
 		
@@ -582,164 +1025,1087 @@ func SendFileHandler(w http.ResponseWriter, r *http.Request) <span class="cov8" 
 import (
         //"context"
         //"database/sql"
-        "encoding/base64"
+        //"encoding/base64"
         "encoding/json"
         "fmt"
         "log"
         "net/http"
-        "os"
-        "time"
+        // "os"
+        //"time"
+        //"io"
 
-        "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto"
+        //"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto"
+        //"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
+
+        "github.com/lib/pq"
+        "strings"
+        //"database/sql"
+)
+
+func CreateFolderHandler(w http.ResponseWriter, r *http.Request) <span class="cov10" title="11">{
+        w.Header().Set("Access-Control-Allow-Origin", "*")
+        w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+        var req struct {
+                UserID   string `json:"userId"`
+                FolderName string `json:"folderName"`
+                ParentPath string `json:"parentPath"` // Optional, e.g., "my/docs"
+                Description string `json:"description"`
+        }
+
+        if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov1" title="1">{
+                http.Error(w, "Invalid JSON", http.StatusBadRequest)
+                return
+        }</span>
+        <span class="cov9" title="10">if req.UserID == "" || req.FolderName == "" </span><span class="cov6" title="4">{
+                http.Error(w, "Missing userId or folderName", http.StatusBadRequest)
+                return
+        }</span>
+
+        // Construct full CID for folder path
+        <span class="cov7" title="6">var fullCID string
+        if req.ParentPath != "" </span><span class="cov3" title="2">{
+    fullCID = fmt.Sprintf("%s/%s", strings.TrimSuffix(req.ParentPath, "/"), req.FolderName)
+    }</span> else<span class="cov6" title="4"> {
+       fullCID = req.FolderName
+   }</span>
+
+        // Insert folder metadata (no file content, just metadata)
+        <span class="cov7" title="6">var folderID string
+        err := DB.QueryRow(`
+                INSERT INTO files (
+                        owner_id, file_name, file_type, file_size, cid, nonce, description, tags, created_at
+                ) VALUES ($1, $2, 'folder', 0, $3, '', $4, $5, NOW())
+                RETURNING id
+        `,
+                req.UserID,
+                req.FolderName,
+                fullCID,
+                req.Description,
+                pq.Array([]string{"folder"}),
+        ).Scan(&amp;folderID)
+
+        if err != nil </span><span class="cov1" title="1">{
+                log.Println("Failed to insert folder:", err)
+                http.Error(w, "Failed to create folder", http.StatusInternalServerError)
+                return
+        }</span>
+
+        <span class="cov7" title="5">w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(map[string]string{
+                "folderId": folderID,
+                "cid":      fullCID,
+        })</span>
+}
+</pre>
+		
+		<pre class="file" id="file10" style="display: none">package fileHandler
+
+import (
+        "database/sql"
+        "encoding/json"
+        "fmt"
+        "io"
+        "log"
+        "net/http"
+        "time"
+        "strconv"
+        "encoding/hex"
+        "crypto/sha256"
+        "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
+)
+
+
+func SendByViewHandler(w http.ResponseWriter, r *http.Request) <span class="cov10" title="14">{
+    log.Println("==== New SendByView Request ====")
+
+    err := r.ParseMultipartForm(50 &lt;&lt; 20) 
+    if err != nil </span><span class="cov1" title="1">{
+        log.Println("Failed to parse multipart form:", err)
+        http.Error(w, "Invalid multipart form", http.StatusBadRequest)
+        return
+    }</span>
+
+    <span class="cov9" title="13">fileID := r.FormValue("fileid")
+    userID := r.FormValue("userId")
+    recipientID := r.FormValue("recipientUserId")
+    metadataJSON := r.FormValue("metadata")
+    chunkIndexStr := r.FormValue("chunkIndex")
+    totalChunksStr := r.FormValue("totalChunks")
+
+    if fileID == "" || userID == "" || recipientID == "" || metadataJSON == "" </span><span class="cov0" title="0">{
+        http.Error(w, "Missing required form fields", http.StatusBadRequest)
+        return
+    }</span>
+
+    <span class="cov9" title="13">chunkIndex, err := strconv.Atoi(chunkIndexStr)
+    if err != nil </span><span class="cov1" title="1">{
+        http.Error(w, "Invalid chunkIndex", http.StatusBadRequest)
+        return
+    }</span>
+    <span class="cov9" title="12">totalChunks, err := strconv.Atoi(totalChunksStr)
+    if err != nil </span><span class="cov1" title="1">{
+        http.Error(w, "Invalid totalChunks", http.StatusBadRequest)
+        return
+    }</span>
+
+    <span class="cov9" title="11">var ownerID string
+    err = DB.QueryRow("SELECT owner_id FROM files WHERE id = $1", fileID).Scan(&amp;ownerID)
+    if err != nil </span><span class="cov3" title="2">{
+        if err == sql.ErrNoRows </span><span class="cov1" title="1">{
+            http.Error(w, "File not found", http.StatusNotFound)
+            return
+        }</span>
+        <span class="cov1" title="1">log.Println("Database error:", err)
+        http.Error(w, "Database error", http.StatusInternalServerError)
+        return</span>
+    }
+
+    <span class="cov8" title="9">if ownerID != userID </span><span class="cov1" title="1">{
+        http.Error(w, "Unauthorized: You don't own this file", http.StatusForbidden)
+        return
+    }</span>
+
+    <span class="cov8" title="8">file, _, err := r.FormFile("encryptedFile")
+    if err != nil </span><span class="cov1" title="1">{
+        log.Println("Failed to get encrypted file chunk:", err)
+        http.Error(w, "Missing encrypted file chunk", http.StatusBadRequest)
+        return
+    }</span>
+    <span class="cov7" title="7">defer file.Close()
+
+    tempChunkName := fmt.Sprintf("%s_chunk_%d", fileID, chunkIndex)
+    if err := owncloud.UploadFileStream("temp", tempChunkName, file); err != nil </span><span class="cov0" title="0">{
+        log.Println("OwnCloud temp chunk upload failed:", err)
+        http.Error(w, "Chunk upload failed", http.StatusInternalServerError)
+        return
+    }</span>
+
+    <span class="cov7" title="7">if chunkIndex != totalChunks-1 </span><span class="cov3" title="2">{
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(map[string]string{
+            "message": fmt.Sprintf("Chunk %d uploaded", chunkIndex),
+            "fileId":  fileID,
+        })
+        return
+    }</span>
+
+    <span class="cov6" title="5">sharedFileKey := fmt.Sprintf("%s_%s", fileID, recipientID)
+    targetPath := fmt.Sprintf("files/%s/shared_view", userID)
+    log.Printf("🔗 Merging chunks into shared_view path: %s/%s", targetPath, sharedFileKey)
+
+    finalReader, finalWriter := io.Pipe()
+    go func() </span><span class="cov6" title="5">{
+        defer finalWriter.Close()
+
+        for i := 0; i &lt; totalChunks; i++ </span><span class="cov6" title="5">{
+            chunkPath := fmt.Sprintf("temp/%s_chunk_%d", fileID, i)
+            reader, err := owncloud.DownloadFileStreamTemp(chunkPath)
+            if err != nil </span><span class="cov0" title="0">{
+                log.Println("Failed to download temp chunk:", err)
+                finalWriter.CloseWithError(err)
+                return
+            }</span>
+
+            <span class="cov6" title="5">if _, err := io.Copy(finalWriter, reader); err != nil </span><span class="cov0" title="0">{
+                log.Println("Failed to copy chunk to final writer:", err)
+                reader.Close()
+                finalWriter.CloseWithError(err)
+                return
+            }</span>
+            <span class="cov0" title="0">reader.Close()
+            owncloud.DeleteFileTemp(chunkPath)</span>
+        }
+
+        <span class="cov0" title="0">log.Println("Finished merging chunks for view-only share:", sharedFileKey)</span>
+    }()
+
+    <span class="cov6" title="5">if err := owncloud.UploadFileStream(targetPath, sharedFileKey, finalReader); err != nil </span><span class="cov0" title="0">{
+        log.Println("OwnCloud final upload failed:", err)
+        http.Error(w, "Failed to store encrypted file", http.StatusInternalServerError)
+        return
+    }</span>
+
+    <span class="cov6" title="5">var existingID string
+    err = DB.QueryRow(`
+        SELECT id FROM shared_files_view 
+        WHERE sender_id = $1 AND recipient_id = $2 AND file_id = $3 AND revoked = FALSE
+    `, userID, recipientID, fileID).Scan(&amp;existingID)
+
+    var shareID string
+    switch err </span>{
+    case nil:<span class="cov3" title="2">
+        _, err = DB.Exec(`
+            UPDATE shared_files_view 
+            SET metadata = $1, shared_at = CURRENT_TIMESTAMP, expires_at = $2
+            WHERE id = $3
+        `, metadataJSON, time.Now().Add(48*time.Hour), existingID)
+        if err != nil </span><span class="cov3" title="2">{
+            log.Println("Failed to update shared file:", err)
+            http.Error(w, "Failed to update shared file", http.StatusInternalServerError)
+            return
+        }</span>
+        <span class="cov0" title="0">shareID = existingID</span>
+    case sql.ErrNoRows:<span class="cov3" title="2">
+        err = DB.QueryRow(`
+            INSERT INTO shared_files_view (sender_id, recipient_id, file_id, metadata, expires_at)
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING id
+        `, userID, recipientID, fileID, metadataJSON, time.Now().Add(48*time.Hour)).Scan(&amp;shareID)
+        if err != nil </span><span class="cov1" title="1">{
+            log.Println("Failed to insert shared file view:", err)
+            http.Error(w, "Failed to track shared file", http.StatusInternalServerError)
+            return
+        }</span>
+    default:<span class="cov1" title="1">
+        log.Println("Database error:", err)
+        http.Error(w, "Database error", http.StatusInternalServerError)
+        return</span>
+    }
+
+    <span class="cov1" title="1">_, err = DB.Exec("UPDATE files SET allow_view_sharing = TRUE WHERE id = $1", fileID)
+    if err != nil </span><span class="cov0" title="0">{
+        log.Println("Failed to update file view sharing flag:", err)
+    }</span>
+
+    <span class="cov1" title="1">_, err = DB.Exec(`
+        INSERT INTO access_logs (file_id, user_id, action, message, view_only)
+        VALUES ($1, $2, $3, $4, $5)
+    `, fileID, userID, "shared_view",
+        fmt.Sprintf("File shared with user %s for view-only access", recipientID), true)
+    if err != nil </span><span class="cov0" title="0">{
+        log.Println("Failed to log sharing action:", err)
+    }</span>
+
+    <span class="cov1" title="1">w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(map[string]string{
+        "message": "File shared for view-only access successfully",
+        "shareId": shareID,
+    })
+    log.Println("File shared for view-only access successfully, shareId:", shareID)</span>
+}
+
+func RevokeViewAccessHandler(w http.ResponseWriter, r *http.Request) <span class="cov3" title="2">{
+        var req struct {
+                FileID      string `json:"fileId"`
+                UserID      string `json:"userId"`
+                RecipientID string `json:"recipientId"`
+        }
+
+        if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov0" title="0">{
+                http.Error(w, "Invalid JSON", http.StatusBadRequest)
+                return
+        }</span>
+
+        <span class="cov3" title="2">if req.FileID == "" || req.UserID == "" || req.RecipientID == "" </span><span class="cov0" title="0">{
+                http.Error(w, "Missing required fields", http.StatusBadRequest)
+                return
+        }</span>
+
+        <span class="cov3" title="2">var ownerID string
+        err := DB.QueryRow("SELECT owner_id FROM files WHERE id = $1", req.FileID).Scan(&amp;ownerID)
+        if err != nil </span><span class="cov0" title="0">{
+                if err == sql.ErrNoRows </span><span class="cov0" title="0">{
+                        http.Error(w, "File not found", http.StatusNotFound)
+                        return
+                }</span>
+                <span class="cov0" title="0">http.Error(w, "Database error", http.StatusInternalServerError)
+                return</span>
+        }
+
+        <span class="cov3" title="2">if ownerID != req.UserID </span><span class="cov0" title="0">{
+                http.Error(w, "Unauthorized", http.StatusForbidden)
+                return
+        }</span>
+
+        // Revoke access
+        <span class="cov3" title="2">result, err := DB.Exec(`
+                UPDATE shared_files_view 
+                SET revoked = TRUE, revoked_at = CURRENT_TIMESTAMP, access_granted = FALSE
+                WHERE sender_id = $1 AND recipient_id = $2 AND file_id = $3 AND revoked = FALSE
+        `, req.UserID, req.RecipientID, req.FileID)
+
+        if err != nil </span><span class="cov0" title="0">{
+                log.Println("Failed to revoke access:", err)
+                http.Error(w, "Failed to revoke access", http.StatusInternalServerError)
+                return
+        }</span>
+
+        <span class="cov3" title="2">rowsAffected, _ := result.RowsAffected()
+        if rowsAffected == 0 </span><span class="cov1" title="1">{
+                http.Error(w, "No active sharing found to revoke", http.StatusNotFound)
+                return
+        }</span>
+
+        <span class="cov1" title="1">_, err = DB.Exec(`
+                INSERT INTO access_logs (file_id, user_id, action, message, view_only)
+                VALUES ($1, $2, $3, $4, $5)
+        `, req.FileID, req.UserID, "revoked_view", fmt.Sprintf("View access revoked for user %s", req.RecipientID), true)
+        if err != nil </span><span class="cov0" title="0">{
+                log.Println("Failed to log revoke action:", err)
+        }</span>
+
+        <span class="cov1" title="1">w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(map[string]string{
+                "message": "View access revoked successfully",
+        })</span>
+}
+
+func GetSharedViewFilesHandler(w http.ResponseWriter, r *http.Request) <span class="cov1" title="1">{
+        var req struct {
+                UserID string `json:"userId"`
+        }
+
+        if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov0" title="0">{
+                http.Error(w, "Invalid JSON", http.StatusBadRequest)
+                return
+        }</span>
+
+        <span class="cov1" title="1">if req.UserID == "" </span><span class="cov0" title="0">{
+                http.Error(w, "Missing userId", http.StatusBadRequest)
+                return
+        }</span>
+
+        <span class="cov1" title="1">rows, err := DB.Query(`
+                SELECT svf.id, svf.sender_id, svf.file_id, svf.metadata, svf.shared_at, svf.expires_at,
+                           f.file_name, f.file_type, f.file_size, f.description
+                FROM shared_files_view svf
+                JOIN files f ON svf.file_id = f.id
+                WHERE svf.recipient_id = $1 OR svf.sender_id = $1 AND svf.revoked = FALSE AND svf.access_granted = TRUE
+                AND (svf.expires_at IS NULL OR svf.expires_at &gt; CURRENT_TIMESTAMP)
+                ORDER BY svf.shared_at DESC
+        `, req.UserID)
+
+        if err != nil </span><span class="cov0" title="0">{
+                log.Println("Failed to get shared view files:", err)
+                http.Error(w, "Database error", http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov1" title="1">defer rows.Close()
+
+        var files []map[string]interface{}
+        for rows.Next() </span><span class="cov1" title="1">{
+                var (
+                        shareID, senderID, fileID, fileName, fileType, description string
+                        fileSize                                                   int64
+                        metadata                                                   string
+                        sharedAt                                                   time.Time
+                        expiresAtPtr                                               *time.Time
+                )
+                err := rows.Scan(
+                        &amp;shareID, &amp;senderID, &amp;fileID, &amp;metadata,
+                        &amp;sharedAt, &amp;expiresAtPtr, &amp;fileName, &amp;fileType,
+                        &amp;fileSize, &amp;description,
+                )
+                if err != nil </span><span class="cov0" title="0">{
+                        log.Println("Failed to scan row:", err)
+                        continue</span>
+                }
+
+                <span class="cov1" title="1">file := map[string]interface{}{
+                        "share_id":    shareID,
+                        "sender_id":   senderID,
+                        "file_id":     fileID,
+                        "metadata":    metadata,
+                        "shared_at":   sharedAt,
+                        "file_name":   fileName,
+                        "file_type":   fileType,
+                        "file_size":   fileSize,
+                        "description": description,
+                        "view_only":   true,
+                }
+                if expiresAtPtr != nil </span><span class="cov1" title="1">{
+                        file["expires_at"] = *expiresAtPtr
+                }</span>
+
+                <span class="cov1" title="1">files = append(files, file)</span>
+        }
+
+        <span class="cov1" title="1">w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(files)</span>
+}
+
+func GetViewFileAccessLogs(w http.ResponseWriter, r *http.Request) <span class="cov1" title="1">{
+        var req struct {
+                FileID string `json:"fileId"`
+                UserID string `json:"userId"`
+        }
+
+        if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov0" title="0">{
+                http.Error(w, "Invalid JSON", http.StatusBadRequest)
+                return
+        }</span>
+
+        <span class="cov1" title="1">rows, err := DB.Query(`
+                SELECT id, action, message, timestamp
+                FROM access_logs
+                WHERE file_id = $1 AND user_id = $2 AND view_only = TRUE
+                ORDER BY timestamp DESC
+                `, req.FileID, req.UserID)
+
+        if err != nil </span><span class="cov0" title="0">{
+                log.Println("Failed to query access logs", err)
+                http.Error(w, "Database Error", http.StatusInternalServerError)
+                return
+        }</span>
+        <span class="cov1" title="1">defer rows.Close()
+
+        var logs []map[string]interface{}
+        for rows.Next() </span><span class="cov3" title="2">{
+                var id, action, message string
+                var timestamp time.Time
+
+                if err := rows.Scan(&amp;id, &amp;action, &amp;message, &amp;timestamp); err != nil </span><span class="cov0" title="0">{
+                        log.Println("Failed to scan access log:", err)
+                        continue</span>
+                }
+
+                <span class="cov3" title="2">logs = append(logs, map[string]interface{}{
+                        "id":        id,
+                        "action":    action,
+                        "message":   message,
+                        "timestamp": timestamp,
+                })</span>
+        }
+
+        <span class="cov1" title="1">w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(logs)</span>
+}
+
+
+func DownloadViewFileHandler(w http.ResponseWriter, r *http.Request) <span class="cov3" title="2">{
+    var req struct {
+        UserID string `json:"userId"`
+        FileID string `json:"fileId"`
+    }
+
+    if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov0" title="0">{
+        http.Error(w, "Invalid JSON", http.StatusBadRequest)
+        return
+    }</span>
+
+    <span class="cov3" title="2">if req.UserID == "" || req.FileID == "" </span><span class="cov0" title="0">{
+        http.Error(w, "Missing required fields", http.StatusBadRequest)
+        return
+    }</span>
+
+    <span class="cov3" title="2">var senderID, sharedID, metadata string
+    var revoked bool
+    var expiresAt time.Time
+
+    err := DB.QueryRow(`
+        SELECT id, sender_id, metadata, revoked, expires_at 
+        FROM shared_files_view 
+        WHERE recipient_id = $1 AND file_id = $2
+    `, req.UserID, req.FileID).Scan(&amp;sharedID, &amp;senderID, &amp;metadata, &amp;revoked, &amp;expiresAt)
+
+    if err != nil </span><span class="cov0" title="0">{
+        if err == sql.ErrNoRows </span><span class="cov0" title="0">{
+            http.Error(w, "View file access not found", http.StatusNotFound)
+        }</span> else<span class="cov0" title="0"> {
+            log.Println("Database error:", err)
+            http.Error(w, "Database error", http.StatusInternalServerError)
+        }</span>
+        <span class="cov0" title="0">return</span>
+    }
+
+    <span class="cov3" title="2">if revoked || senderID == "" </span><span class="cov0" title="0">{
+        http.Error(w, "Access has been revoked", http.StatusForbidden)
+        return
+    }</span>
+
+    <span class="cov3" title="2">if time.Now().After(expiresAt) </span><span class="cov1" title="1">{
+        http.Error(w, "Access has expired", http.StatusForbidden)
+        return
+    }</span>
+
+    <span class="cov1" title="1">targetPath := fmt.Sprintf("files/%s/shared_view", senderID)
+    sharedFileKey := fmt.Sprintf("%s_%s", req.FileID, req.UserID)
+    fullPath := fmt.Sprintf("%s/%s", targetPath, sharedFileKey)
+    log.Println("Downloading view file (stream):", fullPath)
+
+    stream, err := owncloud.DownloadSentFileStream(fullPath)
+    if err != nil </span><span class="cov0" title="0">{
+        log.Println("Failed to download view file from OwnCloud:", err)
+        http.Error(w, "Failed to retrieve view file", http.StatusInternalServerError)
+        return
+    }</span>
+    <span class="cov1" title="1">defer stream.Close()
+
+    _, err = DB.Exec(`
+        INSERT INTO access_logs (file_id, user_id, action, message, view_only)
+        VALUES ($1, $2, $3, $4, $5)
+    `, req.FileID, req.UserID, "viewed", "View-only file accessed", true)
+    if err != nil </span><span class="cov0" title="0">{
+        log.Println("Failed to log view-only access:", err)
+    }</span>
+
+    // 5️⃣ Stream to client (fast &amp; memory-safe)
+    <span class="cov1" title="1">w.Header().Set("Content-Type", "application/octet-stream")
+    w.Header().Set("X-View-Only", "true")
+    w.Header().Set("X-File-Id", req.FileID)
+    w.Header().Set("X-Share-Id", sharedID)
+    w.WriteHeader(http.StatusOK)
+
+    hasher := sha256.New()
+    tee := io.TeeReader(stream, hasher)
+
+    if _, err := io.Copy(w, tee); err != nil </span><span class="cov0" title="0">{
+        log.Println(" Failed to stream view-only file:", err)
+        return
+    }</span>
+
+    <span class="cov1" title="1">log.Println("View-only file streamed successfully for user:", req.UserID)
+    log.Printf("File hash: %s\n", hex.EncodeToString(hasher.Sum(nil)))</span>
+}
+
+</pre>
+		
+		<pre class="file" id="file11" style="display: none">package fileHandler
+
+import (
+        "encoding/json"
+        //"encoding/base64"
+        "fmt"
+        "log"
+        "net/http"
+        "time"
+        "strconv"
+        "io"
+        //"crypto/sha256"
+        //"encoding/hex"
+
+        "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/metadata"
+        "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
+)
+
+
+
+
+func SendFileHandler(w http.ResponseWriter, r *http.Request) <span class="cov10" title="14">{
+    log.Println("==== New SendFile Request ====")
+
+    err := r.ParseMultipartForm(50 &lt;&lt; 20) // 50 MB buffer
+    if err != nil </span><span class="cov1" title="1">{
+        log.Println("Failed to parse multipart form:", err)
+        http.Error(w, "Invalid multipart form", http.StatusBadRequest)
+        return
+    }</span>
+
+    <span class="cov9" title="13">fileID := r.FormValue("fileid")
+    userID := r.FormValue("userId")
+    recipientID := r.FormValue("recipientUserId")
+    metadataJSON := r.FormValue("metadata")
+    chunkIndexStr := r.FormValue("chunkIndex")
+    totalChunksStr := r.FormValue("totalChunks")
+
+    if fileID == "" || userID == "" || recipientID == "" || metadataJSON == "" </span><span class="cov5" title="4">{
+        http.Error(w, "Missing required form fields", http.StatusBadRequest)
+        return
+    }</span>
+
+    <span class="cov8" title="9">chunkIndex, err := strconv.Atoi(chunkIndexStr)
+    if err != nil </span><span class="cov1" title="1">{
+        http.Error(w, "Invalid chunkIndex", http.StatusBadRequest)
+        return
+    }</span>
+    <span class="cov8" title="8">totalChunks, err := strconv.Atoi(totalChunksStr)
+    if err != nil </span><span class="cov1" title="1">{
+        http.Error(w, "Invalid totalChunks", http.StatusBadRequest)
+        return
+    }</span>
+
+    // 🔹 Step 1: Get encrypted chunk
+    <span class="cov7" title="7">file, _, err := r.FormFile("encryptedFile")
+    if err != nil </span><span class="cov1" title="1">{
+        log.Println("Failed to get encrypted file chunk:", err)
+        http.Error(w, "Missing encrypted file chunk", http.StatusBadRequest)
+        return
+    }</span>
+    <span class="cov7" title="6">defer file.Close()
+
+    // 🔹 Step 2: Upload chunk to OwnCloud temp folder
+    tempChunkName := fmt.Sprintf("%s_chunk_%d", fileID, chunkIndex)
+    if err := owncloud.UploadFileStream("temp", tempChunkName, file); err != nil </span><span class="cov1" title="1">{
+        log.Println("OwnCloud temp chunk upload failed:", err)
+        http.Error(w, "Chunk upload failed", http.StatusInternalServerError)
+        return
+    }</span>
+
+    // 🔹 Step 3: If not last chunk → ACK only
+    <span class="cov6" title="5">if chunkIndex != totalChunks-1 </span><span class="cov1" title="1">{
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(map[string]string{
+            "message": fmt.Sprintf("Chunk %d uploaded", chunkIndex),
+            "fileId":  fileID,
+        })
+        return
+    }</span>
+
+    // 🔹 Step 4: Merge chunks to final sent path
+    <span class="cov5" title="4">log.Println("🔗 Merging chunks for file:", fileID)
+    finalReader, finalWriter := io.Pipe()
+
+    go func() </span><span class="cov5" title="4">{
+        defer finalWriter.Close()
+
+        for i := 0; i &lt; totalChunks; i++ </span><span class="cov5" title="4">{
+            chunkPath := fmt.Sprintf("temp/%s_chunk_%d", fileID, i)
+            reader, err := owncloud.DownloadFileStreamTemp(chunkPath)
+            if err != nil </span><span class="cov0" title="0">{
+                log.Println("Failed to download temp chunk:", err)
+                finalWriter.CloseWithError(err)
+                return
+            }</span>
+
+            <span class="cov5" title="4">if _, err := io.Copy(finalWriter, reader); err != nil </span><span class="cov0" title="0">{
+                log.Println("Failed to copy chunk to writer:", err)
+                reader.Close()
+                finalWriter.CloseWithError(err)
+                return
+            }</span>
+            <span class="cov0" title="0">reader.Close()
+            owncloud.DeleteFileTemp(chunkPath)</span> // cleanup
+        }
+
+        <span class="cov0" title="0">log.Println("✅ Finished merging chunks for file:", fileID)</span>
+    }()
+
+    // 🔹 Step 5: Stream merged file to final sent folder
+    <span class="cov5" title="4">sentPath := fmt.Sprintf("files/%s/sent", userID)
+    if err := owncloud.UploadFileStream(sentPath, fileID, finalReader); err != nil </span><span class="cov0" title="0">{
+        log.Println("OwnCloud final upload failed:", err)
+        http.Error(w, "Failed to store encrypted file", http.StatusInternalServerError)
+        return
+    }</span>
+
+    // 🔹 Step 6: Track in DB (sent_files + received_files)
+    <span class="cov5" title="4">receivedID, err := metadata.InsertReceivedFile(
+        DB,
+        recipientID,
+        userID,
+        fileID,
+        metadataJSON,
+        time.Now().Add(48*time.Hour),
+    )
+    if err != nil </span><span class="cov1" title="1">{
+        log.Println("Failed to insert received file:", err)
+        http.Error(w, "Failed to track received file", http.StatusInternalServerError)
+        return
+    }</span>
+
+    <span class="cov4" title="3">if err := metadata.InsertSentFile(
+        DB,
+        userID,
+        recipientID,
+        fileID,
+        metadataJSON,
+    ); err != nil </span><span class="cov1" title="1">{
+        log.Println("Failed to insert sent file:", err)
+    }</span>
+
+    // ✅ Final response
+    <span class="cov4" title="3">w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(map[string]string{
+        "message":        "File sent successfully",
+        "receivedFileID": receivedID,
+    })
+    log.Println("🎉 File sent successfully:", fileID)</span>
+}
+</pre>
+		
+		<pre class="file" id="file12" style="display: none">package fileHandler
+
+import (
+        //"context"
+        //"database/sql"
+        //"encoding/base64"
+        "encoding/json"
+        //"fmt"
+        "log"
+        "net/http"
+        //"os"
+        "time"
+        "io"
+        "strconv"
+        "fmt"
+
+        //"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto"
         //"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/database"
         "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
 
         "github.com/lib/pq"
         "database/sql"
+        //"strings"
+        "crypto/sha256"
+        "encoding/hex"
+        //"bytes"
 )
-
-type UploadRequest struct {
-        FileName    string   `json:"fileName"`
-        FileType    string   `json:"fileType"`
-        UserID      string   `json:"userId"`
-        Nonce       string   `json:"nonce"`
-        Description string   `json:"fileDescription"`
-        Tags        []string `json:"fileTags"`
-        Path        string   `json:"path"`
-        FileContent string   `json:"fileContent"`
-}
 
 var DB *sql.DB
 
-func SetPostgreClient(db *sql.DB) <span class="cov0" title="0">{
+func SetPostgreClient(db *sql.DB) <span class="cov10" title="80">{
         // This function is used to set the PostgreSQL client in the fileHandler package
         DB = db
 }</span>
 
-func UploadHandler(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
-        var req UploadRequest
-        if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov0" title="0">{
-                http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
-                fmt.Println("Invalid JSON payload")
-                return
-        }</span>
+type CountingWriter struct {
+        w     io.Writer
+        Count int64
+}
 
-        <span class="cov0" title="0">if req.FileName == "" || req.FileContent == "" </span><span class="cov0" title="0">{
-                http.Error(w, "Missing required fields", http.StatusBadRequest)
-                fmt.Println("Missing filename or file contents")
-                return
-        }</span>
+func (cw *CountingWriter) Write(p []byte) (int, error) <span class="cov4" title="7">{
+        n, err := cw.w.Write(p)
+        cw.Count += int64(n)
+        return n, err
+}</span>
 
-        <span class="cov0" title="0">fileBytes, err := base64.StdEncoding.DecodeString(req.FileContent)
-        if err != nil </span><span class="cov0" title="0">{
-                http.Error(w, "Invalid base64 file content", http.StatusBadRequest)
-                fmt.Println("Invalid base 64 file content")
-                return
-        }</span>
 
-        <span class="cov0" title="0">aesKey := os.Getenv("AES_KEY")
-        if len(aesKey) != 32 </span><span class="cov0" title="0">{
-                http.Error(w, "Invalid AES key", http.StatusInternalServerError)
-                return
-        }</span>
 
-        <span class="cov0" title="0">encryptedFile, err := crypto.EncryptBytes(fileBytes, aesKey)
-        if err != nil </span><span class="cov0" title="0">{
-                log.Println("Encryption error:", err)
-                http.Error(w, "Encryption failed", http.StatusInternalServerError)
-                fmt.Println("Encryption failed")
-                return
-        }</span>
 
-        // Check if user exists; if not, insert
-    <span class="cov0" title="0">_, err = DB.Exec(`
-          INSERT INTO users (id)
-          SELECT $1
-          WHERE NOT EXISTS (
-      SELECT 1 FROM users WHERE id = $1
-         )
-    `, req.UserID)
 
-    if err != nil </span><span class="cov0" title="0">{
-           log.Println("Failed to ensure user exists:", err)
-           http.Error(w, "User verification failed", http.StatusInternalServerError)
-           fmt.Println("User verification failed")
-           return
+func UploadHandler(w http.ResponseWriter, r *http.Request) <span class="cov6" title="13">{
+    log.Println("==== New Upload Request ====")
+
+    // 1️⃣ Parse multipart form
+    if err := r.ParseMultipartForm(50 &lt;&lt; 20); err != nil </span><span class="cov1" title="1">{
+        log.Println("❌ Failed to parse multipart form:", err)
+        http.Error(w, "Failed to parse multipart form", http.StatusBadRequest)
+        return
     }</span>
 
-        // Step 1: Save metadata and get the generated file ID
-        <span class="cov0" title="0">var fileID string
-        err = DB.QueryRow(`
-                INSERT INTO files (
-                        owner_id, file_name, file_type, file_size, cid, nonce, description, tags, created_at
-                )
-                VALUES ($1, $2, $3, $4, '', $5, $6, $7, $8)
+    // 2️⃣ Extract fields
+    <span class="cov6" title="12">userId := r.FormValue("userId")
+    fileName := r.FormValue("fileName")
+    fileType := r.FormValue("fileType")
+    fileHash := r.FormValue("fileHash")
+    nonce := r.FormValue("nonce")
+    description := r.FormValue("fileDescription")
+    tagsRaw := r.FormValue("fileTags")
+    chunkIndexStr := r.FormValue("chunkIndex")
+    totalChunksStr := r.FormValue("totalChunks")
+    fileID := r.FormValue("fileId") // ✅ new
+    uploadPath := r.FormValue("path")
+    if uploadPath == "" </span><span class="cov6" title="12">{
+        uploadPath = "files"
+    }</span>
+
+    <span class="cov6" title="12">log.Printf("📦 Parsed form: userId=%s, fileName=%s, fileHash=%s, chunk=%s/%s, fileId=%s",
+        userId, fileName, fileHash, chunkIndexStr, totalChunksStr, fileID)
+
+    // 3️⃣ Validate required fields
+    if userId == "" || fileName == "" || fileHash == "" || nonce == "" </span><span class="cov1" title="1">{
+        log.Println("❌ Missing required fields")
+        http.Error(w, "Missing required fields", http.StatusBadRequest)
+        return
+    }</span>
+
+    <span class="cov5" title="11">if nonce == "" </span><span class="cov0" title="0">{
+    log.Println("❌ Missing nonce")
+    }</span>
+
+    // 4️⃣ Parse integers
+    <span class="cov5" title="11">chunkIndex, err := strconv.Atoi(chunkIndexStr)
+    if err != nil </span><span class="cov1" title="1">{
+        http.Error(w, "Invalid chunkIndex", http.StatusBadRequest)
+        return
+    }</span>
+    <span class="cov5" title="10">totalChunks, err := strconv.Atoi(totalChunksStr)
+    if err != nil </span><span class="cov1" title="1">{
+        http.Error(w, "Invalid totalChunks", http.StatusBadRequest)
+        return
+    }</span>
+
+    // 5️⃣ Parse tags JSON
+    <span class="cov5" title="9">var tags []string
+    if tagsRaw != "" </span><span class="cov0" title="0">{
+        if err := json.Unmarshal([]byte(tagsRaw), &amp;tags); err != nil </span><span class="cov0" title="0">{
+            log.Println("❌ Invalid fileTags JSON:", tagsRaw)
+            http.Error(w, "Invalid fileTags JSON", http.StatusBadRequest)
+            return
+        }</span>
+    }
+
+    // 6️⃣ Read encrypted chunk
+    <span class="cov5" title="9">srcFile, header, err := r.FormFile("encryptedFile")
+    if err != nil </span><span class="cov1" title="1">{
+        log.Println("❌ Missing encrypted file:", err)
+        http.Error(w, "Missing encrypted file", http.StatusBadRequest)
+        return
+    }</span>
+    <span class="cov5" title="8">defer srcFile.Close()
+    log.Println("✅ Received chunk file:", header.Filename)
+    log.Println("When uploading the nonce is:", nonce)
+
+    // 7️⃣ Handle fileID and DB row
+    if fileID == "" </span><span class="cov3" title="3">{
+        if chunkIndex == 0 </span><span class="cov2" title="2">{
+            // Insert metadata and get fileID
+            log.Println("📝 Creating new file metadata row...")
+            err = DB.QueryRow(`
+                INSERT INTO files (owner_id, file_name, file_type, file_hash, nonce, description, tags, cid, file_size, created_at)
+                VALUES ($1,$2,$3,'',$4,$5,$6,'',0,$7)
                 RETURNING id
-        `,
-                req.UserID,
-                req.FileName,
-                req.FileType,
-                len(fileBytes),
-                req.Nonce,
-                req.Description,
-                pq.Array(req.Tags),
-                time.Now(),
-        ).Scan(&amp;fileID)
-
-        if err != nil </span><span class="cov0" title="0">{
-                log.Println("PostgreSQL insert error:", err)
-                http.Error(w, "Metadata storage failed", http.StatusInternalServerError)
-                fmt.Println("Metadata storage failed")
+            `, userId, fileName, fileType, nonce, description, pq.Array(tags), time.Now()).Scan(&amp;fileID)
+            if err != nil </span><span class="cov0" title="0">{
+                log.Println("❌ DB insert error:", err)
+                http.Error(w, "Failed to create file metadata", http.StatusInternalServerError)
                 return
+            }</span>
+            <span class="cov2" title="2">log.Println("✅ File metadata created, fileID:", fileID)</span>
+        } else<span class="cov1" title="1"> {
+            log.Println("❌ Missing fileId for non-first chunk")
+            http.Error(w, "fileId is required for parallel upload", http.StatusBadRequest)
+            return
         }</span>
+    }
 
-        // Step 2: Upload file using fileID as filename
-        <span class="cov0" title="0">uploadPath := req.Path
-        if uploadPath == "" </span><span class="cov0" title="0">{
-                uploadPath = "files"
-        }</span>
+    // 8️⃣ Upload chunk to OwnCloud temp folder
+    <span class="cov4" title="7">chunkFileName := fmt.Sprintf("%s_chunk_%d", fileID, chunkIndex)
+    log.Println("⬆️  Uploading chunk to OwnCloud temp:", chunkFileName)
+    if err := owncloud.UploadFileStream("temp", chunkFileName, srcFile); err != nil </span><span class="cov0" title="0">{
+        log.Println("❌ Failed to upload chunk to OwnCloud:", err)
+        http.Error(w, "Chunk upload failed", http.StatusInternalServerError)
+        return
+    }</span>
 
-        <span class="cov0" title="0">err = owncloud.UploadFile(uploadPath, fileID, encryptedFile)
-        if err != nil </span><span class="cov0" title="0">{
-                log.Println("OwnCloud upload failed:", err)
-                http.Error(w, "File upload failed", http.StatusInternalServerError)
-                fmt.Println("File upload failed")
-                return
-        }</span>
-
-        // Step 3: Update cid in database
-        <span class="cov0" title="0">fullCID := fmt.Sprintf("%s/%s", uploadPath, fileID)
-        _, err = DB.Exec(`UPDATE files SET cid = $1 WHERE id = $2`, fullCID, fileID)
-        if err != nil </span><span class="cov0" title="0">{
-                log.Println("PostgreSQL update cid failed:", err)
-                // Not fatal to the upload, so continue
-        }</span>
-
-        // Respond with success and fileID
-        <span class="cov0" title="0">w.Header().Set("Content-Type", "application/json")
+    // 9️⃣ If not last chunk → acknowledge
+    <span class="cov4" title="7">if chunkIndex != totalChunks-1 </span><span class="cov3" title="3">{
+        w.Header().Set("Content-Type", "application/json")
         json.NewEncoder(w).Encode(map[string]string{
-                "message": "File uploaded and metadata stored",
-                "fileId":  fileID,
-        })</span>
+            "message":  fmt.Sprintf("Chunk %d uploaded", chunkIndex),
+            "fileHash": fileHash,
+            "fileId":   fileID,
+        })
+        return
+    }</span>
+
+    // 🔟 Last chunk → merge using low-memory streaming
+    <span class="cov3" title="4">log.Println("🔗 Starting file merge (streaming)...")
+
+    // Open writer to final OwnCloud file
+    writer, err := owncloud.CreateFileStream("files", fileID)
+    if err != nil </span><span class="cov1" title="1">{
+        log.Println("❌ OwnCloud final upload failed:", err)
+        http.Error(w, "File assembly failed", http.StatusInternalServerError)
+        return
+    }</span>
+    <span class="cov3" title="3">defer writer.Close()
+
+    hasher := sha256.New()
+    countingWriter := &amp;CountingWriter{w: io.MultiWriter(writer, hasher)}
+
+    for i := 0; i &lt; totalChunks; i++ </span><span class="cov4" title="7">{
+        chunkPath := fmt.Sprintf("temp/%s_chunk_%d", fileID, i)
+        log.Println("🔄 Merging chunk:", chunkPath)
+
+        reader, err := owncloud.DownloadFileStreamTemp(chunkPath)
+        if err != nil </span><span class="cov0" title="0">{
+            log.Println("❌ Failed to open chunk:", err)
+            http.Error(w, "Chunk merge failed", http.StatusInternalServerError)
+            return
+        }</span>
+
+        <span class="cov4" title="7">if _, err := io.Copy(countingWriter, reader); err != nil </span><span class="cov0" title="0">{
+            reader.Close()
+            log.Println("❌ Failed to copy chunk:", err)
+            http.Error(w, "Chunk merge failed", http.StatusInternalServerError)
+            return
+        }</span>
+        <span class="cov4" title="7">reader.Close()
+
+        // Delete temp chunk after successful copy
+        owncloud.DeleteFileTemp(chunkPath)</span>
+    }
+
+    <span class="cov3" title="3">fileHashHex := hex.EncodeToString(hasher.Sum(nil))
+    log.Println("🔗 Final file hash:", fileHashHex)
+    log.Printf("📦 Final merged size: %d bytes", countingWriter.Count)
+
+    _, err = DB.Exec(`
+        UPDATE files SET file_hash=$1, file_size=$2, cid=$3 WHERE id=$4
+    `, fileHashHex, countingWriter.Count, uploadPath+"/"+fileID, fileID)
+    if err != nil </span><span class="cov3" title="3">{
+        log.Println("❌ DB update error:", err)
+    }</span> else<span class="cov0" title="0"> {
+        log.Println("✅ File metadata updated with final size and hash")
+    }</span>
+
+    <span class="cov3" title="3">log.Println("🎉 File uploaded successfully:", fileID)
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(map[string]string{
+        "message": "File uploaded and metadata stored",
+        "fileId":  fileID,
+    })</span>
+}
+
+type StartUploadRequest struct {
+    UserID          string   `json:"userId"`
+    FileName        string   `json:"fileName"`
+    FileType        string   `json:"fileType"`
+    FileDescription string   `json:"fileDescription"`
+    FileTags        []string `json:"fileTags"`
+    Path            string   `json:"path"`
+    Nonce           string   `json:"nonce"`
+}
+
+func StartUploadHandler(w http.ResponseWriter, r *http.Request) <span class="cov3" title="4">{
+    log.Println("==== Start Upload Request ====")
+
+    
+    var req StartUploadRequest
+    if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov1" title="1">{
+        log.Println("❌ Invalid JSON:", err)
+        http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+        return
+    }</span>
+
+    <span class="cov3" title="3">log.Println("userId is :", req.UserID)
+    log.Println("Filename is :", req.FileName)
+    log.Println("fileType is :", req.FileType)
+    log.Println("description is: ", req.FileDescription)
+
+    if req.UserID == "" || req.FileName == "" </span><span class="cov1" title="1">{
+        http.Error(w, "Missing userId or fileName", http.StatusBadRequest)
+        return
+    }</span>
+
+    // Insert initial metadata with empty hash and size 0
+    <span class="cov2" title="2">log.Println("Made it to inserting file metadata in the database")
+    var fileID string
+    err := DB.QueryRow(`
+        INSERT INTO files (owner_id, file_name, file_type, file_hash, nonce, description, tags, cid, file_size, created_at)
+        VALUES ($1,$2,$3,'',$4,$5,$6,$7,0,$8)
+        RETURNING id
+    `, req.UserID, req.FileName, req.FileType,req.Nonce ,req.FileDescription, pq.Array(req.FileTags), req.Path, time.Now()).Scan(&amp;fileID)
+    if err != nil </span><span class="cov1" title="1">{
+        log.Println("❌ DB insert error:", err)
+        http.Error(w, "Failed to start upload", http.StatusInternalServerError)
+        return
+    }</span>
+
+    <span class="cov1" title="1">log.Println("✅ Upload started, fileID:", fileID)
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(map[string]string{
+        "message": "Upload session started",
+        "fileId":  fileID,
+    })</span>
 }
 </pre>
 		
-		<pre class="file" id="file10" style="display: none">package metadata
+		<pre class="file" id="file13" style="display: none">package main
 
 import (
-        "encoding/json"
-        "net/http"
+        //"context"
         "log"
-        "fmt"
-        "time"
+        "net/http"
+
+        //"time"
+
+        "os"
+
+        "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/database"
+        "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler"
+        "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/metadata"
+        "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
+        "github.com/joho/godotenv"
+        //"go.mongodb.org/mongo-driver/mongo"
+        //"go.mongodb.org/mongo-driver/mongo/options"
+)
+
+func main() <span class="cov0" title="0">{
+
+        err := godotenv.Load()
+        if err != nil </span><span class="cov0" title="0">{
+                log.Fatal("Error loading .env file")
+        }</span>
+
+        <span class="cov0" title="0">log.Println("Starting File Service...")
+        log.Println("Environment variables loaded successfully")
+        log.Println("ownCloud URL:", os.Getenv("OWNCLOUD_URL"))
+
+        db, err := database.InitPostgre()
+        if err != nil </span><span class="cov0" title="0">{
+                log.Fatalf("Failed to connect to PostgreSQL: %v", err)
+        }</span>
+
+        <span class="cov0" title="0">if db != nil </span><span class="cov0" title="0">{
+                log.Println("✅ PostgreSQL connected successfully")
+        }</span> else<span class="cov0" title="0"> {
+                log.Println("❌ PostgreSQL connection failed")
+        }</span>
+
+        // Set the PostgreSQL client in the fileHandler package
+        <span class="cov0" title="0">fileHandler.SetPostgreClient(db)
+        metadata.SetPostgreClient(db)
+        //log.Println("✅ PostgreSQL client set in fileHandler and metadata")
+
+        //initialize ownCloud client
+        owncloud.InitOwnCloud(os.Getenv("OWNCLOUD_URL"), os.Getenv("OWNCLOUD_USERNAME"), os.Getenv("OWNCLOUD_PASSWORD"))
+
+        http.HandleFunc("/startUpload", fileHandler.StartUploadHandler)
+        http.HandleFunc("/upload", fileHandler.UploadHandler)
+        http.HandleFunc("/download", fileHandler.DownloadHandler)
+        
+        // access log endpoints
+        http.HandleFunc("/addAccesslog", fileHandler.AddAccesslogHandler)
+        http.HandleFunc("/getAccesslog", fileHandler.GetAccesslogHandler)
+        // notification endpoints
+        http.HandleFunc("/notifications", fileHandler.NotificationHandler)
+        http.HandleFunc("/notifications/markAsRead", fileHandler.MarkAsReadHandler)
+        http.HandleFunc("/notifications/respond", fileHandler.RespondToShareRequestHandler)
+        http.HandleFunc("/notifications/clear", fileHandler.ClearNotificationHandler)
+        http.HandleFunc("/notifications/add", fileHandler.AddNotificationHandler)
+        // metadata endpoints
+        http.HandleFunc("/metadata", metadata.GetUserFilesHandler)
+        http.HandleFunc("/addDescription", metadata.AddDescriptionHandler)
+        http.HandleFunc("/getFileMetadata", metadata.ListFileMetadataHandler)
+        http.HandleFunc("/getNumberOfFiles", metadata.GetUserFileCountHandler)
+        http.HandleFunc("/addPendingFiles", metadata.AddReceivedFileHandler)
+        http.HandleFunc("/getPendingFiles", metadata.GetPendingFilesHandler)
+        http.HandleFunc("/deleteFile", fileHandler.DeleteFileHandler)
+        http.HandleFunc("/sendFile", fileHandler.SendFileHandler)
+        http.HandleFunc("/addTags", metadata.AddTagsHandler)
+        http.HandleFunc("/addUser", metadata.AddUserHandler)
+        http.HandleFunc("/removeTags", metadata.RemoveTagsFromFileHandler)
+        http.HandleFunc("/downloadSentFile", fileHandler.DownloadSentFile)
+
+        // view files endpoints newly added
+        http.HandleFunc("/sendByView", fileHandler.SendByViewHandler)
+        http.HandleFunc("/revokeViewAccess", fileHandler.RevokeViewAccessHandler)
+        http.HandleFunc("/getSharedViewFiles", fileHandler.GetSharedViewFilesHandler)
+        http.HandleFunc("/getViewFileAccessLogs", fileHandler.GetViewFileAccessLogs)
+        http.HandleFunc("/downloadViewFile", fileHandler.DownloadViewFileHandler)
+
+        //test from here
+        http.HandleFunc("/addSentFiles", metadata.AddSentFileHandler)
+        http.HandleFunc("/getSentFiles", metadata.GetSentFilesHandler)
+
+        // Folder handling
+        http.HandleFunc("/createFolder", fileHandler.CreateFolderHandler)
+        http.HandleFunc("/updateFilePath", metadata.UpdateFilePathHandler)
+
+        log.Fatal(http.ListenAndServe(":8081", nil))</span>
+}
+</pre>
+		
+		<pre class="file" id="file14" style="display: none">package metadata
+
+import (
         "database/sql"
+        "encoding/json"
+        "fmt"
+        "log"
+        "net/http"
+        "time"
+
         "github.com/lib/pq"
 )
 
 var DB *sql.DB
 
 // SetPostgreClient sets the PostgreSQL client in the metadata package
-func SetPostgreClient(db *sql.DB) <span class="cov8" title="1">{
+func SetPostgreClient(db *sql.DB) <span class="cov10" title="47">{
         // This function is used to set the PostgreSQL client in the metadata package
         DB = db
 }</span>
@@ -748,87 +2114,104 @@ type MetadataQueryRequest struct {
         UserID string `json:"userId"`
 }
 
-func GetUserFilesHandler(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+func GetUserFilesHandler(w http.ResponseWriter, r *http.Request) <span class="cov5" title="6">{
+        w.Header().Set("Access-Control-Allow-Origin", "*")
+        w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+        log.Println("Inside User files handler")
         var req MetadataQueryRequest
         err := json.NewDecoder(r.Body).Decode(&amp;req)
-        if err != nil </span><span class="cov8" title="1">{
+        if err != nil </span><span class="cov1" title="1">{
                 http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
                 return
         }</span>
-        <span class="cov8" title="1">userID := req.UserID
-        if userID == "" </span><span class="cov8" title="1">{
+        <span class="cov4" title="5">userID := req.UserID
+        if userID == "" </span><span class="cov1" title="1">{
                 http.Error(w, "Missing userId parameter", http.StatusBadRequest)
                 return
         }</span>
 
-        <span class="cov8" title="1">rows, err := DB.Query(`
-                SELECT id, file_name, file_type, file_size, description, tags, created_at
+        <span class="cov4" title="4">log.Println("🟡 Querying database for user files")
+        rows, err := DB.Query(`
+                SELECT id, file_name, file_type, file_size, description, tags, created_at, cid
                 FROM files
                 WHERE owner_id = $1
         `, userID)
-        if err != nil </span><span class="cov8" title="1">{
+        if err != nil </span><span class="cov1" title="1">{
                 log.Println("PostgreSQL select error:", err)
                 http.Error(w, "Failed to fetch metadata", http.StatusInternalServerError)
                 return
         }</span>
-        <span class="cov8" title="1">defer rows.Close()
+        <span class="cov3" title="3">log.Println("🟢 Query complete")
+        defer rows.Close()
 
         var files []map[string]interface{}
+        count := 0
 
-        for rows.Next() </span><span class="cov8" title="1">{
-                var file map[string]interface{} = make(map[string]interface{})
+        for rows.Next() </span><span class="cov3" title="3">{
                 var (
                         id, fileName, fileType, description, tags string
-                        fileSize                              int64
-                        createdAt                             time.Time
+                        fileSize                                  int64
+                        createdAt                                 time.Time
+                        cid                                       string
                 )
-                err := rows.Scan(&amp;id, &amp;fileName, &amp;fileType, &amp;fileSize, &amp;description, &amp;tags, &amp;createdAt)
-                if err != nil </span><span class="cov0" title="0">{
+                err := rows.Scan(&amp;id, &amp;fileName, &amp;fileType, &amp;fileSize, &amp;description, &amp;tags, &amp;createdAt, &amp;cid)
+                if err != nil </span><span class="cov1" title="1">{
                         log.Println("Row scan error:", err)
                         continue</span>
                 }
-                <span class="cov8" title="1">file["fileId"] = id
-                file["fileName"] = fileName
-                file["fileType"] = fileType
-                file["fileSize"] = fileSize
-                file["description"] = description
-                file["tags"] = tags
-                file["createdAt"] = createdAt
 
-                files = append(files, file)</span>
+                <span class="cov2" title="2">files = append(files, map[string]interface{}{
+                        "fileId":      id,
+                        "fileName":    fileName,
+                        "fileType":    fileType,
+                        "fileSize":    fileSize,
+                        "description": description,
+                        "tags":        tags,
+                        "createdAt":   createdAt,
+                        "cid":         cid,
+                })
+                count++</span>
         }
 
-        <span class="cov8" title="1">w.Header().Set("Content-Type", "application/json")
+        <span class="cov3" title="3">if err = rows.Err(); err != nil </span><span class="cov1" title="1">{
+                log.Println("Rows iteration error:", err)
+                http.Error(w, "Failed to fetch metadata", http.StatusInternalServerError)
+                return
+        }</span>
+
+        <span class="cov2" title="2">log.Printf("Returning %d files for user %s\n", count, userID)
+
+        w.Header().Set("Content-Type", "application/json")
         json.NewEncoder(w).Encode(files)</span>
 }
 
-func ListFileMetadataHandler(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+func ListFileMetadataHandler(w http.ResponseWriter, r *http.Request) <span class="cov3" title="3">{
         type MetadataRequest struct {
                 UserID string `json:"userId"`
         }
 
         var req MetadataRequest
-        if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov8" title="1">{
+        if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov1" title="1">{
                 http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
                 return
         }</span>
 
-        <span class="cov8" title="1">if req.UserID == "" </span><span class="cov8" title="1">{
+        <span class="cov2" title="2">if req.UserID == "" </span><span class="cov1" title="1">{
                 http.Error(w, "Missing userId", http.StatusBadRequest)
                 return
         }</span>
 
-        <span class="cov8" title="1">rows, err := DB.Query(`
+        <span class="cov1" title="1">rows, err := DB.Query(`
                 SELECT id, file_name, file_type, file_size, description, tags, created_at
                 FROM files
                 WHERE owner_id = $1
         `, req.UserID)
-        if err != nil </span><span class="cov8" title="1">{
+        if err != nil </span><span class="cov0" title="0">{
                 log.Println("PostgreSQL query error:", err)
                 http.Error(w, "Failed to fetch metadata", http.StatusInternalServerError)
                 return
         }</span>
-        <span class="cov8" title="1">defer rows.Close()
+        <span class="cov1" title="1">defer rows.Close()
 
         type FileMetadata struct {
                 FileID      string    `json:"fileId"`
@@ -842,7 +2225,7 @@ func ListFileMetadataHandler(w http.ResponseWriter, r *http.Request) <span class
 
         var files []FileMetadata
 
-        for rows.Next() </span><span class="cov8" title="1">{
+        for rows.Next() </span><span class="cov1" title="1">{
                 var file FileMetadata
                 if err := rows.Scan(
                         &amp;file.FileID,
@@ -852,45 +2235,44 @@ func ListFileMetadataHandler(w http.ResponseWriter, r *http.Request) <span class
                         &amp;file.Description,
                         pq.Array(&amp;file.Tags),
                         &amp;file.CreatedAt,
-                ); err != nil </span><span class="cov8" title="1">{
+                ); err != nil </span><span class="cov0" title="0">{
                         log.Println("Row scan error:", err)
                         continue</span>
                 }
-                <span class="cov8" title="1">files = append(files, file)</span>
+                <span class="cov1" title="1">files = append(files, file)</span>
         }
 
-        <span class="cov8" title="1">if err = rows.Err(); err != nil </span><span class="cov0" title="0">{
+        <span class="cov1" title="1">if err = rows.Err(); err != nil </span><span class="cov0" title="0">{
                 log.Println("Row iteration error:", err)
                 http.Error(w, "Error reading file data", http.StatusInternalServerError)
                 return
         }</span>
 
-        <span class="cov8" title="1">w.Header().Set("Content-Type", "application/json")
+        <span class="cov1" title="1">w.Header().Set("Content-Type", "application/json")
         json.NewEncoder(w).Encode(files)</span>
 }
 
-
-func GetUserFileCountHandler(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+func GetUserFileCountHandler(w http.ResponseWriter, r *http.Request) <span class="cov4" title="4">{
         var req MetadataQueryRequest
-        if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov8" title="1">{
+        if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov1" title="1">{
                 http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
                 return
         }</span>
 
-        <span class="cov8" title="1">if req.UserID == "" </span><span class="cov8" title="1">{
+        <span class="cov3" title="3">if req.UserID == "" </span><span class="cov1" title="1">{
                 http.Error(w, "Missing userId", http.StatusBadRequest)
                 return
         }</span>
 
-        <span class="cov8" title="1">var count int
-        err := DB.QueryRow(`SELECT COUNT(*) FROM files WHERE owner_id = $1`, req.UserID).Scan(&amp;count)
-        if err != nil </span><span class="cov8" title="1">{
+        <span class="cov2" title="2">var count int
+        err := DB.QueryRow(`SELECT COUNT(*) FROM files WHERE owner_id = $1 AND file_type != 'folder'`, req.UserID).Scan(&amp;count)
+        if err != nil </span><span class="cov1" title="1">{
                 log.Println("PostgreSQL user count error:", err)
                 http.Error(w, "Failed to retrieve file count", http.StatusInternalServerError)
                 return
         }</span>
 
-        <span class="cov8" title="1">json.NewEncoder(w).Encode(map[string]int{
+        <span class="cov1" title="1">json.NewEncoder(w).Encode(map[string]int{
                 "userFileCount": count,
         })</span>
 }
@@ -905,27 +2287,26 @@ type AddReceivedFileRequest struct {
         Metadata            map[string]interface{} `json:"metadata"` // optional
 }
 
-
-func AddReceivedFileHandler(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+func AddReceivedFileHandler(w http.ResponseWriter, r *http.Request) <span class="cov4" title="4">{
         var req AddReceivedFileRequest
-        if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov8" title="1">{
+        if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov1" title="1">{
                 http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
                 return
         }</span>
 
-        <span class="cov8" title="1">if req.SenderID == "" || req.RecipientID == "" || req.FileID == "" </span><span class="cov8" title="1">{
+        <span class="cov3" title="3">if req.SenderID == "" || req.RecipientID == "" || req.FileID == "" </span><span class="cov1" title="1">{
                 http.Error(w, "Missing required fields", http.StatusBadRequest)
                 return
         }</span>
 
-        <span class="cov8" title="1">metadataJSON, err := json.Marshal(req.Metadata)
+        <span class="cov2" title="2">metadataJSON, err := json.Marshal(req.Metadata)
         if err != nil </span><span class="cov0" title="0">{
                 http.Error(w, "Failed to encode metadata", http.StatusInternalServerError)
                 return
         }</span>
 
         // Insert into received_files
-        <span class="cov8" title="1">_, err = DB.Exec(`
+        <span class="cov2" title="2">_, err = DB.Exec(`
                 INSERT INTO received_files (
                         sender_id, recipient_id, file_id, received_at, expires_at, metadata
                 ) VALUES ($1, $2, $3, NOW(), NOW() + INTERVAL '7 days', $4)
@@ -936,50 +2317,50 @@ func AddReceivedFileHandler(w http.ResponseWriter, r *http.Request) <span class=
                 metadataJSON,
         )
 
-        if err != nil </span><span class="cov8" title="1">{
+        if err != nil </span><span class="cov1" title="1">{
                 log.Println("PostgreSQL insert received_files error:", err)
                 http.Error(w, "Failed to insert received file record", http.StatusInternalServerError)
                 return
         }</span>
 
-        <span class="cov8" title="1">w.WriteHeader(http.StatusCreated)
+        <span class="cov1" title="1">w.WriteHeader(http.StatusCreated)
         json.NewEncoder(w).Encode(map[string]string{
                 "message": "File shared with recipient",
         })</span>
 }
 
-func GetPendingFilesHandler(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+func GetPendingFilesHandler(w http.ResponseWriter, r *http.Request) <span class="cov4" title="5">{
         var req MetadataQueryRequest
-        if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov8" title="1">{
+        if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov1" title="1">{
                 log.Println("JSON decode error:", err)
                 http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
                 return
         }</span>
 
-        <span class="cov8" title="1">if req.UserID == "" </span><span class="cov8" title="1">{
+        <span class="cov4" title="4">if req.UserID == "" </span><span class="cov1" title="1">{
                 http.Error(w, "Missing userId", http.StatusBadRequest)
                 return
         }</span>
 
-        <span class="cov8" title="1">rows, err := DB.Query(`
+        <span class="cov3" title="3">rows, err := DB.Query(`
                 SELECT id, sender_id, file_id, received_at, expires_at, metadata
                 FROM received_files
                 WHERE recipient_id = $1 AND expires_at &gt; NOW() AND accepted = FALSE
         `, req.UserID)
-        if err != nil </span><span class="cov8" title="1">{
+        if err != nil </span><span class="cov1" title="1">{
                 log.Println("PostgreSQL select pending files error:", err)
                 http.Error(w, "Failed to fetch pending files", http.StatusInternalServerError)
                 return
         }</span>
-        <span class="cov8" title="1">defer rows.Close()
+        <span class="cov2" title="2">defer rows.Close()
 
         var pendingFiles []map[string]interface{}
 
-        for rows.Next() </span><span class="cov8" title="1">{
+        for rows.Next() </span><span class="cov2" title="2">{
                 var (
-                        id, senderID, fileID string
+                        id, senderID, fileID  string
                         receivedAt, expiresAt time.Time
-                        metadataJSON string
+                        metadataJSON          string
                 )
 
                 if err := rows.Scan(&amp;id, &amp;senderID, &amp;fileID, &amp;receivedAt, &amp;expiresAt, &amp;metadataJSON); err != nil </span><span class="cov0" title="0">{
@@ -988,13 +2369,13 @@ func GetPendingFilesHandler(w http.ResponseWriter, r *http.Request) <span class=
                 }
 
                 // Parse metadata JSON string into map
-                <span class="cov8" title="1">var metadata map[string]interface{}
-                if err := json.Unmarshal([]byte(metadataJSON), &amp;metadata); err != nil </span><span class="cov0" title="0">{
+                <span class="cov2" title="2">var metadata map[string]interface{}
+                if err := json.Unmarshal([]byte(metadataJSON), &amp;metadata); err != nil </span><span class="cov1" title="1">{
                         log.Println("Failed to parse metadata:", err)
                         metadata = map[string]interface{}{} // fallback
                 }</span>
 
-                <span class="cov8" title="1">pendingFiles = append(pendingFiles, map[string]interface{}{
+                <span class="cov2" title="2">pendingFiles = append(pendingFiles, map[string]interface{}{
                         "id":         id,
                         "senderId":   senderID,
                         "fileId":     fileID,
@@ -1004,14 +2385,13 @@ func GetPendingFilesHandler(w http.ResponseWriter, r *http.Request) <span class=
                 })</span>
         }
 
-        <span class="cov8" title="1">w.Header().Set("Content-Type", "application/json")
+        <span class="cov2" title="2">w.Header().Set("Content-Type", "application/json")
         json.NewEncoder(w).Encode(map[string]interface{}{
                 "data": pendingFiles,
         })</span>
 }
 
-
-func AddSentFileHandler(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+func AddSentFileHandler(w http.ResponseWriter, r *http.Request) <span class="cov4" title="4">{
         type SentFileRequest struct {
                 SenderID    string `json:"senderId"`
                 RecipientID string `json:"recipientId"`
@@ -1019,60 +2399,60 @@ func AddSentFileHandler(w http.ResponseWriter, r *http.Request) <span class="cov
         }
 
         var req SentFileRequest
-        if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov8" title="1">{
+        if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov1" title="1">{
                 http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
                 return
         }</span>
 
-        <span class="cov8" title="1">if req.SenderID == "" || req.RecipientID == "" || req.FileID == "" </span><span class="cov8" title="1">{
+        <span class="cov3" title="3">if req.SenderID == "" || req.RecipientID == "" || req.FileID == "" </span><span class="cov1" title="1">{
                 http.Error(w, "Missing required fields", http.StatusBadRequest)
                 return
         }</span>
 
-        <span class="cov8" title="1">_, err := DB.Exec(`
+        <span class="cov2" title="2">_, err := DB.Exec(`
                 INSERT INTO sent_files (sender_id, recipient_id, file_id, sent_at)
                 VALUES ($1, $2, $3, NOW())
         `, req.SenderID, req.RecipientID, req.FileID)
 
-        if err != nil </span><span class="cov8" title="1">{
+        if err != nil </span><span class="cov1" title="1">{
                 log.Println("PostgreSQL insert sent_files error:", err)
                 http.Error(w, "Failed to insert sent file record", http.StatusInternalServerError)
                 return
         }</span>
 
-        <span class="cov8" title="1">w.WriteHeader(http.StatusCreated)
+        <span class="cov1" title="1">w.WriteHeader(http.StatusCreated)
         json.NewEncoder(w).Encode(map[string]string{
                 "message": "File sent successfully",
         })</span>
 }
 
-func GetSentFilesHandler(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+func GetSentFilesHandler(w http.ResponseWriter, r *http.Request) <span class="cov4" title="4">{
         var req MetadataQueryRequest
-        if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov8" title="1">{
+        if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov1" title="1">{
                 http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
                 return
         }</span>
 
-        <span class="cov8" title="1">if req.UserID == "" </span><span class="cov8" title="1">{
+        <span class="cov3" title="3">if req.UserID == "" </span><span class="cov1" title="1">{
                 http.Error(w, "Missing userId", http.StatusBadRequest)
                 return
         }</span>
 
-        <span class="cov8" title="1">rows, err := DB.Query(`
+        <span class="cov2" title="2">rows, err := DB.Query(`
                 SELECT id, recipient_id, file_id, sent_at
                 FROM sent_files
                 WHERE sender_id = $1
         `, req.UserID)
-        if err != nil </span><span class="cov8" title="1">{
+        if err != nil </span><span class="cov1" title="1">{
                 log.Println("PostgreSQL select sent_files error:", err)
                 http.Error(w, "Failed to fetch sent files", http.StatusInternalServerError)
                 return
         }</span>
-        <span class="cov8" title="1">defer rows.Close()
+        <span class="cov1" title="1">defer rows.Close()
 
         var sentFiles []map[string]interface{}
 
-        for rows.Next() </span><span class="cov8" title="1">{
+        for rows.Next() </span><span class="cov1" title="1">{
                 var (
                         id, recipientID, fileID string
                         sentAt                  time.Time
@@ -1084,76 +2464,76 @@ func GetSentFilesHandler(w http.ResponseWriter, r *http.Request) <span class="co
                         continue</span>
                 }
 
-                <span class="cov8" title="1">sentFile := map[string]interface{}{
-                        "id":        id,
-                        "recipientId":          recipientID,
-                        "fileId":               fileID,
-                        "sentAt":               sentAt,
+                <span class="cov1" title="1">sentFile := map[string]interface{}{
+                        "id":          id,
+                        "recipientId": recipientID,
+                        "fileId":      fileID,
+                        "sentAt":      sentAt,
                 }
 
                 sentFiles = append(sentFiles, sentFile)</span>
         }
 
-        <span class="cov8" title="1">w.Header().Set("Content-Type", "application/json")
+        <span class="cov1" title="1">w.Header().Set("Content-Type", "application/json")
         json.NewEncoder(w).Encode(sentFiles)</span>
 }
 
-var DeleteFileMetadata = func(fileID string) error <span class="cov8" title="1">{
+var DeleteFileMetadata = func(fileID string) error <span class="cov5" title="6">{
         tx, err := DB.Begin()
-        if err != nil </span><span class="cov8" title="1">{
+        if err != nil </span><span class="cov1" title="1">{
                 log.Println("Failed to begin transaction:", err)
                 return err
         }</span>
-        <span class="cov8" title="1">defer tx.Rollback() // safe rollback on error
+        <span class="cov4" title="5">defer tx.Rollback() // safe rollback on error
 
         // Delete from received_files (optional, might cascade)
         _, err = tx.Exec(`DELETE FROM received_files WHERE file_id = $1`, fileID)
-        if err != nil </span><span class="cov8" title="1">{
+        if err != nil </span><span class="cov1" title="1">{
                 log.Println("Error deleting from received_files:", err)
                 return err
         }</span>
 
         // Delete from sent_files (optional, might cascade)
-        <span class="cov8" title="1">_, err = tx.Exec(`DELETE FROM sent_files WHERE file_id = $1`, fileID)
-        if err != nil </span><span class="cov8" title="1">{
+        <span class="cov4" title="4">_, err = tx.Exec(`DELETE FROM sent_files WHERE file_id = $1`, fileID)
+        if err != nil </span><span class="cov1" title="1">{
                 log.Println("Error deleting from sent_files:", err)
                 return err
         }</span>
 
         // Delete from files table
-        <span class="cov8" title="1">_, err = tx.Exec(`DELETE FROM files WHERE id = $1`, fileID)
-        if err != nil </span><span class="cov8" title="1">{
+        <span class="cov3" title="3">_, err = tx.Exec(`DELETE FROM files WHERE id = $1`, fileID)
+        if err != nil </span><span class="cov1" title="1">{
                 log.Println("Error deleting from files:", err)
                 return err
         }</span>
 
-        <span class="cov8" title="1">if err := tx.Commit(); err != nil </span><span class="cov8" title="1">{
+        <span class="cov2" title="2">if err := tx.Commit(); err != nil </span><span class="cov1" title="1">{
                 log.Println("Transaction commit failed:", err)
                 return err
         }</span>
 
-        <span class="cov8" title="1">log.Println("✅ File metadata deleted successfully for file ID:", fileID)
+        <span class="cov1" title="1">log.Println("✅ File metadata deleted successfully for file ID:", fileID)
         return nil</span>
 }
 
-func RemoveTagsFromFileHandler(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+func RemoveTagsFromFileHandler(w http.ResponseWriter, r *http.Request) <span class="cov2" title="2">{
         type TagRemoveRequest struct {
                 FileID string   `json:"fileId"`
                 Tags   []string `json:"tags"`
         }
 
         var req TagRemoveRequest
-        if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov8" title="1">{
+        if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov0" title="0">{
                 http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
                 return
         }</span>
 
-        <span class="cov8" title="1">if req.FileID == "" || len(req.Tags) == 0 </span><span class="cov8" title="1">{
+        <span class="cov2" title="2">if req.FileID == "" || len(req.Tags) == 0 </span><span class="cov0" title="0">{
                 http.Error(w, "Missing fileId or tags", http.StatusBadRequest)
                 return
         }</span>
 
-        <span class="cov8" title="1">_, err := DB.Exec(`
+        <span class="cov2" title="2">_, err := DB.Exec(`
                 UPDATE files
                 SET tags = ARRAY(
                         SELECT UNNEST(tags)
@@ -1162,27 +2542,27 @@ func RemoveTagsFromFileHandler(w http.ResponseWriter, r *http.Request) <span cla
                 WHERE id = $2
         `, pq.Array(req.Tags), req.FileID)
 
-        if err != nil </span><span class="cov8" title="1">{
+        if err != nil </span><span class="cov1" title="1">{
                 log.Println("PostgreSQL remove tags error:", err)
                 http.Error(w, "Failed to remove tags", http.StatusInternalServerError)
                 return
         }</span>
 
-        <span class="cov8" title="1">json.NewEncoder(w).Encode(map[string]string{
+        <span class="cov1" title="1">json.NewEncoder(w).Encode(map[string]string{
                 "message": "Tags removed successfully",
         })</span>
 }
 
-func GetRecipientIDFromOPK(opkID string) (string, error) <span class="cov8" title="1">{
+func GetRecipientIDFromOPK(opkID string) (string, error) <span class="cov2" title="2">{
         var userID string
         err := DB.QueryRow(`SELECT user_id FROM one_time_pre_keys WHERE id = $1`, opkID).Scan(&amp;userID)
-        if err != nil </span><span class="cov8" title="1">{
+        if err != nil </span><span class="cov1" title="1">{
                 return "", err
         }</span>
-        <span class="cov8" title="1">return userID, nil</span>
+        <span class="cov1" title="1">return userID, nil</span>
 }
 
-var InsertReceivedFile = func(db *sql.DB, recipientId, senderId, fileId, metadataJson string, expiresAt time.Time) error <span class="cov8" title="1">{
+var InsertReceivedFile = func(db *sql.DB, recipientId, senderId, fileId, metadataJson string, expiresAt time.Time) (string, error) <span class="cov0" title="0">{
         // Step 1: Ensure the recipient exists
         var exists bool
         err := db.QueryRow(`
@@ -1191,172 +2571,349 @@ var InsertReceivedFile = func(db *sql.DB, recipientId, senderId, fileId, metadat
                 )
         `, recipientId).Scan(&amp;exists)
 
-        if err != nil </span><span class="cov8" title="1">{
-                return fmt.Errorf("failed to check recipient existence: %w", err)
+        if err != nil </span><span class="cov0" title="0">{
+                fmt.Println("Failed to check recipient existence")
+                return "", fmt.Errorf("failed to check recipient existence: %w", err)
         }</span>
 
-        <span class="cov8" title="1">if !exists </span><span class="cov8" title="1">{
-                return fmt.Errorf("recipient user with id %s does not exist", recipientId)
+        <span class="cov0" title="0">if !exists </span><span class="cov0" title="0">{
+                fmt.Println("Recipient does not exist")
+                return "", fmt.Errorf("recipient user with id %s does not exist", recipientId)
         }</span>
 
-        // Step 2: Insert the received file
-        <span class="cov8" title="1">_, err = db.Exec(`
+        // Step 2: Insert the received file and return its ID
+        <span class="cov0" title="0">var receivedFileID string
+        err = db.QueryRow(`
                 INSERT INTO received_files (
                         recipient_id, sender_id, file_id, received_at, expires_at, metadata
                 ) VALUES ($1, $2, $3, NOW(), $4, $5)
-        `, recipientId, senderId, fileId, expiresAt, metadataJson)
+                RETURNING id
+        `, recipientId, senderId, fileId, expiresAt, metadataJson).Scan(&amp;receivedFileID)
 
-        if err != nil </span><span class="cov8" title="1">{
-                return fmt.Errorf("failed to insert received file: %w", err)
+        if err != nil </span><span class="cov0" title="0">{
+                fmt.Println("Failed to insert received file into the received_files table")
+                return "", fmt.Errorf("failed to insert received file: %w", err)
         }</span>
 
-        <span class="cov8" title="1">return nil</span>
+        <span class="cov0" title="0">return receivedFileID, nil</span>
 }
 
+var InsertSentFile = func(db *sql.DB, senderId, recipientId, fileId, metadataJson string) error <span class="cov0" title="0">{
+        var metadata map[string]interface{}
+        if err := json.Unmarshal([]byte(metadataJson), &amp;metadata); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to parse metadata JSON: %w", err)
+        }</span>
 
-var InsertSentFile = func(db *sql.DB, senderId, recipientId, fileId, encryptedFileKey, x3dhEphemeralPubKey string) error <span class="cov8" title="1">{
-        _, err := db.Exec(`
+        <span class="cov0" title="0">encryptedAESKey, ok1 := metadata["encryptedAesKey"].(string)
+        ekPublicKey, ok2 := metadata["ekPublicKey"].(string)
+
+        if !ok1 || !ok2 </span><span class="cov0" title="0">{
+                return fmt.Errorf("missing encryptedAesKey or ekPublicKey in metadata")
+        }</span>
+
+        <span class="cov0" title="0">_, err := db.Exec(`
                 INSERT INTO sent_files (
                         sender_id, recipient_id, file_id, encrypted_file_key, x3dh_ephemeral_pubkey, sent_at
                 ) VALUES ($1, $2, $3, $4, $5, NOW())
-        `, senderId, recipientId, fileId, encryptedFileKey, x3dhEphemeralPubKey)
-        return err
-}</span>
+        `, senderId, recipientId, fileId, encryptedAESKey, ekPublicKey)
+
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to insert into sent_files: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">return nil</span>
+}
 
 type AddTagsRequest struct {
         FileID string   `json:"fileId"`
         Tags   []string `json:"tags"`
 }
 
-func AddTagsHandler(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+func AddTagsHandler(w http.ResponseWriter, r *http.Request) <span class="cov4" title="4">{
         var req AddTagsRequest
-        if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov8" title="1">{
+        if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov1" title="1">{
                 log.Println("Failed to parse JSON:", err)
                 http.Error(w, "Invalid request payload", http.StatusBadRequest)
                 return
         }</span>
 
-        <span class="cov8" title="1">if req.FileID == "" || len(req.Tags) == 0 </span><span class="cov8" title="1">{
+        <span class="cov3" title="3">if req.FileID == "" || len(req.Tags) == 0 </span><span class="cov1" title="1">{
                 http.Error(w, "Missing fileId or tags", http.StatusBadRequest)
                 return
         }</span>
 
-        <span class="cov8" title="1">_, err := DB.Exec(`
+        <span class="cov2" title="2">_, err := DB.Exec(`
                 UPDATE files
                 SET tags = array_cat(COALESCE(tags, '{}'), $1::text[])
                 WHERE id = $2
         `, pq.Array(req.Tags), req.FileID)
-        if err != nil </span><span class="cov8" title="1">{
+        if err != nil </span><span class="cov1" title="1">{
                 log.Println("Failed to update tags:", err)
                 http.Error(w, "Internal server error", http.StatusInternalServerError)
                 return
         }</span>
 
-        <span class="cov8" title="1">w.Header().Set("Content-Type", "application/json")
+        <span class="cov1" title="1">w.Header().Set("Content-Type", "application/json")
         json.NewEncoder(w).Encode(map[string]string{
                 "message": "Tags added successfully",
         })</span>
 }
 
-func AddUserHandler(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+func AddUserHandler(w http.ResponseWriter, r *http.Request) <span class="cov2" title="2">{
         var req MetadataQueryRequest
-        if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov8" title="1">{
+        if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov0" title="0">{
                 log.Println("Failed to parse JSON:", err)
                 http.Error(w, "Invalid request payload", http.StatusBadRequest)
                 return
         }</span>
 
-        <span class="cov8" title="1">if req.UserID == "" </span><span class="cov8" title="1">{
+        <span class="cov2" title="2">if req.UserID == "" </span><span class="cov0" title="0">{
                 http.Error(w, "Missing userId", http.StatusBadRequest)
                 return
         }</span>
 
-        <span class="cov8" title="1">_, err := DB.Exec(`
+        <span class="cov2" title="2">_, err := DB.Exec(`
                 INSERT INTO users (id)
                 VALUES ($1)
                 ON CONFLICT (id) DO NOTHING
         `, req.UserID)
-        if err != nil </span><span class="cov8" title="1">{
+        if err != nil </span><span class="cov1" title="1">{
                 log.Println("Failed to insert user:", err)
                 http.Error(w, "Failed to add user", http.StatusInternalServerError)
                 return
         }</span>
 
-        <span class="cov8" title="1">w.Header().Set("Content-Type", "application/json")
+        <span class="cov1" title="1">w.Header().Set("Content-Type", "application/json")
         json.NewEncoder(w).Encode(map[string]string{
                 "message": "User added successfully",
         })</span>
-}</pre>
+}
+
+func AddDescriptionHandler(w http.ResponseWriter, r *http.Request) <span class="cov2" title="2">{
+        type DescriptionRequest struct {
+                FileID      string `json:"fileId"`
+                Description string `json:"description"`
+        }
+
+        var req DescriptionRequest
+        if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov0" title="0">{
+                log.Println("Failed to parse JSON:", err)
+                http.Error(w, "Invalid request payload", http.StatusBadRequest)
+                return
+        }</span>
+
+        <span class="cov2" title="2">if req.FileID == "" || req.Description == "" </span><span class="cov0" title="0">{
+                http.Error(w, "Missing fileId or description", http.StatusBadRequest)
+                return
+        }</span>
+
+        <span class="cov2" title="2">_, err := DB.Exec(`
+                UPDATE files
+                SET description = $1
+                WHERE id = $2
+        `, req.Description, req.FileID)
+        if err != nil </span><span class="cov1" title="1">{
+                log.Println("Failed to update description:", err)
+                http.Error(w, "Internal server error", http.StatusInternalServerError)
+                return
+        }</span>
+
+        <span class="cov1" title="1">w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(map[string]string{
+                "message": "Description updated successfully",
+        })</span>
+}
+
+func UpdateFilePathHandler(w http.ResponseWriter, r *http.Request) <span class="cov2" title="2">{
+        type UpdatePathRequest struct {
+                FileID  string `json:"fileId"`
+                NewPath string `json:"newPath"`
+        }
+
+        var req UpdatePathRequest
+        if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov0" title="0">{
+                log.Println("Failed to parse JSON:", err)
+                http.Error(w, "Invalid request payload", http.StatusBadRequest)
+                return
+        }</span>
+
+        <span class="cov2" title="2">if req.FileID == "" || req.NewPath == "" </span><span class="cov0" title="0">{
+                http.Error(w, "Missing fileId or newPath", http.StatusBadRequest)
+                return
+        }</span>
+
+        <span class="cov2" title="2">_, err := DB.Exec(`
+                UPDATE files
+                SET cid = $1
+                WHERE id = $2
+        `, req.NewPath, req.FileID)
+        if err != nil </span><span class="cov1" title="1">{
+                log.Println("Failed to update file path:", err)
+                http.Error(w, "Internal server error", http.StatusInternalServerError)
+                return
+        }</span>
+
+        <span class="cov1" title="1">w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(map[string]string{
+                "message": "File path updated successfully",
+        })</span>
+}
+</pre>
 		
-		<pre class="file" id="file11" style="display: none">package owncloud
+		<pre class="file" id="file15" style="display: none">package owncloud
 
 import (
-        "github.com/studio-b12/gowebdav"
         "fmt"
         "log"
         "os"
+        "io"
+        "strings"
+        "github.com/studio-b12/gowebdav"
 )
 
 type WebDavClient interface {
-    MkdirAll(path string, perm os.FileMode) error
-    Write(name string, data []byte, perm os.FileMode) error
-    Read(name string) ([]byte, error)
+        MkdirAll(path string, perm os.FileMode) error
+        Write(name string, data []byte, perm os.FileMode) error
+        WriteStream(name string, src io.Reader, perm os.FileMode) error
+        Read(name string) ([]byte, error)
+        ReadStream(name string) (io.ReadCloser, error)
         Remove(path string) error
 }
 
 var client WebDavClient
 
-func SetClient(c WebDavClient) <span class="cov0" title="0">{
-    client = c
+func SetClient(c WebDavClient) <span class="cov10" title="68">{
+        client = c
+}</span>
+
+type OwnCloudClient struct {
+        *gowebdav.Client
+}
+
+func (c *OwnCloudClient) MkdirAll(path string, perm os.FileMode) error <span class="cov0" title="0">{
+        return c.Client.MkdirAll(path, perm)
+}</span>
+func (c *OwnCloudClient) Write(name string, data []byte, perm os.FileMode) error <span class="cov0" title="0">{
+        return c.Client.Write(name, data, perm)
+}</span>
+func (c *OwnCloudClient) WriteStream(name string, src io.Reader, perm os.FileMode) error <span class="cov0" title="0">{
+        return c.Client.WriteStream(name, src, perm)
+}</span>
+func (c *OwnCloudClient) Read(name string) ([]byte, error) <span class="cov0" title="0">{
+        return c.Client.Read(name)
+}</span>
+func (c *OwnCloudClient) ReadStream(name string) (io.ReadCloser, error) <span class="cov0" title="0">{
+        return c.Client.ReadStream(name)
+}</span>
+func (c *OwnCloudClient) Remove(path string) error <span class="cov0" title="0">{
+        return c.Client.Remove(path)
 }</span>
 
 func InitOwnCloud(url, username, password string) <span class="cov0" title="0">{
-    c := gowebdav.NewClient(url, username, password)
-    client = c
-    log.Println("✅ OwnCloud connected")
+        c := &amp;OwnCloudClient{
+                Client: gowebdav.NewClient(url, username, password),
+        }
+        client = c
+        log.Println("✅ OwnCloud connected")
 }</span>
 
-var UploadFile = func(path, filename string, data []byte) error <span class="cov0" title="0">{
-        fullPath := path + "/" + filename
-        log.Println("Uploading to WebDAV path:", fullPath)
+var UploadFileStream = func(path, filename string, reader io.Reader) error <span class="cov3" title="4">{
+    // Trim any leading slashes from the folder
+    cleanFolder := strings.TrimLeft(path, "/")
 
-        if err := client.MkdirAll(path, 0755); err != nil </span><span class="cov0" title="0">{
-                log.Println("MkdirAll failed:", err)
-                fmt.Println("Failed to make directory")
-                return err
-        }</span>
+    // Construct the full remote file path
+    fullPath := cleanFolder + "/" + filename
+    log.Println("Streaming upload to WebDAV:", fullPath)
 
-        <span class="cov0" title="0">err := client.Write(fullPath, data, 0644)
-        if err != nil </span><span class="cov0" title="0">{
-                log.Println("Write failed:", err)
-                fmt.Println("Write failed")
-        }</span>
-        <span class="cov0" title="0">return err</span>
+    // Ensure the folder exists
+    if err := client.MkdirAll(cleanFolder, 0755); err != nil </span><span class="cov1" title="1">{
+        return fmt.Errorf("mkdir failed: %w", err)
+    }</span>
+
+    // Stream the file to WebDAV
+    <span class="cov3" title="3">if err := client.WriteStream(fullPath, reader, 0644); err != nil </span><span class="cov1" title="1">{
+        return fmt.Errorf("stream write failed: %w", err)
+    }</span>
+
+    <span class="cov2" title="2">return nil</span>
 }
 
-var DownloadFile = func(fileId, UserID string) ([]byte, error) <span class="cov0" title="0">{
-        path := "files/" + UserID
-        fullPath := fmt.Sprintf("%s/%s", path, fileId)
-        fmt.Println("Path is: ", fullPath)
-        data, err := client.Read(fullPath)
-        if err != nil </span><span class="cov0" title="0">{
-                return nil, fmt.Errorf("failed to download file: %w", err)
-                fmt.Println("Faled to download file")
 
+var CreateFileStream = func(path, filename string) (io.WriteCloser, error) <span class="cov4" title="6">{
+    // Clean path
+    cleanFolder := strings.TrimLeft(path, "/")
+    fullPath := cleanFolder + "/" + filename
+    log.Println("Create streaming upload to WebDAV:", fullPath)
+
+    // Ensure folder exists
+    if err := client.MkdirAll(cleanFolder, 0755); err != nil </span><span class="cov2" title="2">{
+        return nil, fmt.Errorf("mkdir failed: %w", err)
+    }</span>
+
+    // Create pipe
+    <span class="cov3" title="4">pr, pw := io.Pipe()
+
+    // Launch goroutine to stream to WebDAV
+    go func() </span><span class="cov3" title="4">{
+        defer pr.Close()
+        err := client.WriteStream(fullPath, pr, 0644)
+        if err != nil </span><span class="cov0" title="0">{
+            log.Println("❌ Stream write failed:", err)
+            pr.CloseWithError(err)
+            return
         }</span>
-        <span class="cov0" title="0">return data, nil</span>
+        <span class="cov3" title="4">log.Println("✅ Finished streaming to OwnCloud:", fullPath)</span>
+    }()
+
+    // Return the writer side to caller
+    <span class="cov3" title="4">return pw, nil</span>
 }
 
-var DeleteFile = func(fileId, UserID string) error <span class="cov0" title="0">{
-        path := "files/"+UserID
-        fmt.Println("Paht is: ", path)
+var DownloadFileStream = func(fileId string) (io.ReadCloser, error) <span class="cov2" title="2">{
+        path := fmt.Sprintf("files/%s", fileId)
+        return client.ReadStream(path)
+}</span>
+
+var DownloadFileStreamTemp = func(Path string) (io.ReadCloser, error) <span class="cov2" title="2">{
+        cleanPath := strings.TrimLeft(Path, "/")
+        fmt.Println("CleanPath is: ", cleanPath)
+        log.Println("Downloading (stream) from path:", cleanPath)
+        return client.ReadStream(cleanPath)
+}</span>
+
+var DeleteFile = func(fileId, userID string) error <span class="cov2" title="2">{
+        path := "files/" + userID
+        fmt.Println("Path is: ", path)
         fullPath := fmt.Sprintf("%s/%s", path, fileId)
         err := client.Remove(fullPath)
-        if err != nil </span><span class="cov0" title="0">{
+        if err != nil </span><span class="cov1" title="1">{
                 return fmt.Errorf("failed to delete the file: %w", err)
         }</span>
-        <span class="cov0" title="0">return nil</span>
-}</pre>
+        <span class="cov1" title="1">return nil</span>
+}
+
+var DeleteFileTemp = func(filePath string) error <span class="cov3" title="3">{
+        log.Println("Deleting temporary file:", filePath)
+        cleanPath := strings.TrimLeft(filePath, "/")
+        err := client.Remove(cleanPath)
+        if err != nil </span><span class="cov1" title="1">{
+                return fmt.Errorf("failed to delete temporary file: %w", err)
+        }</span>
+        <span class="cov2" title="2">return nil</span>
+}
+
+var DownloadSentFileStream = func(filePath string) (io.ReadCloser, error) <span class="cov3" title="3">{
+        log.Println("=========================== inside here")
+        log.Println("Path is: ", filePath)
+        stream, err := client.ReadStream(filePath)
+        if err != nil </span><span class="cov1" title="1">{
+                log.Println("Failed to stream file:", err)
+                return nil, fmt.Errorf("failed to download file: %w", err)
+        }</span>
+
+        <span class="cov2" title="2">return stream, nil</span>
+}
+</pre>
 		
 		</div>
 	</body>

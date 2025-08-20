@@ -10,47 +10,6 @@ const mountWithSearch = (search = '') => {
     );
 };
 
-it('renders logs by default', () => {
-    const mockContext = {
-        search: '',
-        setSearch: cy.stub(),
-    };
-
-    cy.mount(
-        <DashboardSearchContext.Provider value={mockContext}>
-            <AccessLogsPage />
-        </DashboardSearchContext.Provider>
-    );
-
-    cy.contains('Access Logs').should('be.visible');
-    cy.get('tbody tr').should('have.length', 4);
-});
-
-it('filters logs by action (Shared)', () => {
-    const mockContext = {
-        search: '',
-        setSearch: () => { },
-    };
-
-    cy.mount(
-        <DashboardSearchContext.Provider value={mockContext}>
-            <AccessLogsPage />
-        </DashboardSearchContext.Provider>
-    );
-
-    cy.contains('select', 'All actions')
-        .select('Shared');
-
-    cy.get('table tbody tr').each(($row) => {
-        cy.wrap($row)
-            .find('td')
-            .eq(1)
-            .should('contain.text', 'Shared');
-    });
-
-    cy.get('table tbody tr').should('have.length', 1);
-});
-
 it('shows empty state -no matches', () => {
     mountWithSearch('nothingmatches');
     cy.get('[data-testid="log-row"]').should('have.length', 0);

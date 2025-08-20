@@ -1,319 +1,217 @@
-// package fileHandler_test
+//go:build integration
+// +build integration
 
-// import (
-// 	"bytes"
-// 	"database/sql"
-// 	"encoding/json"
-// 	"errors"
-// 	"net/http"
-// 	"net/http/httptest"
-// 	"os"
-// 	"testing"
+package integration_test
 
-// 	"bou.ke/monkey"
-// 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler"
-// 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
-// 	"github.com/stretchr/testify/assert"
-// 	"github.com/stretchr/testify/mock"
-// )
+import (
+	"bytes"
+	"crypto/sha256"
+	//"database/sql"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"testing"
 
-// // Mock RowScanner for database queries
-// type mockRowScanner struct {
-// 	mock.Mock
-// }
+	monkey "bou.ke/monkey"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
-// func (m *mockRowScanner) Scan(dest ...any) error {
-// 	args := m.Called(dest...)
-// 	return args.Error(0)
-// }
+	fh "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler"
+	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
 
-// func TestDownloadHandler(t *testing.T) {
-// 	os.Setenv("AES_KEY", "12345678901234567890123456789012")
-// 	defer os.Unsetenv("AES_KEY")
+	_ "github.com/lib/pq"
+)
 
-// 	t.Run("Successful Download", func(t *testing.T) {
-// 		rowScanner := new(mockRowScanner)
-// 		rowScanner.On("Scan", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
-// 			*args[0].(*string) = "file123"
-// 			*args[1].(*string) = "nonce123"
-// 		}).Return(nil)
+func doJSON(t *testing.T, method, path string, body any, h http.HandlerFunc) (*httptest.ResponseRecorder, []byte) {
+	t.Helper()
+	var rdr io.Reader
+	switch v := body.(type) {
+	case string:
+		rdr = bytes.NewBufferString(v)
+	case []byte:
+		rdr = bytes.NewBuffer(v)
+	default:
+		b, err := json.Marshal(v)
+		require.NoError(t, err)
+		rdr = bytes.NewBuffer(b)
+	}
+	req := httptest.NewRequest(method, path, rdr)
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	h(rr, req)
+	return rr, rr.Body.Bytes()
+}
 
-// 		originalQueryRowFunc := fileHandler.QueryRowFunc
-// 		originalDownloader := fileHandler.OwnCloudDownloader
-// 		originalDecryptFunc := fileHandler.DecryptFunc
+func TestDownloadHandler_InvalidJSON(t *testing.T) {
+	t.Cleanup(monkey.UnpatchAll)
+	rr, body := doJSON(t, http.MethodPost, "/download", `{"userId":"u1",`, fh.DownloadHandler)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, string(body), "Invalid JSON payload")
+}
 
-// 		fileHandler.QueryRowFunc = func(query string, args ...any) fileHandler.RowScanner {
-// 			return rowScanner
-// 		}
-// 		fileHandler.OwnCloudDownloader = func(fileID, userID string) ([]byte, error) {
-// 			return []byte("encrypted data"), nil
-// 		}
-// 		fileHandler.DecryptFunc = func(data []byte, key string) ([]byte, error) {
-// 			return []byte("decrypted data"), nil
-// 		}
+func TestDownloadHandler_MissingFields(t *testing.T) {
+	t.Cleanup(monkey.UnpatchAll)
+	rr, body := doJSON(t, http.MethodPost, "/download", map[string]string{
+		"userId": "",
+		"fileId": "f1",
+	}, fh.DownloadHandler)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, string(body), "Missing userId or fileId")
+}
 
-// 		defer func() {
-// 			fileHandler.QueryRowFunc = originalQueryRowFunc
-// 			fileHandler.OwnCloudDownloader = originalDownloader
-// 			fileHandler.DecryptFunc = originalDecryptFunc
-// 		}()
+func TestDownloadHandler_NotFound(t *testing.T) {
+	t.Cleanup(monkey.UnpatchAll)
 
-// 		reqBody, _ := json.Marshal(fileHandler.DownloadRequest{
-// 			UserID:   "user456",
-// 			FileName: "testfile.txt",
-// 		})
-// 		req := httptest.NewRequest(http.MethodPost, "/download", bytes.NewReader(reqBody))
-// 		req.Header.Set("Content-Type", "application/json")
-// 		w := httptest.NewRecorder()
+	pg := startPostgres(t)        
+	db := openDB(t, pg.DSN)      
+	t.Cleanup(func() { _ = db.Close() })
+	seedBasicFileSchema(t, db)    
 
-// 		fileHandler.DownloadHandler(w, req)
+	prev := fh.DB
+	fh.DB = db
+	t.Cleanup(func() { fh.DB = prev })
 
-// 		assert.Equal(t, http.StatusOK, w.Code)
-// 		var response fileHandler.DownloadResponse
-// 		err := json.NewDecoder(w.Body).Decode(&response)
-// 		assert.NoError(t, err)
-// 		assert.Equal(t, "testfile.txt", response.FileName)
-// 		assert.Equal(t, "ZGVjcnlwdGVkIGRhdGE=", response.FileContent)
-// 		assert.Equal(t, "nonce123", response.Nonce)
-// 		rowScanner.AssertCalled(t, "Scan", mock.Anything, mock.Anything)
-// 	})
+	rr, body := doJSON(t, http.MethodPost, "/download", map[string]string{
+		"userId": "u1",
+		"fileId": "does-not-exist",
+	}, fh.DownloadHandler)
+	assert.Equal(t, http.StatusNotFound, rr.Code)
+	assert.Contains(t, string(body), "File not found")
+}
 
-// 	t.Run("Missing UserID", func(t *testing.T) {
-// 		reqBody, _ := json.Marshal(fileHandler.DownloadRequest{
-// 			UserID:   "",
-// 			FileName: "testfile.txt",
-// 		})
-// 		req := httptest.NewRequest(http.MethodPost, "/download", bytes.NewReader(reqBody))
-// 		req.Header.Set("Content-Type", "application/json")
-// 		w := httptest.NewRecorder()
+func TestDownloadHandler_OwncloudError(t *testing.T) {
+	t.Cleanup(monkey.UnpatchAll)
 
-// 		fileHandler.DownloadHandler(w, req)
+	pg := startPostgres(t)
+	db := openDB(t, pg.DSN)
+	t.Cleanup(func() { _ = db.Close() })
+	seedBasicFileSchema(t, db)
 
-// 		assert.Equal(t, http.StatusBadRequest, w.Code)
-// 		assert.Contains(t, w.Body.String(), "Missing required fields")
-// 	})
+	userID := "user-123"
+	fileID := "file-123"
+	fileName := "report.pdf"
+	nonce := "test-nonce"
+	content := []byte("hello world")
+	sum := sha256.Sum256(content)
+	fileHash := hex.EncodeToString(sum[:])
 
-// 	t.Run("Missing FileName", func(t *testing.T) {
-// 		// Arrange
-// 		reqBody, _ := json.Marshal(fileHandler.DownloadRequest{
-// 			UserID:   "user456",
-// 			FileName: "",
-// 		})
-// 		req := httptest.NewRequest(http.MethodPost, "/download", bytes.NewReader(reqBody))
-// 		req.Header.Set("Content-Type", "application/json")
-// 		w := httptest.NewRecorder()
+	_, err := db.Exec(`
+		INSERT INTO files (id, owner_id, file_name, nonce, file_hash, cid)
+		VALUES ($1,$2,$3,$4,$5,$6)
+	`, fileID, userID, fileName, nonce, fileHash, "cid-xyz")
+	require.NoError(t, err)
 
-// 		fileHandler.DownloadHandler(w, req)
+	prev := fh.DB
+	fh.DB = db
+	t.Cleanup(func() { fh.DB = prev })
 
-// 		assert.Equal(t, http.StatusBadRequest, w.Code)
-// 		assert.Contains(t, w.Body.String(), "Missing required fields")
-// 	})
+	monkey.Patch(owncloud.DownloadFileStream, func(fid string) (io.ReadCloser, error) {
+		return nil, fmt.Errorf("simulated owncloud failure")
+	})
 
-// 	t.Run("Invalid JSON Payload", func(t *testing.T) {
-// 		// Arrange
-// 		req := httptest.NewRequest(http.MethodPost, "/download", bytes.NewReader([]byte("{invalid json}")))
-// 		req.Header.Set("Content-Type", "application/json")
-// 		w := httptest.NewRecorder()
+	rr, body := doJSON(t, http.MethodPost, "/download", map[string]string{
+		"userId": userID,
+		"fileId": fileID,
+	}, fh.DownloadHandler)
 
-// 		fileHandler.DownloadHandler(w, req)
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.Contains(t, string(body), "Download failed")
+}
 
-// 		assert.Equal(t, http.StatusBadRequest, w.Code)
-// 		assert.Contains(t, w.Body.String(), "Invalid request body")
-// 	})
+func TestDownloadHandler_Success_StreamsWithHeaders_AndBody(t *testing.T) {
+	t.Cleanup(monkey.UnpatchAll)
 
-// 	t.Run("Database Query Failure", func(t *testing.T) {
-// 		rowScanner := new(mockRowScanner)
-// 		rowScanner.On("Scan", mock.Anything, mock.Anything).Return(sql.ErrNoRows)
+	pg := startPostgres(t)
+	db := openDB(t, pg.DSN)
+	t.Cleanup(func() { _ = db.Close() })
+	seedBasicFileSchema(t, db)
 
-// 		monkey.Patch(fileHandler.QueryRowFunc, func(query string, args ...any) fileHandler.RowScanner {
-// 			return rowScanner
-// 		})
-// 		defer monkey.Unpatch(fileHandler.QueryRowFunc)
+	userID := "user-abc"
+	fileID := "f-42"
+	fileName := "evidence.bin"
+	nonce := "nonce-999"
+	content := []byte("squeaky clean bytes")
+	sum := sha256.Sum256(content)
+	fileHash := hex.EncodeToString(sum[:])
 
-// 		reqBody, _ := json.Marshal(fileHandler.DownloadRequest{
-// 			UserID:   "user456",
-// 			FileName: "testfile.txt",
-// 		})
-// 		req := httptest.NewRequest(http.MethodPost, "/download", bytes.NewReader(reqBody))
-// 		req.Header.Set("Content-Type", "application/json")
-// 		w := httptest.NewRecorder()
+	_, err := db.Exec(`
+		INSERT INTO files (id, owner_id, file_name, nonce, file_hash, cid)
+		VALUES ($1,$2,$3,$4,$5,$6)
+	`, fileID, userID, fileName, nonce, fileHash, "cid-any")
+	require.NoError(t, err)
 
-// 		fileHandler.DownloadHandler(w, req)
+	prev := fh.DB
+	fh.DB = db
+	t.Cleanup(func() { fh.DB = prev })
 
-// 		assert.Equal(t, http.StatusNotFound, w.Code)
-// 		assert.Contains(t, w.Body.String(), "File not found")
-// 	})
+	monkey.Patch(owncloud.DownloadFileStream, func(fid string) (io.ReadCloser, error) {
+		require.Equal(t, fileID, fid)
+		return io.NopCloser(bytes.NewReader(content)), nil
+	})
 
-// 	t.Run("Invalid AES Key Length", func(t *testing.T) {
-// 		os.Setenv("AES_KEY", "shortkey")
-// 		defer os.Unsetenv("AES_KEY")
+	rr, body := doJSON(t, http.MethodPost, "/download", map[string]string{
+		"userId": userID,
+		"fileId": fileID,
+	}, fh.DownloadHandler)
 
-// 		rowScanner := new(mockRowScanner)
-// 		rowScanner.On("Scan", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
-// 			// dest := args.Get(0).([]any)
-// 			*args[0].(*string) = "file123"
-// 			*args[1].(*string) = "nonce123"
-// 		}).Return(nil)
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Equal(t, "application/octet-stream", rr.Header().Get("Content-Type"))
+	assert.Equal(t, fileName, rr.Header().Get("X-File-Name"))
+	assert.Equal(t, nonce, rr.Header().Get("X-Nonce"))
 
-// 		originalQueryRowFunc := fileHandler.QueryRowFunc
-// 		fileHandler.QueryRowFunc = func(query string, args ...any) fileHandler.RowScanner {
-// 			return rowScanner
-// 		}
-// 		defer func() { fileHandler.QueryRowFunc = originalQueryRowFunc }()
+	disp := rr.Header().Get("Content-Disposition")
+	assert.Contains(t, disp, "attachment;")
+	assert.Contains(t, disp, fileName)
 
-// 		monkey.Patch(fileHandler.OwnCloudDownloader, func(fileID, userID string) ([]byte, error) {
-// 			return []byte("some encrypted content"), nil
-// 		})
-// 		defer monkey.Unpatch(fileHandler.OwnCloudDownloader)
+	assert.Equal(t, content, body)
+}
 
-// 		monkey.Patch(fileHandler.DecryptFunc, func(data []byte, key string) ([]byte, error) {
-// 			return nil, errors.New("should never be called")
-// 		})
-// 		defer monkey.Unpatch(fileHandler.DecryptFunc)
+func TestDownloadSentFile_InvalidJSON(t *testing.T) {
+	t.Cleanup(monkey.UnpatchAll)
+	rr, body := doJSON(t, http.MethodPost, "/download-sent", `{"filePath":`, fh.DownloadSentFile)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, string(body), "Invalid JSON payload")
+}
 
-// 		reqBody, _ := json.Marshal(fileHandler.DownloadRequest{
-// 			UserID:   "user456",
-// 			FileName: "testfile.txt",
-// 		})
-// 		req := httptest.NewRequest(http.MethodPost, "/download", bytes.NewReader(reqBody))
-// 		req.Header.Set("Content-Type", "application/json")
-// 		w := httptest.NewRecorder()
+func TestDownloadSentFile_MissingPath(t *testing.T) {
+	t.Cleanup(monkey.UnpatchAll)
+	rr, body := doJSON(t, http.MethodPost, "/download-sent", map[string]string{"filePath": ""}, fh.DownloadSentFile)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, string(body), "Missing FilePath")
+}
 
-// 		fileHandler.DownloadHandler(w, req)
+func TestDownloadSentFile_OwncloudError(t *testing.T) {
+	t.Cleanup(monkey.UnpatchAll)
 
-// 		assert.Equal(t, http.StatusInternalServerError, w.Code)
-// 		assert.Contains(t, w.Body.String(), "Invalid AES key")
-// 	})
+	monkey.Patch(owncloud.DownloadSentFileStream, func(path string) (io.ReadCloser, error) {
+		return nil, fmt.Errorf("simulated owncloud error")
+	})
 
-// 	t.Run("OwnCloud Download Failure", func(t *testing.T) {
-// 		rowScanner := new(mockRowScanner)
-// 		rowScanner.On("Scan", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
-// 			*args[0].(*string) = "file123"
-// 			*args[1].(*string) = "nonce123"
-// 		}).Return(nil)
+	rr, body := doJSON(t, http.MethodPost, "/download-sent", map[string]string{"filePath": "/sent/u1/f1"}, fh.DownloadSentFile)
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.Contains(t, string(body), "Download failed")
+}
 
-// 		monkey.Patch(fileHandler.QueryRowFunc, func(query string, args ...any) fileHandler.RowScanner {
-// 			return rowScanner
-// 		})
-// 		defer monkey.Unpatch(fileHandler.QueryRowFunc)
+func TestDownloadSentFile_Success_StreamsBody(t *testing.T) {
+	t.Cleanup(monkey.UnpatchAll)
 
-// 		monkey.Patch(fileHandler.OwnCloudDownloader, func(fileID, userID string) ([]byte, error) {
-// 			return nil, errors.New("OwnCloud error")
-// 		})
-// 		defer monkey.Unpatch(fileHandler.OwnCloudDownloader)
+	content := []byte("sent-file-bytes")
+	monkey.Patch(owncloud.DownloadSentFileStream, func(path string) (io.ReadCloser, error) {
+		require.Equal(t, "/sent/u1/f1", path)
+		return io.NopCloser(bytes.NewReader(content)), nil
+	})
 
-// 		reqBody, _ := json.Marshal(fileHandler.DownloadRequest{
-// 			UserID:   "user456",
-// 			FileName: "testfile.txt",
-// 		})
-// 		req := httptest.NewRequest(http.MethodPost, "/download", bytes.NewReader(reqBody))
-// 		req.Header.Set("Content-Type", "application/json")
-// 		w := httptest.NewRecorder()
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/download-sent",
+		bytes.NewBufferString(`{"filePath":"/sent/u1/f1"}`))
+	req.Header.Set("Content-Type", "application/json")
 
-// 		fileHandler.DownloadHandler(w, req)
-// 		assert.Equal(t, http.StatusInternalServerError, w.Code)
-// 		assert.Contains(t, w.Body.String(), "Download failed")
-// 	})
+	fh.DownloadSentFile(rr, req)
 
-// 	t.Run("Decryption Failure", func(t *testing.T) {
-// 		rowScanner := new(mockRowScanner)
-// 		rowScanner.On("Scan", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
-// 			*args[0].(*string) = "file123"
-// 			*args[1].(*string) = "nonce123"
-// 		}).Return(nil)
-
-// 		monkey.Patch(fileHandler.QueryRowFunc, func(query string, args ...any) fileHandler.RowScanner {
-// 			return rowScanner
-// 		})
-// 		defer monkey.Unpatch(fileHandler.QueryRowFunc)
-
-// 		monkey.Patch(fileHandler.OwnCloudDownloader, func(fileID, userID string) ([]byte, error) {
-// 			return []byte("encrypted data"), nil
-// 		})
-// 		defer monkey.Unpatch(fileHandler.OwnCloudDownloader)
-
-// 		monkey.Patch(fileHandler.DecryptFunc, func(data []byte, key string) ([]byte, error) {
-// 			return nil, errors.New("Decryption error")
-// 		})
-// 		defer monkey.Unpatch(fileHandler.DecryptFunc)
-
-// 		reqBody, _ := json.Marshal(fileHandler.DownloadRequest{
-// 			UserID:   "user456",
-// 			FileName: "testfile.txt",
-// 		})
-// 		req := httptest.NewRequest(http.MethodPost, "/download", bytes.NewReader(reqBody))
-// 		req.Header.Set("Content-Type", "application/json")
-// 		w := httptest.NewRecorder()
-
-// 		fileHandler.DownloadHandler(w, req)
-
-// 		assert.Equal(t, http.StatusInternalServerError, w.Code)
-// 		assert.Contains(t, w.Body.String(), "Decryption failed")
-// 	})
-// }
-
-// func TestDownloadSentFile(t *testing.T) {
-// 	t.Run("Successful Download", func(t *testing.T) {
-// 		monkey.Patch(owncloud.DownloadSentFile, func(filePath string) ([]byte, error) {
-// 			return []byte("file data"), nil
-// 		})
-// 		defer monkey.Unpatch(owncloud.DownloadSentFile)
-
-// 		reqBody, _ := json.Marshal(fileHandler.DownloadSentRequest{
-// 			FilePath: "/path/to/file",
-// 		})
-// 		req := httptest.NewRequest(http.MethodPost, "/download-sent", bytes.NewReader(reqBody))
-// 		req.Header.Set("Content-Type", "application/json")
-// 		w := httptest.NewRecorder()
-
-// 		fileHandler.DownloadSentFile(w, req)
-
-// 		assert.Equal(t, http.StatusOK, w.Code)
-// 		assert.Equal(t, "ZmlsZSBkYXRh", w.Body.String()) // base64.RawURLEncoding of "file data"
-// 	})
-
-// 	t.Run("Missing FilePath", func(t *testing.T) {
-// 		reqBody, _ := json.Marshal(fileHandler.DownloadSentRequest{
-// 			FilePath: "",
-// 		})
-// 		req := httptest.NewRequest(http.MethodPost, "/download-sent", bytes.NewReader(reqBody))
-// 		req.Header.Set("Content-Type", "application/json")
-// 		w := httptest.NewRecorder()
-
-// 		fileHandler.DownloadSentFile(w, req)
-
-// 		assert.Equal(t, http.StatusBadRequest, w.Code)
-// 		assert.Contains(t, w.Body.String(), "Missing file path")
-// 	})
-
-// 	t.Run("Invalid JSON Payload", func(t *testing.T) {
-// 		req := httptest.NewRequest(http.MethodPost, "/download-sent", bytes.NewReader([]byte("{invalid json}")))
-// 		req.Header.Set("Content-Type", "application/json")
-// 		w := httptest.NewRecorder()
-
-// 		fileHandler.DownloadSentFile(w, req)
-
-// 		assert.Equal(t, http.StatusBadRequest, w.Code)
-// 		assert.Contains(t, w.Body.String(), "Invalid JSON payload")
-// 	})
-
-// 	t.Run("OwnCloud Download Failure", func(t *testing.T) {
-// 		// Arrange
-// 		monkey.Patch(owncloud.DownloadSentFile, func(filePath string) ([]byte, error) {
-// 			return nil, errors.New("OwnCloud error")
-// 		})
-// 		defer monkey.Unpatch(owncloud.DownloadSentFile)
-
-// 		reqBody, _ := json.Marshal(fileHandler.DownloadSentRequest{
-// 			FilePath: "/path/to/file",
-// 		})
-// 		req := httptest.NewRequest(http.MethodPost, "/download-sent", bytes.NewReader(reqBody))
-// 		req.Header.Set("Content-Type", "application/json")
-// 		w := httptest.NewRecorder()
-
-// 		fileHandler.DownloadSentFile(w, req)
-
-// 		assert.Equal(t, http.StatusInternalServerError, w.Code)
-// 		assert.Contains(t, w.Body.String(), "Download failed")
-// 	})
-// }
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Equal(t, "application/octet-stream", rr.Header().Get("Content-Type"))
+	assert.Equal(t, content, rr.Body.Bytes())
+}

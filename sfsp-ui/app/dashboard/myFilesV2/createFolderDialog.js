@@ -1,9 +1,10 @@
 //app/dashboard/myFilesV2/createFolderDialogue.js
 
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { Folder } from 'lucide-react';
+import React, { useState } from "react";
+import { Folder } from "lucide-react";
+import { useEncryptionStore } from "@/app/SecureKeyStorage";
 
 const Dialog = ({ open, children }) => {
   return open ? (
@@ -25,15 +26,15 @@ const DialogTitle = ({ children }) => (
   </h2>
 );
 
-const Button = ({ children, onClick, variant = 'primary', disabled }) => (
+const Button = ({ children, onClick, variant = "primary", disabled }) => (
   <button
     onClick={onClick}
     disabled={disabled}
     className={`px-4 py-2 rounded-md ${
-      variant === 'outline'
-        ? 'border border-gray-300 text-gray-700 dark:bg-gray-300 dark:font-bold '
-        : 'bg-blue-600 text-white hover:bg-blue-700 '
-    } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+      variant === "outline"
+        ? "border border-gray-300 text-gray-700 dark:bg-gray-300 dark:font-bold "
+        : "bg-blue-600 text-white hover:bg-blue-700 "
+    } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
   >
     {children}
   </button>
@@ -51,19 +52,52 @@ const Input = ({ id, value, onChange, placeholder, onKeyPress }) => (
 );
 
 const Label = ({ htmlFor, children }) => (
-  <label htmlFor={htmlFor} className="block text-sm font-medium text-gray-700 dark:text-gray-50">
+  <label
+    htmlFor={htmlFor}
+    className="block text-sm font-medium text-gray-700 dark:text-gray-50"
+  >
     {children}
   </label>
 );
 
-export function CreateFolderDialog({ open, onOpenChange }) {
-  const [folderName, setFolderName] = useState('');
+export function CreateFolderDialog({ open, onOpenChange, currentPath,onFolderCreated }) {
+  const [folderName, setFolderName] = useState("");
 
-  const createFolder = () => {
-    if (folderName.trim()) {
-      console.log('Creating folder:', folderName);
-      setFolderName('');
+  const createFolder = async () => {
+    if (!folderName.trim()) return;
+
+    try {
+      const userId = useEncryptionStore.getState().userId;
+      if (!userId) {
+        console.error("Missing user ID");
+        return;
+      }
+
+      const fullPath = currentPath ? `${currentPath}/${folderName}` : folderName;
+
+      const res = await fetch("http://localhost:5000/api/files/createFolder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          folderName,
+          parentPath: currentPath || "",
+          description: "",
+        }),
+      });
+
+      if (!res.ok) {
+        const error = await res.text();
+        console.error("Failed to create folder:", error);
+        return;
+      }
+
+      console.log("Folder created successfully");
+      onFolderCreated?.();
+      setFolderName("");
       onOpenChange(false);
+    } catch (err) {
+      console.error("Error creating folder:", err);
     }
   };
 
@@ -85,7 +119,7 @@ export function CreateFolderDialog({ open, onOpenChange }) {
               value={folderName}
               onChange={(e) => setFolderName(e.target.value)}
               placeholder="Enter folder name"
-              onKeyPress={(e) => e.key === 'Enter' && createFolder()}
+              onKeyPress={(e) => e.key === "Enter" && createFolder()}
             />
           </div>
 
