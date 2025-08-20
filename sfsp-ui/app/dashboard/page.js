@@ -1,28 +1,26 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { FileText, Users, Clock, TrashIcon, UploadCloud, ListCheckIcon, AlertCircleIcon } from 'lucide-react';
+import axios from 'axios';
+
+import { 
+  FileText, 
+  Users, 
+  TrashIcon, 
+  UploadCloud, 
+  ListCheckIcon, 
+  AlertCircleIcon 
+} from 'lucide-react';
+
 import { UploadDialog } from "./myFilesV2/uploadDialog";
-import { useDashboardSearch } from "./components/DashboardSearchContext";
 import { FullViewModal } from "./myFilesV2/fullViewModal";
 import { PreviewDrawer } from "./myFilesV2/previewDrawer";
+import { useDashboardSearch } from "./components/DashboardSearchContext";
 
-import axios from 'axios';
 import { getSodium } from "@/app/lib/sodium";
 import { useEncryptionStore } from "@/app/SecureKeyStorage";
 
 // Helper functions
-
-function Toast({ message, type = "info", onClose }) {
-  return (
-    <div className={`fixed inset-0 flex items-center justify-center z-50 pointer-events-none`}>
-      <div className={`bg-red-300 border ${type === "error" ? "border-red-300" : "border-blue-500"} text-gray-900 rounded shadow-lg px-6 py-3 pointer-events-auto`}>
-        <span>{message}</span>
-        <button onClick={onClose} className="ml-4 font-bold">×</button>
-      </div>
-    </div>
-  );
-}
 
 function getFileType(mimeType) {
   if (!mimeType) return "unknown";
@@ -69,16 +67,9 @@ export default function DashboardHomePage() {
   const [viewerContent, setViewerContent] = useState(null);
   const [previewFile, setPreviewFile] = useState(null);
   const [previewContent, setPreviewContent] = useState(null);
-  const [logs, setLogs] = useState([]);          // Stores all fetched logs
-  const [recentLogs, setRecentLogs] = useState([]); // Stores top 3 most recent / filtered logs
-  const [actionFilter, setActionFilter] = useState("All actions"); // Current action filter
-
-  const [toast, setToast] = useState(null);
-
-  const showToast = (message, type = "info", duration = 3000) => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), duration);
-  };
+  const [logs, setLogs] = useState([]);          
+  const [recentAccessLogs, setRecentAccessLogs] = useState([]);
+  const [actionFilter, setActionFilter] = useState("All actions"); 
 
 
   const formatTimestamp = (timestamp) => {
@@ -93,70 +84,70 @@ export default function DashboardHomePage() {
     return `${Math.floor(hours / 24)}d ago`;
   };
 
-  const fetchFiles = async () => {
-    try {
-      if (!userId) {
-        console.error("Cannot fetch files: Missing userId in store.");
-        return [];
-      }
-
-      const res = await fetch("http://localhost:5000/api/files/metadata", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId }),
-      });
-
-      let data;
-      try {
-        data = await res.json();
-      } catch (e) {
-        const text = await res.text();
-        console.error("Failed to parse JSON:", text);
-        return [];
-      }
-
-      const sortedFiles = data.sort(
-        (a, b) => new Date(b.date) - new Date(a.date)
-      );
-
-      setRecentFiles(sortedFiles.slice(0, 3));
-
-      const formatted = data
-        .filter((f) => {
-          const tags = f.tags ? f.tags.replace(/[{}]/g, "").split(",") : [];
-          return (
-            !tags.includes("deleted") &&
-            !tags.some((tag) => tag.trim().startsWith("deleted_time:"))
-          );
-        })
-        .map((f) => ({
-          id: f.fileId || "",
-          name: f.fileName || "Unnamed file",
-          size: formatFileSize(f.fileSize || 0),
-          type: getFileType(f.fileType || ""),
-          modified: f.createdAt ? new Date(f.createdAt).toLocaleDateString() : "",
-          shared: false,
-          starred: false,
-        }));
-
-      setFiles(formatted);
-
-      return formatted; // ← add this
-    } catch (err) {
-      console.error("Failed to fetch files:", err);
+const fetchFiles = async () => {
+  try {
+    if (!userId) {
+      console.error("Cannot fetch files: Missing userId in store.");
       return [];
     }
-  };
+
+    const res = await fetch("http://localhost:5000/api/files/metadata", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId }),
+    });
+
+    let data;
+    try {
+      data = await res.json();
+    } catch (e) {
+      const text = await res.text();
+      console.error("Failed to parse JSON:", text);
+      return [];
+    }
+
+    const sortedFiles = data.sort(
+      (a, b) => new Date(b.date) - new Date(a.date)
+    );
+
+    setRecentFiles(sortedFiles.slice(0, 3));
+
+    const formatted = data
+      .filter((f) => {
+        const tags = f.tags ? f.tags.replace(/[{}]/g, "").split(",") : [];
+        return (
+          !tags.includes("deleted") &&
+          !tags.some((tag) => tag.trim().startsWith("deleted_time:"))
+        );
+      })
+      .map((f) => ({
+        id: f.fileId || "",
+        name: f.fileName || "Unnamed file",
+        size: formatFileSize(f.fileSize || 0),
+        type: getFileType(f.fileType || ""),
+        modified: f.createdAt ? new Date(f.createdAt).toLocaleDateString() : "",
+        shared: false,
+        starred: false,
+      }));
+
+    setFiles(formatted);
+
+    return formatted;
+  } catch (err) {
+    console.error("Failed to fetch files:", err);
+    return [];
+  }
+};
 
 
   const handleLoadFile = async (file) => {
     if (!file?.fileName) {
-      showToast("File name missing!","error");
+      alert("File name missing!");
       return null;
     }
     const { encryptionKey, userId } = useEncryptionStore.getState();
     if (!encryptionKey) {
-      showToast("Missing encryption key","error");
+      alert("Missing encryption key");
       return null;
     }
 
@@ -166,10 +157,10 @@ export default function DashboardHomePage() {
       const res = await fetch("http://localhost:5000/api/files/download", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId,
-          fileId: file.fileId || file.id, // ✅ Ensure correct field
-        }),
+       body: JSON.stringify({
+  userId,
+  fileId: file.fileId || file.id, // ✅ Ensure correct field
+}),
       });
 
       if (!res.ok) {
@@ -200,7 +191,7 @@ export default function DashboardHomePage() {
       return { fileName, decrypted };
     } catch (err) {
       console.error("Load file error:", err);
-      showToast("Failed to load file","error");
+      alert("Failed to load file");
       return null;
     }
   };
@@ -247,10 +238,7 @@ export default function DashboardHomePage() {
 
     setPreviewContent({ url: contentUrl, text: textFull });
     setPreviewFile(file);
-  };
-
-
-
+  };  
 
   const fetchNotifications = async () => {
     const token = localStorage.getItem("token");
@@ -325,63 +313,76 @@ export default function DashboardHomePage() {
       console.error('Failed to clear notification:', error);
     }
   };
-  const fetchAllLogs = async () => {
-    setLoading(true);
+  
+const fetchRecentAccessLogs = async () => {
+  try {
+    const userId = useEncryptionStore.getState().userId;
+    if (!userId) return [];
 
-    try {
-      const files = await fetchFiles();
+    // Fetch files
+    const res = await fetch("http://localhost:5000/api/files/metadata", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId }),
+    });
+    let files = await res.json();
+    if (!Array.isArray(files)) files = [];
 
-      // Ensure files is an array
-      if (!Array.isArray(files)) {
-        console.error("fetchFiles did not return an array:", files);
-        setLogs([]);
-        setRecentLogs([]);
-        return;
-      }
+    // Filter out deleted files
+    files = files.filter(f => {
+      const tags = f.tags ? f.tags.replace(/[{}]/g, "").split(",") : [];
+      return !tags.includes("deleted") && !tags.some(tag => tag.trim().startsWith("deleted_time:"));
+    });
 
-      const allLogs = [];
+    const allLogs = [];
 
-      for (const file of files) {
-        try {
-          const res = await fetch("http://localhost:5000/api/files/getAccesslog", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ file_id: file.fileId }),
-          });
-
-          if (!res.ok) continue;
-          const fileLogs = await res.json();
-
-          for (const log of fileLogs) {
-            allLogs.push({
-              user: log.message?.split(/\s+/)[0] || "Unknown",
-              action: log.action?.toLowerCase() || "",
-              file: file.fileName || "Unnamed",
-              date: new Date(log.timestamp).toLocaleString(),
-            });
-          }
-        } catch (err) {
-          console.error(`Error fetching logs for file ${file.fileId}:`, err);
-        }
-      }
-
-      setLogs(allLogs);
-
-      const filteredLogs = allLogs
-        .filter(log => actionFilter === "All actions" || log.action === actionFilter.toLowerCase())
-        .filter(log => {
-          const q = search.toLowerCase();
-          return log.user.toLowerCase().includes(q) || log.action.toLowerCase().includes(q) || log.file.toLowerCase().includes(q) || log.date.toLowerCase().includes(q);
+    for (const file of files) {
+      try {
+        const logRes = await fetch("http://localhost:5000/api/files/getAccesslog", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ file_id: file.fileId }),
         });
+        if (!logRes.ok) continue;
+        const fileLogs = await logRes.json();
 
-      setRecentLogs(filteredLogs.slice(0, 3));
+        for (const log of fileLogs) {
+          if (log.file_id !== file.fileId) continue;
 
-    } catch (err) {
-      console.error("Failed to fetch all logs:", err);
-    } finally {
-      setLoading(false);
+          // Get user info
+          let userName = "Unknown User";
+          let avatar = "/default-avatar.png";
+          try {
+            const userRes = await fetch(`http://localhost:5000/api/users/getUserInfo/${log.user_id}`);
+            if (userRes.ok) {
+              const userInfo = await userRes.json();
+              if (userInfo?.data?.username) {
+                userName = userInfo.data.username;
+                avatar = userInfo.data.avatar_url || avatar;
+              }
+            }
+          } catch {}
+
+          allLogs.push({
+            user: userName,
+            avatar,
+            action: log.action || "",
+            file: file.fileName || "Unnamed File",
+            timestamp: log.timestamp,
+            dateFormatted: new Date(log.timestamp).toLocaleString(),
+          });
+        }
+      } catch {}
     }
-  };
+
+    // Sort by timestamp and take top 3
+    allLogs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    setRecentAccessLogs(allLogs.slice(0, 3));
+  } catch (err) {
+    console.error("Failed to fetch recent access logs:", err);
+    setRecentAccessLogs([]);
+  }
+};
 
 
   const fetchFilesMetadata = useCallback(async () => {
@@ -405,13 +406,13 @@ export default function DashboardHomePage() {
         return tags.includes('deleted');
       });
 
-      const receivedFiles = data.filter(file => {
-        const tags = parseTagString(file.tags);
-        return tags.includes("received");
-      });
+	  const receivedFiles = data.filter(file => {
+		const tags = parseTagString(file.tags);
+	  return tags.includes("received");
+	});
 
-
-
+      
+ 
       setFileCount(activeFiles.length);
       setTrashedFilesCount(deletedFiles.length);
       setReceivedFilesCount(receivedFiles.length);
@@ -427,7 +428,7 @@ export default function DashboardHomePage() {
       fetchFilesMetadata();
       fetchFiles();
       fetchNotifications();
-      fetchAllLogs()
+      fetchRecentAccessLogs()
     }
   }, [userId, fetchFilesMetadata, actionFilter]);
 
@@ -473,7 +474,7 @@ export default function DashboardHomePage() {
                 {item.icon}
               </div>
               <div>
-                <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                <p className="text-lg font-bold text-gray-500 dark:text-gray-400">
                   {item.label}
                 </p>
                 <p className="text-xl font-bold">{item.value}</p>
@@ -486,7 +487,7 @@ export default function DashboardHomePage() {
               key={idx}
               onClick={() => setIsUploadOpen(true)}
               className="flex items-center gap-4 p-7 w-full text-left
-                         bg-blue-500 hover:bg-blue-700
+                         bg-blue-600 hover:bg-blue-700
                          text-white rounded-lg shadow transition-shadow"
             >
               {CardContent}
@@ -578,44 +579,44 @@ export default function DashboardHomePage() {
             </div>
           </div>
 
-          {/* Activity Logs (Dynamic Data) */}
-          <div className="h-60 w-full lg:col-span-2 p-6 flex flex-col justify-start
+      {/* Activity Logs (Dynamic Data) */}
+        <div className="h-60 w-full lg:col-span-2 p-6 flex flex-col justify-start
                         bg-gray-200 dark:bg-gray-800 rounded-lg shadow hover:shadow-lg
                         transition-shadow overflow-hidden">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-full">
-                <AlertCircleIcon className="text-green-600 dark:text-green-400" size={28} />
-              </div>
-              <p className="text-xl font-bold text-gray-500 dark:text-gray-400">
-                Activity Logs
-              </p>
+          <div className="flex items-center gap-3 mb-3">
+            <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-full">
+              <AlertCircleIcon className="text-green-600 dark:text-green-400" size={28} />
             </div>
-
-            <div className="overflow-y-auto space-y-2 pr-2 text-sm text-gray-700 dark:text-gray-200">
-              {recentLogs.length > 0 ? (
-                recentLogs.map((log, idx) => (
-                  <div key={idx} className="flex items-start gap-2">
-                    <img
-                      src={log.avatar || "/default-avatar.png"}
-                      alt={log.user}
-                      className="w-8 h-8 rounded-full"
-                    />
-                    <div className="flex flex-col">
-                      <span className="font-semibold">{log.user}</span>
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        {log.action} <strong>{log.file}</strong> at {log.date}
-                      </span>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="text-gray-500 dark:text-gray-400">No recent activity.</p>
-              )}
-            </div>
+            <p className="text-xl font-bold text-gray-500 dark:text-gray-400">
+              Activity Logs
+            </p>
           </div>
 
+          <div className="overflow-y-auto space-y-2 pr-2 text-sm text-gray-700 dark:text-gray-200">
+            {recentAccessLogs.length > 0 ? (
+              recentAccessLogs.map((log, idx) => (
+                <div key={idx} className="flex items-start gap-2">
+                  <img
+                    src={log.avatar || "/default-avatar.png"}
+                    alt={log.user}
+                    className="w-8 h-8 rounded-full"
+                  />
+                  <div className="flex flex-col">
+                    <span className="font-semibold">{log.user}</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      {log.action} <strong>{log.file}</strong> at {log.date}
+                    </span>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-gray-500 dark:text-gray-400">No recent activity.</p>
+            )}
+          </div>
         </div>
+
       </div>
+    </div>
 
 
 
@@ -639,12 +640,12 @@ export default function DashboardHomePage() {
                     {formatTimestamp(file.date || file.createdAt)}
                   </p>
                 </div>
-                <button
-                  onClick={() => handleOpenPreview(file)}
-                  className="text-blue-500 hover:underline"
-                >
-                  Open
-                </button>
+               <button
+                onClick={() => handleOpenPreview(file)}
+                className="text-blue-500 hover:underline"
+              >
+                Open
+              </button>
 
               </li>
             ))
@@ -659,27 +660,19 @@ export default function DashboardHomePage() {
         />
       )}
       {previewFile && (
-        <PreviewDrawer
-          file={previewFile}
-          content={previewContent}
-          onClose={() => setPreviewFile(null)}
-          onOpenFullView={(file) => {
-            setPreviewFile(null);
-            handleOpenFullView(file);
-          }}
-          onSaveDescription={async (id, description) => {
-            console.log("Save description for:", id, description);
-          }}
-        />
-      )}
-
-      {toast && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onClose={() => setToast(null)}
-        />
-      )}
+      <PreviewDrawer
+        file={previewFile}
+        content={previewContent}
+        onClose={() => setPreviewFile(null)}
+        onOpenFullView={(file) => {
+          setPreviewFile(null);
+          handleOpenFullView(file);
+        }}
+        onSaveDescription={async (id, description) => {
+          console.log("Save description for:", id, description);
+        }}
+      />
+)}
 
     </div>
   )
