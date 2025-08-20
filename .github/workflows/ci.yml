@@ -72,43 +72,65 @@ jobs:
           override_branch: main
 
   sfsp-goservice:
-    name: SFSP Go Service
-    runs-on: ubuntu-latest
-    container:
-      image: golang:1.23.0
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+  name: SFSP Go Service
+  runs-on: ubuntu-latest
+  steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      - name: Install Go dependencies
-        working-directory: ./sfsp-api/services/fileService
-        run: go mod download
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.22.x'
+        cache: true
 
-      - name: Create mock .env file
-        working-directory: ./sfsp-api/services/fileService
-        run: |
-          cat <<EOF > .env
-          MONGO_URI=mongodb+srv://Sibu2025:xWQNdqTKQq5bi7Bo@cluster0.8ywqk4g.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
+    - name: Verify Docker (needed for testcontainers)
+      run: docker version
 
-          AES_KEY=12345678901234567890123456789012
+    - name: Create mock .env file
+      working-directory: ./sfsp-api/services/fileService
+      run: |
+        cat <<EOF > .env
+        MONGO_URI=mongodb://localhost:27017/dev
+        AES_KEY=12345678901234567890123456789012
+        OWNCLOUD_URL=http://localhost:8080/remote.php/webdav/
+        OWNCLOUD_USERNAME=admin
+        OWNCLOUD_PASSWORD=admin
+        EOF
 
-          OWNCLOUD_URL=http://localhost:8080/remote.php/webdav/
-          OWNCLOUD_USERNAME=admin
-          OWNCLOUD_PASSWORD=admin
-          EOF
+    - name: Download Go deps
+      working-directory: ./sfsp-api/services/fileService
+      run: go mod download
 
-      - name: Run Go Tests with Coverage
-        working-directory: ./sfsp-api/services/fileService
-        run: |
-          go test ./UnitTests/... -v -coverprofile=coverage.txt -covermode=atomic
-          
-      - name: Upload Go Service Coverage to Codecov
-        uses: codecov/codecov-action@v3
-        with:
-          file: ./sfsp-api/services/fileService/coverage.txt
-          flags: unittests,goservice
-          name: goservice-coverage
-          override_branch: main
+    - name: Run unit + integration tests (merged coverage)
+      working-directory: ./sfsp-api/services/fileService
+      run: |
+        rm -rf cov && mkdir cov
+
+        GOCOVERDIR=cov go test ./... -count=1 -timeout=10m -race
+
+        GOCOVERDIR=cov go test -tags=integration ./... -count=1 -timeout=20m
+
+        go tool covdata textfmt -i=cov -o coverage.all.out
+        go tool cover -func=coverage.all.out
+        go tool cover -html=coverage.all.out -o cover.html
+
+    - name: Upload Go coverage artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: goservice-coverage
+        path: |
+          sfsp-api/services/fileService/coverage.all.out
+          sfsp-api/services/fileService/cover.html
+
+    - name: Upload Go Service Coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        files: ./sfsp-api/services/fileService/coverage.all.out
+        flags: unittests,integration,goservice
+        name: goservice-coverage
+        fail_ci_if_error: true
+        override_branch: main
 
   sfsp-keyservice:
     name: SFSP Key Service
@@ -152,4 +174,3 @@ jobs:
           flags: unittests,keyservice
           name: keyservice-coverage
           override_branch: main
-
