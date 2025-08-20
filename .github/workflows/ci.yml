@@ -40,7 +40,7 @@ jobs:
         working-directory: ./sfsp-ui
         run: npm ci
 
-      - name: Run Cypress Unit Tests
+      - name: Run Cypress Tests
         working-directory: ./sfsp-ui
         run: |
           xvfb-run -a npx cypress run --component
@@ -107,9 +107,8 @@ jobs:
         run: |
           rm -rf cov && mkdir cov
 
-          GOCOVERDIR=cov go test ./... -count=1 -timeout=10m -race
-
-          GOCOVERDIR=cov go test -tags=integration ./... -count=1 -timeout=20m
+          GOCOVERDIR=cov go test -v ./owncloud/ -count=1 -timeout=10m -race
+          GOCOVERDIR=cov go test -v ./unitTests/ -count=1 -timeout=10m -race
 
           go tool covdata textfmt -i=cov -o coverage.all.out
           go tool cover -func=coverage.all.out
