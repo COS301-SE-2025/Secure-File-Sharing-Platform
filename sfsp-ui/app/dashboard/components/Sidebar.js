@@ -97,6 +97,7 @@ export default function Sidebar({ expanded, setExpanded, isHovered, setIsHovered
     }
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('encryption-store');
     router.push('/');
   };
 
