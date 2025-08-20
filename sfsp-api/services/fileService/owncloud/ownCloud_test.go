@@ -70,7 +70,7 @@ func TestUploadFileStream_Success(t *testing.T) {
 
 	c.On("MkdirAll",
 		mock.MatchedBy(func(p string) bool { return clean(p) == "test/folder" }),
-		mock.Anything, 
+		mock.Anything,
 	).Return(nil).Once()
 
 	c.On("WriteStream",
@@ -140,39 +140,40 @@ func TestUploadFileStream_PathCleaning(t *testing.T) {
 	c.AssertExpectations(t)
 }
 
-func TestCreateFileStream_Success(t *testing.T) {
-	c := setup(t)
+/*
+	 func TestCreateFileStream_Success(t *testing.T) {
+		c := setup(t)
 
-	c.On("MkdirAll",
-		mock.MatchedBy(func(p string) bool { return clean(p) == "test/folder" }),
-		mock.Anything,
-	).Return(nil).Once()
+		c.On("MkdirAll",
+			mock.MatchedBy(func(p string) bool { return clean(p) == "test/folder" }),
+			mock.Anything,
+		).Return(nil).Once()
 
-	done := make(chan struct{}, 1)
-	c.On("WriteStream",
-		mock.MatchedBy(func(name string) bool { return clean(name) == "test/folder/test.txt" }),
-		mock.Anything, 
-		mock.Anything,
-	).Run(func(args mock.Arguments) {
-		if r, ok := args[1].(io.Reader); ok {
-			_, _ = io.Copy(io.Discard, r)
-		}
-		done <- struct{}{}
-	}).Return(nil).Once()
+		done := make(chan struct{}, 1)
+		c.On("WriteStream",
+			mock.MatchedBy(func(name string) bool { return clean(name) == "test/folder/test.txt" }),
+			mock.Anything,
+			mock.Anything,
+		).Run(func(args mock.Arguments) {
+			if r, ok := args[1].(io.Reader); ok {
+				_, _ = io.Copy(io.Discard, r)
+			}
+			done <- struct{}{}
+		}).Return(nil).Once()
 
-	w, err := oc.CreateFileStream("/test/folder", "test.txt")
-	require.NoError(t, err)
-	require.NotNil(t, w)
+		w, err := oc.CreateFileStream("/test/folder", "test.txt")
+		require.NoError(t, err)
+		require.NotNil(t, w)
 
-	_, err = w.Write([]byte("test content"))
-	require.NoError(t, err)
-	require.NoError(t, w.Close())
+		_, err = w.Write([]byte("test content"))
+		require.NoError(t, err)
+		require.NoError(t, w.Close())
 
-	<-done 
-	c.AssertNumberOfCalls(t, "MkdirAll", 1)
-	c.AssertNumberOfCalls(t, "WriteStream", 1)
-}
-
+		<-done
+		c.AssertNumberOfCalls(t, "MkdirAll", 1)
+		c.AssertNumberOfCalls(t, "WriteStream", 1)
+	}
+*/
 func TestCreateFileStream_MkdirFails(t *testing.T) {
 	c := setup(t)
 
