@@ -7,43 +7,43 @@ on:
     branches: ["main"]
 
 jobs:
-# build:
-#   name: Linting
-#   runs-on: ubuntu-latest
+  # build:
+  #   name: Linting
+  #   runs-on: ubuntu-latest
 
-#   steps:
-#     - name: Checkout code
-#       uses: actions/checkout@v4
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v4
 
-#     - name: Lint Code
-#       uses: github/super-linter@v5
-#       env:
-#         VALIDATE_ALL_CODEBASE: true
-#         DEFAULT_BRANCH: main
-#         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #     - name: Lint Code
+  #       uses: github/super-linter@v5
+  #       env:
+  #         VALIDATE_ALL_CODEBASE: true
+  #         DEFAULT_BRANCH: main
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   sfsp-ui:
     name: SFSP UI
     runs-on: ubuntu-latest
     container:
-        image: node:18
+      image: node:18
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Install Required Libraries
-      run: |
-        apt-get update && \
-        apt-get install -y xvfb libnss3 libgtk-3-0 libxss1 libasound2 libgbm1
+      - name: Install Required Libraries
+        run: |
+          apt-get update && \
+          apt-get install -y xvfb libnss3 libgtk-3-0 libxss1 libasound2 libgbm1
 
-    - name: Install UI dependencies
-      working-directory: ./sfsp-ui
-      run: npm ci
+      - name: Install UI dependencies
+        working-directory: ./sfsp-ui
+        run: npm ci
 
-    - name: Run Cypress Unit Tests
-      working-directory: ./sfsp-ui
-      run: |
-        xvfb-run -a npx cypress run --component
+      - name: Run Cypress Unit Tests
+        working-directory: ./sfsp-ui
+        run: |
+          xvfb-run -a npx cypress run --component
 
   sfsp-api:
     name: SFSP API
@@ -62,7 +62,7 @@ jobs:
       - name: Run API Tests with Coverage
         working-directory: ./sfsp-api
         run: npm test -- --coverage
-        
+
       - name: Upload API Coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
@@ -72,65 +72,65 @@ jobs:
           override_branch: main
 
   sfsp-goservice:
-  name: SFSP Go Service
-  runs-on: ubuntu-latest
-  steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+    name: SFSP Go Service
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Setup Go
-      uses: actions/setup-go@v5
-      with:
-        go-version: '1.22.x'
-        cache: true
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22.x"
+          cache: true
 
-    - name: Verify Docker (needed for testcontainers)
-      run: docker version
+      - name: Verify Docker (needed for testcontainers)
+        run: docker version
 
-    - name: Create mock .env file
-      working-directory: ./sfsp-api/services/fileService
-      run: |
-        cat <<EOF > .env
-        MONGO_URI=mongodb://localhost:27017/dev
-        AES_KEY=12345678901234567890123456789012
-        OWNCLOUD_URL=http://localhost:8080/remote.php/webdav/
-        OWNCLOUD_USERNAME=admin
-        OWNCLOUD_PASSWORD=admin
-        EOF
+      - name: Create mock .env file
+        working-directory: ./sfsp-api/services/fileService
+        run: |
+          cat <<EOF > .env
+          MONGO_URI=mongodb://localhost:27017/dev
+          AES_KEY=12345678901234567890123456789012
+          OWNCLOUD_URL=http://localhost:8080/remote.php/webdav/
+          OWNCLOUD_USERNAME=admin
+          OWNCLOUD_PASSWORD=admin
+          EOF
 
-    - name: Download Go deps
-      working-directory: ./sfsp-api/services/fileService
-      run: go mod download
+      - name: Download Go deps
+        working-directory: ./sfsp-api/services/fileService
+        run: go mod download
 
-    - name: Run unit + integration tests (merged coverage)
-      working-directory: ./sfsp-api/services/fileService
-      run: |
-        rm -rf cov && mkdir cov
+      - name: Run unit + integration tests (merged coverage)
+        working-directory: ./sfsp-api/services/fileService
+        run: |
+          rm -rf cov && mkdir cov
 
-        GOCOVERDIR=cov go test ./... -count=1 -timeout=10m -race
+          GOCOVERDIR=cov go test ./... -count=1 -timeout=10m -race
 
-        GOCOVERDIR=cov go test -tags=integration ./... -count=1 -timeout=20m
+          GOCOVERDIR=cov go test -tags=integration ./... -count=1 -timeout=20m
 
-        go tool covdata textfmt -i=cov -o coverage.all.out
-        go tool cover -func=coverage.all.out
-        go tool cover -html=coverage.all.out -o cover.html
+          go tool covdata textfmt -i=cov -o coverage.all.out
+          go tool cover -func=coverage.all.out
+          go tool cover -html=coverage.all.out -o cover.html
 
-    - name: Upload Go coverage artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: goservice-coverage
-        path: |
-          sfsp-api/services/fileService/coverage.all.out
-          sfsp-api/services/fileService/cover.html
+      - name: Upload Go coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: goservice-coverage
+          path: |
+            sfsp-api/services/fileService/coverage.all.out
+            sfsp-api/services/fileService/cover.html
 
-    - name: Upload Go Service Coverage to Codecov
-      uses: codecov/codecov-action@v4
-      with:
-        files: ./sfsp-api/services/fileService/coverage.all.out
-        flags: unittests,integration,goservice
-        name: goservice-coverage
-        fail_ci_if_error: true
-        override_branch: main
+      - name: Upload Go Service Coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./sfsp-api/services/fileService/coverage.all.out
+          flags: unittests,integration,goservice
+          name: goservice-coverage
+          fail_ci_if_error: true
+          override_branch: main
 
   sfsp-keyservice:
     name: SFSP Key Service
@@ -166,7 +166,7 @@ jobs:
         working-directory: ./sfsp-api/services/keyservice
         run: |
           python -m pytest --cov=. --cov-report=xml
-          
+
       - name: Upload Key Service Coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
