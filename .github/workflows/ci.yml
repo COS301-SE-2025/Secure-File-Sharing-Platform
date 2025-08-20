@@ -108,7 +108,7 @@ jobs:
           rm -rf cov && mkdir cov
 
           GOCOVERDIR=cov go test -v ./owncloud/ -count=1 -timeout=10m
-          GOCOVERDIR=cov go test -v ./unitTests/ -count=1 -timeout=10m
+          GOCOVERDIR=cov go test -v ./UnitTests/ -count=1 -timeout=10m
 
           go tool covdata textfmt -i=cov -o coverage.all.out
           go tool cover -func=coverage.all.out
