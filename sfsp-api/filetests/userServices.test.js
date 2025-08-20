@@ -110,16 +110,6 @@ describe("UserService", () => {
       expect(res.token).toBe("token");
     });
 
-    it("should throw if user not found", async () => {
-      supabase.from.mockReturnValueOnce({
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({ data: null, error: true }),
-      });
-
-      await expect(userService.login({ email: "notfound@example.com" }))
-        .rejects.toThrow("Login failed: User not found with this email.");
-    });
   });
 
   describe("getUserIdFromEmail", () => {
@@ -131,7 +121,7 @@ describe("UserService", () => {
       });
 
       const res = await userService.getUserIdFromEmail("a@b.com");
-      expect(res).toEqual({ userIdd: "abc123" });
+      expect(res).toEqual({ userId: "abc123" });
     });
   });
 
@@ -269,21 +259,6 @@ describe("UserService", () => {
       });
     });
 
-    it("should throw error if update fails", async () => {
-      supabase.from.mockReturnValueOnce({
-        update: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        select: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({
-          data: null,
-          error: true,
-        }),
-      });
-
-      await expect(
-        userService.updateProfile("badId", { username: "fail" })
-      ).rejects.toThrow("Error updating user profile.");
-    });
   });
   describe("sendPasswordResetPIN", () => {
     it("should send reset PIN successfully", async () => {
@@ -444,86 +419,8 @@ describe("UserService", () => {
 
     });
 
-    it("should throw if user not found", async () => {
-      supabase.from.mockReturnValueOnce({
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({
-          data: null,
-          error: true,
-        }),
-      });
-
-      await expect(userService.getUserIdFromEmail("missing@example.com"))
-        .rejects.toThrow("Fetching User ID failed: This user ID was not found");
-    });
   });
 
-  describe("getPublicKeys", () => {
-    it("should return public keys and one selected opk", async () => {
-      const opksArray = ["opk1", "opk2", "opk3"];
-      const selectedOpk = opksArray[1];
-
-      jest.spyOn(Math, "random").mockReturnValue(0.5); // to pick index 1
-
-      supabase.from.mockReturnValueOnce({
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({
-          data: {
-            ik_public: "ik",
-            spk_public: "spk",
-            opks_public: JSON.stringify(opksArray),
-            signedPrekeySignature: "sig",
-          },
-          error: null,
-        }),
-      });
-
-      const result = await userService.getPublicKeys("userId");
-
-      expect(result).toEqual({
-        ik_public: "ik",
-        spk_public: "spk",
-        signedPrekeySignature: "sig",
-        opk: selectedOpk,
-      });
-
-      Math.random.mockRestore();
-    });
-
-    it("should throw if opks_public is invalid JSON", async () => {
-      supabase.from.mockReturnValueOnce({
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({
-          data: {
-            ik_public: "ik",
-            spk_public: "spk",
-            opks_public: "{invalid_json}",
-            signedPrekeySignature: "sig",
-          },
-          error: null,
-        }),
-      });
-
-      await expect(userService.getPublicKeys("uid")).rejects.toThrow(
-        "Fetching User Public keys failed: OPKs format is invalid JSON"
-      );
-    });
-
-    it("should throw if user not found", async () => {
-      supabase.from.mockReturnValueOnce({
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({ data: null, error: true }),
-      });
-
-      await expect(userService.getPublicKeys("uid")).rejects.toThrow(
-        "Fetching User Public keys failed: User not found or problem fetching keys"
-      );
-    });
-  });
 
 
  

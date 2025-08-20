@@ -148,11 +148,11 @@ describe('UserController Integration Tests', () => {
         const response = await request(app)
             .post('/register')
             .send(userData)
-            .expect(500);
+            .expect(409);
 
         expect(response.body).toEqual({
             success: false,
-            message: 'Internal server error.',
+            message: 'An account with this email address already exists. Please use a different email or try logging in.',
         });
 
         expect(userService.register).toHaveBeenCalledWith({
