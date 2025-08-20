@@ -232,6 +232,7 @@ professional data.
 | Deployment Diagram|Plan for project deployment|[Open](https://drive.google.com/file/d/1ygrtnnmw6Qfvjb-w451HKQamaIMQ9bF3/view?usp=sharing)|
 | Architecture Diagram|Diagram of system overview|[Open](https://drive.google.com/file/d/1LFPgRBSH7Mg0Sq-lF3a-FYjESJy7DOKk/view?usp=sharing)|
 | Security Document| Outlines the security design of the system |[Open](https://drive.google.com/file/d/1P-947vP83z6GU8QsZpHnqJZG-6Ie5Gaa/view?usp=sharing)|
+| Technical Installation Manual| Instructions for system configuration |[Open](https://drive.google.com/file/d/1iK1SyUWUyaCw6oqhN1t_nGkbz2xnu8xe/view?usp=sharing)|
 
 ## 📌 Project Management
 
