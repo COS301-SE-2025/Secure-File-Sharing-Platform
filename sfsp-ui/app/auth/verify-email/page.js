@@ -77,7 +77,16 @@ function VerifyEmailInner() {
             if (jwtResponse.ok) {
                 const { token } = await jwtResponse.json();
                 localStorage.setItem("token", token.replace(/^Bearer\s/, ""));
-                router.push("/dashboard");
+                
+                // Check if encryption keys already exist from registration
+                const unlockToken = sessionStorage.getItem("unlockToken");
+                const hasKeys = localStorage.getItem("encryption-store");
+                
+                if (unlockToken && hasKeys) {
+                    router.push("/dashboard");
+                } else {
+                    router.push("/auth");
+                }
             } else {
                 throw new Error("Failed to complete authentication");
             }

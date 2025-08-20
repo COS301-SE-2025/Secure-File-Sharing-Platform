@@ -181,9 +181,6 @@ export default function GoogleCallbackPage() {
         sessionStorage.setItem("unlockToken", "session-unlock");
         await storeUserKeysSecurely(userKeys, derivedKey);
 
-        // Clear any existing persisted state before setting new user data
-        localStorage.removeItem('encryption-store');
-        
         useEncryptionStore.setState({
             encryptionKey: derivedKey,
             userId: user.id,
@@ -252,6 +249,56 @@ export default function GoogleCallbackPage() {
         const { user, isNewUser } = registrationResult.data;
 
         if (isNewUser) {
+            // Store encryption keys locally for new Google OAuth users
+            const derivedKey = sodium.crypto_pwhash(
+                32,
+                googlePassword,
+                sodium.from_base64(keyBundle.salt),
+                sodium.crypto_pwhash_OPSLIMIT_MODERATE,
+                sodium.crypto_pwhash_MEMLIMIT_MODERATE,
+                sodium.crypto_pwhash_ALG_DEFAULT
+            );
+
+            // Decrypt identity key for storage
+            const decryptedIkPrivateKey = sodium.crypto_secretbox_open_easy(
+                sodium.from_base64(keyBundle.ik_private_key),
+                sodium.from_base64(keyBundle.nonce),
+                derivedKey
+            );
+
+            if (!decryptedIkPrivateKey) {
+                throw new Error("Failed to decrypt identity key private key");
+            }
+
+            const userKeys = {
+                identity_private_key: decryptedIkPrivateKey,
+                signedpk_private_key: sodium.from_base64(keyBundle.spk_private_key),
+                oneTimepks_private: keyBundle.opks_private.map((opk) => ({
+                    opk_id: opk.opk_id,
+                    private_key: sodium.from_base64(opk.private_key),
+                })),
+                identity_public_key: sodium.from_base64(keyBundle.ik_public),
+                signedpk_public_key: sodium.from_base64(keyBundle.spk_public),
+                oneTimepks_public: keyBundle.opks_public.map((opk) => ({
+                    opk_id: opk.opk_id,
+                    publicKey: sodium.from_base64(opk.publicKey),
+                })),
+                signedPrekeySignature: sodium.from_base64(keyBundle.signedPrekeySignature),
+                salt: sodium.from_base64(keyBundle.salt),
+                nonce: sodium.from_base64(keyBundle.nonce),
+            };
+
+            // Store keys locally regardless of verification status
+            await storeDerivedKeyEncrypted(derivedKey);
+            sessionStorage.setItem("unlockToken", "session-unlock");
+            await storeUserKeysSecurely(userKeys, derivedKey);
+
+            useEncryptionStore.setState({
+                encryptionKey: derivedKey,
+                userId: user.id,
+                userKeys: userKeys,
+            });
+
             setLoaderMessage("Account created! Please check your email for verification...");
             
             // Add user to the PostgreSQL database using the route for addUser in file routes

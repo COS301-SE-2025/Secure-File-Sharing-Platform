@@ -237,9 +237,6 @@ export default function AuthPage() {
       sessionStorage.setItem("unlockToken", "session-unlock");
       await storeUserKeysSecurely(userKeys, derivedKey); // your existing function
 
-      // Clear any existing persisted state before setting new user data
-      localStorage.removeItem('encryption-store');
-
       useEncryptionStore.setState({
         encryptionKey: derivedKey,
         userId: id,
@@ -350,35 +347,7 @@ export default function AuthPage() {
 
       const { token, user } = result.data;
 
-      // Check if user needs email verification (same as Google auth flow)
-      if (!user.is_verified) {
-        setLoaderMessage("Account created! Please check your email for verification...");
-        
-        // Add user to PostgreSQL database before redirecting to verification
-        try {
-          const addUserRes = await fetch("http://localhost:5000/api/files/addUser", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              userId: user.id,
-            }),
-          });
-
-          if (!addUserRes.ok) {
-            console.error("Failed to add user to PostgreSQL database");
-          } else {
-            console.log("User successfully added to PostgreSQL database");
-          }
-        } catch (error) {
-          console.error("Error adding user to PostgreSQL database:", error);
-        }
-
-        setTimeout(() => {
-          router.push(`/auth/verify-email?email=${encodeURIComponent(user.email)}&userId=${user.id}`);
-        }, 1500);
-        return;
-      }
-
+      // Generate derived key and prepare user keys regardless of verification status
       const derivedKey = sodium.crypto_pwhash(
         32,
         password,
@@ -401,7 +370,6 @@ export default function AuthPage() {
       }
 
       console.log("Decrypted ik private is: ", decryptedIkPrivateKey);
-      console.log("End if sign up");
 
       const userKeys = {
         identity_private_key: decryptedIkPrivateKey,
@@ -421,12 +389,10 @@ export default function AuthPage() {
         nonce: sodium.from_base64(nonce),
       };
 
+      // Store encryption keys regardless of verification status
       await storeDerivedKeyEncrypted(derivedKey);
       sessionStorage.setItem("unlockToken", "session-unlock");
       await storeUserKeysSecurely(userKeys, derivedKey);
-
-      // Clear any existing persisted state before setting new user data
-      localStorage.removeItem('encryption-store');
 
       useEncryptionStore.setState({
         encryptionKey: derivedKey,
@@ -434,7 +400,44 @@ export default function AuthPage() {
         userKeys: userKeys,
       });
 
-      localStorage.setItem("token", token.replace(/^Bearer\s/, ""));
+      console.log("User keys stored successfully:", userKeys);
+
+      // Check if user needs email verification
+      if (!user.is_verified) {
+        setLoaderMessage("Account created! Please check your email for verification...");
+        
+        // Add user to PostgreSQL database before redirecting to verification
+        try {
+          const addUserRes = await fetch("http://localhost:5000/api/files/addUser", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userId: user.id,
+            }),
+          });
+
+          if (!addUserRes.ok) {
+            console.error("Failed to add user to PostgreSQL database");
+          } else {
+            console.log("User successfully added to PostgreSQL database");
+          }
+        } catch (error) {
+          console.error("Error adding user to PostgreSQL database:", error);
+        }
+
+        // Store token for unverified users too
+        const rawToken = token.replace(/^Bearer\s/, "");
+        localStorage.setItem("token", rawToken);
+
+        setTimeout(() => {
+          router.push(`/auth/verify-email?email=${encodeURIComponent(user.email)}&userId=${user.id}`);
+        }, 1500);
+        return;
+      }
+
+      // For verified users, proceed with normal flow
+      const rawToken = token.replace(/^Bearer\s/, "");
+      localStorage.setItem("token", rawToken);
       setMessage("User successfully registered!");
 
       // Add user to PostgreSQL database (for verified users)
