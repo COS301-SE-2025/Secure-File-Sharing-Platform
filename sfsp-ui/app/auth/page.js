@@ -158,6 +158,7 @@ export default function AuthPage() {
         id,
         salt,
         nonce,
+        is_verified,
         //private keys
         //public keys
         ik_public,
@@ -168,6 +169,15 @@ export default function AuthPage() {
 
       const { ik_private_key, opks_private, spk_private_key } = result.data.keyBundle;
       const { token } = result.data;
+
+      // Check if user needs email verification
+      if (!is_verified) {
+        setLoaderMessage("Please verify your email first...");
+        setTimeout(() => {
+          router.push(`/auth/verify-email?email=${encodeURIComponent(loginData.email)}&userId=${id}`);
+        }, 1500);
+        return;
+      }
 
       //we don't need to securely store the user ID but I will store it in the Zustand store for easy access
       useEncryptionStore.getState().setUserId(id);
@@ -340,6 +350,35 @@ export default function AuthPage() {
 
       const { token, user } = result.data;
 
+      // Check if user needs email verification (same as Google auth flow)
+      if (!user.is_verified) {
+        setLoaderMessage("Account created! Please check your email for verification...");
+        
+        // Add user to PostgreSQL database before redirecting to verification
+        try {
+          const addUserRes = await fetch("http://localhost:5000/api/files/addUser", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userId: user.id,
+            }),
+          });
+
+          if (!addUserRes.ok) {
+            console.error("Failed to add user to PostgreSQL database");
+          } else {
+            console.log("User successfully added to PostgreSQL database");
+          }
+        } catch (error) {
+          console.error("Error adding user to PostgreSQL database:", error);
+        }
+
+        setTimeout(() => {
+          router.push(`/auth/verify-email?email=${encodeURIComponent(user.email)}&userId=${user.id}`);
+        }, 1500);
+        return;
+      }
+
       const derivedKey = sodium.crypto_pwhash(
         32,
         password,
@@ -398,17 +437,23 @@ export default function AuthPage() {
       localStorage.setItem("token", token.replace(/^Bearer\s/, ""));
       setMessage("User successfully registered!");
 
-      //add user to the postgres database using the rute for addUser in file routes
-      const addUserRes = await fetch("http://localhost:5000/api/files/addUser", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: user.id,
-        }),
-      });
+      // Add user to PostgreSQL database (for verified users)
+      try {
+        const addUserRes = await fetch("http://localhost:5000/api/files/addUser", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: user.id,
+          }),
+        });
 
-      if (!addUserRes.ok) {
-        console.error("Failed to add user to database");
+        if (!addUserRes.ok) {
+          console.error("Failed to add user to PostgreSQL database");
+        } else {
+          console.log("User successfully added to PostgreSQL database");
+        }
+      } catch (error) {
+        console.error("Error adding user to PostgreSQL database:", error);
       }
 
       setTimeout(() => {

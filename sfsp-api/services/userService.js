@@ -69,6 +69,7 @@ class UserService {
             nonce,
             signedPrekeySignature,
             salt,
+            is_verified: false, // New users need email verification
           },
         ])
         .select("*")
@@ -84,6 +85,7 @@ class UserService {
           id: newUser.id,
           username: newUser.username,
           email: newUser.email,
+          is_verified: newUser.is_verified,
         },
         token,
       };
@@ -172,10 +174,10 @@ class UserService {
           throw new Error("OPKs format is invalid JSON");
         }
 
-        // ✅ Select a random OPK
+        // ✅ Select the first available OPK (instead of random to ensure consistency)
         if (Array.isArray(opkArray) && opkArray.length > 0) {
-          const index = Math.floor(Math.random() * opkArray.length);
-          selectedOpk = opkArray[index];
+          selectedOpk = opkArray[0]; // Use first OPK instead of random
+          console.log("🔍 DEBUG - Selected OPK for sending:", selectedOpk);
         }
       }
 
@@ -214,6 +216,7 @@ class UserService {
           id: user.id,
           username: user.username,
           email: user.email,
+          is_verified: user.is_verified,
           ik_public: user.ik_public,
           spk_public: user.spk_public,
           opks_public: user.opks_public,

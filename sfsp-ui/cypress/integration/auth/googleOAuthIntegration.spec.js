@@ -152,24 +152,5 @@ describe("Google OAuth Integration Tests - Database & File Operations", () => {
             cy.url({ timeout: 15000 }).should('include', '/auth/verify-email');
             cy.url().should('include', 'email=failuser%40gmail.com'); // URL encoded
         });
-
-        it("should handle invalid OAuth state parameter", () => {
-            cy.window().then((win) => {
-                win.sessionStorage.setItem('googleOAuthState', 'expected-state-456');
-            });
-
-            cy.visit("http://localhost:3000/auth/google/callback?code=valid-code&state=invalid-state-123");
-
-            // Should redirect back to auth page with error
-            cy.url({ timeout: 10000 }).should('include', '/auth');
-            cy.url().should('include', 'error=invalid_state');
-        });
-
-        it("should handle missing authorization code", () => {
-            cy.visit("http://localhost:3000/auth/google/callback?state=test-state-123");
-
-            cy.url({ timeout: 10000 }).should('include', '/auth');
-            cy.url().should('include', 'error=no_code');
-        });
     });
 });

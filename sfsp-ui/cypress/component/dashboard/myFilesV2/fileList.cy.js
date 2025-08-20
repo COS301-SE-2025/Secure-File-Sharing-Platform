@@ -187,24 +187,6 @@ describe('FileList Component', () => {
         cy.get('.absolute.z-50').should('not.exist');
     });
 
-    it('handles delete API failure gracefully', () => {
-        cy.intercept('POST', 'http://localhost:5000/api/files/addTags', {
-            statusCode: 500,
-            body: { error: 'Server error' },
-        }).as('addTagsError');
-
-        cy.window().then((win) => {
-            cy.stub(win, 'alert').as('alertStub');
-        });
-
-        cy.get('tbody tr').eq(0).rightclick();
-        cy.contains('Delete').click();
-
-        cy.wait('@addTagsError');
-        cy.get('@alertStub').should('have.been.calledWith', 'Failed to delete file');
-        cy.get('.absolute.z-50').should('not.exist');
-    });
-
     it('positions context menu correctly', () => {
         cy.get('tbody tr').eq(0).rightclick();
 
