@@ -15,17 +15,12 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
-	"time"
 
-	nat "github.com/docker/go-connections/nat"
 	monkey "bou.ke/monkey"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
 
 	fh "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler"
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
@@ -33,60 +28,9 @@ import (
 	_ "github.com/lib/pq"
 )
 
-type startedDBUp struct {
-	container testcontainers.Container
-	dsn       string
-}
+/* ----------------------------- local helpers ------------------------------ */
 
-func startPostgresUp(t *testing.T) startedDBUp {
-	t.Helper()
-
-	if dsn := os.Getenv("POSTGRES_TEST_DSN"); dsn != "" {
-		return startedDBUp{dsn: dsn}
-	}
-
-	ctx := context.Background()
-	const (
-		user = "testuser"
-		pass = "testpass"
-		db   = "testdb"
-	)
-	req := testcontainers.ContainerRequest{
-		Image:        "postgres:16-alpine",
-		ExposedPorts: []string{"5432/tcp"},
-		Env: map[string]string{
-			"POSTGRES_USER":     user,
-			"POSTGRES_PASSWORD": pass,
-			"POSTGRES_DB":       db,
-		},
-		WaitingFor: wait.ForSQL("5432/tcp", "postgres",
-			func(host string, port nat.Port) string {
-				return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-					user, pass, host, port.Port(), db)
-			}).WithStartupTimeout(120 * time.Second),
-	}
-
-	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: req,
-		Started:          true,
-	})
-	if err != nil && strings.Contains(err.Error(), "permission denied while trying to connect to the Docker daemon socket") {
-		t.Skipf("Skipping DB-backed tests: Docker not accessible (%v). Set POSTGRES_TEST_DSN to reuse an existing DB.", err)
-	}
-	require.NoError(t, err, "failed to start postgres container")
-
-	host, err := c.Host(ctx)
-	require.NoError(t, err)
-	mp, err := c.MappedPort(ctx, "5432/tcp")
-	require.NoError(t, err)
-
-	return startedDBUp{
-		container: c,
-		dsn:       fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", user, pass, host, mp.Port(), db),
-	}
-}
-
-func openDBUp(t *testing.T, dsn string) *sql.DB {
+func openDBUpload(t *testing.T, dsn string) *sql.DB {
 	t.Helper()
 	db, err := sql.Open("postgres", dsn)
 	require.NoError(t, err)
@@ -94,56 +38,46 @@ func openDBUp(t *testing.T, dsn string) *sql.DB {
 	return db
 }
 
-func seedFilesSchemaUp(t *testing.T, db *sql.DB) {
+// Includes file_hash and nonce, which Upload/StartUpload rely on.
+func seedFilesSchemaUpload(t *testing.T, db *sql.DB) {
 	t.Helper()
 	_, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS files (
-			id TEXT PRIMARY KEY DEFAULT md5(random()::text),
-			owner_id TEXT NOT NULL,
-			file_name TEXT NOT NULL,
-			file_type TEXT DEFAULT 'file',
-			file_hash TEXT DEFAULT '',
-			nonce TEXT DEFAULT '',
+			id          TEXT PRIMARY KEY DEFAULT md5(random()::text),
+			owner_id    TEXT NOT NULL,
+			file_name   TEXT NOT NULL,
+			file_type   TEXT DEFAULT 'file',
+			file_hash   TEXT DEFAULT '',
+			nonce       TEXT DEFAULT '',
 			description TEXT DEFAULT '',
-			tags TEXT[] DEFAULT '{}',
-			cid TEXT DEFAULT '',
-			file_size BIGINT DEFAULT 0,
-			created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+			tags        TEXT[] DEFAULT '{}',
+			cid         TEXT DEFAULT '',
+			file_size   BIGINT DEFAULT 0,
+			created_at  TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 		);
 	`)
 	require.NoError(t, err)
 }
 
-type memStoreUp struct{ m map[string][]byte }
-
-func (s *memStoreUp) put(key string, data []byte) { s.m[key] = append([]byte(nil), data...) }
-func (s *memStoreUp) get(key string) ([]byte, bool) {
-	b, ok := s.m[key]
-	if !ok {
-		return nil, false
-	}
-	return append([]byte(nil), b...), true
-}
-func (s *memStoreUp) del(key string) { delete(s.m, key) }
-
-type memWCUp struct {
+type memWCUpload struct {
 	key   string
-	store *memStoreUp
+	store *memStore
 	buf   bytes.Buffer
 }
-func (w *memWCUp) Write(p []byte) (int, error) { return w.buf.Write(p) }
-func (w *memWCUp) Close() error {
+
+func (w *memWCUpload) Write(p []byte) (int, error) { return w.buf.Write(p) }
+func (w *memWCUpload) Close() error {
 	w.store.put(w.key, w.buf.Bytes())
 	return nil
 }
 
-type ocHooksUp struct {
-	uploadHook func(path, name string, r io.Reader) error
-	createHook func(path, name string) (io.WriteCloser, error)
+type ocHooksUpload struct {
+	uploadHook   func(path, name string, r io.Reader) error
+	createHook   func(path, name string) (io.WriteCloser, error)
 	downloadHook func(path string) (io.ReadCloser, error)
 }
 
-func patchOwncloudUp(t *testing.T, s *memStoreUp, hooks *ocHooksUp) {
+func patchOwncloudUpload(t *testing.T, s *memStore, hooks *ocHooksUpload) {
 	t.Helper()
 
 	monkey.Patch(owncloud.UploadFileStream, func(path, name string, r io.Reader) error {
@@ -180,11 +114,11 @@ func patchOwncloudUp(t *testing.T, s *memStoreUp, hooks *ocHooksUp) {
 			return hooks.createHook(path, name)
 		}
 		key := strings.TrimSuffix(path, "/") + "/" + name
-		return &memWCUp{key: key, store: s}, nil
+		return &memWCUpload{key: key, store: s}, nil
 	})
 }
 
-func makeMultipartUp(t *testing.T, fields map[string]string, fileField, fileName string, fileBytes []byte) (*bytes.Buffer, string) {
+func makeMultipartUpload(t *testing.T, fields map[string]string, fileField, fileName string, fileBytes []byte) (*bytes.Buffer, string) {
 	t.Helper()
 	var buf bytes.Buffer
 	w := multipart.NewWriter(&buf)
@@ -212,11 +146,11 @@ func TestUpload_InvalidContentType(t *testing.T) {
 
 func TestUpload_MissingRequiredFields(t *testing.T) {
 	t.Cleanup(monkey.UnpatchAll)
-	s := &memStoreUp{m: map[string][]byte{}}
-	patchOwncloudUp(t, s, nil)
+	s := &memStore{m: map[string][]byte{}}
+	patchOwncloudUpload(t, s, nil)
 
-	body, ctype := makeMultipartUp(t, map[string]string{
-		"userId": "u1",
+	body, ctype := makeMultipartUpload(t, map[string]string{
+		"userId":      "u1",
 		"chunkIndex":  "0",
 		"totalChunks": "1",
 	}, "encryptedFile", "c0.bin", []byte("x"))
@@ -230,10 +164,10 @@ func TestUpload_MissingRequiredFields(t *testing.T) {
 
 func TestUpload_InvalidIndices_AndMissingFile(t *testing.T) {
 	t.Cleanup(monkey.UnpatchAll)
-	s := &memStoreUp{m: map[string][]byte{}}
-	patchOwncloudUp(t, s, nil)
+	s := &memStore{m: map[string][]byte{}}
+	patchOwncloudUpload(t, s, nil)
 
-	body1, ctype1 := makeMultipartUp(t, map[string]string{
+	body1, ctype1 := makeMultipartUpload(t, map[string]string{
 		"userId":      "u1",
 		"fileName":    "doc",
 		"fileType":    "application/octet-stream",
@@ -248,7 +182,7 @@ func TestUpload_InvalidIndices_AndMissingFile(t *testing.T) {
 	fh.UploadHandler(rr1, req1)
 	assert.Equal(t, http.StatusBadRequest, rr1.Code)
 
-	body2, ctype2 := makeMultipartUp(t, map[string]string{
+	body2, ctype2 := makeMultipartUpload(t, map[string]string{
 		"userId":      "u1",
 		"fileName":    "doc",
 		"fileType":    "application/octet-stream",
@@ -266,22 +200,22 @@ func TestUpload_InvalidIndices_AndMissingFile(t *testing.T) {
 
 func TestUpload_FirstChunk_InsertsMetadata_AndACK(t *testing.T) {
 	t.Cleanup(monkey.UnpatchAll)
-	s := &memStoreUp{m: map[string][]byte{}}
-	patchOwncloudUp(t, s, nil)
+	s := &memStore{m: map[string][]byte{}}
+	patchOwncloudUpload(t, s, nil)
 
-	sd := startPostgresUp(t)
-	if sd.container != nil {
-		t.Cleanup(func() { _ = sd.container.Terminate(context.Background()) })
+	c, dsn := startPostgresContainer(t)
+	if c != nil {
+		t.Cleanup(func() { _ = c.Terminate(context.Background()) })
 	}
-	db := openDBUp(t, sd.dsn)
+	db := openDBUpload(t, dsn)
 	t.Cleanup(func() { _ = db.Close() })
-	seedFilesSchemaUp(t, db)
+	seedFilesSchemaUpload(t, db)
 
 	prev := fh.DB
 	fh.DB = db
 	t.Cleanup(func() { fh.DB = prev })
 
-	body, ctype := makeMultipartUp(t, map[string]string{
+	body, ctype := makeMultipartUpload(t, map[string]string{
 		"userId":      "uX",
 		"fileName":    "big.bin",
 		"fileType":    "application/octet-stream",
@@ -314,31 +248,31 @@ func TestUpload_FirstChunk_InsertsMetadata_AndACK(t *testing.T) {
 func TestUpload_SingleChunk_FullMerge_UpdatesDB_AndStoresFinal(t *testing.T) {
 	t.Cleanup(monkey.UnpatchAll)
 
-	s := &memStoreUp{m: map[string][]byte{}}
-	patchOwncloudUp(t, s, nil)
+	s := &memStore{m: map[string][]byte{}}
+	patchOwncloudUpload(t, s, nil)
 
-	sd := startPostgresUp(t)
-	if sd.container != nil {
-		t.Cleanup(func() { _ = sd.container.Terminate(context.Background()) })
+	c, dsn := startPostgresContainer(t)
+	if c != nil {
+		t.Cleanup(func() { _ = c.Terminate(context.Background()) })
 	}
-	db := openDBUp(t, sd.dsn)
+	db := openDBUpload(t, dsn)
 	t.Cleanup(func() { _ = db.Close() })
-	seedFilesSchemaUp(t, db)
+	seedFilesSchemaUpload(t, db)
 
 	prev := fh.DB
 	fh.DB = db
 	t.Cleanup(func() { fh.DB = prev })
 
 	content := []byte("HELLO WORLD")
-	body, ctype := makeMultipartUp(t, map[string]string{
-		"userId":       "uZ",
-		"fileName":     "one.bin",
-		"fileType":     "application/octet-stream",
-		"fileHash":     "ignored-by-handler",
-		"nonce":        "nZ",
-		"chunkIndex":   "0",
-		"totalChunks":  "1",
-		"path":         "customdir",
+	body, ctype := makeMultipartUpload(t, map[string]string{
+		"userId":      "uZ",
+		"fileName":    "one.bin",
+		"fileType":    "application/octet-stream",
+		"fileHash":    "ignored-by-handler",
+		"nonce":       "nZ",
+		"chunkIndex":  "0",
+		"totalChunks": "1",
+		"path":        "customdir",
 	}, "encryptedFile", "all.bin", content)
 
 	req := httptest.NewRequest(http.MethodPost, "/upload", body)
@@ -370,26 +304,26 @@ func TestUpload_SingleChunk_FullMerge_UpdatesDB_AndStoresFinal(t *testing.T) {
 func TestUpload_CreateFileStreamFail(t *testing.T) {
 	t.Cleanup(monkey.UnpatchAll)
 
-	s := &memStoreUp{m: map[string][]byte{}}
-	patchOwncloudUp(t, s, &ocHooksUp{
+	s := &memStore{m: map[string][]byte{}}
+	patchOwncloudUpload(t, s, &ocHooksUpload{
 		createHook: func(path, name string) (io.WriteCloser, error) {
 			return nil, fmt.Errorf("create stream failed")
 		},
 	})
 
-	sd := startPostgresUp(t)
-	if sd.container != nil {
-		t.Cleanup(func() { _ = sd.container.Terminate(context.Background()) })
+	c, dsn := startPostgresContainer(t)
+	if c != nil {
+		t.Cleanup(func() { _ = c.Terminate(context.Background()) })
 	}
-	db := openDBUp(t, sd.dsn)
+	db := openDBUpload(t, dsn)
 	t.Cleanup(func() { _ = db.Close() })
-	seedFilesSchemaUp(t, db)
+	seedFilesSchemaUpload(t, db)
 
 	prev := fh.DB
 	fh.DB = db
 	t.Cleanup(func() { fh.DB = prev })
 
-	body, ctype := makeMultipartUp(t, map[string]string{
+	body, ctype := makeMultipartUpload(t, map[string]string{
 		"userId":      "u1",
 		"fileName":    "f.bin",
 		"fileType":    "application/octet-stream",
@@ -410,26 +344,26 @@ func TestUpload_CreateFileStreamFail(t *testing.T) {
 func TestUpload_MergeFailsOnMissingChunk(t *testing.T) {
 	t.Cleanup(monkey.UnpatchAll)
 
-	s := &memStoreUp{m: map[string][]byte{}}
-	patchOwncloudUp(t, s, &ocHooksUp{
+	s := &memStore{m: map[string][]byte{}}
+	patchOwncloudUpload(t, s, &ocHooksUpload{
 		downloadHook: func(path string) (io.ReadCloser, error) {
 			return nil, fmt.Errorf("cannot open chunk")
 		},
 	})
 
-	sd := startPostgresUp(t)
-	if sd.container != nil {
-		t.Cleanup(func() { _ = sd.container.Terminate(context.Background()) })
+	c, dsn := startPostgresContainer(t)
+	if c != nil {
+		t.Cleanup(func() { _ = c.Terminate(context.Background()) })
 	}
-	db := openDBUp(t, sd.dsn)
+	db := openDBUpload(t, dsn)
 	t.Cleanup(func() { _ = db.Close() })
-	seedFilesSchemaUp(t, db)
+	seedFilesSchemaUpload(t, db)
 
 	prev := fh.DB
 	fh.DB = db
 	t.Cleanup(func() { fh.DB = prev })
 
-	body, ctype := makeMultipartUp(t, map[string]string{
+	body, ctype := makeMultipartUpload(t, map[string]string{
 		"userId":      "u1",
 		"fileName":    "f.bin",
 		"fileType":    "application/octet-stream",
@@ -450,21 +384,21 @@ func TestUpload_MergeFailsOnMissingChunk(t *testing.T) {
 func TestUpload_DBInsertError_NoSchema(t *testing.T) {
 	t.Cleanup(monkey.UnpatchAll)
 
-	s := &memStoreUp{m: map[string][]byte{}}
-	patchOwncloudUp(t, s, nil)
+	s := &memStore{m: map[string][]byte{}}
+	patchOwncloudUpload(t, s, nil)
 
-	sd := startPostgresUp(t)
-	if sd.container != nil {
-		t.Cleanup(func() { _ = sd.container.Terminate(context.Background()) })
+	c, dsn := startPostgresContainer(t)
+	if c != nil {
+		t.Cleanup(func() { _ = c.Terminate(context.Background()) })
 	}
-	db := openDBUp(t, sd.dsn)
+	db := openDBUpload(t, dsn)
 	t.Cleanup(func() { _ = db.Close() })
 
 	prev := fh.DB
 	fh.DB = db
 	t.Cleanup(func() { fh.DB = prev })
 
-	body, ctype := makeMultipartUp(t, map[string]string{
+	body, ctype := makeMultipartUpload(t, map[string]string{
 		"userId":      "u1",
 		"fileName":    "doc",
 		"fileType":    "application/octet-stream",
@@ -504,13 +438,13 @@ func TestStartUpload_MissingRequired(t *testing.T) {
 }
 
 func TestStartUpload_Success_InsertsRow_ReturnsID(t *testing.T) {
-	sd := startPostgresUp(t)
-	if sd.container != nil {
-		t.Cleanup(func() { _ = sd.container.Terminate(context.Background()) })
+	c, dsn := startPostgresContainer(t)
+	if c != nil {
+		t.Cleanup(func() { _ = c.Terminate(context.Background()) })
 	}
-	db := openDBUp(t, sd.dsn)
+	db := openDBUpload(t, dsn)
 	t.Cleanup(func() { _ = db.Close() })
-	seedFilesSchemaUp(t, db)
+	seedFilesSchemaUpload(t, db)
 
 	prev := fh.DB
 	fh.DB = db
@@ -551,11 +485,11 @@ func TestStartUpload_Success_InsertsRow_ReturnsID(t *testing.T) {
 }
 
 func TestStartUpload_DBError_NoSchema(t *testing.T) {
-	sd := startPostgresUp(t)
-	if sd.container != nil {
-		t.Cleanup(func() { _ = sd.container.Terminate(context.Background()) })
+	c, dsn := startPostgresContainer(t)
+	if c != nil {
+		t.Cleanup(func() { _ = c.Terminate(context.Background()) })
 	}
-	db := openDBUp(t, sd.dsn)
+	db := openDBUpload(t, dsn)
 	t.Cleanup(func() { _ = db.Close() })
 
 	prev := fh.DB

@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -24,19 +23,20 @@ import (
 func doDeleteReq(t *testing.T, body any) (*httptest.ResponseRecorder, []byte) {
 	t.Helper()
 
-	var rdr io.Reader
+	var b []byte
+	var err error
 	switch v := body.(type) {
 	case string:
-		rdr = bytes.NewBufferString(v)
+		b = []byte(v)
 	case []byte:
-		rdr = bytes.NewBuffer(v)
+		b = v
 	default:
-		b, err := json.Marshal(v)
+		b, err = json.Marshal(v)
 		require.NoError(t, err)
-		rdr = bytes.NewBuffer(b)
 	}
 
-	req := httptest.NewRequest(http.MethodPost, "/delete", rdr)
+	req := httptest.NewRequest(http.MethodPost, "/delete", bytes.NewReader(b))
+	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 
 	fh.DeleteFileHandler(rr, req)
@@ -46,7 +46,7 @@ func doDeleteReq(t *testing.T, body any) (*httptest.ResponseRecorder, []byte) {
 func TestDeleteFileHandler_InvalidJSON(t *testing.T) {
 	t.Cleanup(monkey.UnpatchAll)
 
-	rr, body := doDeleteReq(t, `{"fileId": "abc", "userId":`)
+	rr, body := doDeleteReq(t, `{"fileId":"abc","userId":`)
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
 	assert.Contains(t, string(body), "Invalid JSON payload")
 }

@@ -8,77 +8,19 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"strings"
 	"testing"
-	"time"
 
-	nat "github.com/docker/go-connections/nat"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
 
 	fh "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler"
 
 	_ "github.com/lib/pq"
 )
 
-type startedDBNotif struct {
-	container testcontainers.Container
-	dsn       string
-}
-
-func startPostgresNotif(t *testing.T) startedDBNotif {
-	t.Helper()
-
-	if dsn := os.Getenv("POSTGRES_TEST_DSN"); dsn != "" {
-		return startedDBNotif{dsn: dsn}
-	}
-
-	ctx := context.Background()
-	const (
-		user = "testuser"
-		pass = "testpass"
-		db   = "testdb"
-	)
-	req := testcontainers.ContainerRequest{
-		Image:        "postgres:16-alpine",
-		ExposedPorts: []string{"5432/tcp"},
-		Env: map[string]string{
-			"POSTGRES_USER":     user,
-			"POSTGRES_PASSWORD": pass,
-			"POSTGRES_DB":       db,
-		},
-		WaitingFor: wait.ForSQL(
-			"5432/tcp", "postgres",
-			func(host string, port nat.Port) string {
-				return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-					user, pass, host, port.Port(), db)
-			},
-		).WithStartupTimeout(120 * time.Second),
-	}
-	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: req,
-		Started:          true,
-	})
-	if err != nil && strings.Contains(err.Error(), "permission denied while trying to connect to the Docker daemon socket") {
-		t.Skipf("Skipping DB-backed tests: Docker not accessible (%v). Fix Docker perms or set POSTGRES_TEST_DSN.", err)
-	}
-	require.NoError(t, err, "failed to start postgres container")
-
-	host, err := c.Host(ctx)
-	require.NoError(t, err)
-	mp, err := c.MappedPort(ctx, "5432/tcp")
-	require.NoError(t, err)
-
-	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", user, pass, host, mp.Port(), db)
-	return startedDBNotif{container: c, dsn: dsn}
-}
 
 func openDBNotif(t *testing.T, dsn string) *sql.DB {
 	t.Helper()
@@ -133,8 +75,7 @@ func insertNotification(t *testing.T, db *sql.DB, n map[string]any) string {
 	var id string
 	q := `INSERT INTO notifications (type,"from","to",file_name,file_id,received_file_id,message,status,read)
 	      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`
-	_, ok := n["received_file_id"]
-	if !ok {
+	if _, ok := n["received_file_id"]; !ok {
 		n["received_file_id"] = nil
 	}
 	err := db.QueryRow(q,
@@ -164,6 +105,8 @@ func doJSONReq(t *testing.T, method, path string, body any, h http.HandlerFunc) 
 	h(rr, req)
 	return rr, rr.Body.Bytes()
 }
+
+/* ------------------------------ Tests ------------------------------------- */
 
 func TestNotificationHandler_MethodNotAllowed(t *testing.T) {
 	rr := httptest.NewRecorder()
@@ -195,11 +138,11 @@ func TestNotificationHandler_DBNil(t *testing.T) {
 }
 
 func TestNotificationHandler_DBError_TableMissing(t *testing.T) {
-	sd := startPostgresNotif(t)
-	if sd.container != nil {
-		t.Cleanup(func() { _ = sd.container.Terminate(context.Background()) })
+	c, dsn := startPostgresContainer(t)
+	if c != nil {
+		t.Cleanup(func() { _ = c.Terminate(context.Background()) })
 	}
-	db := openDBNotif(t, sd.dsn)
+	db := openDBNotif(t, dsn)
 	t.Cleanup(func() { _ = db.Close() })
 
 	prev := fh.DB
@@ -213,11 +156,11 @@ func TestNotificationHandler_DBError_TableMissing(t *testing.T) {
 }
 
 func TestNotificationHandler_Success_FiltersByRecipient(t *testing.T) {
-	sd := startPostgresNotif(t)
-	if sd.container != nil {
-		t.Cleanup(func() { _ = sd.container.Terminate(context.Background()) })
+	c, dsn := startPostgresContainer(t)
+	if c != nil {
+		t.Cleanup(func() { _ = c.Terminate(context.Background()) })
 	}
-	db := openDBNotif(t, sd.dsn)
+	db := openDBNotif(t, dsn)
 	t.Cleanup(func() { _ = db.Close() })
 	seedNotificationsSchema(t, db)
 
@@ -285,11 +228,11 @@ func TestMarkAsReadHandler_DBNil(t *testing.T) {
 }
 
 func TestMarkAsReadHandler_NotFound(t *testing.T) {
-	sd := startPostgresNotif(t)
-	if sd.container != nil {
-		t.Cleanup(func() { _ = sd.container.Terminate(context.Background()) })
+	c, dsn := startPostgresContainer(t)
+	if c != nil {
+		t.Cleanup(func() { _ = c.Terminate(context.Background()) })
 	}
-	db := openDBNotif(t, sd.dsn)
+	db := openDBNotif(t, dsn)
 	t.Cleanup(func() { _ = db.Close() })
 	seedNotificationsSchema(t, db)
 
@@ -302,11 +245,11 @@ func TestMarkAsReadHandler_NotFound(t *testing.T) {
 }
 
 func TestMarkAsReadHandler_Success(t *testing.T) {
-	sd := startPostgresNotif(t)
-	if sd.container != nil {
-		t.Cleanup(func() { _ = sd.container.Terminate(context.Background()) })
+	c, dsn := startPostgresContainer(t)
+	if c != nil {
+		t.Cleanup(func() { _ = c.Terminate(context.Background()) })
 	}
-	db := openDBNotif(t, sd.dsn)
+	db := openDBNotif(t, dsn)
 	t.Cleanup(func() { _ = db.Close() })
 	seedNotificationsSchema(t, db)
 
@@ -360,11 +303,11 @@ func TestRespondHandler_DBNil(t *testing.T) {
 }
 
 func TestRespondHandler_NotFoundOnUpdate(t *testing.T) {
-	sd := startPostgresNotif(t)
-	if sd.container != nil {
-		t.Cleanup(func() { _ = sd.container.Terminate(context.Background()) })
+	c, dsn := startPostgresContainer(t)
+	if c != nil {
+		t.Cleanup(func() { _ = c.Terminate(context.Background()) })
 	}
-	db := openDBNotif(t, sd.dsn)
+	db := openDBNotif(t, dsn)
 	t.Cleanup(func() { _ = db.Close() })
 	seedNotificationsSchema(t, db)
 
@@ -377,11 +320,11 @@ func TestRespondHandler_NotFoundOnUpdate(t *testing.T) {
 }
 
 func TestRespondHandler_Accepted_WithReceivedFileID_ReturnsFileData(t *testing.T) {
-	sd := startPostgresNotif(t)
-	if sd.container != nil {
-		t.Cleanup(func() { _ = sd.container.Terminate(context.Background()) })
+	c, dsn := startPostgresContainer(t)
+	if c != nil {
+		t.Cleanup(func() { _ = c.Terminate(context.Background()) })
 	}
-	db := openDBNotif(t, sd.dsn)
+	db := openDBNotif(t, dsn)
 	t.Cleanup(func() { _ = db.Close() })
 	seedNotificationsSchema(t, db)
 
@@ -429,11 +372,11 @@ func TestRespondHandler_Accepted_WithReceivedFileID_ReturnsFileData(t *testing.T
 }
 
 func TestRespondHandler_Accepted_ViewOnly_ReturnsFileData(t *testing.T) {
-	sd := startPostgresNotif(t)
-	if sd.container != nil {
-		t.Cleanup(func() { _ = sd.container.Terminate(context.Background()) })
+	c, dsn := startPostgresContainer(t)
+	if c != nil {
+		t.Cleanup(func() { _ = c.Terminate(context.Background()) })
 	}
-	db := openDBNotif(t, sd.dsn)
+	db := openDBNotif(t, dsn)
 	t.Cleanup(func() { _ = db.Close() })
 	seedNotificationsSchema(t, db)
 
@@ -496,11 +439,11 @@ func TestClearHandler_DBNil(t *testing.T) {
 }
 
 func TestClearHandler_NotFound(t *testing.T) {
-	sd := startPostgresNotif(t)
-	if sd.container != nil {
-		t.Cleanup(func() { _ = sd.container.Terminate(context.Background()) })
+	c, dsn := startPostgresContainer(t)
+	if c != nil {
+		t.Cleanup(func() { _ = c.Terminate(context.Background()) })
 	}
-	db := openDBNotif(t, sd.dsn)
+	db := openDBNotif(t, dsn)
 	t.Cleanup(func() { _ = db.Close() })
 	seedNotificationsSchema(t, db)
 
@@ -513,11 +456,11 @@ func TestClearHandler_NotFound(t *testing.T) {
 }
 
 func TestClearHandler_Success(t *testing.T) {
-	sd := startPostgresNotif(t)
-	if sd.container != nil {
-		t.Cleanup(func() { _ = sd.container.Terminate(context.Background()) })
+	c, dsn := startPostgresContainer(t)
+	if c != nil {
+		t.Cleanup(func() { _ = c.Terminate(context.Background()) })
 	}
-	db := openDBNotif(t, sd.dsn)
+	db := openDBNotif(t, dsn)
 	t.Cleanup(func() { _ = db.Close() })
 	seedNotificationsSchema(t, db)
 
@@ -540,7 +483,6 @@ func TestClearHandler_Success(t *testing.T) {
 	assert.Equal(t, 0, count)
 }
 
-/*****************************  AddNotificationHandler  **********************/
 
 func TestAddNotificationHandler_MethodNotAllowed(t *testing.T) {
 	rr := httptest.NewRecorder()
@@ -573,11 +515,11 @@ func TestAddNotificationHandler_DBNil(t *testing.T) {
 }
 
 func TestAddNotificationHandler_Success_ViewOnly(t *testing.T) {
-	sd := startPostgresNotif(t)
-	if sd.container != nil {
-		t.Cleanup(func() { _ = sd.container.Terminate(context.Background()) })
+	c, dsn := startPostgresContainer(t)
+	if c != nil {
+		t.Cleanup(func() { _ = c.Terminate(context.Background()) })
 	}
-	db := openDBNotif(t, sd.dsn)
+	db := openDBNotif(t, dsn)
 	t.Cleanup(func() { _ = db.Close() })
 	seedNotificationsSchema(t, db)
 
@@ -588,7 +530,7 @@ func TestAddNotificationHandler_Success_ViewOnly(t *testing.T) {
 	rr, body := doJSONReq(t, http.MethodPost, "/notifications/add", map[string]any{
 		"type": "share", "from": "u1", "to": "u2",
 		"file_name": "doc", "file_id": "f1", "message": "hey",
-		"viewOnly": true, 
+		"viewOnly": true,
 	}, fh.AddNotificationHandler)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
@@ -599,11 +541,11 @@ func TestAddNotificationHandler_Success_ViewOnly(t *testing.T) {
 }
 
 func TestAddNotificationHandler_Success_WithReceivedFileID(t *testing.T) {
-	sd := startPostgresNotif(t)
-	if sd.container != nil {
-		t.Cleanup(func() { _ = sd.container.Terminate(context.Background()) })
+	c, dsn := startPostgresContainer(t)
+	if c != nil {
+		t.Cleanup(func() { _ = c.Terminate(context.Background()) })
 	}
-	db := openDBNotif(t, sd.dsn)
+	db := openDBNotif(t, dsn)
 	t.Cleanup(func() { _ = db.Close() })
 	seedNotificationsSchema(t, db)
 

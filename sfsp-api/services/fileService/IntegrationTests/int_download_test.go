@@ -5,9 +5,8 @@ package integration_test
 
 import (
 	"bytes"
-	"context"
 	"crypto/sha256"
-	"database/sql"
+	//"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -15,46 +14,16 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
 	monkey "bou.ke/monkey"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	fh "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler"
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
 
 	_ "github.com/lib/pq"
 )
-
-func mustOpenDB(t *testing.T, dsn string) *sql.DB {
-	t.Helper()
-	db, err := sql.Open("postgres", dsn)
-	require.NoError(t, err)
-	require.NoError(t, db.Ping())
-	return db
-}
-
-func seedSchema(t *testing.T, db *sql.DB) {
-	t.Helper()
-	_, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS files (
-			id TEXT PRIMARY KEY,
-			owner_id TEXT NOT NULL,
-			file_name TEXT NOT NULL,
-			nonce TEXT NOT NULL,
-			file_hash TEXT NOT NULL,
-			cid TEXT
-		);
-	`)
-	require.NoError(t, err)
-}
-
-func insertFileRow(t *testing.T, db *sql.DB, id, owner, fname, nonce, hash, cid string) {
-	t.Helper()
-	_, err := db.Exec(`
-		INSERT INTO files (id, owner_id, file_name, nonce, file_hash, cid)
-		VALUES ($1,$2,$3,$4,$5,$6)
-	`, id, owner, fname, nonce, hash, cid)
-	require.NoError(t, err)
-}
 
 func doJSON(t *testing.T, method, path string, body any, h http.HandlerFunc) (*httptest.ResponseRecorder, []byte) {
 	t.Helper()
@@ -96,15 +65,14 @@ func TestDownloadHandler_MissingFields(t *testing.T) {
 func TestDownloadHandler_NotFound(t *testing.T) {
 	t.Cleanup(monkey.UnpatchAll)
 
-	c, dsn := startPostgresContainer(t)
-	t.Cleanup(func() { _ = c.Terminate(context.Background()) })
-	db := mustOpenDB(t, dsn)
+	pg := startPostgres(t)        
+	db := openDB(t, pg.DSN)      
 	t.Cleanup(func() { _ = db.Close() })
-	seedSchema(t, db)
+	seedBasicFileSchema(t, db)    
 
-	prevDB := fh.DB
+	prev := fh.DB
 	fh.DB = db
-	t.Cleanup(func() { fh.DB = prevDB })
+	t.Cleanup(func() { fh.DB = prev })
 
 	rr, body := doJSON(t, http.MethodPost, "/download", map[string]string{
 		"userId": "u1",
@@ -117,24 +85,28 @@ func TestDownloadHandler_NotFound(t *testing.T) {
 func TestDownloadHandler_OwncloudError(t *testing.T) {
 	t.Cleanup(monkey.UnpatchAll)
 
-	c, dsn := startPostgresContainer(t)
-	t.Cleanup(func() { _ = c.Terminate(context.Background()) })
-	db := mustOpenDB(t, dsn)
+	pg := startPostgres(t)
+	db := openDB(t, pg.DSN)
 	t.Cleanup(func() { _ = db.Close() })
-	seedSchema(t, db)
+	seedBasicFileSchema(t, db)
 
 	userID := "user-123"
 	fileID := "file-123"
 	fileName := "report.pdf"
 	nonce := "test-nonce"
 	content := []byte("hello world")
-	hash := sha256.Sum256(content)
-	fileHash := hex.EncodeToString(hash[:])
-	insertFileRow(t, db, fileID, userID, fileName, nonce, fileHash, "cid-xyz")
+	sum := sha256.Sum256(content)
+	fileHash := hex.EncodeToString(sum[:])
 
-	prevDB := fh.DB
+	_, err := db.Exec(`
+		INSERT INTO files (id, owner_id, file_name, nonce, file_hash, cid)
+		VALUES ($1,$2,$3,$4,$5,$6)
+	`, fileID, userID, fileName, nonce, fileHash, "cid-xyz")
+	require.NoError(t, err)
+
+	prev := fh.DB
 	fh.DB = db
-	t.Cleanup(func() { fh.DB = prevDB })
+	t.Cleanup(func() { fh.DB = prev })
 
 	monkey.Patch(owncloud.DownloadFileStream, func(fid string) (io.ReadCloser, error) {
 		return nil, fmt.Errorf("simulated owncloud failure")
@@ -152,11 +124,10 @@ func TestDownloadHandler_OwncloudError(t *testing.T) {
 func TestDownloadHandler_Success_StreamsWithHeaders_AndBody(t *testing.T) {
 	t.Cleanup(monkey.UnpatchAll)
 
-	c, dsn := startPostgresContainer(t)
-	t.Cleanup(func() { _ = c.Terminate(context.Background()) })
-	db := mustOpenDB(t, dsn)
+	pg := startPostgres(t)
+	db := openDB(t, pg.DSN)
 	t.Cleanup(func() { _ = db.Close() })
-	seedSchema(t, db)
+	seedBasicFileSchema(t, db)
 
 	userID := "user-abc"
 	fileID := "f-42"
@@ -166,11 +137,15 @@ func TestDownloadHandler_Success_StreamsWithHeaders_AndBody(t *testing.T) {
 	sum := sha256.Sum256(content)
 	fileHash := hex.EncodeToString(sum[:])
 
-	insertFileRow(t, db, fileID, userID, fileName, nonce, fileHash, "cid-any")
+	_, err := db.Exec(`
+		INSERT INTO files (id, owner_id, file_name, nonce, file_hash, cid)
+		VALUES ($1,$2,$3,$4,$5,$6)
+	`, fileID, userID, fileName, nonce, fileHash, "cid-any")
+	require.NoError(t, err)
 
-	prevDB := fh.DB
+	prev := fh.DB
 	fh.DB = db
-	t.Cleanup(func() { fh.DB = prevDB })
+	t.Cleanup(func() { fh.DB = prev })
 
 	monkey.Patch(owncloud.DownloadFileStream, func(fid string) (io.ReadCloser, error) {
 		require.Equal(t, fileID, fid)
@@ -183,10 +158,10 @@ func TestDownloadHandler_Success_StreamsWithHeaders_AndBody(t *testing.T) {
 	}, fh.DownloadHandler)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-
 	assert.Equal(t, "application/octet-stream", rr.Header().Get("Content-Type"))
 	assert.Equal(t, fileName, rr.Header().Get("X-File-Name"))
 	assert.Equal(t, nonce, rr.Header().Get("X-Nonce"))
+
 	disp := rr.Header().Get("Content-Disposition")
 	assert.Contains(t, disp, "attachment;")
 	assert.Contains(t, disp, fileName)

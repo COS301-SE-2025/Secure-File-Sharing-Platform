@@ -6,7 +6,6 @@ package integration_test
 import (
 	"bytes"
 	"database/sql"
-	//"encoding/json"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -25,24 +24,9 @@ import (
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
 )
 
-/* ------------------------------ helpers ----------------------------------- */
-
-//type memStore struct{ m map[string][]byte }
-
-// func (s *memStore) put(key string, data []byte) { s.m[key] = append([]byte(nil), data...) }
-// func (s *memStore) get(key string) ([]byte, bool) {
-// 	b, ok := s.m[key]
-// 	if !ok {
-// 		return nil, false
-// 	}
-// 	return append([]byte(nil), b...), true
-// }
-// func (s *memStore) del(key string) { delete(s.m, key) }
-
 func patchOwncloud(t *testing.T, s *memStore, opts ...func(path, name string) error) {
 	t.Helper()
 
-	// optional hook for simulating errors on UploadFileStream
 	var uploadHook func(path, name string) error
 	if len(opts) > 0 {
 		uploadHook = opts[0]
@@ -71,7 +55,6 @@ func patchOwncloud(t *testing.T, s *memStore, opts ...func(path, name string) er
 	})
 }
 
-// Build a multipart/form-data body with fields and one file part.
 func makeMultipart(t *testing.T, fields map[string]string, fileField, fileName string, fileBytes []byte) (*bytes.Buffer, string) {
 	t.Helper()
 	var buf bytes.Buffer
@@ -88,12 +71,9 @@ func makeMultipart(t *testing.T, fields map[string]string, fileField, fileName s
 	return &buf, w.FormDataContentType()
 }
 
-/* ------------------------------ tests ------------------------------------- */
-
 func TestSendFileHandler_InvalidContentType(t *testing.T) {
 	t.Cleanup(monkey.UnpatchAll)
 
-	// Not multipart => ParseMultipartForm fails
 	req := httptest.NewRequest(http.MethodPost, "/send", bytes.NewBufferString(`{"x":1}`))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
@@ -110,7 +90,6 @@ func TestSendFileHandler_MissingFields(t *testing.T) {
 
 	body, ctype := makeMultipart(t, map[string]string{
 		"userId": "u1",
-		// missing most required fields
 	}, "encryptedFile", "x.bin", []byte("x"))
 	req := httptest.NewRequest(http.MethodPost, "/send", body)
 	req.Header.Set("Content-Type", ctype)
@@ -126,14 +105,13 @@ func TestSendFileHandler_InvalidIndicesOrMissingFile(t *testing.T) {
 	s := &memStore{m: map[string][]byte{}}
 	patchOwncloud(t, s)
 
-	// invalid chunkIndex
 	body, ctype := makeMultipart(t, map[string]string{
-		"fileid":         "f1",
-		"userId":         "u1",
-		"recipientUserId":"u2",
-		"metadata":       `{}`,
-		"chunkIndex":     "bad",
-		"totalChunks":    "1",
+		"fileid":          "f1",
+		"userId":          "u1",
+		"recipientUserId": "u2",
+		"metadata":        `{}`,
+		"chunkIndex":      "bad",
+		"totalChunks":     "1",
 	}, "encryptedFile", "x.bin", []byte("x"))
 	req := httptest.NewRequest(http.MethodPost, "/send", body)
 	req.Header.Set("Content-Type", ctype)
@@ -142,14 +120,13 @@ func TestSendFileHandler_InvalidIndicesOrMissingFile(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
 	assert.Contains(t, rr.Body.String(), "Invalid chunkIndex")
 
-	// missing file part
 	body2, ctype2 := makeMultipart(t, map[string]string{
-		"fileid":         "f1",
-		"userId":         "u1",
-		"recipientUserId":"u2",
-		"metadata":       `{}`,
-		"chunkIndex":     "0",
-		"totalChunks":    "1",
+		"fileid":          "f1",
+		"userId":          "u1",
+		"recipientUserId": "u2",
+		"metadata":        `{}`,
+		"chunkIndex":      "0",
+		"totalChunks":     "1",
 	}, "", "", nil)
 	req2 := httptest.NewRequest(http.MethodPost, "/send", body2)
 	req2.Header.Set("Content-Type", ctype2)
@@ -162,25 +139,23 @@ func TestSendFileHandler_InvalidIndicesOrMissingFile(t *testing.T) {
 func TestSendFileHandler_TempUploadFail(t *testing.T) {
 	t.Cleanup(monkey.UnpatchAll)
 	s := &memStore{m: map[string][]byte{}}
-	// Fail only when writing to "temp"
 	patchOwncloud(t, s, func(path, name string) error {
 		if path == "temp" {
 			return fmt.Errorf("simulated temp upload error")
 		}
 		return nil
 	})
-	// Patch metadata to ensure it's not called (but harmless if it is)
 	monkey.Patch(metadata.InsertReceivedFile, func(db *sql.DB, recipientID, senderID, fileID, metadataJSON string, expiresAt time.Time) (string, error) {
 		return "", fmt.Errorf("should not be called")
 	})
 
 	body, ctype := makeMultipart(t, map[string]string{
-		"fileid":         "f1",
-		"userId":         "u1",
-		"recipientUserId":"u2",
-		"metadata":       `{}`,
-		"chunkIndex":     "0",
-		"totalChunks":    "1",
+		"fileid":          "f1",
+		"userId":          "u1",
+		"recipientUserId": "u2",
+		"metadata":        `{}`,
+		"chunkIndex":      "0",
+		"totalChunks":     "1",
 	}, "encryptedFile", "x.bin", []byte("x"))
 	req := httptest.NewRequest(http.MethodPost, "/send", body)
 	req.Header.Set("Content-Type", ctype)
@@ -195,18 +170,17 @@ func TestSendFileHandler_AckIntermediateChunk(t *testing.T) {
 	t.Cleanup(monkey.UnpatchAll)
 	s := &memStore{m: map[string][]byte{}}
 	patchOwncloud(t, s)
-	// Patch metadata to avoid DB usage if handler tried (it shouldn't for non-final)
 	monkey.Patch(metadata.InsertReceivedFile, func(db *sql.DB, recipientID, senderID, fileID, metadataJSON string, expiresAt time.Time) (string, error) {
 		return "", nil
 	})
 
 	fields := map[string]string{
-		"fileid":         "f1",
-		"userId":         "u1",
-		"recipientUserId":"u2",
-		"metadata":       `{"a":1}`,
-		"chunkIndex":     "0",
-		"totalChunks":    "2",
+		"fileid":          "f1",
+		"userId":          "u1",
+		"recipientUserId": "u2",
+		"metadata":        `{"a":1}`,
+		"chunkIndex":      "0",
+		"totalChunks":     "2",
 	}
 	body, ctype := makeMultipart(t, fields, "encryptedFile", "c0.bin", []byte("AAA"))
 	req := httptest.NewRequest(http.MethodPost, "/send", body)
@@ -216,7 +190,6 @@ func TestSendFileHandler_AckIntermediateChunk(t *testing.T) {
 	fh.SendFileHandler(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
 	assert.Contains(t, rr.Body.String(), `"Chunk 0 uploaded"`)
-	// chunk persisted in temp
 	got, ok := s.get("temp/f1_chunk_0")
 	require.True(t, ok)
 	assert.Equal(t, []byte("AAA"), got)
@@ -227,10 +200,8 @@ func TestSendFileHandler_FinalMerge_Success_AndDBTracking(t *testing.T) {
 	s := &memStore{m: map[string][]byte{}}
 	patchOwncloud(t, s)
 
-	// Pre-store first chunk in temp to simulate previous request
 	s.put("temp/F2_chunk_0", []byte("HELLO "))
 
-	// Patch metadata layer
 	var gotRecip, gotSender, gotFile, gotMeta string
 	var gotExpire time.Time
 	monkey.Patch(metadata.InsertReceivedFile, func(db *sql.DB, recipientID, senderID, fileID, metadataJSON string, expiresAt time.Time) (string, error) {
@@ -244,12 +215,12 @@ func TestSendFileHandler_FinalMerge_Success_AndDBTracking(t *testing.T) {
 	})
 
 	fields := map[string]string{
-		"fileid":         "F2",
-		"userId":         "SENDER",
-		"recipientUserId":"RECIP",
-		"metadata":       `{"k":"v"}`,
-		"chunkIndex":     "1",
-		"totalChunks":    "2",
+		"fileid":          "F2",
+		"userId":          "SENDER",
+		"recipientUserId": "RECIP",
+		"metadata":        `{"k":"v"}`,
+		"chunkIndex":      "1",
+		"totalChunks":     "2",
 	}
 	body, ctype := makeMultipart(t, fields, "encryptedFile", "c1.bin", []byte("WORLD"))
 	req := httptest.NewRequest(http.MethodPost, "/send", body)
@@ -262,20 +233,17 @@ func TestSendFileHandler_FinalMerge_Success_AndDBTracking(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), `"message":"File sent successfully"`)
 	assert.Contains(t, rr.Body.String(), `"receivedFileID":"rf-123"`)
 
-	// Verify final uploaded content at files/SENDER/sent/F2
 	finalKey := "files/SENDER/sent/F2"
 	got, ok := s.get(finalKey)
 	require.True(t, ok)
 	assert.Equal(t, []byte("HELLO WORLD"), got)
 
-	// Verify metadata.InsertReceivedFile args
 	assert.Equal(t, "RECIP", gotRecip)
 	assert.Equal(t, "SENDER", gotSender)
 	assert.Equal(t, "F2", gotFile)
 	assert.Equal(t, `{"k":"v"}`, gotMeta)
 	assert.WithinDuration(t, time.Now().Add(48*time.Hour), gotExpire, time.Hour)
 
-	// InsertSentFile was called (non-fatal if it fails)
 	assert.True(t, sentCalled)
 }
 
@@ -290,19 +258,16 @@ func TestSendFileHandler_FinalUploadFail(t *testing.T) {
 		if strings.HasPrefix(path, "files/") && strings.HasSuffix(path, "/sent") {
 			return fmt.Errorf("simulated final upload error")
 		}
-		key := strings.TrimSuffix(path, "/") + "/" + name
-		data, _ := io.ReadAll(bytes.NewReader(nil))
-		s.put(key, data)
 		return nil
 	})
 
 	body, ctype := makeMultipart(t, map[string]string{
-		"fileid":         "F3",
-		"userId":         "S",
-		"recipientUserId":"R",
-		"metadata":       `{}`,
-		"chunkIndex":     "1",
-		"totalChunks":    "2",
+		"fileid":          "F3",
+		"userId":          "S",
+		"recipientUserId": "R",
+		"metadata":        `{}`,
+		"chunkIndex":      "1",
+		"totalChunks":     "2",
 	}, "encryptedFile", "c1.bin", []byte("B"))
 
 	req := httptest.NewRequest(http.MethodPost, "/send", body)
@@ -328,12 +293,12 @@ func TestSendFileHandler_InsertReceivedFileFails(t *testing.T) {
 	// InsertSentFile shouldn't matter; handler 500s before using it.
 
 	body, ctype := makeMultipart(t, map[string]string{
-		"fileid":         "F4",
-		"userId":         "S",
-		"recipientUserId":"R",
-		"metadata":       `{}`,
-		"chunkIndex":     "1",
-		"totalChunks":    "2",
+		"fileid":          "F4",
+		"userId":          "S",
+		"recipientUserId": "R",
+		"metadata":        `{}`,
+		"chunkIndex":      "1",
+		"totalChunks":     "2",
 	}, "encryptedFile", "c1.bin", []byte("B"))
 	req := httptest.NewRequest(http.MethodPost, "/send", body)
 	req.Header.Set("Content-Type", ctype)
@@ -359,12 +324,12 @@ func TestSendFileHandler_InsertSentFileFails_ButResponseStillOK(t *testing.T) {
 	})
 
 	body, ctype := makeMultipart(t, map[string]string{
-		"fileid":         "F5",
-		"userId":         "S",
-		"recipientUserId":"R",
-		"metadata":       `{}`,
-		"chunkIndex":     "1",
-		"totalChunks":    "2",
+		"fileid":          "F5",
+		"userId":          "S",
+		"recipientUserId": "R",
+		"metadata":        `{}`,
+		"chunkIndex":      "1",
+		"totalChunks":     "2",
 	}, "encryptedFile", "c1.bin", []byte("RIGHT"))
 	req := httptest.NewRequest(http.MethodPost, "/send", body)
 	req.Header.Set("Content-Type", ctype)

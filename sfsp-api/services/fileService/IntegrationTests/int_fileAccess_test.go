@@ -7,93 +7,23 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"strings"
 	"testing"
-	"time"
 
-	nat "github.com/docker/go-connections/nat"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
 
 	fh "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler"
 
 	_ "github.com/lib/pq"
 )
 
-type startedDB struct {
-	container testcontainers.Container 
-	dsn       string
-}
-
-func startPostgres(t *testing.T) startedDB {
-	t.Helper()
-
-	if dsn := os.Getenv("POSTGRES_TEST_DSN"); dsn != "" {
-		return startedDB{dsn: dsn}
-	}
-
-	ctx := context.Background()
-	const (
-		user = "testuser"
-		pass = "testpass"
-		db   = "testdb"
-	)
-
-	req := testcontainers.ContainerRequest{
-		Image:        "postgres:16-alpine",
-		ExposedPorts: []string{"5432/tcp"},
-		Env: map[string]string{
-			"POSTGRES_USER":     user,
-			"POSTGRES_PASSWORD": pass,
-			"POSTGRES_DB":       db,
-		},
-		WaitingFor: wait.ForSQL("5432/tcp", "postgres",
-			func(host string, port nat.Port) string {
-				return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-					user, pass, host, port.Port(), db)
-			},
-		).WithStartupTimeout(120 * time.Second),
-	}
-
-	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: req,
-		Started:          true,
-	})
-	if err != nil {
-		if strings.Contains(err.Error(), "permission denied while trying to connect to the Docker daemon socket") {
-			t.Skipf("Skipping DB-backed tests: Docker not accessible (%v). Fix Docker perms or set POSTGRES_TEST_DSN.", err)
-		}
-		require.NoError(t, err, "failed to start postgres container")
-	}
-
-	host, err := c.Host(ctx)
-	require.NoError(t, err)
-	mp, err := c.MappedPort(ctx, "5432/tcp")
-	require.NoError(t, err)
-
-	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", user, pass, host, mp.Port(), db)
-	return startedDB{container: c, dsn: dsn}
-}
-
-func openDB(t *testing.T, dsn string) *sql.DB {
-	t.Helper()
-	db, err := sql.Open("postgres", dsn)
-	require.NoError(t, err)
-	require.NoError(t, db.Ping())
-	return db
-}
-
 func seedAccessLogSchema(t *testing.T, db *sql.DB) {
 	t.Helper()
 	_, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS access_logs (
-			id TEXT PRIMARY KEY DEFAULT md5(random()::text),
+			id        TEXT PRIMARY KEY DEFAULT md5(random()::text),
 			file_id   TEXT NOT NULL,
 			user_id   TEXT NOT NULL,
 			action    TEXT NOT NULL,
@@ -138,11 +68,11 @@ func TestAddAccesslogHandler_MissingFields(t *testing.T) {
 }
 
 func TestAddAccesslogHandler_DBError_WhenTableMissing(t *testing.T) {
-	sd := startPostgres(t)
-	if sd.container != nil {
-		t.Cleanup(func() { _ = sd.container.Terminate(context.Background()) })
+	pg := startPostgres(t)
+	if pg.Container != nil {
+		t.Cleanup(func() { _ = pg.Container.Terminate(context.Background()) })
 	}
-	db := openDB(t, sd.dsn)
+	db := openDB(t, pg.DSN)
 	t.Cleanup(func() { _ = db.Close() })
 
 	prev := fh.DB
@@ -157,11 +87,11 @@ func TestAddAccesslogHandler_DBError_WhenTableMissing(t *testing.T) {
 }
 
 func TestAddAccesslogHandler_Success_InsertsRow(t *testing.T) {
-	sd := startPostgres(t)
-	if sd.container != nil {
-		t.Cleanup(func() { _ = sd.container.Terminate(context.Background()) })
+	pg := startPostgres(t)
+	if pg.Container != nil {
+		t.Cleanup(func() { _ = pg.Container.Terminate(context.Background()) })
 	}
-	db := openDB(t, sd.dsn)
+	db := openDB(t, pg.DSN)
 	t.Cleanup(func() { _ = db.Close() })
 	seedAccessLogSchema(t, db)
 
@@ -182,7 +112,8 @@ func TestAddAccesslogHandler_Success_InsertsRow(t *testing.T) {
 	assert.Contains(t, string(body), "Access log added successfully")
 
 	var count int
-	err := db.QueryRow(`SELECT COUNT(*) FROM access_logs WHERE file_id=$1 AND user_id=$2 AND action=$3 AND message=$4`,
+	err := db.QueryRow(
+		`SELECT COUNT(*) FROM access_logs WHERE file_id=$1 AND user_id=$2 AND action=$3 AND message=$4`,
 		payload["file_id"], payload["user_id"], payload["action"], payload["message"],
 	).Scan(&count)
 	require.NoError(t, err)
@@ -190,11 +121,11 @@ func TestAddAccesslogHandler_Success_InsertsRow(t *testing.T) {
 }
 
 func TestGetAccesslogHandler_DBError_WhenTableMissing(t *testing.T) {
-	sd := startPostgres(t)
-	if sd.container != nil {
-		t.Cleanup(func() { _ = sd.container.Terminate(context.Background()) })
+	pg := startPostgres(t)
+	if pg.Container != nil {
+		t.Cleanup(func() { _ = pg.Container.Terminate(context.Background()) })
 	}
-	db := openDB(t, sd.dsn)
+	db := openDB(t, pg.DSN)
 	t.Cleanup(func() { _ = db.Close() })
 
 	prev := fh.DB
@@ -210,11 +141,11 @@ func TestGetAccesslogHandler_DBError_WhenTableMissing(t *testing.T) {
 }
 
 func TestGetAccesslogHandler_ReturnsAll_OrderedByTimestampDesc(t *testing.T) {
-	sd := startPostgres(t)
-	if sd.container != nil {
-		t.Cleanup(func() { _ = sd.container.Terminate(context.Background()) })
+	pg := startPostgres(t)
+	if pg.Container != nil {
+		t.Cleanup(func() { _ = pg.Container.Terminate(context.Background()) })
 	}
-	db := openDB(t, sd.dsn)
+	db := openDB(t, pg.DSN)
 	t.Cleanup(func() { _ = db.Close() })
 	seedAccessLogSchema(t, db)
 
@@ -247,11 +178,11 @@ func TestGetAccesslogHandler_ReturnsAll_OrderedByTimestampDesc(t *testing.T) {
 }
 
 func TestGetAccesslogHandler_FilterByFileID(t *testing.T) {
-	sd := startPostgres(t)
-	if sd.container != nil {
-		t.Cleanup(func() { _ = sd.container.Terminate(context.Background()) })
+	pg := startPostgres(t)
+	if pg.Container != nil {
+		t.Cleanup(func() { _ = pg.Container.Terminate(context.Background()) })
 	}
-	db := openDB(t, sd.dsn)
+	db := openDB(t, pg.DSN)
 	t.Cleanup(func() { _ = db.Close() })
 	seedAccessLogSchema(t, db)
 
@@ -276,5 +207,3 @@ func TestGetAccesslogHandler_FilterByFileID(t *testing.T) {
 	assert.Equal(t, "a2", logs[0]["message"])
 	assert.Equal(t, "a1", logs[1]["message"])
 }
-
-func pause(ms int) { time.Sleep(time.Duration(ms) * time.Millisecond) }
