@@ -227,7 +227,7 @@ professional data.
 | DOCUMENT     | DESCRIPTION  |  LINK                             |
 |------------------|-----------------------------------|-----------------------------------|
 | Requirements (SRS)   | Software Requirement Specification  | [Open](https://drive.google.com/file/d/1fbWN4ctsaKtkVRFBXP6fcYUqkoyTodmu/view?usp=sharing)|
-| Coding Standards Documentation | Description of our conventions and styles| [Open](https://drive.google.com/file/d/1NhyOIGmxMWKtojE-os8EL135tMNGEkBF/view?usp=sharing)|
+| Coding Standards Documentation | Description of our conventions and styles| [Open](https://drive.google.com/file/d/1SLliUyedFGzzpxhuArakR_RDJmqLDPMw/view?usp=sharing)|
 | User Manual Document|A guide on how to use our system/platform|[Open](https://drive.google.com/file/d/167Sem2eXhJPx4kiWcdT6O02QjuMA8252/view?usp=sharing)|
 | Deployment Diagram|Plan for project deployment|[Open](https://drive.google.com/file/d/1ygrtnnmw6Qfvjb-w451HKQamaIMQ9bF3/view?usp=sharing)|
 | Architecture Diagram|Diagram of system overview|[Open](https://drive.google.com/file/d/1LFPgRBSH7Mg0Sq-lF3a-FYjESJy7DOKk/view?usp=sharing)|
