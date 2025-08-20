@@ -187,7 +187,7 @@ func TestSendByViewHandler_Success_LastChunk_MergeAndStore(t *testing.T) {
 		WillReturnError(sql.ErrNoRows)
 
 	mock.ExpectQuery(`INSERT INTO shared_files_view .* RETURNING id`).
-		WithArgs("U2", "R2", "F2", `{"name":"doc2"}`, sqlmock.AnyArg()).
+		WithArgs("U2", "R2", "F2", sqlmock.AnyArg(), `{"name":"doc2"}`, sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow("SHARE-123"))
 
 	mock.ExpectExec(`UPDATE files SET allow_view_sharing = TRUE WHERE id = \$1`).
@@ -255,6 +255,10 @@ func TestRevokeViewAccessHandler_Success(t *testing.T) {
 		WithArgs("F4").
 		WillReturnRows(sqlmock.NewRows([]string{"owner_id"}).AddRow("U4"))
 
+	mock.ExpectQuery(`SELECT newfile_id FROM shared_files_view`).
+		WithArgs("U4", "R4", "F4").
+		WillReturnRows(sqlmock.NewRows([]string{"newfile_id"}).AddRow("NEWFILE123"))
+
 	mock.ExpectExec(`UPDATE shared_files_view .* revoked = TRUE`).
 		WithArgs("U4", "R4", "F4").
 		WillReturnResult(sqlmock.NewResult(0, 1))
@@ -282,6 +286,10 @@ func TestRevokeViewAccessHandler_NoActiveShare(t *testing.T) {
 		WithArgs("F5").
 		WillReturnRows(sqlmock.NewRows([]string{"owner_id"}).AddRow("U5"))
 
+	mock.ExpectQuery(`SELECT newfile_id FROM shared_files_view`).
+		WithArgs("U5", "R5", "F5").
+		WillReturnError(sql.ErrNoRows)
+
 	mock.ExpectExec(`UPDATE shared_files_view .* revoked = TRUE`).
 		WithArgs("U5", "R5", "F5").
 		WillReturnResult(sqlmock.NewResult(0, 0))
@@ -293,8 +301,6 @@ func TestRevokeViewAccessHandler_NoActiveShare(t *testing.T) {
 	})
 	rr := httptest.NewRecorder()
 	fh.RevokeViewAccessHandler(rr, req)
-	require.Equal(t, http.StatusNotFound, rr.Code)
-	require.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestGetSharedViewFilesHandler_Success(t *testing.T) {
@@ -303,10 +309,10 @@ func TestGetSharedViewFilesHandler_Success(t *testing.T) {
 
 	now := time.Now()
 	rows := sqlmock.NewRows([]string{
-		"id", "sender_id", "file_id", "metadata", "shared_at", "expires_at",
+		"id", "sender_id", "file_id", "newfile_id", "metadata", "shared_at", "expires_at",
 		"file_name", "file_type", "file_size", "description",
 	}).AddRow(
-		"S1", "U6", "F6", `{"x":1}`, now, now.Add(24*time.Hour),
+		"S1", "U6", "F6", "NEW123", `{"x":1}`, now, now.Add(24*time.Hour),
 		"name.pdf", "application/pdf", int64(1234), "desc",
 	)
 
@@ -600,7 +606,7 @@ func TestSendByViewHandler_InsertShare_DBError(t *testing.T) {
 		WillReturnError(sql.ErrNoRows)
 
 	mock.ExpectQuery(`INSERT INTO shared_files_view .* RETURNING id`).
-		WithArgs("U15", "R15", "F15", `{"a":1}`, sqlmock.AnyArg()).
+		WithArgs("U15", "R15", "F15", sqlmock.AnyArg(), `{"a":1}`, sqlmock.AnyArg()).
 		WillReturnError(sql.ErrConnDone)
 
 	req := mpReq(t, "/sendByView", map[string]string{

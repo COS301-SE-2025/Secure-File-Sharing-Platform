@@ -9,26 +9,29 @@ import (
 	"encoding/json"
 	"net/http"
 	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	fh "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler"
 
 	_ "github.com/lib/pq"
 )
+
 func seedFilesSchema(t *testing.T, db *sql.DB) {
 	t.Helper()
 	_, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS files (
-			id         TEXT PRIMARY KEY DEFAULT md5(random()::text),
-			owner_id   TEXT NOT NULL,
-			file_name  TEXT NOT NULL,
-			file_type  TEXT NOT NULL,
-			file_size  BIGINT NOT NULL,
-			cid        TEXT,
-			nonce      TEXT,
+			id          TEXT PRIMARY KEY DEFAULT md5(random()::text),
+			owner_id    TEXT NOT NULL,
+			file_name   TEXT NOT NULL,
+			file_type   TEXT NOT NULL,
+			file_size   BIGINT NOT NULL,
+			cid         TEXT,
+			nonce       TEXT,
 			description TEXT,
-			tags       TEXT[] NOT NULL,
-			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			tags        TEXT[] NOT NULL,
+			created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 		);
 	`)
 	require.NoError(t, err)
@@ -54,19 +57,20 @@ func TestCreateFolderHandler_MissingFields(t *testing.T) {
 }
 
 func TestCreateFolderHandler_DBError_TableMissing(t *testing.T) {
-	sd := startPostgres(t)
-	if sd.container != nil {
-		t.Cleanup(func() { _ = sd.container.Terminate(context.Background()) })
+	pg := startPostgres(t)
+	if pg.Container != nil {
+		t.Cleanup(func() { _ = pg.Container.Terminate(context.Background()) })
 	}
-	db := openDB(t, sd.dsn)
+	db := openDB(t, pg.DSN)
 	t.Cleanup(func() { _ = db.Close() })
+
 	prev := fh.DB
 	fh.DB = db
 	t.Cleanup(func() { fh.DB = prev })
 
 	rr, body := doJSON(t, http.MethodPost, "/folders/create", map[string]any{
-		"userId":     "user-1",
-		"folderName": "Invoices",
+		"userId":      "user-1",
+		"folderName":  "Invoices",
 		"description": "finance stuff",
 	}, fh.CreateFolderHandler)
 
@@ -75,11 +79,11 @@ func TestCreateFolderHandler_DBError_TableMissing(t *testing.T) {
 }
 
 func TestCreateFolderHandler_Success_RootFolder(t *testing.T) {
-	sd := startPostgres(t)
-	if sd.container != nil {
-		t.Cleanup(func() { _ = sd.container.Terminate(context.Background()) })
+	pg := startPostgres(t)
+	if pg.Container != nil {
+		t.Cleanup(func() { _ = pg.Container.Terminate(context.Background()) })
 	}
-	db := openDB(t, sd.dsn)
+	db := openDB(t, pg.DSN)
 	t.Cleanup(func() { _ = db.Close() })
 	seedFilesSchema(t, db)
 
@@ -107,31 +111,29 @@ func TestCreateFolderHandler_Success_RootFolder(t *testing.T) {
 	require.NotEmpty(t, resp.FolderID)
 	assert.Equal(t, "RootFolder", resp.CID)
 
-	var got struct {
-		ownerID, fileName, fileType, cid, nonce, desc string
-		fileSize                                       int64
-		tags                                           []sql.NullString
-	}
+	var (
+		ownerID, fileName, fileType, cid, nonce, desc, tagsArr string
+		fileSize                                               int64
+	)
 	row := db.QueryRow(`SELECT owner_id, file_name, file_type, file_size, cid, nonce, description, tags FROM files WHERE id=$1`, resp.FolderID)
-	var tagsArr string
-	require.NoError(t, row.Scan(&got.ownerID, &got.fileName, &got.fileType, &got.fileSize, &got.cid, &got.nonce, &got.desc, &tagsArr))
+	require.NoError(t, row.Scan(&ownerID, &fileName, &fileType, &fileSize, &cid, &nonce, &desc, &tagsArr))
 
-	assert.Equal(t, "u-7", got.ownerID)
-	assert.Equal(t, "RootFolder", got.fileName)
-	assert.Equal(t, "folder", got.fileType)
-	assert.Equal(t, int64(0), got.fileSize)
-	assert.Equal(t, "RootFolder", got.cid)
-	assert.Equal(t, "", got.nonce)
-	assert.Equal(t, "top level", got.desc)
+	assert.Equal(t, "u-7", ownerID)
+	assert.Equal(t, "RootFolder", fileName)
+	assert.Equal(t, "folder", fileType)
+	assert.Equal(t, int64(0), fileSize)
+	assert.Equal(t, "RootFolder", cid)
+	assert.Equal(t, "", nonce)
+	assert.Equal(t, "top level", desc)
 	assert.Contains(t, tagsArr, "folder")
 }
 
 func TestCreateFolderHandler_Success_WithParentPath_TrailingSlashTrimmed(t *testing.T) {
-	sd := startPostgres(t)
-	if sd.container != nil {
-		t.Cleanup(func() { _ = sd.container.Terminate(context.Background()) })
+	pg := startPostgres(t)
+	if pg.Container != nil {
+		t.Cleanup(func() { _ = pg.Container.Terminate(context.Background()) })
 	}
-	db := openDB(t, sd.dsn)
+	db := openDB(t, pg.DSN)
 	t.Cleanup(func() { _ = db.Close() })
 	seedFilesSchema(t, db)
 
@@ -140,14 +142,15 @@ func TestCreateFolderHandler_Success_WithParentPath_TrailingSlashTrimmed(t *test
 	t.Cleanup(func() { fh.DB = prev })
 
 	payload := map[string]any{
-		"userId":     "user-123",
-		"folderName": "Child",
-		"parentPath": "my/docs/",
+		"userId":      "user-123",
+		"folderName":  "Child",
+		"parentPath":  "my/docs/",
 		"description": "",
 	}
 	rr, body := doJSON(t, http.MethodPost, "/folders/create", payload, fh.CreateFolderHandler)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
+
 	var resp struct {
 		FolderID string `json:"folderId"`
 		CID      string `json:"cid"`
@@ -155,8 +158,10 @@ func TestCreateFolderHandler_Success_WithParentPath_TrailingSlashTrimmed(t *test
 	require.NoError(t, json.Unmarshal(body, &resp))
 	assert.Equal(t, "my/docs/Child", resp.CID)
 
-	var ownerID, fileName, fileType, cid, nonce, desc, tagsArr string
-	var fileSize int64
+	var (
+		ownerID, fileName, fileType, cid, nonce, desc, tagsArr string
+		fileSize                                               int64
+	)
 	row := db.QueryRow(`SELECT owner_id, file_name, file_type, file_size, cid, nonce, description, tags FROM files WHERE id=$1`, resp.FolderID)
 	require.NoError(t, row.Scan(&ownerID, &fileName, &fileType, &fileSize, &cid, &nonce, &desc, &tagsArr))
 
