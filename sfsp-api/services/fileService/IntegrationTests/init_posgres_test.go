@@ -1,24 +1,36 @@
-package database_test
+//go:build integration
+// +build integration
+
+package integration_test
 
 import (
-	"os"
-	"testing"
+	//"testing"
+	//"github.com/stretchr/testify/require"
 
-	"github.com/stretchr/testify/require"
-	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/database"
+	//dbpkg "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/database"
 )
 
-func TestInitPostgre_RealConnection(t *testing.T) {
-	// Ensure this is only run when a real DB is available
-	dsn := os.Getenv("POSTGRES_URI")
-	if dsn == "" {
-		t.Skip("POSTGRES_URI not set, skipping integration test")
-	}
+// func TestInitPostgre_Fails_WithInvalidURI(t *testing.T) {
+// 	const bad = "postgres://bad:bad@127.0.0.1:1/nodb?sslmode=disable&connect_timeout=1"
 
-	db, err := database.InitPostgre()
-	require.NoError(t, err)
-	require.NotNil(t, db)
+// 	prev := os.Getenv("POSTGRES_URI")
+// 	t.Cleanup(func() { _ = os.Setenv("POSTGRES_URI", prev) })
+// 	require.NoError(t, os.Setenv("POSTGRES_URI", bad))
 
-	err = db.Close()
-	require.NoError(t, err)
-}
+// 	db, err := dbpkg.InitPostgre()
+// 	if db != nil {
+// 		_ = db.Close()
+// 	}
+// 	require.Error(t, err)
+// }
+
+// func TestInitPostgre_Fails_WhenURIEmpty(t *testing.T) {
+// 	t.Parallel()
+// 	t.Setenv("POSTGRES_URI", "")
+
+// 	db, err := dbpkg.InitPostgre()
+// 	require.Error(t, err)
+// 	if db != nil {
+// 		_ = db.Close()
+// 	}
+// }

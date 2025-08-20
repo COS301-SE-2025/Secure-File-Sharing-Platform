@@ -5,6 +5,28 @@ const nodemailer = require("nodemailer");
 const { supabase } = require("../config/database");
 
 class UserService {
+  async getUserById(userId) {
+    try {
+      const { data, error } = await supabase
+        .from("users")
+        .select("*")
+        .eq("id", userId)
+        .single();
+
+      if (error) {
+        throw new Error("User not found");
+      }
+
+      return {
+        id: data.id,
+        username: data.username,
+        email: data.email
+      };
+    } catch (error) {
+      throw new Error("Fetching user by ID failed: " + error.message);
+    }
+  }
+
   async register(userData) {
     const {
       username,
@@ -47,6 +69,7 @@ class UserService {
             nonce,
             signedPrekeySignature,
             salt,
+            is_verified: false, // New users need email verification
           },
         ])
         .select("*")
@@ -62,6 +85,7 @@ class UserService {
           id: newUser.id,
           username: newUser.username,
           email: newUser.email,
+          is_verified: newUser.is_verified,
         },
         token,
       };
@@ -78,15 +102,49 @@ class UserService {
         .eq("email", email)
         .single();
 
-      if (error || !data) {
-        throw new Error("This user ID was not found");
+      if (error) {
+        if (error.code === 'PGRST116' || error.message.includes('No rows returned')) {
+          return null;
+        }
+        throw new Error("Database error: " + error.message);
+      }
+
+      if (!data) {
+        return null;
       }
 
       const { id } = data;
 
-      return { id };
+      return { userId: id };
     } catch (error) {
-      throw new Error("Fetching User ID failed: " + error.message);
+      console.log('getUserIdFromEmail error:', error.message);
+      
+      if (error.message.includes("No rows returned") || 
+          error.message.includes("PGRST116") ||
+          error.code === 'PGRST116') {
+        return null;
+      }
+      
+      console.log('Returning null for user existence check due to error:', error.message);
+      return null;
+    }
+  }
+
+  async getUserInfoFromID(userId) {
+    try {
+      const { data, error } = await supabase
+        .from("users")
+        .select("username, avatar_url,email")
+        .eq("id", userId)
+        .single();
+
+      if (error || !data) {
+        throw new Error("This userId was not found");
+      }
+
+      return data;
+    } catch (error) {
+      throw new Error("Fetching User Info failed: " + error.message);
     }
   }
 
@@ -116,10 +174,10 @@ class UserService {
           throw new Error("OPKs format is invalid JSON");
         }
 
-        // ✅ Select a random OPK
+        // ✅ Select the first available OPK (instead of random to ensure consistency)
         if (Array.isArray(opkArray) && opkArray.length > 0) {
-          const index = Math.floor(Math.random() * opkArray.length);
-          selectedOpk = opkArray[index];
+          selectedOpk = opkArray[0]; // Use first OPK instead of random
+          console.log("🔍 DEBUG - Selected OPK for sending:", selectedOpk);
         }
       }
 
@@ -158,6 +216,7 @@ class UserService {
           id: user.id,
           username: user.username,
           email: user.email,
+          is_verified: user.is_verified,
           ik_public: user.ik_public,
           spk_public: user.spk_public,
           opks_public: user.opks_public,
@@ -188,6 +247,7 @@ class UserService {
         id: user.id,
         username: user.username,
         email: user.email,
+        avatar_url: user.avatar_url,
       };
     } catch (error) {
       throw new Error("Failed to fetch user profile: " + error.message);
@@ -468,6 +528,113 @@ class UserService {
     }
   }
 
+  async sendVerificationCode(userId, email, username) {
+    try {
+      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+      
+      const expiryTime = new Date(Date.now() + 15 * 60 * 1000);
+      
+      const { error: insertError } = await supabase
+        .from("verification_codes")
+        .insert({
+          user_id: userId,
+          code: verificationCode,
+          type: 'email_verification',
+          expires_at: expiryTime.toISOString(),
+          used: false,
+        });
+
+      if (insertError) {
+        throw new Error("Failed to store verification code: " + insertError.message);
+      }
+
+      const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: process.env.SMTP_PORT || 587,
+        secure: false,
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+      });
+
+      const htmlContent = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Email Verification</title>
+            </head>
+            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+                    <h1 style="color: white; margin: 0; font-size: 28px;">Welcome to SecureShare!</h1>
+                </div>
+                
+                <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px; border: 1px solid #dee2e6;">
+                    <p style="font-size: 18px; margin-bottom: 20px;">Hi <strong>${username}</strong>,</p>
+                    
+                    <p style="margin-bottom: 25px;">Thank you for signing up! Please verify your email address by entering the code below:</p>
+                    
+                    <div style="background: white; border: 2px dashed #667eea; border-radius: 8px; padding: 20px; text-align: center; margin: 25px 0;">
+                        <p style="margin: 0; font-size: 14px; color: #666; margin-bottom: 10px;">Your Verification Code:</p>
+                        <p style="font-size: 32px; font-weight: bold; color: #667eea; letter-spacing: 4px; margin: 0; font-family: 'Courier New', monospace;">${verificationCode}</p>
+                    </div>
+                    
+                    <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px; padding: 15px; margin: 20px 0;">
+                        <p style="margin: 0; color: #856404; font-size: 14px;">
+                            ⚠️ <strong>Important:</strong> This code will expire in <strong>15 minutes</strong> for security reasons.
+                        </p>
+                    </div>
+                    
+                    <p style="margin-bottom: 20px;">Enter this code on the verification page to complete your account setup and start using SecureShare.</p>
+                    
+                    <hr style="border: none; border-top: 1px solid #dee2e6; margin: 30px 0;">
+                    
+                    <p style="font-size: 12px; color: #666; text-align: center; margin: 0;">
+                        This is an automated message, please do not reply to this email.
+                    </p>
+                </div>
+            </body>
+            </html>
+            `;
+
+      const textContent = `
+            Hi ${username},
+
+            Thank you for signing up for SecureShare! Please verify your email address by entering the code below:
+
+            Verification Code: ${verificationCode}
+
+            This code will expire in 15 minutes.
+
+            Enter this code on the verification page to complete your account setup.
+
+            ---
+            This is an automated message, please do not reply to this email.
+                    `;
+
+      const mailOptions = {
+        from: {
+          name: process.env.FROM_NAME || "SecureShare",
+          address: process.env.FROM_EMAIL || process.env.SMTP_USER,
+        },
+        to: email,
+        subject: "Verify Your Email - SecureShare",
+        text: textContent,
+        html: htmlContent,
+      };
+
+      const info = await transporter.sendMail(mailOptions);
+
+      console.log("Verification email sent:", info.messageId);
+      return { success: true, messageId: info.messageId };
+    } catch (error) {
+      console.error("Error sending verification email:", error);
+      throw new Error("Failed to send verification email: " + error.message);
+    }
+  }
+
   getDecodedToken(token) {
     try {
       const decoded = this.verifyToken(token);
@@ -491,6 +658,117 @@ class UserService {
     } catch (error) {
       return false;
     }
+  }
+
+  async updateNotificationSettings(userId, notificationSettings) {
+    try {
+      if (!notificationSettings || typeof notificationSettings !== 'object') {
+        throw new Error('Invalid notification settings');
+      }
+
+      const expectedKeys = {
+        alerts: [
+          'runningOutOfSpace',
+          'deleteLargeFiles',
+          'newBrowserSignIn',
+          'newDeviceLinked',
+          'newAppConnected',
+        ],
+        files: ['sharedFolderActivity'],
+        news: ['newFeatures', 'secureShareTips', 'feedbackSurveys'],
+      };
+
+      for (const [category, settings] of Object.entries(expectedKeys)) {
+        if (!notificationSettings[category]) {
+          throw new Error(`Missing ${category} in notification settings`);
+        }
+        for (const key of settings) {
+          if (!(key in notificationSettings[category])) {
+            throw new Error(`Missing ${key} in ${category}`);
+          }
+          if (typeof notificationSettings[category][key] !== 'boolean') {
+            throw new Error(`${key} in ${category} must be a boolean`);
+          }
+        }
+      }
+
+      const { data, error } = await supabase
+        .from('users')
+        .update({ notification_settings: notificationSettings })
+        .eq('id', userId)
+        .select('notification_settings')
+        .single();
+
+      if (error) {
+        throw new Error(`Supabase error: ${error.message}`);
+      }
+
+      if (!data) {
+        throw new Error('User not found');
+      }
+
+      return data.notification_settings;
+    } catch (error) {
+      throw new Error(`Failed to update notification settings: ${error.message}`);
+    }
+  }
+
+  async getNotificationSettings(userId) {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('notification_settings, email, username')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        throw new Error(`Supabase error: ${error.message}`);
+      }
+
+      if (!data) {
+        throw new Error('User not found');
+      }
+
+      return {
+        notificationSettings: data.notification_settings,
+        email: data.email,
+        username: data.username,
+      };
+    } catch (error) {
+      throw new Error(`Failed to fetch notification settings: ${error.message}`);
+    }
+  }
+
+  async shouldSendEmail(userId, notificationType, category) {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('notification_settings')
+        .eq('id', userId)
+        .single();
+
+      if (error || !data) {
+        return false;
+      }
+
+      return data.notification_settings[category]?.[notificationType] || false;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  async updateAvatarUrl(userId, avatarUrl) {
+    const { data, error } = await supabase
+      .from('users')
+      .update({ avatar_url: avatarUrl })
+      .eq('id', userId)
+      .select('avatar_url')
+      .single();
+
+    if (error) throw new Error(error.message);
+    if (!data) throw new Error('User not found');
+
+    return data.avatar_url;
   }
 }
 

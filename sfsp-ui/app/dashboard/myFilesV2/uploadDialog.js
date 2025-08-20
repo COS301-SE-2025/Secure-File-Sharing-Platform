@@ -4,15 +4,31 @@
 
 import React, { useState, useRef } from "react";
 import { Upload, X, File } from "lucide-react";
-import { useEncryptionStore } from '@/app/SecureKeyStorage';
+import { useEncryptionStore } from "@/app/SecureKeyStorage";
 import { getSodium } from "@/app/lib/sodium";
+import Image from "next/image";
+import { gzip } from "pako";
 
-export function UploadDialog({ open, onOpenChange, onUploadSuccess }) {
+export function UploadDialog({
+  open,
+  onOpenChange,
+  onUploadSuccess,
+  currentFolderPath,
+}) {
   const [dragActive, setDragActive] = useState(false);
   const [uploadFiles, setUploadFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef(null);
+
+  const [toast, setToast] = useState(null);
+
+  const showToast = (message, type = "info") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4000); // auto-hide after 4s
+  };
+
+  const closeToast = () => setToast(null);
 
   const handleDrag = (e) => {
     e.preventDefault();
@@ -34,9 +50,15 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }) {
     e.target.value = null;
   };
 
+  const handleGoogleDriveUpload = () => { };
+
+  const handleDropboxUpload = () => { };
+
   const removeFile = (index) => {
     setUploadFiles((prev) => prev.filter((_, i) => i !== index));
   };
+
+  const chunkSize = 10 * 1024 * 1024; // 5MB per chunk
 
   const uploadFilesHandler = async () => {
     if (uploadFiles.length === 0) return;
@@ -45,87 +67,133 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }) {
 
     const { encryptionKey, userId } = useEncryptionStore.getState();
     if (!encryptionKey || !userId) {
-      alert("Missing user ID or encryption key.");
+      showToast("Missing user ID or encryption key.", "error");
       setUploading(false);
       return;
     }
-
+    console.log("Starting to upload a file");
     const sodium = await getSodium();
+    const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
 
-    for (let i = 0; i < uploadFiles.length; i++) {
-      const file = uploadFiles[i];
-      try {
-        const fileBuffer = new Uint8Array(await file.arrayBuffer());
-        const nonce = sodium.randombytes_buf(
-          sodium.crypto_secretbox_NONCEBYTES
-        );
-        const ciphertext = sodium.crypto_secretbox_easy(
-          fileBuffer,
-          nonce,
-          encryptionKey
-        );
-
-        const formData = {
-          userId,
-          fileName: file.name,
-          fileType: file.type,
-          fileDescription: "User personal upload",
-          fileTags: ["personal"],
-          path: `files/${userId}`,
-          fileContent: sodium.to_base64(ciphertext, sodium.base64_variants.ORIGINAL),
-          nonce: sodium.to_base64(nonce, sodium.base64_variants.ORIGINAL),
-        };
-
-        const res = await fetch("http://localhost:5000/api/files/upload", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(formData),
-        });
-
-        if (!res.ok) throw new Error("Upload failed");
-
-        const uploadResult = await res.json();
-        console.log(uploadResult);
-
-        const token = localStorage.getItem("token");
-        if (!token) return;
-
+    // Process each file in parallel
+    await Promise.all(
+      uploadFiles.map(async (file) => {
         try {
-          const profileRes = await fetch("http://localhost:5000/api/users/profile", {
+          // 1️⃣ Call startUpload to get fileId
+          const startRes = await fetch("http://localhost:5000/api/files/startUpload", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              fileName: file.name,
+              fileType: file.type,
+              userId,
+              nonce: sodium.to_base64(nonce, sodium.base64_variants.ORIGINAL),
+              fileDescription: "",
+              fileTags: ["personal"],
+              path: currentFolderPath || "files",
+            }),
+          });
+
+          if (!startRes.ok) throw new Error("Failed to start upload");
+          const { fileId } = await startRes.json();
+
+          //Skip compression as it doesn't actually help much, with videos at least
+          const fileBuffer = new Uint8Array(await file.arrayBuffer());
+          //const compressed = gzip(fileBuffer, { level: 9 });
+
+          // 3️⃣ Encrypt entire compressed file
+          //nonce is up there
+          const ciphertext = sodium.crypto_secretbox_easy(fileBuffer, nonce, encryptionKey);
+
+          // 4️⃣ Compute SHA-256 hash of encrypted file
+          const hashBuffer = await crypto.subtle.digest("SHA-256", ciphertext.buffer);
+          const fileHash = Array.from(new Uint8Array(hashBuffer))
+            .map((b) => b.toString(16).padStart(2, "0"))
+            .join("");
+
+          // 5️⃣ Chunk encrypted file
+          const totalChunks = Math.ceil(ciphertext.length / chunkSize);
+          let uploadedChunks = 0;
+
+          // 6️⃣ Upload all chunks in parallel
+          const chunkUploadPromises = Array.from({ length: totalChunks }, (_, chunkIndex) => {
+            const start = chunkIndex * chunkSize;
+            const end = Math.min(start + chunkSize, ciphertext.length);
+            const chunk = ciphertext.slice(start, end);
+
+            const formData = new FormData();
+            formData.append("fileId", fileId);
+            formData.append("userId", userId);
+            formData.append("fileName", file.name);
+            formData.append("fileType", file.type || "application/octet-stream");
+            formData.append("fileDescription", "");
+            formData.append("fileTags", JSON.stringify(["personal use"]));
+            formData.append("path", currentFolderPath || "files");
+            formData.append("fileHash", fileHash);
+            formData.append(
+              "nonce",
+              sodium.to_base64(nonce, sodium.base64_variants.ORIGINAL)
+            );
+            formData.append("chunkIndex", chunkIndex.toString());
+            formData.append("totalChunks", totalChunks.toString());
+            formData.append("encryptedFile", new Blob([chunk]), file.name);
+
+            return fetch("http://localhost:5000/api/files/upload", {
+              method: "POST",
+              body: formData,
+            })
+              .then((res) => {
+                if (!res.ok) throw new Error(`Chunk ${chunkIndex} failed`);
+                return res.json();
+              })
+              .then(() => {
+                uploadedChunks++;
+                setUploadProgress(Math.round((uploadedChunks / totalChunks) * 100));
+              });
+          });
+
+          await Promise.all(chunkUploadPromises);
+          console.log(`${file.name} uploaded successfully`);
+
+          //add access log
+          const token = localStorage.getItem('token');
+
+          const res = await fetch('http://localhost:5000/api/users/profile', {
             headers: { Authorization: `Bearer ${token}` },
           });
 
-          const profileResult = await profileRes.json();
-          if (!profileRes.ok) throw new Error(profileResult.message || "Failed to fetch profile");
+          const result = await res.json();
+          if (!res.ok) throw new Error(result.message || 'Failed to fetch profile');
 
           await fetch("http://localhost:5000/api/files/addAccesslog", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              file_id: uploadResult.server.fileId,
-              user_id: profileResult.data.id,
+              file_id: fileId,
+              user_id: userId,
               action: "created",
-              message: `User ${profileResult.data.email} uploaded the file.`,
+              message: `User ${result.data.email} uploaded the file.`,
             }),
           });
 
         } catch (err) {
-          console.error("Failed to fetch user profile:", err.message);
+          console.error(`Upload failed for ${file.name}:`, err);
+          showToast(`Upload failed for ${file.name}`, "error");
         }
-        
-      } catch (err) {
-        console.error(`Upload failed for ${file.name}:`, err);
-        alert(`Upload failed for ${file.name}`);
-      }
-
-      setUploadProgress(Math.round(((i + 1) / uploadFiles.length) * 100));
-    }
+      })
+    );
 
     setUploading(false);
     setUploadFiles([]);
     setUploadProgress(0);
     onOpenChange(false);
     onUploadSuccess?.();
+  };
+
+  const compressFile = async (file) => {
+    const fileBuffer = new Uint8Array(await file.arrayBuffer());
+    const compressedBuffer = gzip(fileBuffer, { level: 9 });
+    return new Blob([compressedBuffer], { type: file.type });
   };
 
   const formatFileSize = (bytes) => {
@@ -139,89 +207,140 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white p-6 rounded-lg w-full max-w-lg space-y-4 dark:bg-gray-200 dark:text-gray-900">
-        <h2 className="text-lg font-semibold dark:text-gray-900">
-          Upload Files
-        </h2>
-
-        <div
-          className={`border-2 border-dashed p-8 text-center rounded-lg cursor-pointer ${
-            dragActive ? "border-blue-500 bg-blue-50" : "border-gray-300"
-          }`}
-          onDragEnter={handleDrag}
-          onDragLeave={handleDrag}
-          onDragOver={handleDrag}
-          onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
-        >
-          <Upload className="h-10 w-10 text-gray-400 mx-auto mb-4" />
-          <p className="text-sm mb-1 dark:text-gray-900">
-            Drop files here or click to browse
-          </p>
-          <p className="text-xs text-gray-500 mb-4">Supports bulk upload</p>
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            onChange={handleFileSelect}
-            className="hidden"
-          />
-        </div>
-
-        {uploadFiles.length > 0 && (
-          <div className="space-y-2 max-h-48 overflow-y-auto">
-            {uploadFiles.map((file, i) => (
-              <div
-                key={i}
-                className="flex justify-between items-center p-2 bg-gray-50 rounded"
-              >
-                <div className="flex items-center gap-2">
-                  <File className="h-4 w-4" />
-                  <div>
-                    <p className="text-sm">{file.name}</p>
-                    <p className="text-xs text-gray-500">
-                      {formatFileSize(file.size)}
-                    </p>
-                  </div>
-                </div>
-                <button onClick={() => removeFile(i)} className="p-1">
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            ))}
+    <>
+      {toast && (
+        <div className="fixed top-1/4 left-1/2 -translate-x-1/2 z-[100]">
+          <div
+            className={`flex items-center justify-between px-4 py-3 rounded shadow-lg w-80 text-sm ${toast.type === "error"
+                ? "bg-red-500 text-white"
+                : toast.type === "success"
+                  ? "bg-green-500 text-white"
+                  : "bg-gray-800 text-white"
+              }`}
+          >
+            <span>{toast.message}</span>
+            <button onClick={closeToast} className="ml-3">
+              <X className="h-4 w-4" />
+            </button>
           </div>
-        )}
+        </div>
+      )}
 
-        {uploading && (
-          <div className="space-y-1">
-            <p className="text-sm">Uploading... {uploadProgress}%</p>
-            <div className="w-full h-2 bg-gray-200 rounded">
-              <div
-                className="h-2 bg-blue-500 rounded"
-                style={{ width: `${uploadProgress}%` }}
-              />
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="bg-white p-6 rounded-lg w-full max-w-lg space-y-4 dark:bg-gray-200 dark:text-gray-900">
+          <h2 className="text-lg font-semibold dark:text-gray-900">
+            Upload Files
+          </h2>
+
+          <div
+            className={`border-2 border-dashed p-8 text-center rounded-lg cursor-pointer ${dragActive ? "border-blue-500 bg-blue-50" : "border-gray-300"
+              }`}
+            onDragEnter={handleDrag}
+            onDragLeave={handleDrag}
+            onDragOver={handleDrag}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Upload className="h-10 w-10 text-gray-400 mx-auto mb-4" />
+            <p className="text-sm mb-1 dark:text-gray-900">
+              Drop files here or click to browse
+            </p>
+            <p className="text-xs text-gray-500 mb-4">Supports bulk upload</p>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+
+            <div className="flex justify-center gap-4 mt-4">
+              <button
+                type="button"
+                onClick={handleGoogleDriveUpload}
+                className="flex items-center gap-2 border px-3 py-2 rounded text-sm hover:bg-gray-100"
+              >
+                <Image
+                  src="/img/google.png"
+                  alt="Google Drive"
+                  width={20}
+                  height={20}
+                  className="h-5 w-5"
+                />
+                Google Drive
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDropboxUpload}
+                className="flex items-center gap-2 border px-3 py-2 rounded text-sm hover:bg-gray-100"
+              >
+                <Image
+                  src="/img/dropbox.png"
+                  alt="Dropbox"
+                  width={20}
+                  height={20}
+                  className="h-5 w-5"
+                />
+                Dropbox
+              </button>
             </div>
           </div>
-        )}
 
-        <div className="flex justify-end gap-2">
-          <button
-            onClick={() => onOpenChange(false)}
-            className="border px-4 py-2 rounded text-sm dark:border-gray-900 dark:text-gray-900"
-            disabled={uploading}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={uploadFilesHandler}
-            className="bg-blue-600 text-white px-4 py-2 rounded text-sm"
-            disabled={uploadFiles.length === 0 || uploading}
-          >
-            {uploading ? "Uploading..." : `Upload (${uploadFiles.length})`}
-          </button>
+          {uploadFiles.length > 0 && (
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {uploadFiles.map((file, i) => (
+                <div
+                  key={i}
+                  className="flex justify-between items-center p-2 bg-gray-50 rounded"
+                >
+                  <div className="flex items-center gap-2">
+                    <File className="h-4 w-4" />
+                    <div>
+                      <p className="text-sm">{file.name}</p>
+                      <p className="text-xs text-gray-500">
+                        {formatFileSize(file.size)}
+                      </p>
+                    </div>
+                  </div>
+                  <button onClick={() => removeFile(i)} className="p-1">
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {uploading && (
+            <div className="space-y-1">
+              <p className="text-sm">Uploading... {uploadProgress}%</p>
+              <div className="w-full h-2 bg-gray-200 rounded">
+                <div
+                  className="h-2 bg-blue-500 rounded"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={() => onOpenChange(false)}
+              className="border px-4 py-2 rounded text-sm dark:border-gray-900 dark:text-gray-900"
+              disabled={uploading}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={uploadFilesHandler}
+              className="bg-blue-600 text-white px-4 py-2 rounded text-sm"
+              disabled={uploadFiles.length === 0 || uploading}
+            >
+              {uploading ? "Uploading..." : `Upload (${uploadFiles.length})`}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

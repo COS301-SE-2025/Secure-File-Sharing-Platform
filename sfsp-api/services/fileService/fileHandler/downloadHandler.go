@@ -1,15 +1,19 @@
 package fileHandler
 
 import (
-	"encoding/base64"
+	//"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"log"
-	"os"
+	//"os"
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
-	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto"
-	"database/sql"
+	//"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/crypto"
+	//"database/sql"
+	"io"
+	"crypto/sha256"
+	"encoding/hex"
+	//"bytes"
 	//_ "github.com/lib/pq" // PostgreSQL driver
 )
 
@@ -22,7 +26,7 @@ import (
 
 type DownloadRequest struct {
 	UserID string `json:"userId"`
-	FileName string `json:"fileName"`
+	FileId string `json:"fileId"`
 }
 
 type DownloadResponse struct {
@@ -31,156 +35,112 @@ type DownloadResponse struct {
 	Nonce       string `json:"nonce"`
 }
 
-type DownloadDeps struct {
-	DB        *sql.DB
-	OC        func(fileID, userID string) ([]byte, error)
-	Decrypt   func(data []byte, key string) ([]byte, error)
-	GetAESKey func() string
-}
-
-func DownloadHandlerWithDeps(deps DownloadDeps) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req DownloadRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
-			return
-		}
-
-		if req.UserID == "" || req.FileName == "" {
-			http.Error(w, "Missing userId or fileName", http.StatusBadRequest)
-			return
-		}
-
-		var fileID, nonce string
-		err := deps.DB.QueryRow(`
-			SELECT id, nonce FROM files
-			WHERE owner_id = $1 AND file_name = $2
-		`, req.UserID, req.FileName).Scan(&fileID, &nonce)
-		if err != nil {
-			log.Println("Failed to retrieve file metadata:", err)
-			http.Error(w, "File not found", http.StatusNotFound)
-			return
-		}
-
-		data, err := deps.OC(fileID, req.UserID)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Download failed: %v", err), http.StatusInternalServerError)
-			return
-		}
-
-		aesKey := os.Getenv("AES_KEY")
-		if len(aesKey) != 32 {
-			http.Error(w, "Invalid AES key", http.StatusInternalServerError)
-			return
-		}
-
-		plain, err := deps.Decrypt(data, aesKey)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Decryption failed: %v", err), http.StatusInternalServerError)
-			return
-		}
-
-		base64Data := base64.StdEncoding.EncodeToString(plain)
-		res := DownloadResponse{
-			FileName:    req.FileName,
-			FileContent: base64Data,
-			Nonce:       nonce,
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(res)
-	}
-}
-
 func DownloadHandler(w http.ResponseWriter, r *http.Request) {
-	var req DownloadRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
-		return
-	}
+    var req DownloadRequest
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+        return
+    }
 
-	if req.UserID == "" || req.FileName == "" {
-		http.Error(w, "Missing userId or fileName", http.StatusBadRequest)
-		return
-	}
+    if req.UserID == "" || req.FileId == "" {
+        http.Error(w, "Missing userId or fileId", http.StatusBadRequest)
+        return
+    }
+    log.Println("Got download request:", req.UserID, req.FileId)
 
-	fmt.Println("User id is: ", req.UserID)
-	fmt.Println("File name is: ", req.FileName)
-	var fileID, nonce string
-	err := DB.QueryRow(`
-		SELECT id, nonce FROM files
-		WHERE owner_id = $1 AND file_name = $2
-	`, req.UserID, req.FileName).Scan(&fileID, &nonce)
+    var fileName, nonce, fileHash, cid string
+    err := DB.QueryRow(`
+        SELECT file_name, nonce, file_hash, cid FROM files
+        WHERE owner_id = $1 AND id = $2
+    `, req.UserID, req.FileId).Scan(&fileName, &nonce, &fileHash, &cid)
+    if err != nil {
+        log.Println("❌ Failed to retrieve file metadata:", err)
+        http.Error(w, "File not found", http.StatusNotFound)
+        return
+    }
 
-	if err != nil {
-		log.Println("Failed to retrieve file metadata:", err)
-		http.Error(w, "File not found", http.StatusNotFound)
-		return
-	}
+    log.Println("✅ Found file:", fileName, "nonce:", nonce, "cid:", cid)
 
-	fmt.Println("File ID is: ",fileID)
+    // 🔁 Stream file from OwnCloud final location
+    stream, err := owncloud.DownloadFileStream(req.FileId)
+    if err != nil {
+        log.Println("❌ OwnCloud download failed:", err)
+        http.Error(w, "Download failed", http.StatusInternalServerError)
+        return
+    }
+    defer stream.Close()
 
-	data, err := owncloud.DownloadFile(fileID, req.UserID)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Download failed: %v", err), http.StatusInternalServerError)
-		fmt.Println("Download Failed")
-		return
-	}
+    // Hash verification while streaming
+    hasher := sha256.New()
+    tee := io.TeeReader(stream, hasher)
 
-	aesKey := os.Getenv("AES_KEY")
-	if len(aesKey) != 32 {
-		http.Error(w, "Invalid AES key", http.StatusInternalServerError)
-		return
-	}
+    log.Println("Filename is:", fileName)
+    log.Println("Nonce is: ",nonce)
 
-	plain, err := crypto.DecryptBytes(data, aesKey)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Decryption failed: %v", err), http.StatusInternalServerError)
-		return
-	}
+    // HTTP headers for browser & Node client
+    w.Header().Set("Content-Type", "application/octet-stream")
+    w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, fileName))
+    w.Header().Set("X-File-Name", fileName)
+    w.Header().Set("X-Nonce", nonce)
+    w.WriteHeader(http.StatusOK)
 
-	base64Data := base64.StdEncoding.EncodeToString(plain)
+    // Stream file to client with buffer
+    buf := make([]byte, 32*1024)
+    if _, err := io.CopyBuffer(w, tee, buf); err != nil {
+        log.Println("❌ Failed to stream file:", err)
+        return
+    }
 
-	//fmt.Println("FileContent is: ",base64Data)
-
-	res := DownloadResponse{
-		FileName:    req.FileName,
-		FileContent: base64Data,
-		Nonce:       nonce,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(res)
+    // Verify hash at the end
+    computedHash := hex.EncodeToString(hasher.Sum(nil))
+    if computedHash != fileHash {
+        log.Printf("❌ Hash mismatch: expected %s, got %s", fileHash, computedHash)
+    } else {
+        log.Println("✅ File integrity check passed, hash:", computedHash)
+    }
 }
+
 
 type DownloadSentRequest struct {
 	FilePath string `json:"filePath"`
 }
 
+
+
 func DownloadSentFile(w http.ResponseWriter, r *http.Request) {
-	var req DownloadSentRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
-		return
-	}
+    var req DownloadSentRequest
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+        return
+    }
 
-	if req.FilePath == "" {
-		http.Error(w, "Missing file path", http.StatusBadRequest)
-		return
-	}
+    if req.FilePath == "" {
+        http.Error(w, "Missing FilePath", http.StatusBadRequest)
+        return
+    }
 
-	fmt.Println("Downloading file from path:", req.FilePath)
+    log.Println("Downloading sent file (stream):", req.FilePath)
 
-	data, err := owncloud.DownloadSentFile(req.FilePath)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Download failed: %v", err), http.StatusInternalServerError)
-		fmt.Println("Download Failed:", err)
-		return
-	}
+    stream, err := owncloud.DownloadSentFileStream(req.FilePath)
+    if err != nil {
+        log.Println("OwnCloud download failed:", err)
+        http.Error(w, "Download failed", http.StatusInternalServerError)
+        return
+    }
+    defer stream.Close()
 
-	encoded := base64.StdEncoding.EncodeToString(data)
-
-    w.Header().Set("Content-Type", "text/plain") // or "application/json"
+    w.Header().Set("Content-Type", "application/octet-stream")
     w.WriteHeader(http.StatusOK)
-    w.Write([]byte(encoded))
+
+    hasher := sha256.New()
+    tee := io.TeeReader(stream, hasher)
+
+    if _, err := io.Copy(w, tee); err != nil {
+        log.Println("Failed to stream sent file:", err)
+        return
+    }
+
+    computedHash := hex.EncodeToString(hasher.Sum(nil))
+    log.Println("Sent file streamed successfully, you should watch Delicious in Dungeon. Hash:", computedHash)
 }
+

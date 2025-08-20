@@ -120,75 +120,59 @@ exports.clearNotification = async (req, res) => {
 };
 
 exports.addNotification = async (req, res) => {
-    const { type, fromEmail, toEmail, file_name, file_id, message } = req.body;
+  console.log("I am in add notifications");
+  const body = req.body || {};
+  const { type, fromEmail, toEmail, file_name, file_id, message, receivedFileID, viewOnly } = body;
+  console.log("FromEmail is: ", fromEmail);
+  console.log("toEmail is: ", toEmail);
 
-    if (!type || !fromEmail || !toEmail || !file_name || !file_id) {
-        return res.status(400).json({
-            success: false,
-            error: "Missing required fields: type, fromEmail, toEmail, file_name, file_id"
-        });
-    }
+  if (!type || !fromEmail || !toEmail || !file_name || !file_id) {
+    return res.status(400).json({
+      success: false,
+      error: "Missing required fields: type, fromEmail, toEmail, file_name, file_id"
+    });
+  }
 
+  const extractId = (resp) =>//nah f this
+    resp?.data?.data?.id ?? resp?.data?.data?.userId ?? null;
+
+  try {
+    let senderResponse;
     try {
-        let senderResponse;
-        try {
-            senderResponse = await axios.get(
-                `${process.env.API_URL || "http://localhost:5000"}/api/users/getUserId/${fromEmail}`
-            );
+      senderResponse = await axios.get(
+        `${process.env.API_URL || "http://localhost:5000"}/api/users/getUserId/${fromEmail}`
+      );
+      console.log("Sender response:", senderResponse.data);
+      const fromId = extractId(senderResponse);
+      if (!senderResponse.data.success || !fromId) {
+        return res.status(404).json({ success: false, error: `Sender with email ${fromEmail} not found` });
+      }
 
-            if (!senderResponse.data.success || !senderResponse.data.data.id) {
-                return res.status(404).json({
-                    success: false,
-                    error: `Sender with email ${fromEmail} not found`
-                });
-            }
-        } catch (error) {
-            return res.status(404).json({
-                success: false,
-                error: `Sender with email ${fromEmail} not found`
-            });
-        }
+      let recipientResponse = await axios.get(
+        `${process.env.API_URL || "http://localhost:5000"}/api/users/getUserId/${toEmail}`
+      );
+      console.log("Recipient response:", recipientResponse.data);
+      const toId = extractId(recipientResponse);
+      if (!recipientResponse.data.success || !toId) {
+        return res.status(404).json({ success: false, error: `Recipient with email ${toEmail} not found` });
+      }
 
-        let recipientResponse;
-        try {
-            recipientResponse = await axios.get(
-                `${process.env.API_URL || "http://localhost:5000"}/api/users/getUserId/${toEmail}`
-            );
+      const response = await axios.post(
+        `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/notifications/add`,
+        { type, from: fromId, to: toId, file_name, file_id, message, receivedFileID, viewOnly },
+        { headers: { "Content-Type": "application/json" } }
+      );
 
-            if (!recipientResponse.data.success || !recipientResponse.data.data.id) {
-                return res.status(404).json({
-                    success: false,
-                    error: `Recipient with email ${toEmail} not found`
-                });
-            }
-        } catch (error) {
-            return res.status(404).json({
-                success: false,
-                error: `Recipient with email ${toEmail} not found`
-            });
-        }
-
-        const fromId = senderResponse.data.data.id;
-        const toId = recipientResponse.data.data.id;
-        const response = await axios.post(
-            `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/notifications/add`,
-            {
-                type,
-                from: fromId,
-                to: toId,
-                file_name,
-                file_id,
-                message
-            },
-            { headers: { "Content-Type": "application/json" } }
-        );
-
-        res.status(201).json(response.data);
-    } catch (err) {
-        console.error("Add notification error:", err.message);
-        res.status(500).json({
-            success: false,
-            error: "Failed to add notification"
-        });
+      console.log("Response from notification service:", response.data);
+      return res.status(201).json(response.data);
+    } catch (e) {
+      if (e.response?.status === 404) {
+        return res.status(404).json({ success: false, error: e.response.data?.error || "User not found" });
+      }
+      throw e;
     }
+  } catch (err) {
+    console.error("Add notification error:", err.message);
+    return res.status(500).json({ success: false, error: "Failed to add notification" });
+  }
 };

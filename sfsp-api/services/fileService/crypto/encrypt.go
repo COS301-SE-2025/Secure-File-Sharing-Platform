@@ -8,26 +8,36 @@ import(
 	"io"
 )
 
-var EncryptBytes = func(data []byte, key string) ([]byte, error) {
+var EncryptStream = func(input io.Reader, output io.Writer, key string) error {
 	keyBytes := []byte(key)
 	if len(keyBytes) != 32 {
-		return nil, fmt.Errorf("AES key must be 32 bytes long")
+		return fmt.Errorf("AES key must be 32 bytes long")
 	}
 
 	block, err := aes.NewCipher(keyBytes)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create cipher: %v", err)
+		return fmt.Errorf("failed to create cipher: %v", err)
 	}
 
+	// Generate IV
 	iv := make([]byte, aes.BlockSize)
 	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
-		return nil, fmt.Errorf("failed to generate IV: %v", err)
+		return fmt.Errorf("failed to generate IV: %v", err)
 	}
 
-	ciphertext := make([]byte, len(data))
-	stream := cipher.NewCFBEncrypter(block, iv)
-	stream.XORKeyStream(ciphertext, data)
+	// Write IV to the beginning of the output
+	if _, err := output.Write(iv); err != nil {
+		return fmt.Errorf("failed to write IV: %v", err)
+	}
 
-	// Prepend IV
-	return append(iv, ciphertext...), nil
+	// Encrypt in chunks
+	stream := cipher.NewCFBEncrypter(block, iv)
+	writer := &cipher.StreamWriter{S: stream, W: output}
+
+	_, err = io.Copy(writer, input)
+	if err != nil {
+		return fmt.Errorf("encryption failed: %v", err)
+	}
+
+	return nil
 }
