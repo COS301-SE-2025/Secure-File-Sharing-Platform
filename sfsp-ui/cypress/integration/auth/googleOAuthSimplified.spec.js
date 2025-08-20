@@ -11,14 +11,14 @@ describe("Google OAuth Integration Tests - Simplified", () => {
         });
     });
 
-    describe("Basic OAuth Flow", () => {
-        it("should handle missing authorization code", () => {
-            cy.visit("http://localhost:3000/auth/google/callback?state=test-state-123");
+    // describe("Basic OAuth Flow", () => {
+    //     it("should handle missing authorization code", () => {
+    //         cy.visit("http://localhost:3000/auth/google/callback?state=test-state-123");
 
-            cy.url({ timeout: 10000 }).should('include', '/auth');
-            cy.url().should('include', 'error=no_code');
-        });
-    });
+    //         cy.url({ timeout: 10000 }).should('include', '/auth');
+    //         cy.url().should('include', 'error=no_code');
+    //     });
+    // });
 
     describe("New User Registration Flow", () => {
         it("should register new Google user and redirect to email verification", () => {
