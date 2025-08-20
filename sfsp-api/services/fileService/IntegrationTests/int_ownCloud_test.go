@@ -8,11 +8,12 @@ import (
 	"errors"
 	"io"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sync"
 	"testing"
 	"time"
-	"os"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -55,6 +56,7 @@ func (m *memDAV) MkdirAll(path string, _ os.FileMode) error {
 	m.mkdirs[path] = true
 	return nil
 }
+
 func (m *memDAV) Write(name string, data []byte, _ os.FileMode) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -65,13 +67,13 @@ func (m *memDAV) Write(name string, data []byte, _ os.FileMode) error {
 	m.files[name] = cp
 	return nil
 }
+
 func (m *memDAV) WriteStream(name string, src io.Reader, _ os.FileMode) error {
 	m.mu.Lock()
 	err := m.errWStrm[name]
 	m.mu.Unlock()
 
 	buf, _ := io.ReadAll(src)
-
 	if err != nil {
 		return err
 	}
@@ -81,6 +83,7 @@ func (m *memDAV) WriteStream(name string, src io.Reader, _ os.FileMode) error {
 	m.mu.Unlock()
 	return nil
 }
+
 func (m *memDAV) Read(name string) ([]byte, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -93,6 +96,7 @@ func (m *memDAV) Read(name string) ([]byte, error) {
 	}
 	return append([]byte(nil), b...), nil
 }
+
 func (m *memDAV) ReadStream(name string) (io.ReadCloser, error) {
 	m.mu.Lock()
 	err := m.errRStrm[name]
@@ -106,6 +110,7 @@ func (m *memDAV) ReadStream(name string) (io.ReadCloser, error) {
 	}
 	return io.NopCloser(bytes.NewReader(append([]byte(nil), b...))), nil
 }
+
 func (m *memDAV) Remove(path string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -116,8 +121,6 @@ func (m *memDAV) Remove(path string) error {
 	m.lastRm = path
 	return nil
 }
-
-type fsMode = uint32
 
 func TestUploadFileStream_Success_TrimsLeadingSlash(t *testing.T) {
 	mem := newMemDAV()
@@ -164,6 +167,7 @@ func TestCreateFileStream_Success_WritesAndCloses(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, w.Close())
 
+	// allow goroutine to finish streaming
 	time.Sleep(20 * time.Millisecond)
 
 	mem.mu.Lock()
@@ -283,5 +287,5 @@ func TestDownloadSentFileStream_Success_And_Error(t *testing.T) {
 }
 
 func TestNoHTTPDependency(t *testing.T) {
-	_ = httptest.NewRecorder() 
+	_ = httptest.NewRecorder()
 }
