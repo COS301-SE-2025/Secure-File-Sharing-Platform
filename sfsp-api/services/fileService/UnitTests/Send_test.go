@@ -147,7 +147,7 @@ func TestSendFileHandler_Success_NonLastChunk(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
-/* func TestSendFileHandler_Success_LastChunk(t *testing.T) {
+func TestSendFileHandler_Success_LastChunk(t *testing.T) {
 	mock, cleanup := SetupMockDB(t)
 	defer cleanup()
 	setupSendFileMocks()
@@ -156,12 +156,12 @@ func TestSendFileHandler_Success_NonLastChunk(t *testing.T) {
 	owncloudMock.downloadReaders["temp/file-123_chunk_1"] = io.NopCloser(strings.NewReader("chunk1"))
 
 	fields := map[string]string{
-		"fileid":           "file-123",
-		"userId":           "user-1",
-		"recipientUserId":  "user-2",
-		"metadata":         `{"name":"test.txt","size":100}`,
-		"chunkIndex":       "1",
-		"totalChunks":      "2",
+		"fileid":          "file-123",
+		"userId":          "user-1",
+		"recipientUserId": "user-2",
+		"metadata":        `{"name":"test.txt","size":100}`,
+		"chunkIndex":      "1",
+		"totalChunks":     "2",
 	}
 
 	req := newSendFileMultipart(t, fields, []byte("chunk data"), true)
@@ -177,7 +177,7 @@ func TestSendFileHandler_Success_NonLastChunk(t *testing.T) {
 	assert.Equal(t, "received-123", resp["receivedFileID"])
 
 	require.NoError(t, mock.ExpectationsWereMet())
-} */
+}
 
 func TestSendFileHandler_ParseMultipartFail(t *testing.T) {
 	_, cleanup := SetupMockDB(t)

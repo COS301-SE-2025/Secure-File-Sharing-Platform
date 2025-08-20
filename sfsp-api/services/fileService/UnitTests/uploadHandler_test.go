@@ -375,7 +375,7 @@ func TestUploadHandler_NonLastChunk_WithExistingFileID(t *testing.T) {
 	require.Equal(t, "", stub.readMap["temp/id-77_chunk_1"])
 }
 
-/* func TestUploadHandler_LastChunk_MergeSuccess(t *testing.T) {
+func TestUploadHandler_LastChunk_MergeSuccess(t *testing.T) {
 	mock, cleanup := SetupMockDB(t)
 	defer cleanup()
 
@@ -405,7 +405,7 @@ func TestUploadHandler_NonLastChunk_WithExistingFileID(t *testing.T) {
 	assert.Equal(t, "File uploaded and metadata stored", out["message"])
 	assert.Equal(t, "id-77", out["fileId"])
 
-} */
+}
 
 func TestUploadHandler_LastChunk_CreateWriterFails(t *testing.T) {
 	_, cleanup := SetupMockDB(t)
