@@ -255,7 +255,7 @@ describe('UserController Unit Tests', () => {
             expect(res.status).toHaveBeenCalledWith(500);
             expect(res.json).toHaveBeenCalledWith({
                 success: false,
-                message: 'Internal server error.',
+                message: 'An unexpected error occurred while creating your account. Please try again.',
             });
         });
 

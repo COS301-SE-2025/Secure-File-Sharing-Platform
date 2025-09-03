@@ -70,7 +70,7 @@ func TestUploadFileStream_Success(t *testing.T) {
 
 	c.On("MkdirAll",
 		mock.MatchedBy(func(p string) bool { return clean(p) == "test/folder" }),
-		mock.Anything, 
+		mock.Anything,
 	).Return(nil).Once()
 
 	c.On("WriteStream",
@@ -151,7 +151,7 @@ func TestCreateFileStream_Success(t *testing.T) {
 	done := make(chan struct{}, 1)
 	c.On("WriteStream",
 		mock.MatchedBy(func(name string) bool { return clean(name) == "test/folder/test.txt" }),
-		mock.Anything, 
+		mock.Anything,
 		mock.Anything,
 	).Run(func(args mock.Arguments) {
 		if r, ok := args[1].(io.Reader); ok {
@@ -168,7 +168,7 @@ func TestCreateFileStream_Success(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, w.Close())
 
-	<-done 
+	<-done
 	c.AssertNumberOfCalls(t, "MkdirAll", 1)
 	c.AssertNumberOfCalls(t, "WriteStream", 1)
 }

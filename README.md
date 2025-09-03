@@ -226,10 +226,13 @@ professional data.
 
 | DOCUMENT     | DESCRIPTION  |  LINK                             |
 |------------------|-----------------------------------|-----------------------------------|
-| Requirements (SRS)   | Software Requirement Specification  | [Open](./assets/documentation/requirements.md)|
-| Coding Standards Documentation | Description of our conventions and styles| [Open](./assets/documentation/coding_standards_doc.md)|
-| User Manual Document|A guide on how to use our system/platform|[Open](./assets/documentation/user_manual.md)|
-|Technologies Used|A list of technology choices and justifications |[Open](./assets/documentation/technologies_used.md)|
+| Requirements (SRS)   | Software Requirement Specification  | [Open](https://drive.google.com/file/d/1fbWN4ctsaKtkVRFBXP6fcYUqkoyTodmu/view?usp=sharing)|
+| Coding Standards Documentation | Description of our conventions and styles| [Open](https://drive.google.com/file/d/1SLliUyedFGzzpxhuArakR_RDJmqLDPMw/view?usp=sharing)|
+| User Manual Document|A guide on how to use our system/platform|[Open](https://drive.google.com/file/d/167Sem2eXhJPx4kiWcdT6O02QjuMA8252/view?usp=sharing)|
+| Deployment Diagram|Plan for project deployment|[Open](https://drive.google.com/file/d/1ygrtnnmw6Qfvjb-w451HKQamaIMQ9bF3/view?usp=sharing)|
+| Architecture Diagram|Diagram of system overview|[Open](https://drive.google.com/file/d/1LFPgRBSH7Mg0Sq-lF3a-FYjESJy7DOKk/view?usp=sharing)|
+| Security Document| Outlines the security design of the system |[Open](https://drive.google.com/file/d/1P-947vP83z6GU8QsZpHnqJZG-6Ie5Gaa/view?usp=sharing)|
+| Technical Installation Manual| Instructions for system configuration |[Open](https://drive.google.com/file/d/1iK1SyUWUyaCw6oqhN1t_nGkbz2xnu8xe/view?usp=sharing)|
 
 ## 📌 Project Management
 
@@ -242,7 +245,7 @@ professional data.
 |-|-|-|
 | Demo 1    |[Slides 1](https://docs.google.com/presentation/d/1NYigzK_orVRTq1-xzFEi3_q4I8YFSjS2/edit?usp=sharing&ouid=115159733836506972614&rtpof=true&sd=true) |[Video 1](https://drive.google.com/file/d/1VWgY5ylgEroEz-dKcx-yiCANAm-9K6k6/view?usp=sharing)    | 
 | Demo 2    | [Slide 2](https://www.canva.com/design/DAGrfR50GOI/xcjBb7SHhIwkfGc55R_gOg/edit?utm_content=DAGrfR50GOI&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton) |[Video 2]( https://drive.google.com/file/d/1ySAkgAScgtPaQGUHeoMJCuogmPiSj4Eb/view?usp=sharing)  | 
-| Demo 3   |  Not Available    |Not Available           | 
+| Demo 3   |  [Slide 3](https://www.canva.com/design/DAGwV2vrLAg/CouSUxZNz-PbT-EjuHAkLQ/edit?utm_content=DAGwV2vrLAg&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton) |[Video 3](https://drive.google.com/file/d/1mWyc3AtpFqCj9dUFpTf7yRWjGNGelovv/view?usp=sharing)          | 
 | Demo 4   |  Not Available    |Not Available           | 
 
 ## Stakeholders
