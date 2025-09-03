@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabaseClient';
 
 export async function POST(request) {
     try {
-        const { email, userId, userName } = await request.json();
+        const { email, userId, userName, type = 'email_verification' } = await request.json();
 
         if (!email || !userId) {
             return NextResponse.json(
@@ -22,7 +22,7 @@ export async function POST(request) {
             user_id: userId,
             code: verificationCode,
             expires_at: expiresAt.toISOString(),
-            type: 'google_signin',
+            type: type,
             used: false
         });
 

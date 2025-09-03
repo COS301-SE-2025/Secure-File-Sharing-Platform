@@ -3,6 +3,8 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Loader from "@/app/dashboard/components/Loader";
+import { getSodium } from "@/app/lib/sodium";
+import { storeDerivedKeyEncrypted, storeUserKeysSecurely, useEncryptionStore } from "../../SecureKeyStorage";
 
 function VerifyEmailInner() {
     const router = useRouter();
@@ -12,12 +14,14 @@ function VerifyEmailInner() {
     const [message, setMessage] = useState("");
     const [email, setEmail] = useState("");
     const [userId, setUserId] = useState("");
+    const [verificationType, setVerificationType] = useState("");
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
         setMounted(true);
         const emailParam = searchParams.get("email");
         const userIdParam = searchParams.get("userId");
+        const typeParam = searchParams.get("type") || "signup";
 
         if (!emailParam || !userIdParam) {
             router.push("/auth?error=missing_verification_params");
@@ -26,6 +30,7 @@ function VerifyEmailInner() {
 
         setEmail(emailParam);
         setUserId(userIdParam);
+        setVerificationType(typeParam);
     }, [searchParams, router]);
 
     const handleSubmit = async (e) => {
@@ -66,29 +71,219 @@ function VerifyEmailInner() {
 
     const setupUserAuthentication = async () => {
         try {
-            const jwtResponse = await fetch("/api/auth/generate-jwt", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ userId, email }),
-            });
+            if (verificationType === "login") {
+                // Check if this is Google login or regular login
+                const pendingGoogleLogin = sessionStorage.getItem("pendingGoogleLogin");
+                const pendingLogin = sessionStorage.getItem("pendingLogin");
+                
+                if (pendingGoogleLogin) {
+                    // Handle Google login verification
+                    const { googleUser, user, keyBundle, token } = JSON.parse(pendingGoogleLogin);
+                    
+                    const sodium = await getSodium();
+                    
+                    const googlePassword = googleUser.id + googleUser.email;
+                    const derivedKey = sodium.crypto_pwhash(
+                        32,
+                        googlePassword,
+                        sodium.from_base64(user.salt),
+                        sodium.crypto_pwhash_OPSLIMIT_MODERATE,
+                        sodium.crypto_pwhash_MEMLIMIT_MODERATE,
+                        sodium.crypto_pwhash_ALG_DEFAULT
+                    );
 
-            if (jwtResponse.ok) {
-                const { token } = await jwtResponse.json();
-                localStorage.setItem("token", token.replace(/^Bearer\s/, ""));
-                
-                // Check if encryption keys already exist from registration
-                const unlockToken = sessionStorage.getItem("unlockToken");
-                const hasKeys = localStorage.getItem("encryption-store");
-                
-                if (unlockToken && hasKeys) {
+                    // Decrypt identity key
+                    const decryptedIkPrivateKeyRaw = sodium.crypto_secretbox_open_easy(
+                        sodium.from_base64(keyBundle.ik_private_key),
+                        sodium.from_base64(user.nonce),
+                        derivedKey
+                    );
+
+                    if (!decryptedIkPrivateKeyRaw) {
+                        throw new Error("Failed to decrypt identity key private key");
+                    }
+
+                    let opks_public_temp;
+                    if (typeof user.opks_public === "string") {
+                        try {
+                            opks_public_temp = JSON.parse(user.opks_public.replace(/\\+/g, ""));
+                        } catch (e) {
+                            opks_public_temp = user.opks_public.replace(/\\+/g, "").slice(1, -1).split(",");
+                        }
+                    } else {
+                        opks_public_temp = user.opks_public;
+                    }
+
+                    const userKeys = {
+                        identity_private_key: decryptedIkPrivateKeyRaw,
+                        signedpk_private_key: sodium.from_base64(keyBundle.spk_private_key),
+                        oneTimepks_private: keyBundle.opks_private.map((opk) => ({
+                            opk_id: opk.opk_id,
+                            private_key: sodium.from_base64(opk.private_key),
+                        })),
+                        identity_public_key: sodium.from_base64(user.ik_public),
+                        signedpk_public_key: sodium.from_base64(user.spk_public),
+                        oneTimepks_public: opks_public_temp.map((opk) => ({
+                            opk_id: opk.opk_id,
+                            publicKey: sodium.from_base64(opk.publicKey),
+                        })),
+                        signedPrekeySignature: sodium.from_base64(user.signedPrekeySignature),
+                        salt: sodium.from_base64(user.salt),
+                        nonce: sodium.from_base64(user.nonce),
+                    };
+
+                    // Store keys and session data
+                    await storeDerivedKeyEncrypted(derivedKey);
+                    sessionStorage.setItem("unlockToken", "session-unlock");
+                    await storeUserKeysSecurely(userKeys, derivedKey);
+
+                    useEncryptionStore.getState().setUserId(user.id);
+                    useEncryptionStore.setState({
+                        encryptionKey: derivedKey,
+                        userId: user.id,
+                        userKeys: userKeys,
+                    });
+
+                    const rawToken = token.replace(/^Bearer\s/, "");
+                    localStorage.setItem("token", rawToken);
+
+                    // Clear stored Google login data
+                    sessionStorage.removeItem("pendingGoogleLogin");
+
+                    router.push("/dashboard");
+                } else if (pendingLogin) {
+                    // Handle regular login verification
+                    const { email: loginEmail, password } = JSON.parse(pendingLogin);
+
+                    // Call login API to get user data and keyBundle
+                    const loginResponse = await fetch("http://localhost:5000/api/users/login", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            email: loginEmail,
+                            password: password,
+                        }),
+                    });
+
+                    const loginResult = await loginResponse.json();
+                    if (!loginResponse.ok || !loginResult.success) {
+                        throw new Error(loginResult.message || "Login failed");
+                    }
+
+                    const {
+                        id,
+                        salt,
+                        nonce,
+                        ik_public,
+                        spk_public,
+                        signedPrekeySignature,
+                        opks_public,
+                    } = loginResult.data.user;
+
+                    const { ik_private_key, opks_private, spk_private_key } = loginResult.data.keyBundle;
+                    const { token } = loginResult.data;
+
+                    // Set up encryption keys
+                    const sodium = await getSodium();
+
+                    // Derived key from password and salt
+                    const derivedKey = sodium.crypto_pwhash(
+                        32,
+                        password,
+                        sodium.from_base64(salt),
+                        sodium.crypto_pwhash_OPSLIMIT_MODERATE,
+                        sodium.crypto_pwhash_MEMLIMIT_MODERATE,
+                        sodium.crypto_pwhash_ALG_DEFAULT
+                    );
+
+                    // Decrypt identity key
+                    const decryptedIkPrivateKeyRaw = sodium.crypto_secretbox_open_easy(
+                        sodium.from_base64(ik_private_key),
+                        sodium.from_base64(nonce),
+                        derivedKey
+                    );
+
+                    if (!decryptedIkPrivateKeyRaw) {
+                        throw new Error("Failed to decrypt identity key private key");
+                    }
+
+                    let opks_public_temp;
+                    if (typeof opks_public === "string") {
+                        try {
+                            opks_public_temp = JSON.parse(opks_public.replace(/\\+/g, ""));
+                        } catch (e) {
+                            opks_public_temp = opks_public.replace(/\\+/g, "").slice(1, -1).split(",");
+                        }
+                    } else {
+                        opks_public_temp = opks_public;
+                    }
+
+                    const userKeys = {
+                        identity_private_key: decryptedIkPrivateKeyRaw,
+                        signedpk_private_key: sodium.from_base64(spk_private_key),
+                        oneTimepks_private: opks_private.map((opk) => ({
+                            opk_id: opk.opk_id,
+                            private_key: sodium.from_base64(opk.private_key),
+                        })),
+                        identity_public_key: sodium.from_base64(ik_public),
+                        signedpk_public_key: sodium.from_base64(spk_public),
+                        oneTimepks_public: opks_public_temp.map((opk) => ({
+                            opk_id: opk.opk_id,
+                            publicKey: sodium.from_base64(opk.publicKey),
+                        })),
+                        signedPrekeySignature: sodium.from_base64(signedPrekeySignature),
+                        salt: sodium.from_base64(salt),
+                        nonce: sodium.from_base64(nonce),
+                    };
+
+                    // Store keys and session data
+                    await storeDerivedKeyEncrypted(derivedKey);
+                    sessionStorage.setItem("unlockToken", "session-unlock");
+                    await storeUserKeysSecurely(userKeys, derivedKey);
+
+                    useEncryptionStore.getState().setUserId(id);
+                    useEncryptionStore.setState({
+                        encryptionKey: derivedKey,
+                        userId: id,
+                        userKeys: userKeys,
+                    });
+
+                    const rawToken = token.replace(/^Bearer\s/, "");
+                    localStorage.setItem("token", rawToken);
+
+                    // Clear stored login data
+                    sessionStorage.removeItem("pendingLogin");
+
                     router.push("/dashboard");
                 } else {
-                    router.push("/auth");
+                    throw new Error("Login data not found. Please try logging in again.");
                 }
             } else {
-                throw new Error("Failed to complete authentication");
+                // Handle signup verification (existing logic)
+                const jwtResponse = await fetch("/api/auth/generate-jwt", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ userId, email }),
+                });
+
+                if (jwtResponse.ok) {
+                    const { token } = await jwtResponse.json();
+                    localStorage.setItem("token", token.replace(/^Bearer\s/, ""));
+                    
+                    // Check if encryption keys already exist from registration
+                    const unlockToken = sessionStorage.getItem("unlockToken");
+                    const hasKeys = localStorage.getItem("encryption-store");
+                    
+                    if (unlockToken && hasKeys) {
+                        router.push("/dashboard");
+                    } else {
+                        router.push("/auth");
+                    }
+                } else {
+                    throw new Error("Failed to complete authentication");
+                }
             }
         } catch (error) {
             console.error("Authentication setup error:", error);

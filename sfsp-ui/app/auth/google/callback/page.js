@@ -110,13 +110,41 @@ export default function GoogleCallbackPage() {
 
         const { user, keyBundle, token } = loginResult.data;
         
-        if (!user.is_verified) {
-            setLoaderMessage("Please verify your email first...");
-            setTimeout(() => {
-            router.push(`/auth/verify-email?email=${encodeURIComponent(googleUser.email)}&userId=${user.id}`);
-            }, 1500);
-            return;
+        // Always send verification code for Google login security
+        setLoaderMessage("Sending verification code...");
+        
+        // Store Google login data temporarily for verification
+        sessionStorage.setItem("pendingGoogleLogin", JSON.stringify({
+            googleUser,
+            user,
+            keyBundle,
+            token
+        }));
+        
+        // Send verification code before redirecting
+        try {
+            const sendCodeResponse = await fetch("http://localhost:3000/api/auth/send-verification", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    email: googleUser.email,
+                    userId: user.id,
+                    userName: googleUser.name || "User",
+                    type: "google_login"
+                }),
+            });
+            
+            if (!sendCodeResponse.ok) {
+                console.error("Failed to send verification code");
+            }
+        } catch (error) {
+            console.error("Error sending verification code:", error);
         }
+        
+        setTimeout(() => {
+            router.push(`/auth/verify-email?email=${encodeURIComponent(googleUser.email)}&userId=${user.id}&type=login`);
+        }, 1500);
+        return;
 
         if (!token) {
             throw new Error("No authentication token received");
@@ -300,6 +328,26 @@ export default function GoogleCallbackPage() {
             });
 
             setLoaderMessage("Account created! Please check your email for verification...");
+            
+            // Send verification code before redirecting
+            try {
+              const sendCodeResponse = await fetch("http://localhost:3000/api/auth/send-verification", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  email: googleUser.email,
+                  userId: user.id,
+                  userName: googleUser.name || "User",
+                  type: "google_signup"
+                }),
+              });
+              
+              if (!sendCodeResponse.ok) {
+                console.error("Failed to send verification code");
+              }
+            } catch (error) {
+              console.error("Error sending verification code:", error);
+            }
             
             // Add user to the PostgreSQL database using the route for addUser in file routes
             try {

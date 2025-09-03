@@ -170,14 +170,40 @@ export default function AuthPage() {
       const { ik_private_key, opks_private, spk_private_key } = result.data.keyBundle;
       const { token } = result.data;
 
-      // Check if user needs email verification
-      if (!is_verified) {
-        setLoaderMessage("Please verify your email first...");
-        setTimeout(() => {
-          router.push(`/auth/verify-email?email=${encodeURIComponent(loginData.email)}&userId=${id}`);
-        }, 1500);
-        return;
+      // Always send verification code for login security
+      setLoaderMessage("Sending verification code...");
+      
+      // Store login data temporarily for verification
+      sessionStorage.setItem("pendingLogin", JSON.stringify({
+        email: loginData.email,
+        password: loginData.password,
+        userId: id
+      }));
+      
+      // Send verification code before redirecting
+      try {
+        const sendCodeResponse = await fetch("http://localhost:3000/api/auth/send-verification", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: loginData.email,
+            userId: id,
+            userName: result.data.user.username || "User",
+                          type: "login_verify"
+          }),
+        });
+        
+        if (!sendCodeResponse.ok) {
+          console.error("Failed to send verification code");
+        }
+      } catch (error) {
+        console.error("Error sending verification code:", error);
       }
+      
+      setTimeout(() => {
+        router.push(`/auth/verify-email?email=${encodeURIComponent(loginData.email)}&userId=${id}&type=login`);
+      }, 1500);
+      return;
 
       //we don't need to securely store the user ID but I will store it in the Zustand store for easy access
       useEncryptionStore.getState().setUserId(id);
