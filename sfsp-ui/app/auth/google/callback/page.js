@@ -331,23 +331,23 @@ export default function GoogleCallbackPage() {
             
             // Send verification code before redirecting
             try {
-              const sendCodeResponse = await fetch("http://localhost:3000/api/auth/send-verification", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  email: googleUser.email,
-                  userId: user.id,
-                  userName: googleUser.name || "User",
-                  type: "google_signup"
-                }),
-              });
-              
-              if (!sendCodeResponse.ok) {
-                console.error("Failed to send verification code");
-              }
-            } catch (error) {
-              console.error("Error sending verification code:", error);
-            }
+                const sendCodeResponse = await fetch("http://localhost:3000/api/auth/send-verification", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                    email: googleUser.email,
+                    userId: user.id,
+                    userName: googleUser.name || "User",
+                    type: "google_signup"
+                    }),
+                });
+                
+                if (!sendCodeResponse.ok) {
+                    console.error("Failed to send verification code");
+                }
+                } catch (error) {
+                console.error("Error sending verification code:", error);
+                }
             
             // Add user to the PostgreSQL database using the route for addUser in file routes
             try {
