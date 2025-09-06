@@ -46,6 +46,7 @@ export function FileList({
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const [menuFile, setMenuFile] = useState(null);
   const menuRef = useRef(null);
+  const [draggedFile, setDraggedFile] = useState(null);
 
   const [toast, setToast] = useState(null);
 
@@ -146,6 +147,7 @@ export function FileList({
 
   const handleDragStart = (e, file) => {
     setDraggedFile(file);
+    e.dataTransfer.setData("text/plain", file.id);
     e.dataTransfer.effectAllowed = "move";
   };
 

@@ -488,6 +488,22 @@ export default function MyFiles() {
 
     const currentDirName = segments[segments.length - 1] || "All files";
 
+    const handleDrop = async (e, targetPath) => {
+      e.preventDefault();
+      const draggedFileId = e.dataTransfer.getData("text/plain");
+      if (!draggedFileId) return;
+
+      const allFiles = files;
+      const draggedFile = allFiles.find(f => f.id === draggedFileId);
+      if (!draggedFile) return;
+
+      await handleMoveFile(draggedFile, targetPath);
+    };
+
+    const handleDragOver = (e) => {
+      e.preventDefault();
+    };
+
     return (
       <div className="mb-6">
         {/* Breadcrumbs */}
@@ -496,6 +512,8 @@ export default function MyFiles() {
             <span key={crumb.path}>
               <button
                 onClick={() => setCurrentPath(crumb.path)}
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, crumb.path)}
                 className="hover:underline"
               >
                 {crumb.name || "All files"}

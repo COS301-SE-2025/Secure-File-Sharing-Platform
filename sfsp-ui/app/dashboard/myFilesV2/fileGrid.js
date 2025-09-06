@@ -223,6 +223,7 @@ export function FileGrid({
 
   const handleDragStart = (e, file) => {
     setDraggedFile(file);
+    e.dataTransfer.setData("text/plain", file.id);
     e.dataTransfer.effectAllowed = "move";
   };
 
