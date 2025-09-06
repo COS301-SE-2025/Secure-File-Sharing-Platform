@@ -244,7 +244,7 @@ export default function MyFiles() {
               handlePaste();
             }
             break;
-          case 'f':
+          case 'd':
             e.preventDefault();
             setIsCreateFolderOpen(true);
             break;
@@ -667,7 +667,7 @@ export default function MyFiles() {
               Manage and organize your files
             </p>
             <div className="text-xs text-gray-500 mt-1">
-              <span className="font-medium">Shortcuts:</span> Ctrl+C/V • Del • Enter • Backspace • Ctrl+F/U • Ctrl+1/2
+              <span className="font-medium">Shortcuts:</span> Ctrl+C/V • Del • Enter • Backspace • Ctrl+D/U • Ctrl+1/2
             </div>
           </div>
 
