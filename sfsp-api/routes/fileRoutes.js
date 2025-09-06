@@ -31,8 +31,8 @@ router.post('/createFolder',authMiddleware, fileController.createFolder);
 router.patch('/updateFilePath', fileController.updateFilePath);
 
 // send by view endpoints
-router.post('/revokeViewAccess', fileController.revokeViewAccess);
-router.post('/getViewAccess', fileController.getSharedViewFiles);
+router.post('/revokeViewAccess',authMiddleware, fileController.revokeViewAccess);
+router.post('/getViewAccess',authMiddleware, fileController.getSharedViewFiles);
 router.post('/sendByView', fileController.sendByView);
 router.post('/getViewAccesslogs', fileController.getViewFileAccessLogs);
 router.post('/downloadViewFile', fileController.downloadViewFile);
