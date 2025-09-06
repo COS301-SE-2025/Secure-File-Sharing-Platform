@@ -1,0 +1,16 @@
+{
+  "appId": "com.cacheme.sfsp-admin",
+  "files": [ "src/electron","dist-react"],
+  "extraResources": [ "src/assets/**"],
+  "icon": "./sfsp-admin.png",
+  "mac": {
+    "target": "dmg"
+  },
+  "linux": {
+    "target": "AppImage",
+    "category": "Utility"
+  },
+  "win": {
+    "target": ["portable", "msi"]
+  }
+}

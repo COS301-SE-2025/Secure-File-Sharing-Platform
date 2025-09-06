@@ -2,14 +2,20 @@
   "name": "sfsp-admin",
   "private": true,
   "version": "0.0.0",
+  "description": "Admin desktop app for SecureShare",
+  "author": "CacheME",
   "type": "module",
   "main": "src/electron/main.js",
   "scripts": {
+     "clean": "rimraf dist dist-react",
     "dev:react": "vite",
     "dev:electron": "electron .",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "dist:mac": "npm run clean && npm run build && electron-builder --mac --arm64",
+    "dist:win": "npm run clean && npm run build && electron-builder --win --x64",
+    "dist:linux": "npm run clean && npm run build && electron-builder --linux --x64"
   },
   "dependencies": {
     "react": "^19.1.1",
