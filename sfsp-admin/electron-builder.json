@@ -1,6 +1,6 @@
 {
   "appId": "com.cacheme.sfsp-admin",
-  "files": [ "src/electron","dist-react"],
+  "files": [ "src/electron/**/*","dist-react"],
   "extraResources": [ "src/assets/**"],
   "icon": "./sfsp-admin.png",
   "mac": {
