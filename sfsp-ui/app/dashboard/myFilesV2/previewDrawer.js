@@ -46,7 +46,7 @@ export function PreviewDrawer({
         "http://localhost:5000/api/files/getViewAccess",
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({ userId }),
         }
       );
@@ -105,7 +105,7 @@ export function PreviewDrawer({
 
       const revokeRes = await fetch("http://localhost:5000/api/files/revokeViewAccess", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           fileId: file.id,
           userId,

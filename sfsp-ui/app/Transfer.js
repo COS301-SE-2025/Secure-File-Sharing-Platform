@@ -42,16 +42,15 @@ function ed25519PubToCurve(pubEd25519, sodium) {
 
 
 export async function SendFile(recipientUserId, fileid, isViewOnly = false) {
-  const chunkSize = 5 * 1024 * 1024; // 5 MB per chunk
+  const chunkSize = 10 * 1024 * 1024;
   const sodium = await getSodium();
   const { userId, encryptionKey } = useEncryptionStore.getState();
 
-  // 1️⃣ Get and normalize user keys
   const userKeysRaw = await getUserKeysSecurely(encryptionKey);
   const userKeys = normalizeUserKeys(userKeysRaw, sodium);
 
-  console.log("[UI DEBUG] 2️⃣ Download encrypted file as binary");
-  // 2️⃣ Download encrypted file as binary
+  console.log("[UI DEBUG] 2 Download encrypted file as binary");
+
   const response = await fetch("http://localhost:5000/api/files/download", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -62,7 +61,6 @@ export async function SendFile(recipientUserId, fileid, isViewOnly = false) {
   const buffer = await response.arrayBuffer();
   const encryptedLocalFile = new Uint8Array(buffer);
 
-  // 🔓 Decrypt local file
   const nonceHeader = response.headers.get("x-nonce");
   const decrypted = sodium.crypto_secretbox_open_easy(
     encryptedLocalFile,
@@ -70,7 +68,7 @@ export async function SendFile(recipientUserId, fileid, isViewOnly = false) {
     encryptionKey
   );
 
-  console.log("[UI DEBUG] 3️⃣ Fetch recipient's public keys");
+  console.log("[UI DEBUG] 3 Fetch recipient's public keys");
   console.log(recipientUserId);
   const bundleRes = await fetch(
     `http://localhost:5000/api/users/public-keys/${recipientUserId}`
@@ -79,7 +77,6 @@ export async function SendFile(recipientUserId, fileid, isViewOnly = false) {
   if (!bundleRes.ok) throw new Error("Recipient key bundle not found");
   const { data: recipientKeys } = await bundleRes.json();
 
-  // 4️⃣ Derive X3DH shared key
   const ikPrivKeyCurve25519 = sodium.crypto_sign_ed25519_sk_to_curve25519(
     userKeys.identity_private_key
   );
@@ -111,21 +108,17 @@ export async function SendFile(recipientUserId, fileid, isViewOnly = false) {
   const combinedDH = concatUint8Arrays([DH1, DH2, DH3, DH4]);
   const sharedKey = sodium.crypto_generichash(32, combinedDH);
 
-  // 5️⃣ Encrypt file with new AES key
   const aesKey = sodium.crypto_secretbox_keygen();
   const fileNonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
   const encryptedFile = sodium.crypto_secretbox_easy(decrypted, fileNonce, aesKey);
 
-  // 6️⃣ Encrypt AES key with shared key
   const keyNonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
   const encryptedAesKey = sodium.crypto_secretbox_easy(aesKey, keyNonce, sharedKey);
 
-  // 7️⃣ Compute file hash & signature
   const ikPrivateKey = userKeys.identity_private_key;
   const fileHash = sodium.crypto_generichash(32, encryptedFile);
   const signature = sodium.crypto_sign_detached(fileHash, ikPrivateKey);
 
-  // 8️⃣ Build metadata JSON (sent with every chunk)
   const metadataJSON = JSON.stringify({
     fileNonce: sodium.to_base64(fileNonce),
     keyNonce: sodium.to_base64(keyNonce),
@@ -139,7 +132,6 @@ export async function SendFile(recipientUserId, fileid, isViewOnly = false) {
     viewOnly: isViewOnly,
   });
 
-  // 9️⃣ Chunk and upload
   const totalChunks = Math.ceil(encryptedFile.length / chunkSize);
 
   for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
@@ -182,7 +174,7 @@ export async function ChangeShareMethod(recipientUserId, fileid, isViewOnly = fa
   const userKeysRaw = await getUserKeysSecurely(encryptionKey);
   const userKeys = normalizeUserKeys(userKeysRaw, sodium);
 
-  console.log("[UI DEBUG]2️⃣ Download encrypted file as binary")
+  console.log("[UI DEBUG] 2 Download encrypted file as binary")
   const response = await fetch("http://localhost:5000/api/files/download", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -204,7 +196,7 @@ export async function ChangeShareMethod(recipientUserId, fileid, isViewOnly = fa
     encryptionKey
   );
 
-  console.log("[UI DEBUG]3️⃣ Get recipient's public keys")
+  console.log("[UI DEBUG] 3 Get recipient's public keys")
   const bundleRes = await fetch(
     `http://localhost:5000/api/users/public-keys/${recipientUserId}`
   );
@@ -326,7 +318,6 @@ export async function ReceiveFile(fileData) {
     ? "http://localhost:5000/api/files/downloadViewFile"
     : "http://localhost:5000/api/files/downloadSentFile";
 
-  // 1️⃣ Stream download
   const response = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -355,7 +346,6 @@ export async function ReceiveFile(fileData) {
     offset += chunk.length;
   }
 
-  // 2️⃣ Verify file hash & signature
   const fileHashBytes = sodium.from_base64(fileHash);
   const computedHash = sodium.crypto_generichash(32, encryptedFile);
   if (!sodium.memcmp(fileHashBytes, computedHash)) {
@@ -368,14 +358,12 @@ export async function ReceiveFile(fileData) {
     throw new Error("Invalid signature for the received file");
   }
 
-  // 3️⃣ Derive shared secret with X3DH
   const ikPrivKey = userKeys.identity_private_key;
   const spkPrivKey = userKeys.signedpk_private_key;
-  
-  // Debug: Log available OPK IDs and the requested one
-  console.log("🔍 DEBUG - Available OPK IDs:", userKeys.oneTimepks_private.map(opk => opk.opk_id));
-  console.log("🔍 DEBUG - Requested OPK ID:", opk_id);
-  console.log("🔍 DEBUG - Full userKeys structure:", userKeys);
+
+  console.log(" DEBUG - Available OPK IDs:", userKeys.oneTimepks_private.map(opk => opk.opk_id));
+  console.log(" DEBUG - Requested OPK ID:", opk_id);
+  console.log(" DEBUG - Full userKeys structure:", userKeys);
   
   const opkMatch = userKeys.oneTimepks_private.find((opk) => opk.opk_id === opk_id);
   if (!opkMatch) {
@@ -402,7 +390,6 @@ export async function ReceiveFile(fileData) {
   const combinedDH = concatUint8Arrays([DH1, DH2, DH3, DH4]);
   const sharedKey = sodium.crypto_generichash(32, combinedDH);
 
-  // 4️⃣ Decrypt AES key and file
   const aesKey = sodium.crypto_secretbox_open_easy(
     sodium.from_base64(encryptedAesKey),
     sodium.from_base64(keyNonce),
@@ -417,11 +404,9 @@ export async function ReceiveFile(fileData) {
   );
   if (!decryptedFile) throw new Error("Failed to decrypt file");
 
-  // 5️⃣ Re-encrypt for local storage
   const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
   const ciphertext = sodium.crypto_secretbox_easy(decryptedFile, nonce, encryptionKey);
 
-  // 6️⃣ Start upload session
   const startRes = await fetch("http://localhost:5000/api/files/startUpload", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -438,7 +423,6 @@ export async function ReceiveFile(fileData) {
   if (!startRes.ok) throw new Error("Failed to start upload");
   const { fileId } = await startRes.json();
 
-  // 7️⃣ Chunk + parallel upload
   const chunkSize = 5 * 1024 * 1024;
   const totalChunks = Math.ceil(ciphertext.length / chunkSize);
   await Promise.all(

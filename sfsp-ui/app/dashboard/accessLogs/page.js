@@ -66,7 +66,7 @@ export default function AccessLogsPage() {
         // Fetch all files
         const filesRes = await fetch('http://localhost:5000/api/files/metadata', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', Authorization : `Bearer ${localStorage.getItem("token")}` },
           body: JSON.stringify({ userId }),
         });
 
@@ -86,7 +86,7 @@ export default function AccessLogsPage() {
           try {
             const logsRes = await fetch('http://localhost:5000/api/files/getAccesslog', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 'Content-Type': 'application/json', Authorization : `Bearer ${localStorage.getItem("token")}` },
               body: JSON.stringify({ file_id: file.fileId }),
             });
 

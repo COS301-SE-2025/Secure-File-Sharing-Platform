@@ -50,12 +50,12 @@ function getFileType(mimeType) {
   if (mimeType.includes("json")) return "json";
   if (mimeType.includes("csv")) return "csv";
   if (mimeType.includes("html")) return "html";
-  if (mimeType.includes("folder")) return "folder"; // Custom type for folders
-  if (mimeType.includes("podcast")) return "podcast"; // Custom type for podcasts
-  if (mimeType.includes("markdown")) return "markdown"; // Custom type for markdown files
-  if (mimeType.includes("x-markdown")) return "markdown"; // Another common type for markdown
+  if (mimeType.includes("folder")) return "folder";
+  if (mimeType.includes("podcast")) return "podcast";
+  if (mimeType.includes("markdown")) return "markdown"; 
+  if (mimeType.includes("x-markdown")) return "markdown"; 
   if (mimeType.includes("md")) return "markdown";
-  if (mimeType.includes("code") || mimeType.includes("script")) return "code"; // Custom type for code files
+  if (mimeType.includes("code") || mimeType.includes("script")) return "code";
   return "file";
 }
 
@@ -150,7 +150,7 @@ export default function MyFiles() {
       console.log("Getting the user's files");
       const res = await fetch("http://localhost:5000/api/files/metadata", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization : `Bearer ${localStorage.getItem("token")}` },
         body: JSON.stringify({ userId }),
       });
 
@@ -179,7 +179,7 @@ export default function MyFiles() {
           const tags = f.tags ? f.tags.replace(/[{}]/g, "").split(",") : [];
           const isViewOnlyFile = tags.includes("view-only");
           const isFolder =
-            !f.fileType || f.fileType.toLowerCase() === "folder"; // ✅ detect folder
+            !f.fileType || f.fileType.toLowerCase() === "folder";
 
           return {
             id: f.fileId || "",
@@ -419,6 +419,7 @@ export default function MyFiles() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
           body: JSON.stringify({ fileId, description }),
         }
@@ -442,7 +443,7 @@ export default function MyFiles() {
 
     const res = await fetch("http://localhost:5000/api/files/updateFilePath", {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token")}` },
       body: JSON.stringify({ fileId: file.id, newPath: fullPath }),
     });
 

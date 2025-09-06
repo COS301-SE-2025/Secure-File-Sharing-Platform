@@ -47,12 +47,12 @@ function getFileType(mimeType) {
   if (mimeType.includes("json")) return "json";
   if (mimeType.includes("csv")) return "csv";
   if (mimeType.includes("html")) return "html";
-  if (mimeType.includes("folder")) return "folder"; // Custom type for folders
-  if (mimeType.includes("podcast")) return "podcast"; // Custom type for podcasts
-  if (mimeType.includes("markdown")) return "markdown"; // Custom type for markdown files
-  if (mimeType.includes("x-markdown")) return "markdown"; // Another common type for markdown
+  if (mimeType.includes("folder")) return "folder"; 
+  if (mimeType.includes("podcast")) return "podcast"; 
+  if (mimeType.includes("markdown")) return "markdown"; 
+  if (mimeType.includes("x-markdown")) return "markdown"; 
   if (mimeType.includes("md")) return "markdown";
-  if (mimeType.includes("code") || mimeType.includes("script")) return "code"; // Custom type for code files
+  if (mimeType.includes("code") || mimeType.includes("script")) return "code"; 
   return "file";
 }
 
@@ -87,14 +87,12 @@ export default function MyFiles() {
     setTimeout(() => setToast(null), duration);
   };
 
-  // Filtered files based on search keyword
   const filteredVisibleFiles = files.filter((file) => {
     const name = file?.name?.toLowerCase() || "";
     const keyword = (search || "").toLowerCase();
     return name.includes(keyword);
   });
 
-  // Check if file is view-only
   const isViewOnly = (file) => {
     let tags = [];
     if (file.tags) {
@@ -104,7 +102,6 @@ export default function MyFiles() {
     return tags.includes("view-only") || file.viewOnly;
   };
 
-  // Fetch shared/view-only files
   const fetchFiles = async () => {
     try {
       const userId = useEncryptionStore.getState().userId;
@@ -112,7 +109,7 @@ export default function MyFiles() {
 
       const res = await fetch("http://localhost:5000/api/files/metadata", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token")}` },
         body: JSON.stringify({ userId }),
       });
 
@@ -161,11 +158,12 @@ export default function MyFiles() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
           body: JSON.stringify({ fileId, description }),
         }
       );
-      fetchFiles(); // Refresh files after update
+      fetchFiles();
       if (res.status === 200) {
         console.log("Description updated successfully");
       }
@@ -177,7 +175,6 @@ export default function MyFiles() {
     }
   };
 
-  // Download file
   const handleDownload = async (file) => {
     if (isViewOnly(file)) {
       showToast("This file is view-only and cannot be downloaded.","error");
@@ -243,7 +240,6 @@ export default function MyFiles() {
     }
   };
 
-  // Load file (for preview/full view)
   const handleLoadFile = async (file) => {
     const { encryptionKey, userId } = useEncryptionStore.getState();
     if (!encryptionKey) {
@@ -362,7 +358,7 @@ export default function MyFiles() {
 
       const sharedFilesRes = await fetch("http://localhost:5000/api/files/getViewAccess", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ userId }),
       });
 
@@ -376,7 +372,7 @@ export default function MyFiles() {
       for (const share of fileShares) {
         const revokeRes = await fetch("http://localhost:5000/api/files/revokeViewAccess", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({ fileId: file.id, userId, recipientId: share.recipient_id }),
         });
 

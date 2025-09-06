@@ -20,8 +20,6 @@ import { useDashboardSearch } from "./components/DashboardSearchContext";
 import { getSodium } from "@/app/lib/sodium";
 import { useEncryptionStore } from "@/app/SecureKeyStorage";
 
-// Helper functions
-
 function getFileType(mimeType) {
   if (!mimeType) return "unknown";
   if (mimeType.includes("pdf")) return "pdf";
@@ -30,7 +28,11 @@ function getFileType(mimeType) {
   if (mimeType.includes("audio")) return "audio";
   if (mimeType.includes("application")) return "application";
   if (mimeType.includes("zip") || mimeType.includes("rar")) return "archive";
-  if (mimeType.includes("spreadsheet") || mimeType.includes("excel") || mimeType.includes("sheet"))
+  if (
+    mimeType.includes("spreadsheet") ||
+    mimeType.includes("excel") ||
+    mimeType.includes("sheet")
+  )
     return "excel";
   if (mimeType.includes("presentation")) return "ppt";
   if (mimeType.includes("word") || mimeType.includes("document")) return "word";
@@ -38,6 +40,12 @@ function getFileType(mimeType) {
   if (mimeType.includes("json")) return "json";
   if (mimeType.includes("csv")) return "csv";
   if (mimeType.includes("html")) return "html";
+  if (mimeType.includes("folder")) return "folder"; 
+  if (mimeType.includes("podcast")) return "podcast"; 
+  if (mimeType.includes("markdown")) return "markdown"; 
+  if (mimeType.includes("x-markdown")) return "markdown"; 
+  if (mimeType.includes("md")) return "markdown";
+  if (mimeType.includes("code") || mimeType.includes("script")) return "code"; 
   return "file";
 }
 
@@ -93,7 +101,7 @@ const fetchFiles = async () => {
 
     const res = await fetch("http://localhost:5000/api/files/metadata", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization : `Bearer ${localStorage.getItem("token")}` },
       body: JSON.stringify({ userId }),
     });
 
@@ -159,7 +167,7 @@ const fetchFiles = async () => {
         headers: { "Content-Type": "application/json" },
        body: JSON.stringify({
   userId,
-  fileId: file.fileId || file.id, // ✅ Ensure correct field
+  fileId: file.fileId || file.id,
 }),
       });
 
@@ -322,7 +330,7 @@ const fetchRecentAccessLogs = async () => {
     // Fetch files
     const res = await fetch("http://localhost:5000/api/files/metadata", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization : `Bearer ${localStorage.getItem("token")}` },
       body: JSON.stringify({ userId }),
     });
     let files = await res.json();
@@ -340,7 +348,7 @@ const fetchRecentAccessLogs = async () => {
       try {
         const logRes = await fetch("http://localhost:5000/api/files/getAccesslog", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", Authorization : `Bearer ${localStorage.getItem("token")}` },
           body: JSON.stringify({ file_id: file.fileId }),
         });
         if (!logRes.ok) continue;
@@ -389,13 +397,12 @@ const fetchRecentAccessLogs = async () => {
     try {
       const res = await fetch('http://localhost:5000/api/files/metadata', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization : `Bearer ${localStorage.getItem("token")}` },
         body: JSON.stringify({ userId }),
       });
 
       const data = await res.json();
 
-      // Separate active and deleted files
       const activeFiles = data.filter(file => {
         const tags = parseTagString(file.tags);
         return !tags.includes('deleted');
@@ -410,9 +417,6 @@ const fetchRecentAccessLogs = async () => {
 		const tags = parseTagString(file.tags);
 	  return tags.includes("received");
 	});
-
-      
- 
       setFileCount(activeFiles.length);
       setTrashedFilesCount(deletedFiles.length);
       setReceivedFilesCount(receivedFiles.length);

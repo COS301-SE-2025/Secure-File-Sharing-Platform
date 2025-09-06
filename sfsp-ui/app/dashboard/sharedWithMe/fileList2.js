@@ -83,7 +83,7 @@ export function FileList({
     try {
       const res = await fetch("http://localhost:5000/api/files/addTags", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token")}` },
         body: JSON.stringify({ fileId: file.id, tags }),
       });
 
@@ -100,7 +100,7 @@ export function FileList({
 
           await fetch("http://localhost:5000/api/files/addAccesslog", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
             body: JSON.stringify({
               file_id: file.id,
               user_id: profileResult.data.id,

@@ -48,7 +48,6 @@ export default function Sidebar({ expanded, setExpanded, isHovered, setIsHovered
     }
   };
 
-  // Load user profile
   useEffect(() => {
     const fetchProfile = async () => {
       const token = localStorage.getItem('token');

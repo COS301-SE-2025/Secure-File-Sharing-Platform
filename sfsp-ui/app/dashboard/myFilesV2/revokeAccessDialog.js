@@ -126,7 +126,7 @@ export function RevokeAccessDialog({ open, onOpenChange, file }) {
         "http://localhost:5000/api/files/revokeViewAccess",
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({
             fileId: file.id,
             userId: currentUserId,

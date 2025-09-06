@@ -79,7 +79,6 @@ export function ShareDialog({ open, onOpenChange, file }) {
       const token = localStorage.getItem("token");
       if (!token) return;
 
-      // Get sender profile once
       const profileRes = await fetch("http://localhost:5000/api/users/profile", {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -93,7 +92,6 @@ export function ShareDialog({ open, onOpenChange, file }) {
       for (const recipient of shareWith) {
         const email = recipient.email;
 
-        // Fetch recipient user ID by email
         const response = await fetch(
           `http://localhost:5000/api/users/getUserId/${email}`
         );
@@ -111,10 +109,9 @@ export function ShareDialog({ open, onOpenChange, file }) {
 
         const receivedFileID = await SendFile(recipientId, file.id, isViewOnly);
         console.log("Received File ID in shared Dialog:", receivedFileID);
-        // Log file access
         await fetch("http://localhost:5000/api/files/addAccesslog", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({
             file_id: file.id,
             user_id: senderId,
@@ -128,7 +125,7 @@ export function ShareDialog({ open, onOpenChange, file }) {
         console.log("Recipients emails is: ", email);
         await fetch("http://localhost:5000/api/notifications/add", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({
             type: "file_share_request",
             fromEmail: senderEmail,

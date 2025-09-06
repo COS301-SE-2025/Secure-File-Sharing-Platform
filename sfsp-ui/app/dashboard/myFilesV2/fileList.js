@@ -41,7 +41,7 @@ export function FileList({
   onMoveFile,
   onEnterFolder,
   onRevokeViewAccess,
-  onChangeShareMethod, // <-- Add this prop
+  onChangeShareMethod, 
 }) {
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const [menuFile, setMenuFile] = useState(null);
@@ -91,10 +91,13 @@ export function FileList({
     const timestamp = new Date().toISOString();
     const tags = ["deleted", `deleted_time:${timestamp}`];
 
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
     try {
       const res = await fetch("http://localhost:5000/api/files/addTags", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ fileId: file.id, tags }),
       });
 
@@ -103,9 +106,6 @@ export function FileList({
       }
 
       console.log(`File ${file.name} marked as deleted`);
-
-      const token = localStorage.getItem("token");
-      if (!token) return;
 
       try {
         const profileRes = await fetch(
@@ -121,7 +121,7 @@ export function FileList({
 
         await fetch("http://localhost:5000/api/files/addAccesslog", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({
             file_id: file.id,
             user_id: profileResult.data.id,
@@ -155,7 +155,7 @@ export function FileList({
       folder.type === "folder" &&
       draggedFile.id !== folder.id
     ) {
-      e.preventDefault(); // allows drop
+      e.preventDefault();
     }
   };
 
@@ -172,7 +172,6 @@ export function FileList({
     }
   };
 
-  // Check if file is view-only (either from tags or viewOnly property)
   const isViewOnly = (file) => {
     return file.viewOnly || (file.tags && file.tags.includes("view-only"));
   };
