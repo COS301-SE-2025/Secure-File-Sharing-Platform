@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build",
+    "build": "next build && node copy-assets.js",
     "start": "next start",
     "lint": "next lint",
     "test": "cypress open",
