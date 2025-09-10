@@ -73,16 +73,10 @@ export default function AccessLogsPage() {
         let filesData = await filesRes.json();
         if (!Array.isArray(filesData)) filesData = [];
 
-        // Filter out deleted files
-        const files = filesData.filter(f => {
-          const tags = f.tags ? f.tags.replace(/[{}]/g, '').split(',') : [];
-          return !tags.includes('deleted') && !tags.some(tag => tag.trim().startsWith('deleted_time:'));
-        });
-
         // Fetch logs for each file
         const allLogs = [];
 
-        for (const file of files) {
+        for (const file of filesData) {
           try {
             const logsRes = await fetch('http://localhost:5000/api/files/getAccesslog', {
               method: 'POST',
