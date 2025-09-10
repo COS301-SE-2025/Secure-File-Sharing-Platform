@@ -129,7 +129,7 @@ export function UploadDialog({
             formData.append("totalChunks", totalChunks.toString());
             formData.append("encryptedFile", new Blob([chunk]), file.name);
 
-            return fetch("http://localhost:5000/api/files/upload", {
+            return fetch("/api/files/upload", {
               method: "POST",
               body: formData,
             })

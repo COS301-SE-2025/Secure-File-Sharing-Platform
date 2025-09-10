@@ -1,0 +1,47 @@
+import { NextResponse } from 'next/server';
+
+export async function POST(request) {
+	try {
+		const token = request.cookies.get('auth_token')?.value;
+		
+		if (!token) {
+			return NextResponse.json(
+				{ success: false, message: 'Authentication required' },
+				{ status: 401 }
+			);
+		}
+
+		const formData = await request.formData();
+		const backendFormData = new FormData();
+		
+		for (const [key, value] of formData.entries()) {
+			backendFormData.append(key, value);
+		}
+
+		const response = await fetch('http://localhost:5000/api/files/sendByView', {
+			method: 'POST',
+			headers: {
+				'Authorization': `Bearer ${token}`,
+			},
+			body: backendFormData,
+		});
+
+		if (!response.ok) {
+			const errorText = await response.text();
+			return NextResponse.json(
+				{ success: false, message: errorText },
+				{ status: response.status }
+			);
+		}
+
+		const result = await response.json();
+		return NextResponse.json(result);
+
+	} catch (error) {
+		console.error('Send by View proxy API error:', error);
+		return NextResponse.json(
+			{ success: false, message: 'Service unavailable' },
+			{ status: 500 }
+		);
+	}
+}

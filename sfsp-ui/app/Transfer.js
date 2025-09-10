@@ -153,8 +153,8 @@ export async function SendFile(recipientUserId, fileid, isViewOnly = false) {
 
     console.log("Sending the file now");
     const endpoint = isViewOnly
-      ? "http://localhost:5000/api/files/sendByView"
-      : "http://localhost:5000/api/files/send";
+      ? "/api/files/sendByView"
+      : "/api/files/send";
 
     const res = await fetch(endpoint, {
       method: "POST",
@@ -455,7 +455,7 @@ export async function ReceiveFile(fileData) {
       formData.append("totalChunks", totalChunks.toString());
       formData.append("encryptedFile", new Blob([chunk]), file_name);
 
-      return fetch("http://localhost:5000/api/files/upload", { method: "POST", body: formData });
+      return fetch("/api/files/upload", { method: "POST", body: formData });
     })
   );
 
