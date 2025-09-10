@@ -51,7 +51,7 @@ export async function SendFile(recipientUserId, fileid, isViewOnly = false) {
 
   console.log("[UI DEBUG] 2 Download encrypted file as binary");
 
-  const response = await fetch("http://localhost:5000/api/files/download", {
+  const response = await fetch("/api/files/download", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ userId, fileId: fileid }),
@@ -71,7 +71,7 @@ export async function SendFile(recipientUserId, fileid, isViewOnly = false) {
   console.log("[UI DEBUG] 3 Fetch recipient's public keys");
   console.log(recipientUserId);
   const bundleRes = await fetch(
-    `http://localhost:5000/api/users/public-keys/${recipientUserId}`
+    `/api/user/public_keys${recipientUserId}`
   );
 
   if (!bundleRes.ok) throw new Error("Recipient key bundle not found");
@@ -175,11 +175,11 @@ export async function ChangeShareMethod(recipientUserId, fileid, isViewOnly = fa
   const userKeys = normalizeUserKeys(userKeysRaw, sodium);
 
   console.log("[UI DEBUG] 2 Download encrypted file as binary")
-  const response = await fetch("http://localhost:5000/api/files/download", {
+  const response = await fetch("/api/files/download", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ userId, fileId: fileid }),
-  });
+  }); 
   if (!response.ok) throw new Error("Failed to retrieve file content");
 
   const buffer = await response.arrayBuffer();
@@ -198,7 +198,7 @@ export async function ChangeShareMethod(recipientUserId, fileid, isViewOnly = fa
 
   console.log("[UI DEBUG] 3 Get recipient's public keys")
   const bundleRes = await fetch(
-    `http://localhost:5000/api/users/public-keys/${recipientUserId}`
+    `/api/user/public_keys${recipientUserId}`
   );
   if (!bundleRes.ok) throw new Error("Recipient key bundle not found");
 
@@ -277,7 +277,7 @@ export async function ChangeShareMethod(recipientUserId, fileid, isViewOnly = fa
   );
   formData.append("encryptedFile", new Blob([encryptedFile]));
 
-  const res = await fetch("http://localhost:5000/api/files/changeShareMethod", {
+  const res = await fetch("/api/files/changeShareMethod", {
     method: "POST",
     body: formData,
   });
@@ -315,8 +315,8 @@ export async function ReceiveFile(fileData) {
 
   const path = `/files/${sender_id}/sent/${file_id}`;
   const endpoint = viewOnly
-    ? "http://localhost:5000/api/files/downloadViewFile"
-    : "http://localhost:5000/api/files/downloadSentFile";
+    ? "/api/files/downloadViewFile"
+    : "/api/files/downloadSentFile";
 
   const response = await fetch(endpoint, {
     method: "POST",
@@ -407,7 +407,7 @@ export async function ReceiveFile(fileData) {
   const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
   const ciphertext = sodium.crypto_secretbox_easy(decryptedFile, nonce, encryptionKey);
 
-  const startRes = await fetch("http://localhost:5000/api/files/startUpload", {
+  const startRes = await fetch("/api/files/startUpload", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({

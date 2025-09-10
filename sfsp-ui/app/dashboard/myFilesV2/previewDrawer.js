@@ -34,16 +34,14 @@ export function PreviewDrawer({
       if (!token) return;
 
       // Get current user profile
-      const profileRes = await fetch("http://localhost:5000/api/users/profile", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const profileRes = await fetch("/api/auth/profile");
       const profileResult = await profileRes.json();
       const userId = profileResult?.data?.id;
       if (!userId) return;
 
       // Get files shared for view-only access
       const sharedFilesRes = await fetch(
-        "http://localhost:5000/api/files/getViewAccess",
+        "/api/files/getViewAccess",
         {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -60,7 +58,7 @@ export function PreviewDrawer({
           let email = "";
           let avatar = "";
           try {
-            const res = await fetch(`http://localhost:5000/api/users/getUserInfo/${share.recipient_id}`);
+            const res = await fetch(`/api/user/getUserInfo/${share.recipient_id}`);
             if (res.ok) {
               const data = await res.json();
               if (data?.data) {
@@ -96,14 +94,12 @@ export function PreviewDrawer({
       const token = localStorage.getItem("token");
       if (!token) return;
 
-      const profileRes = await fetch("http://localhost:5000/api/users/profile", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const profileRes = await fetch("/api/auth/profile");
       const profileResult = await profileRes.json();
       const userId = profileResult?.data?.id;
       if (!userId) return;
 
-      const revokeRes = await fetch("http://localhost:5000/api/files/revokeViewAccess", {
+      const revokeRes = await fetch("/api/files/revokeViewAccess", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({

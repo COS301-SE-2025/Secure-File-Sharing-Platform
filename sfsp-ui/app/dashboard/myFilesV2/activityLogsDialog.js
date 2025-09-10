@@ -27,7 +27,7 @@ export function ActivityLogsDialog({ open, onOpenChange, file }) {
 
         console.log(file.id);
 
-        const res = await fetch('http://localhost:5000/api/files/getAccesslog', {
+        const res = await fetch('/api/file/getAccessLog', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ file_id: file.id }),

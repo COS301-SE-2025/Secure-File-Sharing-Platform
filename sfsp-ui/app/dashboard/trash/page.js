@@ -25,7 +25,7 @@ export default function TrashPage() {
 
   const fetchTrashedFiles = useCallback(async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/files/metadata', {
+      const res = await fetch('/api/files/metadata', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem("token")}` },
         body: JSON.stringify({ userId }),
@@ -69,7 +69,7 @@ export default function TrashPage() {
   const handleRestore = async (fileId) => {
     try {
 
-      const res = await fetch("http://localhost:5000/api/files/metadata", {
+      const res = await fetch("/api/files/metadata", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token")}` },
         body: JSON.stringify({ userId }),
@@ -94,7 +94,7 @@ export default function TrashPage() {
         return;
       }
 
-      await fetch("http://localhost:5000/api/files/removeTags", {
+      await fetch("/api/files/removeTags", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token")}`},
         body: JSON.stringify({ fileId, tags: tagsToRemove }),
@@ -104,14 +104,12 @@ export default function TrashPage() {
       if (!token) return;
 
       try {
-        const profileRes = await fetch("http://localhost:5000/api/users/profile", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const profileRes = await fetch("/api/auth/profile");
 
         const profileResult = await profileRes.json();
         if (!profileRes.ok) throw new Error(profileResult.message || "Failed to fetch profile");
 
-        await fetch("http://localhost:5000/api/files/addAccesslog", {
+        await fetch("/api/files/addAccesslogs", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({
@@ -138,7 +136,7 @@ export default function TrashPage() {
     if (!confirm) return;
 
     try {
-      const res = await fetch("http://localhost:5000/api/files/deleteFile", {
+      const res = await fetch("/api/files/deleteFiles", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token")}` },
         body: JSON.stringify({ fileId: fileId, userId: userId }),
@@ -161,7 +159,7 @@ export default function TrashPage() {
 
     try {
       for (const file of trashedFiles) {
-        const res = await fetch("http://localhost:5000/api/files/deleteFile", {
+        const res = await fetch("/api/files/deleteFile", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token")}` },
           body: JSON.stringify({ fileId: file.id, userId }),

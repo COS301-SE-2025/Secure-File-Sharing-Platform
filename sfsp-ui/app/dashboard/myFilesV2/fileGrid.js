@@ -185,12 +185,7 @@ export function FileGrid({
       if (!token) return;
 
       try {
-        const profileRes = await fetch(
-          "http://localhost:5000/api/users/profile",
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
+        const profileRes = await fetch("/api/auth/profile");
 
         const profileResult = await profileRes.json();
         if (!profileRes.ok)
@@ -232,7 +227,7 @@ export function FileGrid({
       folder.type === "folder" &&
       draggedFile.id !== folder.id
     ) {
-      e.preventDefault(); // allows drop
+      e.preventDefault();
     }
   };
 

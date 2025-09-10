@@ -57,7 +57,7 @@ export default function GoogleCallbackPage() {
             console.log('Checking if user exists for email:', googleUser.email);
             
             try {
-            const userExistsResponse = await fetch(`http://localhost:5000/api/users/getUserId/${googleUser.email}`);
+            const userExistsResponse = await fetch(`/api/user/getUserId${googleUser.email}`);
             console.log('User existence check response status:', userExistsResponse.status);
             
             if (userExistsResponse.ok) {
@@ -192,7 +192,7 @@ export default function GoogleCallbackPage() {
 
         // Add user to the PostgreSQL database using the route for addUser in file routes
         try {
-            const addUserRes = await fetch("http://localhost:5000/api/files/addUser", {
+            const addUserRes = await fetch("/api/user/addUser", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -303,7 +303,7 @@ export default function GoogleCallbackPage() {
             
             // Add user to the PostgreSQL database using the route for addUser in file routes
             try {
-                const addUserRes = await fetch("http://localhost:5000/api/files/addUser", {
+                const addUserRes = await fetch("/api/user/addUser", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({

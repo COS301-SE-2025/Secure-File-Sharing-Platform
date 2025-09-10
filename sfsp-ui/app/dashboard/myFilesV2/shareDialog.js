@@ -79,9 +79,7 @@ export function ShareDialog({ open, onOpenChange, file }) {
       const token = localStorage.getItem("token");
       if (!token) return;
 
-      const profileRes = await fetch("http://localhost:5000/api/users/profile", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const profileRes = await fetch("/api/auth/profile");
 
       const profileResult = await profileRes.json();
       if (!profileRes.ok) throw new Error(profileResult.message || "Failed to fetch profile");
@@ -93,7 +91,7 @@ export function ShareDialog({ open, onOpenChange, file }) {
         const email = recipient.email;
 
         const response = await fetch(
-          `http://localhost:5000/api/users/getUserId/${email}`
+          `/api/user/getUserId${email}`//this is wrong I made a mistake to make it get the user by id, it should get the user by email
         );
         if (!response.ok) {
           console.warn(`User ID not found for email: ${email}`);
@@ -109,7 +107,7 @@ export function ShareDialog({ open, onOpenChange, file }) {
 
         const receivedFileID = await SendFile(recipientId, file.id, isViewOnly);
         console.log("Received File ID in shared Dialog:", receivedFileID);
-        await fetch("http://localhost:5000/api/files/addAccesslog", {
+        await fetch("/api/files/addAccesslog", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({
@@ -123,7 +121,7 @@ export function ShareDialog({ open, onOpenChange, file }) {
         // Send the notification
         console.log("Senders email is:", senderEmail);
         console.log("Recipients emails is: ", email);
-        await fetch("http://localhost:5000/api/notifications/add", {
+        await fetch("/api/notifications/add", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({

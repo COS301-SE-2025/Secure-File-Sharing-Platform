@@ -78,7 +78,7 @@ export function UploadDialog({
     await Promise.all(
       uploadFiles.map(async (file) => {
         try {
-          const startRes = await fetch("http://localhost:5000/api/files/startUpload", {
+          const startRes = await fetch("/api/files/startUpload", {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token")}` },
             body: JSON.stringify({
@@ -146,18 +146,13 @@ export function UploadDialog({
           await Promise.all(chunkUploadPromises);
           console.log(`${file.name} uploaded successfully`);
 
-          const token = localStorage.getItem('token');
-
-          const res = await fetch('http://localhost:5000/api/users/profile', {
-            headers: { Authorization: `Bearer ${token}` },
-          });
+          const res = await fetch('/api/auth/profile');
 
           const result = await res.json();
           if (!res.ok) throw new Error(result.message || 'Failed to fetch profile');
 
-          await fetch("http://localhost:5000/api/files/addAccesslog", {
+          await fetch("/api/files/addAccesslog", {
             method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
             body: JSON.stringify({
               file_id: fileId,
               user_id: userId,

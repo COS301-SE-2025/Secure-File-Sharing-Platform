@@ -148,9 +148,8 @@ export default function MyFiles() {
       }
 
       console.log("Getting the user's files");
-      const res = await fetch("http://localhost:5000/api/files/metadata", {
+      const res = await fetch("/api/files/metadata", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization : `Bearer ${localStorage.getItem("token")}` },
         body: JSON.stringify({ userId }),
       });
 
@@ -234,7 +233,7 @@ export default function MyFiles() {
     const sodium = await getSodium();
 
     try {
-      const res = await fetch("http://localhost:5000/api/files/download", {
+      const res = await fetch("/api/files/download", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId, fileId: file.id }),
@@ -301,7 +300,7 @@ export default function MyFiles() {
     const sodium = await getSodium();
 
     try {
-      const res = await fetch("http://localhost:5000/api/files/download", {
+      const res = await fetch("/api/files/download", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

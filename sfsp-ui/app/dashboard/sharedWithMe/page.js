@@ -107,7 +107,7 @@ export default function MyFiles() {
       const userId = useEncryptionStore.getState().userId;
       if (!userId) return;
 
-      const res = await fetch("http://localhost:5000/api/files/metadata", {
+      const res = await fetch("/api/files/metadata", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token")}` },
         body: JSON.stringify({ userId }),
@@ -153,12 +153,11 @@ export default function MyFiles() {
   const handleUpdateDescription = async (fileId, description) => {
     try {
       const res = await fetch(
-        "http://localhost:5000/api/files/addDescription",
+        "/api/files/addDescription",
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
           body: JSON.stringify({ fileId, description }),
         }
@@ -190,7 +189,7 @@ export default function MyFiles() {
     const sodium = await getSodium();
 
     try {
-      const res = await fetch("http://localhost:5000/api/files/download", {
+      const res = await fetch("/api/files/download", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId, fileId: file.id }),
@@ -250,7 +249,7 @@ export default function MyFiles() {
     const sodium = await getSodium();
 
     try {
-      const res = await fetch("http://localhost:5000/api/files/download", {
+      const res = await fetch("/api/files/download", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId, fileId: file.id }),
@@ -347,16 +346,14 @@ export default function MyFiles() {
       const token = localStorage.getItem("token");
       if (!token) return showToast("Please log in to revoke access","info");
 
-      const profileRes = await fetch("http://localhost:5000/api/users/profile", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const profileRes = await fetch("/api/auth/profile");
 
       const profileResult = await profileRes.json();
       if (!profileRes.ok) return showToast("Failed to get user profile","error");
 
       const userId = profileResult.data.id;
 
-      const sharedFilesRes = await fetch("http://localhost:5000/api/files/getViewAccess", {
+      const sharedFilesRes = await fetch("/api/files/getViewAccess", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ userId }),
@@ -370,7 +367,7 @@ export default function MyFiles() {
       if (fileShares.length === 0) return showToast("No view-only shares found for this file","error");
 
       for (const share of fileShares) {
-        const revokeRes = await fetch("http://localhost:5000/api/files/revokeViewAccess", {
+        const revokeRes = await fetch("/api/files/revokeViewAccess", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({ fileId: file.id, userId, recipientId: share.recipient_id }),

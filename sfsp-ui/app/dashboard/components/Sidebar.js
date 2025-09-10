@@ -50,17 +50,12 @@ export default function Sidebar({ expanded, setExpanded, isHovered, setIsHovered
 
   useEffect(() => {
     const fetchProfile = async () => {
-      const token = localStorage.getItem('token');
-      if (!token) return;
-
       try {
-        const res = await fetch('http://localhost:5000/api/users/profile', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
+        const res = await fetch('/api/auth/profile');
+        console.log("Res", res);
         const result = await res.json();
         if (!res.ok) throw new Error(result.message || 'Failed to fetch profile');
-
+        console.log("Result data is: ",result.data);
         setUser(result.data);
       } catch (err) {
         console.error('Failed to fetch profile:', err.message);

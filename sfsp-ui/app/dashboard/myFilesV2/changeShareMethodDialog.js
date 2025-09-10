@@ -22,7 +22,7 @@ export function ChangeShareMethodDialog({ open, onOpenChange, file }) {
   const fetchUsersWithAccess = async () => {
     setLoading(true);
     try {
-      const accessRes = await fetch("http://localhost:5000/api/files/usersWithFileAccess", {
+      const accessRes = await fetch("/api/files/userWithFileAccess", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fileId: file.id }),
@@ -34,7 +34,7 @@ export function ChangeShareMethodDialog({ open, onOpenChange, file }) {
       const { owner: ownerId, users: userIds } = accessData;
 
       if (ownerId) {
-        const ownerRes = await fetch(`http://localhost:5000/api/users/getUserById/${ownerId}`);
+        const ownerRes = await fetch(`/api/user/getUserById${ownerId}`);
         if (ownerRes.ok) {
           const ownerData = await ownerRes.json();
           setOwner(ownerData.data);
@@ -46,7 +46,7 @@ export function ChangeShareMethodDialog({ open, onOpenChange, file }) {
           .filter(userId => userId !== ownerId)
           .map(async (userId) => {
             try {
-              const userRes = await fetch(`http://localhost:5000/api/users/getUserById/${userId}`);
+              const userRes = await fetch(`/api/files/getUserById/${userId}`);
               if (userRes.ok) {
                 const userData = await userRes.json();
                 return userData.data;

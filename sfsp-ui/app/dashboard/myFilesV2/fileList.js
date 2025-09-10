@@ -108,12 +108,7 @@ export function FileList({
       console.log(`File ${file.name} marked as deleted`);
 
       try {
-        const profileRes = await fetch(
-          "http://localhost:5000/api/users/profile",
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
+        const profileRes = await fetch("/api/auth/profile");
 
         const profileResult = await profileRes.json();
         if (!profileRes.ok)

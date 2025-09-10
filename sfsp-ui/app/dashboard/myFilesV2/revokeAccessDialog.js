@@ -46,7 +46,7 @@ export function RevokeAccessDialog({ open, onOpenChange, file }) {
     setLoading(true);
     try {
       const accessRes = await fetch(
-        "http://localhost:5000/api/files/usersWithFileAccess",
+        "/api/files/userWithFileAccess",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -61,7 +61,7 @@ export function RevokeAccessDialog({ open, onOpenChange, file }) {
 
       if (ownerId) {
         const ownerRes = await fetch(
-          `http://localhost:5000/api/users/getUserById/${ownerId}`
+          `/api/user/getUserById/${ownerId}`
         );
         if (ownerRes.ok) {
           const ownerData = await ownerRes.json();
@@ -75,7 +75,7 @@ export function RevokeAccessDialog({ open, onOpenChange, file }) {
           .map(async (userId) => {
             try {
               const userRes = await fetch(
-                `http://localhost:5000/api/users/getUserById/${userId}`
+                `/api/user/getUserById/${userId}`
               );
               if (userRes.ok) {
                 const userData = await userRes.json();
@@ -107,12 +107,7 @@ export function RevokeAccessDialog({ open, onOpenChange, file }) {
         return;
       }
 
-      const profileRes = await fetch(
-        "http://localhost:5000/api/users/profile",
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      const profileRes = await fetch("/api/auth/profile");
 
       const profileResult = await profileRes.json();
       if (!profileRes.ok) {
@@ -123,10 +118,9 @@ export function RevokeAccessDialog({ open, onOpenChange, file }) {
       const currentUserId = profileResult.data.id;
 
       const revokeRes = await fetch(
-        "http://localhost:5000/api/files/revokeViewAccess",
+        "/api/file/revokeViewAccess",
         {
           method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({
             fileId: file.id,
             userId: currentUserId,
@@ -140,7 +134,7 @@ export function RevokeAccessDialog({ open, onOpenChange, file }) {
       }
 
       showToast("Access revoked successfully", 'info');
-      fetchUsersWithAccess(); // Refresh the list
+      fetchUsersWithAccess(); 
     } catch (error) {
       console.error("Error revoking access:", error);
       showToast("Failed to revoke access: " + error.message, "error");

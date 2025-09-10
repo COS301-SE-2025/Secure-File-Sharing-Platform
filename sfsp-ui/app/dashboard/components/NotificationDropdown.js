@@ -31,25 +31,18 @@ export default function NotificationDropdown() {
   }, [dropdownOpen]);
 
   const fetchNotifications = async () => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
 
     try {
-      const profileRes = await fetch("http://localhost:5000/api/users/profile", {
-        headers: { Authorization: `Bearer ${token}` },
+      const profileRes = await fetch("/api/auth/profile", {
       });
 
       const profileResult = await profileRes.json();
       if (!profileRes.ok) throw new Error(profileResult.message || "Failed to fetch profile");
 
       try {
-        const res = await axios.post('http://localhost:5000/api/notifications/get', {
+        const res = await axios.post('/api/notifications/getNotifications', {
           userId: profileResult.data.id,
         });
-
-        // if (res.data.success) {
-        //   setNotifications(res.data.notifications);
-        // }
 
         if (res.data.success) {
           const sorted = res.data.notifications.sort(
@@ -69,7 +62,7 @@ export default function NotificationDropdown() {
 
   const markAsRead = async (id) => {
     try {
-      const res = await axios.post('http://localhost:5000/api/notifications/markAsRead', { id });
+      const res = await axios.post('/api/notifications/markAsRead', { id });
       if (res.data.success) {
         setNotifications((prev) =>
           prev.map((n) => (n.id === id ? { ...n, read: true } : n))
@@ -82,7 +75,7 @@ export default function NotificationDropdown() {
 
   const respondToShareRequest = async (id, status) => {
     try {
-      const res = await axios.post('http://localhost:5000/api/notifications/respond', {
+      const res = await axios.post('/api/notifications/respond', {
         id,
         status,
       });
@@ -109,7 +102,7 @@ export default function NotificationDropdown() {
 
   const clearNotification = async (id) => {
     try {
-      const res = await axios.post('http://localhost:5000/api/notifications/clear', { id });
+      const res = await axios.post('/api/notifications/clear', { id });
       if (res.data.success) {
         setNotifications((prev) => prev.filter((n) => n.id !== id));
       }
