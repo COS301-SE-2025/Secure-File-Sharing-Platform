@@ -42,6 +42,7 @@ function ed25519PubToCurve(pubEd25519, sodium) {
 
 
 export async function SendFile(recipientUserId, fileid, isViewOnly = false) {
+  console.log("Inside the Send function");
   const chunkSize = 10 * 1024 * 1024;
   const sodium = await getSodium();
   const { userId, encryptionKey } = useEncryptionStore.getState();
@@ -57,6 +58,7 @@ export async function SendFile(recipientUserId, fileid, isViewOnly = false) {
     body: JSON.stringify({ userId, fileId: fileid }),
   });
   if (!response.ok) throw new Error("Failed to retrieve file content");
+  console.log("Downloaded the file successfully");
 
   const buffer = await response.arrayBuffer();
   const encryptedLocalFile = new Uint8Array(buffer);
@@ -71,8 +73,9 @@ export async function SendFile(recipientUserId, fileid, isViewOnly = false) {
   console.log("[UI DEBUG] 3 Fetch recipient's public keys");
   console.log(recipientUserId);
   const bundleRes = await fetch(
-    `/api/user/public_keys${recipientUserId}`
+    `/api/user/public-keys/${recipientUserId}`
   );
+  console.log("got the recipient users keys");
 
   if (!bundleRes.ok) throw new Error("Recipient key bundle not found");
   const { data: recipientKeys } = await bundleRes.json();
@@ -148,6 +151,7 @@ export async function SendFile(recipientUserId, fileid, isViewOnly = false) {
     formData.append("totalChunks", totalChunks);
     formData.append("encryptedFile", new Blob([chunk]), `chunk_${chunkIndex}.bin`);
 
+    console.log("Sending the file now");
     const endpoint = isViewOnly
       ? "http://localhost:5000/api/files/sendByView"
       : "http://localhost:5000/api/files/send";
@@ -198,11 +202,12 @@ export async function ChangeShareMethod(recipientUserId, fileid, isViewOnly = fa
 
   console.log("[UI DEBUG] 3 Get recipient's public keys")
   const bundleRes = await fetch(
-    `/api/user/public_keys${recipientUserId}`
+    `/api/user/public-keys/${recipientUserId}`
   );
   if (!bundleRes.ok) throw new Error("Recipient key bundle not found");
 
   const { data: recipientKeys } = await bundleRes.json();
+  console.log("Recipient key bundle received: ", recipientKeys);
 
   const ikPrivKeyCurve25519 = sodium.crypto_sign_ed25519_sk_to_curve25519(
     userKeys.identity_private_key
@@ -277,6 +282,7 @@ export async function ChangeShareMethod(recipientUserId, fileid, isViewOnly = fa
   );
   formData.append("encryptedFile", new Blob([encryptedFile]));
 
+  console.log("Going to the changeShareMethod proxy");
   const res = await fetch("/api/files/changeShareMethod", {
     method: "POST",
     body: formData,
@@ -284,6 +290,7 @@ export async function ChangeShareMethod(recipientUserId, fileid, isViewOnly = fa
 
   if(!res.ok) throw new Error("Failed to change share method");
   const result = await res.json();
+  console.log("Result is :", result);
   if (isViewOnly) {
     console.log("View-only file share ID:", result.shareId);
     return result.shareId;

@@ -169,7 +169,7 @@ export function FileGrid({
     const tags = ["deleted", `deleted_time:${timestamp}`];
 
     try {
-      const res = await fetch("http://localhost:5000/api/files/addTags", {
+      const res = await fetch("/api/files/addTags", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token")}` },
         body: JSON.stringify({ fileId: file.id, tags }),
@@ -191,7 +191,7 @@ export function FileGrid({
         if (!profileRes.ok)
           throw new Error(profileResult.message || "Failed to fetch profile");
 
-        await fetch("http://localhost:5000/api/files/addAccesslog", {
+        await fetch("/api/files/addAccesslog", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization : `Bearer ${localStorage.getItem("token")}` },
           body: JSON.stringify({

@@ -185,13 +185,16 @@ class UserController {
   async getPublicKeys(req, res) {
     try {
       const { userId } = req.params;
+      console.log("User Id is:", userId);
       if (!userId) {
+        console.log("No user id provided");
         return res.status(400).json({
           success: false,
           message: "No user ID provided",
         });
       }
 
+      console.log("Going to getPublicKeys with userId");
       const response = await userService.getPublicKeys(userId);
       if (!response) {
         return res.status(404).json({

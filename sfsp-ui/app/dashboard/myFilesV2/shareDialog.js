@@ -73,11 +73,9 @@ export function ShareDialog({ open, onOpenChange, file }) {
       return;
     }
 
-    onOpenChange(false); //close dialogue first
+    onOpenChange(false);
 
     try {
-      const token = localStorage.getItem("token");
-      if (!token) return;
 
       const profileRes = await fetch("/api/auth/profile");
 
@@ -91,7 +89,7 @@ export function ShareDialog({ open, onOpenChange, file }) {
         const email = recipient.email;
 
         const response = await fetch(
-          `/api/user/getUserId${email}`//this is wrong I made a mistake to make it get the user by id, it should get the user by email
+          `/api/user/getUserId/${email}`
         );
         if (!response.ok) {
           console.warn(`User ID not found for email: ${email}`);
@@ -105,11 +103,11 @@ export function ShareDialog({ open, onOpenChange, file }) {
 
         const isViewOnly = recipient.permission === "view";
 
+        console.log("Going into sendfile function");
         const receivedFileID = await SendFile(recipientId, file.id, isViewOnly);
         console.log("Received File ID in shared Dialog:", receivedFileID);
         await fetch("/api/files/addAccesslog", {
           method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({
             file_id: file.id,
             user_id: senderId,
@@ -123,7 +121,6 @@ export function ShareDialog({ open, onOpenChange, file }) {
         console.log("Recipients emails is: ", email);
         await fetch("/api/notifications/add", {
           method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({
             type: "file_share_request",
             fromEmail: senderEmail,

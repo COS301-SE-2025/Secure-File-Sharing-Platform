@@ -12,7 +12,7 @@ export async function GET(request, { params }) {
 			);
 		}
 
-		const userRes = await fetch(`http://localhost:5000/api/users/getUserId/${userId}`, {
+		const userRes = await fetch(`http://localhost:5000/api/users/getUserById/${userId}`, {
 			method: 'GET',
 			headers: {
 				'Authorization': `Bearer ${token}`,

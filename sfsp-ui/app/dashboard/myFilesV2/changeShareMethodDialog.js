@@ -34,7 +34,7 @@ export function ChangeShareMethodDialog({ open, onOpenChange, file }) {
       const { owner: ownerId, users: userIds } = accessData;
 
       if (ownerId) {
-        const ownerRes = await fetch(`/api/user/getUserById${ownerId}`);
+        const ownerRes = await fetch(`/api/user/getUserById/${ownerId}`);
         if (ownerRes.ok) {
           const ownerData = await ownerRes.json();
           setOwner(ownerData.data);
@@ -46,7 +46,7 @@ export function ChangeShareMethodDialog({ open, onOpenChange, file }) {
           .filter(userId => userId !== ownerId)
           .map(async (userId) => {
             try {
-              const userRes = await fetch(`/api/files/getUserById/${userId}`);
+              const userRes = await fetch(`/api/user/getUserById/${userId}`);
               if (userRes.ok) {
                 const userData = await userRes.json();
                 return userData.data;
@@ -82,7 +82,7 @@ export function ChangeShareMethodDialog({ open, onOpenChange, file }) {
       const isViewOnly = newMethod === 'view-only';
       
       const result = await ChangeShareMethod(userId, file.id, isViewOnly);
-      
+      console.log("Done with the changeShare method function");
       if (result) {
         setUserShareMethods(prev => ({
           ...prev,

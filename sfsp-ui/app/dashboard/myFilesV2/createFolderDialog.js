@@ -75,7 +75,7 @@ export function CreateFolderDialog({ open, onOpenChange, currentPath,onFolderCre
 
       const fullPath = currentPath ? `${currentPath}/${folderName}` : folderName;
 
-      const res = await fetch("http://localhost:5000/api/files/createFolder", {
+      const res = await fetch("/api/files/createFolder", {
         method: "POST",
         headers: { "Content-Type": "application/json",Authorization : `Bearer ${localStorage.getItem("token")}` },
         body: JSON.stringify({

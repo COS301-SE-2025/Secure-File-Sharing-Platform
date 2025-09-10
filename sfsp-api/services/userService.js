@@ -166,7 +166,6 @@ class UserService {
       let selectedOpk = null;
 
       if (opks_public) {
-        // ✅ Safely parse JSON string into array
         let opkArray;
         try {
           opkArray = JSON.parse(opks_public);
@@ -174,18 +173,23 @@ class UserService {
           throw new Error("OPKs format is invalid JSON");
         }
 
-        // ✅ Select the first available OPK (instead of random to ensure consistency)
         if (Array.isArray(opkArray) && opkArray.length > 0) {
-          selectedOpk = opkArray[0]; // Use first OPK instead of random
+          selectedOpk = opkArray[0]; 
           console.log("🔍 DEBUG - Selected OPK for sending:", selectedOpk);
         }
       }
+
+      console.log("Sending back");
+      console.log("Ik public: ", ik_public);
+      console.log("Spk Public: ", spk_public);
+      console.log("SignedPreKeySignature: ",signedPrekeySignature);
+      console.log("Selected opks: ", selectedOpk);
 
       return {
         ik_public,
         spk_public,
         signedPrekeySignature,
-        opk: selectedOpk, // ✅ only this single key will be sent
+        opk: selectedOpk,
       };
     } catch (error) {
       throw new Error("Fetching User Public keys failed: " + error.message);

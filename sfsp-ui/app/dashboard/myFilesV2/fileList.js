@@ -91,13 +91,9 @@ export function FileList({
     const timestamp = new Date().toISOString();
     const tags = ["deleted", `deleted_time:${timestamp}`];
 
-    const token = localStorage.getItem("token");
-    if (!token) return;
-
     try {
-      const res = await fetch("http://localhost:5000/api/files/addTags", {
+      const res = await fetch("/api/files/addTags", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ fileId: file.id, tags }),
       });
 
@@ -114,9 +110,8 @@ export function FileList({
         if (!profileRes.ok)
           throw new Error(profileResult.message || "Failed to fetch profile");
 
-        await fetch("http://localhost:5000/api/files/addAccesslog", {
+        await fetch("/api/files/addAccessLog", {
           method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({
             file_id: file.id,
             user_id: profileResult.data.id,

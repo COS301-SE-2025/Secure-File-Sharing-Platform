@@ -413,12 +413,11 @@ export default function MyFiles() {
   const handleUpdateDescription = async (fileId, description) => {
     try {
       const res = await fetch(
-        "http://localhost:5000/api/files/addDescription",
+        "/api/files/addDescription",
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
           body: JSON.stringify({ fileId, description }),
         }
@@ -440,9 +439,8 @@ export default function MyFiles() {
       ? `files/${destinationFolderPath}/${file.name}`
       : `files/${file.name}`; // for root-level
 
-    const res = await fetch("http://localhost:5000/api/files/updateFilePath", {
+    const res = await fetch("/api/files/updateFilePath", {
       method: "PATCH",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token")}` },
       body: JSON.stringify({ fileId: file.id, newPath: fullPath }),
     });
 

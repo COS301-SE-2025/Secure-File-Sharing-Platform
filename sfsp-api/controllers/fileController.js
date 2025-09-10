@@ -864,6 +864,7 @@ exports.changeShareMethod = [
   upload.single("encryptedFile"),
   async (req, res) => {
     try {
+      console.log("Inside the change share method in the api");
       const { fileid, userId, recipientId, newShareMethod, metadata } =
         req.body;
       const encryptedFile = req.file?.buffer;
