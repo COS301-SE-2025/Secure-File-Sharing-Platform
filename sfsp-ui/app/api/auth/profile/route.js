@@ -12,14 +12,29 @@ export async function GET(request) {
 			);
 		}
 
-		console.log('🔍 Profile route - Token exists:', !!token);
+		const verifyResponse = await fetch('http://localhost:5000/api/users/verify-token', {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!verifyResponse.ok) {
+            const verifyError = await verifyResponse.text();
+            console.warn('Token verification failed:', verifyError);
+            return NextResponse.json(
+                { valid: false, message: 'Invalid or expired token' },
+                { status: 401 }
+            );
+        }
+
 		const backendRes = await fetch('http://localhost:5000/api/users/profile', {
 			method: 'GET',
 			headers: {'Authorization': `Bearer ${token}` }
 		});
 		if(!backendRes.ok){
 			return NextResponse.json(
-				console.log("This is the error from backendRes in profiles route"),
 				result,
 				{ status: backendRes.status }
 			);

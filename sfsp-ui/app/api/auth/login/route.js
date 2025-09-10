@@ -45,7 +45,7 @@ export async function POST(request) {
 
       //The client can read the user context but it does not contain sensitive info
       response.cookies.set("current_user", result.data.user.id, {
-        httpOnly: false,//it is set to false so that client can read it
+        httpOnly: false,
         secure: process.env.NODE_ENV === "production",
         sameSite: "strict",
         path: "/",
