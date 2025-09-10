@@ -38,9 +38,9 @@ export async function POST(request) {
       response.cookies.set("auth_token", result.data.token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
+        sameSite: "strict",//reduces the risk of CSRF
         path: "/",
-        maxAge: 2 * 60 * 60 * 1000,
+        maxAge: 60 * 60 * 1000,
       });
 
       //The client can read the user context but it does not contain sensitive info
@@ -49,7 +49,7 @@ export async function POST(request) {
         secure: process.env.NODE_ENV === "production",
         sameSite: "strict",
         path: "/",
-        maxAge: 2 * 60 * 60 * 1000,
+        maxAge: 60 * 60 * 1000,
       });
 
       return response;

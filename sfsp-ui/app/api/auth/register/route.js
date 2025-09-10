@@ -38,16 +38,15 @@ export async function POST(request) {
         secure: process.env.NODE_ENV === "production",
         sameSite: "strict",
         path: "/",
-        maxAge: 2 * 60 * 60 * 1000,
+        maxAge: 60 * 60 * 1000,
       });
 
-      //The client can read the user context but it does not contain sensitive info
       response.cookies.set("current_user", result.data.user.id, {
-        httpOnly: false, //it is set to false so that client can read it
+        httpOnly: false,
         secure: process.env.NODE_ENV === "production",
         sameSite: "strict",
         path: "/",
-        maxAge: 2 * 60 * 60 * 1000,
+        maxAge:  60 * 60 * 1000,
       });
 
       return response;

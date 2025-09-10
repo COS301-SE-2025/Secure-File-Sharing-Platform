@@ -1,32 +1,58 @@
 import { NextResponse } from "next/server";
-import jwt from "jsonwebtoken";
 
 export const runtime = "nodejs";
 
-export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024; // 25MB
-
-export const ALLOWED_MIME = new Set([
-  "application/pdf",
-  "image/png",
-  "image/jpeg",
-  "application/zip",
-  "application/octet-stream",
-]);
+export const MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024;
 
 export const ALLOWED_PATHS = new Set([
   "/api/files/send",
   "/api/files/sendByView",
+  "/api/files/addAccesslog",
+  "/api/files/addDescription",
+  "/api/files/addTags",
+  "/api/files/changeShareMethod",
+  "/api/files/deleteFile",
+  "/api/files/createFolder",
+  "/api/files/download",
+  "/api/files/downloadSentFile",
+  "/api/files/downloadViewFile",
+  "/api/files/getAccessLog",
+  "/api/files/getViewAccess",
+  "/api/files/metadata",
+  "/api/files/removeTags",
+  "/api/files/revokeViewAccess",
+  "/api/files/startUpload",
+  "/api/files/updateFilePath",
+  "/api/files/upload",
+  "/api/files/userWithFileAccess",
+  //notification routes
+  "/api/notifications/add",
+  "/api/notifications/clear",
+  "/api/notifications/getNotifications",
+  "/api/notifications/markAsRead",
+  "/api/notifications/respond",
+  //user routes
+  "/api/user/addUser",
+  "/api/user/getUserById",
+  "/api/user/getUserId",
+  "/api/user/getUserInfo",
+  "/api/user/public-keys",
 ]);
 
-const RATE_LIMIT_WINDOW_MS = 60_000; // 1 min
+const RATE_LIMIT_WINDOW_MS = 60_000; 
 const RATE_LIMIT_MAX = 30;
 const rlStore = new Map();
 
-export function rateLimit(ip) {
+export function isAllowedPath(path) {
+  return [...ALLOWED_PATHS].some((allowed) => path.startsWith(allowed));
+}
+
+// ---- Rate Limiting ----
+export function rateLimit(key) {
   const now = Date.now();
-  const rec = rlStore.get(ip);
+  const rec = rlStore.get(key);
   if (!rec || now > rec.resetAt) {
-    rlStore.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    rlStore.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
     return { ok: true, remaining: RATE_LIMIT_MAX - 1 };
   }
   if (rec.count >= RATE_LIMIT_MAX) {
@@ -36,15 +62,21 @@ export function rateLimit(ip) {
   return { ok: true, remaining: RATE_LIMIT_MAX - rec.count };
 }
 
-// CSRF protection using double-submit cookie pattern
-export function requireCsrf(request) {
+// ---- CSRF Protection ----
+function requireCsrf(request) {
   const csrfHeader = request.headers.get("x-csrf");
   const cookies = request.cookies;
   const csrfCookie = cookies?.get?.("csrf_token")?.value;
   return csrfHeader && csrfCookie && csrfHeader === csrfCookie;
 }
 
-// Standardized JSON response
+export function requireCsrfIfNeeded(request) {
+  const method = request.method;
+  if (["GET", "HEAD", "OPTIONS"].includes(method)) return true;
+  return requireCsrf(request);
+}
+
+// ---- Response Helper ----
 export function respond(status, body, extraHeaders = {}) {
   return NextResponse.json(body, {
     status,
@@ -56,7 +88,7 @@ export function respond(status, body, extraHeaders = {}) {
   });
 }
 
-// Extract client IP from headers
+// ---- IP Extraction ----
 export function getClientIP(req) {
   const h = req.headers;
   return (
@@ -66,7 +98,7 @@ export function getClientIP(req) {
   );
 }
 
-// Promise timeout wrapper
+// ---- Timeout Wrapper ----
 export function withTimeout(promise, ms, signal) {
   return Promise.race([
     promise,
@@ -78,4 +110,27 @@ export function withTimeout(promise, ms, signal) {
       promise.finally(() => clearTimeout(id));
     }),
   ]);
+}
+
+// ---- Unified Security Enforcement ----
+export function enforceSecurity(request, options = {}) {
+  const path = new URL(request.url).pathname;
+  const token = request.cookies.get("auth_token")?.value;
+  const ip = getClientIP(request);
+  const rateKey = options.useTokenRateLimit && token ? token : ip;
+
+  if (!isAllowedPath(path)) {
+    return respond(403, { message: "Path not allowed" });
+  }
+
+  const rate = rateLimit(rateKey);
+  if (!rate.ok) {
+    return respond(429, { message: "Rate limit exceeded" });
+  }
+
+  if (!requireCsrfIfNeeded(request)) {
+    return respond(403, { message: "CSRF validation failed" });
+  }
+
+  return null;
 }
