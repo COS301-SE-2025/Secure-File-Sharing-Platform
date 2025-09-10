@@ -1,4 +1,4 @@
-//sendByViewHandler
+// sendByViewHandler
 package fileHandler
 
 import (
@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
+	"github.com/google/uuid"
 )
 
 func SendByViewHandler(w http.ResponseWriter, r *http.Request) {
@@ -90,7 +91,10 @@ func SendByViewHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sharedFileKey := fmt.Sprintf("%s_%s", fileID, recipientID)
+	// Generate a new UUID for recipient’s shared file
+	recipientFileID := uuid.New().String()
+
+	sharedFileKey := recipientFileID
 	targetPath := fmt.Sprintf("files/%s/shared_view", userID)
 	log.Printf("🔗 Merging chunks into shared_view path: %s/%s", targetPath, sharedFileKey)
 
@@ -151,7 +155,7 @@ func SendByViewHandler(w http.ResponseWriter, r *http.Request) {
             INSERT INTO shared_files_view (sender_id, recipient_id, file_id, newfile_id, metadata, expires_at)
             VALUES ($1, $2, $3, $4, $5, $6)
             RETURNING id
-        `, userID, recipientID, fileID, fileID, metadataJSON, time.Now().Add(48*time.Hour)).Scan(&shareID)
+        `, userID, recipientID, fileID, recipientFileID, metadataJSON, time.Now().Add(48*time.Hour)).Scan(&shareID)
 		if err != nil {
 			log.Println("Failed to insert shared file view:", err)
 			http.Error(w, "Failed to track shared file", http.StatusInternalServerError)
@@ -317,10 +321,10 @@ func GetSharedViewFilesHandler(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var (
 			shareID, senderID, recipientID, fileID, fileName, fileType, description string
-			fileSize                                                                 int64
-			metadata                                                                 string
-			sharedAt                                                                 time.Time
-			expiresAtPtr                                                             *time.Time
+			fileSize                                                                int64
+			metadata                                                                string
+			sharedAt                                                                time.Time
+			expiresAtPtr                                                            *time.Time
 		)
 		err := rows.Scan(
 			&shareID, &senderID, &recipientID, &fileID, &metadata,
@@ -333,17 +337,17 @@ func GetSharedViewFilesHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		file := map[string]interface{}{
-			"share_id":    shareID,
-			"sender_id":   senderID,
+			"share_id":     shareID,
+			"sender_id":    senderID,
 			"recipient_id": recipientID,
-			"file_id":     fileID,
-			"metadata":    metadata,
-			"shared_at":   sharedAt,
-			"file_name":   fileName,
-			"file_type":   fileType,
-			"file_size":   fileSize,
-			"description": description,
-			"view_only":   true,
+			"file_id":      fileID,
+			"metadata":     metadata,
+			"shared_at":    sharedAt,
+			"file_name":    fileName,
+			"file_type":    fileType,
+			"file_size":    fileSize,
+			"description":  description,
+			"view_only":    true,
 		}
 		if expiresAtPtr != nil {
 			file["expires_at"] = *expiresAtPtr
@@ -355,7 +359,6 @@ func GetSharedViewFilesHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(files)
 }
-
 
 func GetViewFileAccessLogs(w http.ResponseWriter, r *http.Request) {
 	var req struct {
