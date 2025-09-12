@@ -5,6 +5,8 @@ import './App.css'
 function App() {
   const [count, setCount] = useState(0)
 
+  console.log("window.electron", window.electron);
+  
   useEffect(()=>{
     window.electron.subscribeStatistics((stats) => console.log(stats));
   },[]);
