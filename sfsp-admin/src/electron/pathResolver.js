@@ -1,6 +1,7 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { app } from "electron";
+import { isDev } from "./util.js"; 
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -11,4 +12,10 @@ export function getPreloadPath() {
 
 export function getUIPath(){
   return path.join(app.getAppPath()+"/dist-react/index.html");
+}
+
+export function getAssetPath() {
+  return isDev()
+    ? path.join(app.getAppPath()+ '/src'+ '/assets')
+    : path.join(app.getAppPath()+ '/assets');
 }

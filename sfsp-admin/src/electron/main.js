@@ -1,26 +1,34 @@
 //main.js
 
-import { app, BrowserWindow, ipcMain} from "electron";
-import { isDev , validateEventFrame } from "./util.js";
+import { app, BrowserWindow, ipcMain, Tray } from "electron";
+import { isDev, validateEventFrame } from "./util.js";
 import { getStaticData, pollResources } from "./resourceManager.js";
-import { getPreloadPath, getUIPath } from "./pathResolver.js";
+import { getPreloadPath, getUIPath, getAssetPath } from "./pathResolver.js";
+import path from 'path';
 
-app.on("ready",()=>{
+let tray;
+
+app.on("ready", () => {
     const mainWindow = new BrowserWindow({
-        webPreferences:{
-            preload:getPreloadPath(),
+        webPreferences: {
+            preload: getPreloadPath(),
         },
     });
-    if(isDev()){
+    if (isDev()) {
         mainWindow.loadURL('http://localhost:5123');
-    }else{
+    } else {
         mainWindow.loadFile(getUIPath());
     }
-    
+
     pollResources(mainWindow);
 
-    ipcMain.handle("getStaticData", async (event)=>{
-         validateEventFrame(event.senderFrame);
+    ipcMain.handle("getStaticData", async (event) => {
+        validateEventFrame(event.senderFrame);
         return getStaticData();
     });
+
+    const trayIconPath = path.join(getAssetPath(), "sfsp-admin.png");
+    tray = new Tray(trayIconPath); 
+    tray.setToolTip("sfsp-admin");
+
 });
