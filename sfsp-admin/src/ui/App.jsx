@@ -7,9 +7,17 @@ function App() {
 
   console.log("window.electron", window.electron);
   
-  useEffect(()=>{
-    window.electron.subscribeStatistics((stats) => console.log(stats));
-  },[]);
+  useEffect(() => {
+    const unsubscribe = window.electron.subscribeStatistics((stats) => {
+      console.log("Stats:", stats);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // useEffect(()=>{
+  //   window.electron.subscribeStatistics((stats) => console.log(stats));
+  // },[]);
 
   return (
     <>
