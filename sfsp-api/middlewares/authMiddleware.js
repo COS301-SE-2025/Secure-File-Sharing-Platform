@@ -4,7 +4,7 @@ const { supabase } = require("../config/database");
 module.exports = async function authMiddleware(req, res, next) {
   try {
     const auth = req.headers.authorization;
-    const token = auth?.startsWith("Bearer ") ? auth.slice(7) : req.cookies?.auth_token;
+    const token = auth?.startsWith("Bearer ") ? auth.slice(7) : null;
 
     if (!token) return res.status(401).json({ success:false, message:"Authentication token is required." });
 

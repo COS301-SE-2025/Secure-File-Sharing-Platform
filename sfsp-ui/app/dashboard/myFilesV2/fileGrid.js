@@ -25,10 +25,18 @@ import {
 
 function Toast({ message, type = "info", onClose }) {
   return (
-    <div className={`fixed inset-0 flex items-center justify-center z-50 pointer-events-none`}>
-      <div className={`bg-red-300 border ${type === "error" ? "border-red-300" : "border-blue-500"} text-gray-900 rounded shadow-lg px-6 py-3 pointer-events-auto`}>
+    <div
+      className={`fixed inset-0 flex items-center justify-center z-50 pointer-events-none`}
+    >
+      <div
+        className={`bg-red-300 border ${
+          type === "error" ? "border-red-300" : "border-blue-500"
+        } text-gray-900 rounded shadow-lg px-6 py-3 pointer-events-auto`}
+      >
         <span>{message}</span>
-        <button onClick={onClose} className="ml-4 font-bold">×</button>
+        <button onClick={onClose} className="ml-4 font-bold">
+          ×
+        </button>
       </div>
     </div>
   );
@@ -135,6 +143,15 @@ export function FileGrid({
     return false;
   };
 
+  function getCookie(name) {
+    return document.cookie
+      .split("; ")
+      .find((c) => c.startsWith(name + "="))
+      ?.split("=")[1];
+  }
+
+  const csrf = getCookie("csrf_token");
+
   const isOwner = (file) => {
     if (!file.tags) return true;
 
@@ -171,7 +188,10 @@ export function FileGrid({
     try {
       const res = await fetch("/api/files/addTags", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token")}` },
+        headers: {
+          "Content-Type": "application/json",
+          "x-crsf":csrf||"",
+        },
         body: JSON.stringify({ fileId: file.id, tags }),
       });
 
@@ -193,7 +213,10 @@ export function FileGrid({
 
         await fetch("/api/files/addAccesslog", {
           method: "POST",
-          headers: { "Content-Type": "application/json", Authorization : `Bearer ${localStorage.getItem("token")}` },
+          headers: {
+            "Content-Type": "application/json",
+            "x-csrf":csrf||"",
+          },
           body: JSON.stringify({
             file_id: file.id,
             user_id: profileResult.data.id,
@@ -246,7 +269,13 @@ export function FileGrid({
 
   return (
     <div>
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
         {files.map((file) => (
           <div
@@ -336,7 +365,6 @@ export function FileGrid({
 
                 {/* Quick Actions on Hover */}
                 <div className="absolute bottom-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-
                   {!isViewOnly(file) && (
                     <button
                       onClick={(e) => {
@@ -381,10 +409,11 @@ export function FileGrid({
               if (!isViewOnly(menuFile)) onShare(menuFile);
               setMenuFile(null);
             }}
-            className={`w-full text-left px-4 py-2 flex items-center gap-2 ${isViewOnly(menuFile)
-              ? "opacity-50 cursor-not-allowed"
-              : "hover:bg-gray-100 dark:hover:bg-blue-200"
-              }`}
+            className={`w-full text-left px-4 py-2 flex items-center gap-2 ${
+              isViewOnly(menuFile)
+                ? "opacity-50 cursor-not-allowed"
+                : "hover:bg-gray-100 dark:hover:bg-blue-200"
+            }`}
             disabled={isViewOnly(menuFile)}
           >
             <Share className="h-4 w-4" /> Share

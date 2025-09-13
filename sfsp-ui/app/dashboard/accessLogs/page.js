@@ -36,6 +36,12 @@ function Toast({ message, type = "info", onClose }) {
   );
 }
 
+function getCookie(name) {
+  return document.cookie.split("; ").find(c => c.startsWith(name + "="))?.split("=")[1];
+}
+
+const csrf = getCookie("csrf_token");
+
 // function Toast({ message, type = "info", onClose }) {
 //   const colors = {
 //     success: "bg-green-100 border-green-500 text-green-900",
@@ -81,7 +87,7 @@ export default function AccessLogsPage() {
 
         const filesRes = await fetch("/api/files/metadata", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "x-csrf":csrf || "" },
           body: JSON.stringify({ userId }),
         });
 
@@ -108,6 +114,7 @@ export default function AccessLogsPage() {
                 method: "POST",
                 headers: {
                   "Content-Type": "application/json",
+                  "x-csrf":csrf || "",
                 },
                 body: JSON.stringify({ file_id: file.fileId }),
               }

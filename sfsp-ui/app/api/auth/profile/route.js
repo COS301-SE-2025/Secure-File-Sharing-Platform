@@ -1,4 +1,5 @@
 import {NextResponse} from 'next/server';
+import { enforceCsrf } from '../../_utils/csrf';
 
 export async function GET(request) {
 	try{

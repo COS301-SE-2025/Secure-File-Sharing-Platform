@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
+import { enforceCsrf } from '../../_utils/csrf';
 
 export async function POST(request) {
+	const deny = enforceCsrf(request);
+	if(deny){
+		return deny;
+	}
 	try {
 		const body = await request.json();
 		const token = request.cookies.get('auth_token')?.value;

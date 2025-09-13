@@ -5,6 +5,12 @@ import { useEncryptionStore } from "@/app/SecureKeyStorage";
 import { getSodium } from "@/app/lib/sodium";
 import pako from "pako";
 
+function getCookie(name) {
+  return document.cookie.split("; ").find(c => c.startsWith(name + "="))?.split("=")[1];
+}
+
+const csrf = getCookie("csrf_token");
+
 export function PreviewDrawer({
   file,
   content,
@@ -44,7 +50,7 @@ export function PreviewDrawer({
         "/api/files/getViewAccess",
         {
           method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
           body: JSON.stringify({ userId }),
         }
       );
@@ -101,7 +107,7 @@ export function PreviewDrawer({
 
       const revokeRes = await fetch("/api/files/revokeViewAccess", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
         body: JSON.stringify({
           fileId: file.id,
           userId,

@@ -10,6 +10,12 @@ import {
   ReceiveFile,
 } from "@/app/Transfer";
 
+function getCookie(name) {
+  return document.cookie.split("; ").find(c => c.startsWith(name + "="))?.split("=")[1];
+}
+
+const csrf = getCookie("csrf_token");
+
 export default function NotificationDropdown() {
   const [notifications, setNotifications] = useState([]);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -39,10 +45,14 @@ export default function NotificationDropdown() {
       const profileResult = await profileRes.json();
       if (!profileRes.ok) throw new Error(profileResult.message || "Failed to fetch profile");
 
+      console.log("CSRF token to send:", csrf);
       try {
         const res = await axios.post('/api/notifications/getNotifications', {
           userId: profileResult.data.id,
-        });
+        },{
+          headers : {"x-csrf":csrf || ""}
+        }
+      );
 
         if (res.data.success) {
           const sorted = res.data.notifications.sort(
@@ -62,7 +72,7 @@ export default function NotificationDropdown() {
 
   const markAsRead = async (id) => {
     try {
-      const res = await axios.post('/api/notifications/markAsRead', { id });
+      const res = await axios.post('/api/notifications/markAsRead', {id },{headers : {"x-csrf":csrf || ""}});
       if (res.data.success) {
         setNotifications((prev) =>
           prev.map((n) => (n.id === id ? { ...n, read: true } : n))
@@ -78,6 +88,8 @@ export default function NotificationDropdown() {
       const res = await axios.post('/api/notifications/respond', {
         id,
         status,
+      },{
+        headers : {"x-csrf":csrf || ""},
       });
 
     if (res.data.success) {
@@ -102,7 +114,7 @@ export default function NotificationDropdown() {
 
   const clearNotification = async (id) => {
     try {
-      const res = await axios.post('/api/notifications/clear', { id });
+      const res = await axios.post('/api/notifications/clear', { id },{headers : {"x-csrf":csrf || ""}});
       if (res.data.success) {
         setNotifications((prev) => prev.filter((n) => n.id !== id));
       }

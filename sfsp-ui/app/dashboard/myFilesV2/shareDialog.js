@@ -9,6 +9,12 @@ import {
   ReceiveFile,
 } from "@/app/Transfer";
 
+function getCookie(name) {
+  return document.cookie.split("; ").find(c => c.startsWith(name + "="))?.split("=")[1];
+}
+
+const csrf = getCookie("csrf_token");
+
 export function ShareDialog({ open, onOpenChange, file }) {
   const [shareWith, setShareWith] = useState([]);
   const [newEmail, setNewEmail] = useState("");
@@ -108,6 +114,7 @@ export function ShareDialog({ open, onOpenChange, file }) {
         console.log("Received File ID in shared Dialog:", receivedFileID);
         await fetch("/api/files/addAccesslog", {
           method: "POST",
+          headers: {"x-csrf":csrf||""},
           body: JSON.stringify({
             file_id: file.id,
             user_id: senderId,
@@ -121,6 +128,7 @@ export function ShareDialog({ open, onOpenChange, file }) {
         console.log("Recipients emails is: ", email);
         await fetch("/api/notifications/add", {
           method: "POST",
+          headers:{"x-csrf":csrf||""},
           body: JSON.stringify({
             type: "file_share_request",
             fromEmail: senderEmail,

@@ -21,10 +21,18 @@ import { ChangeShareMethodDialog } from "./changeShareMethodDialog";
 
 function Toast({ message, type = "info", onClose }) {
   return (
-    <div className={`fixed inset-0 flex items-center justify-center z-50 pointer-events-none`}>
-      <div className={`bg-red-300 border ${type === "error" ? "border-red-300" : "border-blue-500"} text-gray-900 rounded shadow-lg px-6 py-3 pointer-events-auto`}>
+    <div
+      className={`fixed inset-0 flex items-center justify-center z-50 pointer-events-none`}
+    >
+      <div
+        className={`bg-red-300 border ${
+          type === "error" ? "border-red-300" : "border-blue-500"
+        } text-gray-900 rounded shadow-lg px-6 py-3 pointer-events-auto`}
+      >
         <span>{message}</span>
-        <button onClick={onClose} className="ml-4 font-bold">×</button>
+        <button onClick={onClose} className="ml-4 font-bold">
+          ×
+        </button>
       </div>
     </div>
   );
@@ -52,8 +60,8 @@ function getFileType(mimeType) {
   if (mimeType.includes("html")) return "html";
   if (mimeType.includes("folder")) return "folder";
   if (mimeType.includes("podcast")) return "podcast";
-  if (mimeType.includes("markdown")) return "markdown"; 
-  if (mimeType.includes("x-markdown")) return "markdown"; 
+  if (mimeType.includes("markdown")) return "markdown";
+  if (mimeType.includes("x-markdown")) return "markdown";
   if (mimeType.includes("md")) return "markdown";
   if (mimeType.includes("code") || mimeType.includes("script")) return "code";
   return "file";
@@ -66,6 +74,15 @@ function formatFileSize(size) {
     return `${(size / (1024 * 1024)).toFixed(2)} MB`;
   else return `${(size / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
+
+function getCookie(name) {
+  return document.cookie
+    .split("; ")
+    .find((c) => c.startsWith(name + "="))
+    ?.split("=")[1];
+}
+
+const csrf = getCookie("csrf_token");
 
 export default function MyFiles() {
   const [files, setFiles] = useState([]);
@@ -147,9 +164,10 @@ export default function MyFiles() {
         return;
       }
 
-      console.log("Getting the user's files");
+      console.log("Csrf token is metadata is: ", csrf);
       const res = await fetch("/api/files/metadata", {
         method: "POST",
+        headers: { "x-csrf": csrf || "" },
         body: JSON.stringify({ userId }),
       });
 
@@ -177,8 +195,7 @@ export default function MyFiles() {
         .map((f) => {
           const tags = f.tags ? f.tags.replace(/[{}]/g, "").split(",") : [];
           const isViewOnlyFile = tags.includes("view-only");
-          const isFolder =
-            !f.fileType || f.fileType.toLowerCase() === "folder";
+          const isFolder = !f.fileType || f.fileType.toLowerCase() === "folder";
 
           return {
             id: f.fileId || "",
@@ -212,21 +229,19 @@ export default function MyFiles() {
     }
   };
 
-
   useEffect(() => {
     fetchFiles();
   }, []);
 
-
   const handleDownload = async (file) => {
     if (isViewOnly(file)) {
-      showToast("This file is view-only and cannot be downloaded.","error");
+      showToast("This file is view-only and cannot be downloaded.", "error");
       return;
     }
 
     const { encryptionKey, userId } = useEncryptionStore.getState();
     if (!encryptionKey) {
-      showToast("Missing encryption key","error");
+      showToast("Missing encryption key", "error");
       return;
     }
 
@@ -235,7 +250,7 @@ export default function MyFiles() {
     try {
       const res = await fetch("/api/files/download", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-csrf": csrf || "" },
         body: JSON.stringify({ userId, fileId: file.id }),
       });
 
@@ -243,9 +258,13 @@ export default function MyFiles() {
 
       const nonceBase64 = res.headers.get("X-Nonce");
       const fileName = res.headers.get("X-File-Name");
-      if (!nonceBase64 || !fileName) throw new Error("Missing nonce or filename");
+      if (!nonceBase64 || !fileName)
+        throw new Error("Missing nonce or filename");
 
-      const nonce = sodium.from_base64(nonceBase64, sodium.base64_variants.ORIGINAL);
+      const nonce = sodium.from_base64(
+        nonceBase64,
+        sodium.base64_variants.ORIGINAL
+      );
 
       // Convert to stream reader
       const reader = res.body.getReader();
@@ -269,7 +288,11 @@ export default function MyFiles() {
       }
 
       // Decrypt the file
-      const decrypted = sodium.crypto_secretbox_open_easy(encryptedFile, nonce, encryptionKey);
+      const decrypted = sodium.crypto_secretbox_open_easy(
+        encryptedFile,
+        nonce,
+        encryptionKey
+      );
       if (!decrypted) throw new Error("Decryption failed");
 
       // Download file
@@ -285,15 +308,14 @@ export default function MyFiles() {
       console.log(`✅ Downloaded and decrypted ${fileName}`);
     } catch (err) {
       console.error("Download error:", err);
-      showToast("Download failed","error");
+      showToast("Download failed", "error");
     }
   };
-
 
   const handleLoadFile = async (file) => {
     const { encryptionKey, userId } = useEncryptionStore.getState();
     if (!encryptionKey) {
-      showToast("Missing encryption key","error");
+      showToast("Missing encryption key", "error");
       return null;
     }
 
@@ -302,7 +324,7 @@ export default function MyFiles() {
     try {
       const res = await fetch("/api/files/download", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-csrf": csrf || "" },
         body: JSON.stringify({
           userId,
           fileId: file.id,
@@ -322,7 +344,10 @@ export default function MyFiles() {
         throw new Error("Missing nonce or fileName in response headers");
       }
 
-      const nonce = sodium.from_base64(nonceBase64, sodium.base64_variants.ORIGINAL);
+      const nonce = sodium.from_base64(
+        nonceBase64,
+        sodium.base64_variants.ORIGINAL
+      );
 
       // Use streaming reader to reduce memory spikes
       const reader = res.body.getReader();
@@ -345,23 +370,29 @@ export default function MyFiles() {
       }
 
       // Decrypt file
-      const decrypted = sodium.crypto_secretbox_open_easy(encryptedFile, nonce, encryptionKey);
+      const decrypted = sodium.crypto_secretbox_open_easy(
+        encryptedFile,
+        nonce,
+        encryptionKey
+      );
       if (!decrypted) throw new Error("Decryption failed");
 
       //const decompressed = pako.ungzip(decrypted);
       return { fileName, decrypted };
     } catch (err) {
       console.error("Load file error:", err);
-      showToast("Failed to load file: " + err.message,"error");
+      showToast("Failed to load file: " + err.message, "error");
       return null;
     }
   };
 
-
   const handlePreview = async (file) => {
     console.log("Inside handlePreview");
     if (file.type === "folder") {
-      setPreviewContent({ url: null, text: "This is a folder. Double-click to open." });
+      setPreviewContent({
+        url: null,
+        text: "This is a folder. Double-click to open.",
+      });
       setPreviewFile(file);
       return;
     }
@@ -372,10 +403,16 @@ export default function MyFiles() {
     let contentUrl = null;
     let textSnippet = null;
 
-    if (file.type.startsWith("image") || file.type.startsWith("video") || file.type.startsWith("audio")) {
+    if (
+      file.type.startsWith("image") ||
+      file.type.startsWith("video") ||
+      file.type.startsWith("audio")
+    ) {
       contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
     } else if (file.type === "pdf") {
-      contentUrl = URL.createObjectURL(new Blob([result.decrypted], { type: "application/pdf" }));
+      contentUrl = URL.createObjectURL(
+        new Blob([result.decrypted], { type: "application/pdf" })
+      );
     } else if (["txt", "json", "csv"].some((ext) => file.type.includes(ext))) {
       textSnippet = new TextDecoder().decode(result.decrypted).slice(0, 1000);
     }
@@ -384,10 +421,12 @@ export default function MyFiles() {
     setPreviewFile(file);
   };
 
-
   const handleOpenFullView = async (file) => {
     if (file.type === "folder") {
-      setPreviewContent({ url: null, text: "This is a folder. Double-click to open." });
+      setPreviewContent({
+        url: null,
+        text: "This is a folder. Double-click to open.",
+      });
       setPreviewFile(file);
       return;
     }
@@ -398,10 +437,16 @@ export default function MyFiles() {
     let contentUrl = null;
     let textFull = null;
 
-    if (file.type.startsWith("image") || file.type.startsWith("video") || file.type.startsWith("audio")) {
+    if (
+      file.type.startsWith("image") ||
+      file.type.startsWith("video") ||
+      file.type.startsWith("audio")
+    ) {
       contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
     } else if (file.type === "pdf") {
-      contentUrl = URL.createObjectURL(new Blob([result.decrypted], { type: "application/pdf" }));
+      contentUrl = URL.createObjectURL(
+        new Blob([result.decrypted], { type: "application/pdf" })
+      );
     } else if (["txt", "json", "csv"].some((ext) => file.type.includes(ext))) {
       textFull = new TextDecoder().decode(result.decrypted);
     }
@@ -412,16 +457,14 @@ export default function MyFiles() {
 
   const handleUpdateDescription = async (fileId, description) => {
     try {
-      const res = await fetch(
-        "/api/files/addDescription",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ fileId, description }),
-        }
-      );
+      const res = await fetch("/api/files/addDescription", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-csrf": csrf || "",
+        },
+        body: JSON.stringify({ fileId, description }),
+      });
       fetchFiles(); // Refresh files after update
       if (res.status === 200) {
         console.log("Description updated successfully");
@@ -441,13 +484,14 @@ export default function MyFiles() {
 
     const res = await fetch("/api/files/updateFilePath", {
       method: "PATCH",
+      headers: {"x-csrf":csrf||""},
       body: JSON.stringify({ fileId: file.id, newPath: fullPath }),
     });
 
     if (res.ok) {
       fetchFiles();
     } else {
-      showToast("Failed to move file","error");
+      showToast("Failed to move file", "error");
     }
   };
 

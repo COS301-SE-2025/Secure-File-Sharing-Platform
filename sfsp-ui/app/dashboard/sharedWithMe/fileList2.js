@@ -28,6 +28,12 @@ function Toast({ message, type = "info", onClose }) {
   );
 }
 
+function getCookie(name) {
+  return document.cookie.split("; ").find(c => c.startsWith(name + "="))?.split("=")[1];
+}
+
+const csrf = getCookie("csrf_token");
+
 export function FileList({
   files,
   onShare,
@@ -83,14 +89,12 @@ export function FileList({
     try {
       const res = await fetch("/api/files/addTags", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token")}` },
+        headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
         body: JSON.stringify({ fileId: file.id, tags }),
       });
 
       if (!res.ok) throw new Error("Failed to tag file as deleted");
 
-      const token = localStorage.getItem("token");
-      if (token) {
         try {
           const profileRes = await fetch("/api/auth/profile");
           const profileResult = await profileRes.json();
@@ -98,7 +102,7 @@ export function FileList({
 
           await fetch("/api/files/addAccesslogs", {
             method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            headers: { "Content-Type": "application/json", "x-crsf":csrf||"" },
             body: JSON.stringify({
               file_id: file.id,
               user_id: profileResult.data.id,
@@ -109,7 +113,6 @@ export function FileList({
         } catch (err) {
           console.error("Failed to fetch user profile:", err.message);
         }
-      }
 
       onDelete?.(file);
     } catch (err) {

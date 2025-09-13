@@ -64,6 +64,12 @@ function parseTagString(tagString = "") {
     .map((t) => t.trim());
 }
 
+function getCookie(name) {
+  return document.cookie.split("; ").find(c => c.startsWith(name + "="))?.split("=")[1];
+}
+
+const csrf = getCookie("csrf_token");
+
 export default function DashboardHomePage() {
   const [files, setFiles] = useState([]);
   const [fileCount, setFileCount] = useState(0);
@@ -104,6 +110,7 @@ export default function DashboardHomePage() {
 
       const res = await fetch("/api/files/metadata", {
         method: "POST",
+        headers:{"x-csrf":csrf||""},
         body: JSON.stringify({ userId }),
       });
 
@@ -167,7 +174,7 @@ export default function DashboardHomePage() {
     try {
       const res = await fetch("/api/files/download", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
         body: JSON.stringify({
           userId,
           fileId: file.fileId || file.id,
@@ -282,7 +289,7 @@ export default function DashboardHomePage() {
       try {
         const res = await axios.post("/api/notifications/getNotifications", {
           userId: profileResult.data.id,
-        });
+        },{headers:{"x-csrf":csrf||""}});
         if (res.data.success) {
           setNotifications(res.data.notifications);
         }
@@ -296,7 +303,7 @@ export default function DashboardHomePage() {
 
   const markAsRead = async (id) => {
     try {
-      const res = await axios.post("/api/notifications/markAsRead", { id });
+      const res = await axios.post("/api/notifications/markAsRead", {id },{headers:{"x-csrf":csrf||""}});
       if (res.data.success) {
         setNotifications((prev) =>
           prev.map((n) => (n.id === id ? { ...n, read: true } : n))
@@ -312,7 +319,7 @@ export default function DashboardHomePage() {
       const res = await axios.post("/api/notifications/respond", {
         id,
         status,
-      });
+      },{headers:{"x-csrf":csrf||""}});
 
       if (res.data.success) {
         setNotifications((prev) =>
@@ -333,7 +340,7 @@ export default function DashboardHomePage() {
     try {
       const res = await axios.post(
         "/api/notifications/clear",
-        { id }
+        {id },{headers:{"x-csrf":csrf||""}}
       );
       if (res.data.success) {
         setNotifications((prev) => prev.filter((n) => n.id !== id));
@@ -352,7 +359,7 @@ export default function DashboardHomePage() {
       const res = await fetch("/api/files/metadata", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
+          "Content-Type": "application/json","x-csrf":csrf||""
         },
         body: JSON.stringify({ userId }),
       });
@@ -377,7 +384,7 @@ export default function DashboardHomePage() {
             {
               method: "POST",
               headers: {
-                "Content-Type": "application/json",
+                "Content-Type": "application/json","x-csrf":csrf||""
               },
               body: JSON.stringify({ file_id: file.fileId }),
             }
@@ -433,7 +440,7 @@ export default function DashboardHomePage() {
       const res = await fetch("/api/files/metadata", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
+          "Content-Type": "application/json","x-csrf":csrf||""
         },
         body: JSON.stringify({ userId }),
       });

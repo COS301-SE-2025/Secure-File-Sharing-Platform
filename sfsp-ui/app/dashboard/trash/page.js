@@ -10,6 +10,12 @@ function parseTagString(tagString = '') {
   return tagString.replace(/[{}]/g, '').split(',').map(t => t.trim());
 }
 
+function getCookie(name) {
+  return document.cookie.split("; ").find(c => c.startsWith(name + "="))?.split("=")[1];
+}
+
+const csrf = getCookie("csrf_token");
+
 export default function TrashPage() {
   const [trashedFiles, setTrashedFiles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -27,7 +33,7 @@ export default function TrashPage() {
     try {
       const res = await fetch('/api/files/metadata', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem("token")}` },
+        headers: { 'Content-Type': 'application/json',"x-csrf":csrf||""},
         body: JSON.stringify({ userId }),
       });
 
@@ -71,7 +77,7 @@ export default function TrashPage() {
 
       const res = await fetch("/api/files/metadata", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token")}` },
+        headers: { "Content-Type": "application/json","x-csrf":csrf||"" },
         body: JSON.stringify({ userId }),
       });
 
@@ -96,7 +102,7 @@ export default function TrashPage() {
 
       await fetch("/api/files/removeTags", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token")}`},
+        headers: { "Content-Type": "application/json", "x-csrf":csrf},
         body: JSON.stringify({ fileId, tags: tagsToRemove }),
       });
 
@@ -111,7 +117,7 @@ export default function TrashPage() {
 
         await fetch("/api/files/addAccesslogs", {
           method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
           body: JSON.stringify({
             file_id: fileId,
             user_id: profileResult.data.id,
@@ -138,7 +144,7 @@ export default function TrashPage() {
     try {
       const res = await fetch("/api/files/deleteFiles", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token")}` },
+        headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
         body: JSON.stringify({ fileId: fileId, userId: userId }),
       });
 
@@ -161,7 +167,7 @@ export default function TrashPage() {
       for (const file of trashedFiles) {
         const res = await fetch("/api/files/deleteFile", {
           method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token")}` },
+          headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
           body: JSON.stringify({ fileId: file.id, userId }),
         });
 

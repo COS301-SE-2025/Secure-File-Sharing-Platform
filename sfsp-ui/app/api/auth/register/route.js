@@ -1,4 +1,17 @@
 import { NextResponse } from "next/server";
+import { randomBytes, createHmac } from "crypto";
+
+function makeCsrfToken(userId) {
+  const nonce = randomBytes(32).toString("hex");
+  const payload = `${userId}.${nonce}`;
+  if (!process.env.CSRF_SECRET) {
+    throw new Error("CSRF_SECRET environment variable is not set");
+  }
+  const sig = createHmac("sha256", process.env.CSRF_SECRET)
+    .update(payload)
+    .digest("base64url");
+  return `${payload}.${sig}`;
+}
 
 export async function POST(request) {
   try {
@@ -41,12 +54,21 @@ export async function POST(request) {
         maxAge: 60 * 60 * 1000,
       });
 
+      const csrf = makeCsrfToken(user.id);
+      res.cookies.set("csrf_token", csrf, {
+        httpOnly: false, 
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        path: "/",
+        maxAge: 60 * 60,
+      });
+
       response.cookies.set("current_user", result.data.user.id, {
         httpOnly: false,
         secure: process.env.NODE_ENV === "production",
         sameSite: "strict",
         path: "/",
-        maxAge:  60 * 60 * 1000,
+        maxAge: 60 * 60 * 1000,
       });
 
       return response;

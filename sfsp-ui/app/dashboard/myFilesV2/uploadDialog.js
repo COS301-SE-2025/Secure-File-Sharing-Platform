@@ -9,6 +9,12 @@ import { getSodium } from "@/app/lib/sodium";
 import Image from "next/image";
 import { gzip } from "pako";
 
+function getCookie(name) {
+  return document.cookie.split("; ").find(c => c.startsWith(name + "="))?.split("=")[1];
+}
+
+const csrf = getCookie("csrf_token");
+
 export function UploadDialog({
   open,
   onOpenChange,
@@ -80,7 +86,7 @@ export function UploadDialog({
         try {
           const startRes = await fetch("/api/files/startUpload", {
             method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token")}` },
+            headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
             body: JSON.stringify({
               fileName: file.name,
               fileType: file.type,
@@ -131,6 +137,7 @@ export function UploadDialog({
 
             return fetch("/api/files/upload", {
               method: "POST",
+              headers: {"x-csrf":csrf||""},
               body: formData,
             })
               .then((res) => {
@@ -153,6 +160,7 @@ export function UploadDialog({
 
           await fetch("/api/files/addAccesslog", {
             method: "POST",
+            headers: {"x-csrf":csrf||""},
             body: JSON.stringify({
               file_id: fileId,
               user_id: userId,

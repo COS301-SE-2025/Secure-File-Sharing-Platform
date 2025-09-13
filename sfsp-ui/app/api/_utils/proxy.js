@@ -39,12 +39,12 @@ export const ALLOWED_PATHS = new Set([
   "/api/user/public-keys",
 ]);
 
-const RATE_LIMIT_WINDOW_MS = 60_000; 
+const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 30;
 const rlStore = new Map();
 
 export function isAllowedPath(path) {
-  return [...ALLOWED_PATHS].some((allowed) => path.startsWith(allowed));
+  return ALLOWED_PATHS.has(path.replace(/\/$/, ""));
 }
 
 // ---- Rate Limiting ----
@@ -62,27 +62,12 @@ export function rateLimit(key) {
   return { ok: true, remaining: RATE_LIMIT_MAX - rec.count };
 }
 
-// ---- CSRF Protection ----
-function requireCsrf(request) {
-  const csrfHeader = request.headers.get("x-csrf");
-  const cookies = request.cookies;
-  const csrfCookie = cookies?.get?.("csrf_token")?.value;
-  return csrfHeader && csrfCookie && csrfHeader === csrfCookie;
-}
-
-export function requireCsrfIfNeeded(request) {
-  const method = request.method;
-  if (["GET", "HEAD", "OPTIONS"].includes(method)) return true;
-  return requireCsrf(request);
-}
-
-// ---- Response Helper ----
 export function respond(status, body, extraHeaders = {}) {
   return NextResponse.json(body, {
     status,
     headers: {
       "Cache-Control": "no-store",
-      "Pragma": "no-cache",
+      Pragma: "no-cache",
       ...extraHeaders,
     },
   });
@@ -125,11 +110,11 @@ export function enforceSecurity(request, options = {}) {
 
   const rate = rateLimit(rateKey);
   if (!rate.ok) {
-    return respond(429, { message: "Rate limit exceeded" });
-  }
-
-  if (!requireCsrfIfNeeded(request)) {
-    return respond(403, { message: "CSRF validation failed" });
+    const resetAt = rlStore.get(rateKey)?.resetAt || Date.now();
+    return respond(429, {
+      message: "Rate limit exceeded",
+      retryAfter: Math.ceil((resetAt - Date.now()) / 1000),
+    });
   }
 
   return null;

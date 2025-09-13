@@ -40,6 +40,11 @@ function ed25519PubToCurve(pubEd25519, sodium) {
   return sodium.crypto_sign_ed25519_pk_to_curve25519(pubEd25519);
 }
 
+function getCookie(name) {
+  return document.cookie.split("; ").find(c => c.startsWith(name + "="))?.split("=")[1];
+}
+
+const csrf = getCookie("csrf_token");
 
 export async function SendFile(recipientUserId, fileid, isViewOnly = false) {
   console.log("Inside the Send function");
@@ -54,7 +59,7 @@ export async function SendFile(recipientUserId, fileid, isViewOnly = false) {
 
   const response = await fetch("/api/files/download", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json","x-csrf":csrf||"" },
     body: JSON.stringify({ userId, fileId: fileid }),
   });
   if (!response.ok) throw new Error("Failed to retrieve file content");
@@ -158,6 +163,7 @@ export async function SendFile(recipientUserId, fileid, isViewOnly = false) {
 
     const res = await fetch(endpoint, {
       method: "POST",
+      headers: {"x-csrf":csrf|""},
       body: formData,
     });
 
@@ -181,7 +187,7 @@ export async function ChangeShareMethod(recipientUserId, fileid, isViewOnly = fa
   console.log("[UI DEBUG] 2 Download encrypted file as binary")
   const response = await fetch("/api/files/download", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
     body: JSON.stringify({ userId, fileId: fileid }),
   }); 
   if (!response.ok) throw new Error("Failed to retrieve file content");
@@ -285,6 +291,7 @@ export async function ChangeShareMethod(recipientUserId, fileid, isViewOnly = fa
   console.log("Going to the changeShareMethod proxy");
   const res = await fetch("/api/files/changeShareMethod", {
     method: "POST",
+    headers: {"x-csrf":csrf||""},
     body: formData,
   });
 
@@ -327,7 +334,7 @@ export async function ReceiveFile(fileData) {
 
   const response = await fetch(endpoint, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
     body: JSON.stringify(viewOnly ? { userId, fileId: file_id } : { filepath: path }),
   });
 
@@ -416,7 +423,7 @@ export async function ReceiveFile(fileData) {
 
   const startRes = await fetch("/api/files/startUpload", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
     body: JSON.stringify({
       fileName: file_name,
       fileType: file_type,
@@ -455,7 +462,7 @@ export async function ReceiveFile(fileData) {
       formData.append("totalChunks", totalChunks.toString());
       formData.append("encryptedFile", new Blob([chunk]), file_name);
 
-      return fetch("/api/files/upload", { method: "POST", body: formData });
+      return fetch("/api/files/upload", { method: "POST",headers:{"x-csrf":csrf||""}, body: formData });
     })
   );
 

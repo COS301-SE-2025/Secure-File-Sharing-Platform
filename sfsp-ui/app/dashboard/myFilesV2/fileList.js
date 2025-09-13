@@ -15,15 +15,23 @@ import {
   MoreVertical,
   X,
   Eye,
-  EyeOff
+  EyeOff,
 } from "lucide-react";
 
 function Toast({ message, type = "info", onClose }) {
   return (
-    <div className={`fixed inset-0 flex items-center justify-center z-50 pointer-events-none`}>
-      <div className={`bg-red-300 border ${type === "error" ? "border-red-300" : "border-blue-500"} text-gray-900 rounded shadow-lg px-6 py-3 pointer-events-auto`}>
+    <div
+      className={`fixed inset-0 flex items-center justify-center z-50 pointer-events-none`}
+    >
+      <div
+        className={`bg-red-300 border ${
+          type === "error" ? "border-red-300" : "border-blue-500"
+        } text-gray-900 rounded shadow-lg px-6 py-3 pointer-events-auto`}
+      >
         <span>{message}</span>
-        <button onClick={onClose} className="ml-4 font-bold">×</button>
+        <button onClick={onClose} className="ml-4 font-bold">
+          ×
+        </button>
       </div>
     </div>
   );
@@ -41,7 +49,7 @@ export function FileList({
   onMoveFile,
   onEnterFolder,
   onRevokeViewAccess,
-  onChangeShareMethod, 
+  onChangeShareMethod,
 }) {
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const [menuFile, setMenuFile] = useState(null);
@@ -76,6 +84,15 @@ export function FileList({
     setMenuFile(file);
   };
 
+  function getCookie(name) {
+    return document.cookie
+      .split("; ")
+      .find((c) => c.startsWith(name + "="))
+      ?.split("=")[1];
+  }
+
+  const csrf = getCookie("csrf_token");
+
   const handleClickOutside = (e) => {
     if (menuRef.current && !menuRef.current.contains(e.target)) {
       setMenuFile(null);
@@ -94,6 +111,7 @@ export function FileList({
     try {
       const res = await fetch("/api/files/addTags", {
         method: "POST",
+        headers: { "x-csrf": csrf || "" },
         body: JSON.stringify({ fileId: file.id, tags }),
       });
 
@@ -112,6 +130,7 @@ export function FileList({
 
         await fetch("/api/files/addAccessLog", {
           method: "POST",
+          headers: { "x-csrf": csrf || "" },
           body: JSON.stringify({
             file_id: file.id,
             user_id: profileResult.data.id,
@@ -168,7 +187,13 @@ export function FileList({
 
   return (
     <div>
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
       <table className="w-full bg-white rounded-lg ">
         <thead>
           <tr className="bg-gray-300 dark:bg-gray-700">
@@ -212,16 +237,17 @@ export function FileList({
                   <Eye className="h-4 w-4 text-blue-500" title="View Only" />
                 )}
               </td>
-              <td className="p-2">
-                {file.type === "folder" ? "" : file.size}
-              </td>
+              <td className="p-2">{file.type === "folder" ? "" : file.size}</td>
               <td className="p-2">{file.modified}</td>
               <td className="p-2">
-                <span className={`px-2 py-1 rounded-full text-xs ${isViewOnly(file)
-                  ? 'bg-blue-100 text-blue-800 dark:bg-blue-200'
-                  : 'bg-green-100 text-green-800 dark:bg-green-200'
-                  }`}>
-                  {isViewOnly(file) ? 'View Only' : 'Full Access'}
+                <span
+                  className={`px-2 py-1 rounded-full text-xs ${
+                    isViewOnly(file)
+                      ? "bg-blue-100 text-blue-800 dark:bg-blue-200"
+                      : "bg-green-100 text-green-800 dark:bg-green-200"
+                  }`}
+                >
+                  {isViewOnly(file) ? "View Only" : "Full Access"}
                 </span>
               </td>
               <td className="p-2 flex gap-2">
@@ -283,10 +309,11 @@ export function FileList({
               if (!isViewOnly(menuFile)) onShare(menuFile);
               setMenuFile(null);
             }}
-            className={`w-full text-left px-4 py-2 flex items-center gap-2 ${isViewOnly(menuFile)
-              ? "opacity-50 cursor-not-allowed"
-              : "hover:bg-gray-100 dark:hover:bg-blue-200"
-              }`}
+            className={`w-full text-left px-4 py-2 flex items-center gap-2 ${
+              isViewOnly(menuFile)
+                ? "opacity-50 cursor-not-allowed"
+                : "hover:bg-gray-100 dark:hover:bg-blue-200"
+            }`}
             disabled={isViewOnly(menuFile)}
           >
             <Share className="h-4 w-4" /> Share
@@ -299,12 +326,13 @@ export function FileList({
               }
               setMenuFile(null);
             }}
-            className={`w-full text-left px-4 py-2 flex items-center gap-2 ${menuFile?.type === "folder"
-              ? "hidden"
-              : isViewOnly(menuFile)
+            className={`w-full text-left px-4 py-2 flex items-center gap-2 ${
+              menuFile?.type === "folder"
+                ? "hidden"
+                : isViewOnly(menuFile)
                 ? "opacity-50 cursor-not-allowed"
                 : "hover:bg-gray-100 dark:hover:bg-blue-200"
-              }`}
+            }`}
             disabled={menuFile?.type !== "folder" && isViewOnly(menuFile)}
           >
             <Download className="h-4 w-4" /> Download
@@ -337,8 +365,9 @@ export function FileList({
               onViewActivity(menuFile);
               setMenuFile(null);
             }}
-            className={`w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 dark:hover:bg-blue-200 ${menuFile?.type === "folder" ? "hidden" : ""
-              }`}
+            className={`w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 dark:hover:bg-blue-200 ${
+              menuFile?.type === "folder" ? "hidden" : ""
+            }`}
           >
             <MoreVertical className="h-4 w-4" /> Activity Logs
           </button>
@@ -346,18 +375,20 @@ export function FileList({
           {menuFile?.type !== "folder" && <hr className="my-1" />}
 
           {/* Revoke View Access */}
-          {(isViewOnly(menuFile) || menuFile.allow_view_sharing) && onRevokeViewAccess && (
-            <button
-              onClick={() => {
-                onRevokeViewAccess(menuFile);
-                setMenuFile(null);
-              }}
-              className={`w-full text-left px-4 py-2 hover:bg-orange-50 text-orange-600 flex items-center gap-2 dark:hover:bg-orange-200 dark:text-orange-600 ${menuFile?.type === "folder" ? "hidden" : ""
+          {(isViewOnly(menuFile) || menuFile.allow_view_sharing) &&
+            onRevokeViewAccess && (
+              <button
+                onClick={() => {
+                  onRevokeViewAccess(menuFile);
+                  setMenuFile(null);
+                }}
+                className={`w-full text-left px-4 py-2 hover:bg-orange-50 text-orange-600 flex items-center gap-2 dark:hover:bg-orange-200 dark:text-orange-600 ${
+                  menuFile?.type === "folder" ? "hidden" : ""
                 }`}
-            >
-              <EyeOff className="h-4 w-4" /> Revoke View Access
-            </button>
-          )}
+              >
+                <EyeOff className="h-4 w-4" /> Revoke View Access
+              </button>
+            )}
 
           {/* Change Share Method */}
           {onChangeShareMethod && menuFile?.type !== "folder" && (

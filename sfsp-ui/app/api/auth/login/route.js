@@ -1,4 +1,17 @@
 import { NextResponse } from "next/server";
+import { randomBytes, createHmac } from "crypto";
+
+function makeCsrfToken(userId) {
+  const nonce = randomBytes(32).toString("hex");
+  const payload = `${userId}.${nonce}`;
+  if (!process.env.CSRF_SECRET) {
+    throw new Error("CSRF_SECRET environment variable is not set");
+  }
+  const sig = createHmac("sha256", process.env.CSRF_SECRET)
+    .update(payload)
+    .digest("base64url");
+  return `${payload}.${sig}`;
+}
 
 export async function POST(request) {
   try {
@@ -38,12 +51,21 @@ export async function POST(request) {
       response.cookies.set("auth_token", result.data.token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",//reduces the risk of CSRF
+        sameSite: "strict",
         path: "/",
         maxAge: 60 * 60 * 1000,
       });
 
-      //The client can read the user context but it does not contain sensitive info
+      console.log("UserId is :", )
+      const csrf = makeCsrfToken(result.data.user.id);
+      response.cookies.set("csrf_token", csrf, {
+        httpOnly: false, 
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        path: "/",
+        maxAge: 60 * 60,
+      });
+
       response.cookies.set("current_user", result.data.user.id, {
         httpOnly: false,
         secure: process.env.NODE_ENV === "production",

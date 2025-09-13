@@ -24,6 +24,12 @@ function Toast({ message, type = "info", onClose }) {
   );
 }
 
+function getCookie(name) {
+  return document.cookie.split("; ").find(c => c.startsWith(name + "="))?.split("=")[1];
+}
+
+const csrf = getCookie("csrf_token");
+
 export function RevokeAccessDialog({ open, onOpenChange, file }) {
   const [users, setUsers] = useState([]);
   const [owner, setOwner] = useState(null);
@@ -49,7 +55,7 @@ export function RevokeAccessDialog({ open, onOpenChange, file }) {
         "/api/files/userWithFileAccess",
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
           body: JSON.stringify({ fileId: file.id }),
         }
       );
@@ -121,6 +127,7 @@ export function RevokeAccessDialog({ open, onOpenChange, file }) {
         "/api/file/revokeViewAccess",
         {
           method: "POST",
+          headers: {"x-csrf":csrf||""},
           body: JSON.stringify({
             fileId: file.id,
             userId: currentUserId,

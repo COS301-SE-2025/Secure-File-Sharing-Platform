@@ -60,7 +60,12 @@ const Label = ({ htmlFor, children }) => (
   </label>
 );
 
-export function CreateFolderDialog({ open, onOpenChange, currentPath,onFolderCreated }) {
+export function CreateFolderDialog({
+  open,
+  onOpenChange,
+  currentPath,
+  onFolderCreated,
+}) {
   const [folderName, setFolderName] = useState("");
 
   const createFolder = async () => {
@@ -73,11 +78,22 @@ export function CreateFolderDialog({ open, onOpenChange, currentPath,onFolderCre
         return;
       }
 
-      const fullPath = currentPath ? `${currentPath}/${folderName}` : folderName;
+      const fullPath = currentPath
+        ? `${currentPath}/${folderName}`
+        : folderName;
+
+      function getCookie(name) {
+        return document.cookie
+          .split("; ")
+          .find((c) => c.startsWith(name + "="))
+          ?.split("=")[1];
+      }
+
+      const csrf = getCookie("csrf_token");
 
       const res = await fetch("/api/files/createFolder", {
         method: "POST",
-        headers: { "Content-Type": "application/json",Authorization : `Bearer ${localStorage.getItem("token")}` },
+        headers: { "Content-Type": "application/json", "x-csrf": csrf || "" },
         body: JSON.stringify({
           userId,
           folderName,

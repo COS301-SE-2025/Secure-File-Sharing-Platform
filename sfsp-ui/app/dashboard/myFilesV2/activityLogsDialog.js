@@ -1,9 +1,18 @@
 // app/dashboard/myFilesV2/activityLogDialog.js
 
-'use client';
+"use client";
 
-import React, { useEffect, useState } from 'react';
-import { Clock, Download, Share, Edit, Eye, Trash2,Undo2 } from 'lucide-react';
+import React, { useEffect, useState } from "react";
+import { Clock, Download, Share, Edit, Eye, Trash2, Undo2 } from "lucide-react";
+
+function getCookie(name) {
+  return document.cookie
+    .split("; ")
+    .find((c) => c.startsWith(name + "="))
+    ?.split("=")[1];
+}
+
+const csrf = getCookie("csrf_token");
 
 export function ActivityLogsDialog({ open, onOpenChange, file }) {
   const [activities, setActivities] = useState([]);
@@ -16,7 +25,7 @@ export function ActivityLogsDialog({ open, onOpenChange, file }) {
     viewed: Eye,
     deleted: Trash2,
     created: Clock,
-    restored:Undo2,
+    restored: Undo2,
   };
 
   useEffect(() => {
@@ -24,24 +33,23 @@ export function ActivityLogsDialog({ open, onOpenChange, file }) {
 
     const fetchLogs = async () => {
       try {
-
         console.log(file.id);
 
-        const res = await fetch('/api/file/getAccessLog', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        const res = await fetch("/api/file/getAccessLog", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-csrf": csrf || "" },
           body: JSON.stringify({ file_id: file.id }),
         });
 
-        if (!res.ok) throw new Error('Failed to fetch logs');
+        if (!res.ok) throw new Error("Failed to fetch logs");
 
         const logs = await res.json();
 
-        const filteredLogs = logs.filter(log => log.file_id === file.id);
+        const filteredLogs = logs.filter((log) => log.file_id === file.id);
         console.log(filteredLogs);
         setActivities(filteredLogs);
       } catch (err) {
-        console.error('Error fetching activity logs:', err);
+        console.error("Error fetching activity logs:", err);
         setActivities([]);
       } finally {
         setLoading(false);
@@ -114,12 +122,16 @@ export function ActivityLogsDialog({ open, onOpenChange, file }) {
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="font-medium text-sm">
-                          {activity.message?.split(' ')[1] || activity.user_id || 'Unknown User'}
+                          {activity.message?.split(" ")[1] ||
+                            activity.user_id ||
+                            "Unknown User"}
                         </span>
-                        <span className="text-sm text-gray-500">{activity.action}</span>
+                        <span className="text-sm text-gray-500">
+                          {activity.action}
+                        </span>
                       </div>
                       <p className="text-sm text-gray-600 mb-1">
-                        {activity.message || ''}
+                        {activity.message || ""}
                       </p>
                       <p className="text-xs text-gray-500">
                         {new Date(activity.timestamp).toLocaleString()}

@@ -64,6 +64,12 @@ function formatFileSize(size) {
   else return `${(size / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
+function getCookie(name) {
+  return document.cookie.split("; ").find(c => c.startsWith(name + "="))?.split("=")[1];
+}
+
+const csrf = getCookie("csrf_token");
+
 export default function MyFiles() {
   const [files, setFiles] = useState([]);
   const [viewMode, setViewMode] = useState("grid");
@@ -109,7 +115,7 @@ export default function MyFiles() {
 
       const res = await fetch("/api/files/metadata", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token")}` },
+        headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
         body: JSON.stringify({ userId }),
       });
 
@@ -157,7 +163,7 @@ export default function MyFiles() {
         {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
+            "Content-Type": "application/json", "x-csrf":csrf||"",
           },
           body: JSON.stringify({ fileId, description }),
         }
@@ -191,7 +197,7 @@ export default function MyFiles() {
     try {
       const res = await fetch("/api/files/download", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
         body: JSON.stringify({ userId, fileId: file.id }),
       });
 
@@ -251,7 +257,7 @@ export default function MyFiles() {
     try {
       const res = await fetch("/api/files/download", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
         body: JSON.stringify({ userId, fileId: file.id }),
       });
 
@@ -343,8 +349,6 @@ export default function MyFiles() {
   // Revoke view access
   const handleRevokeViewAccess = async (file) => {
     try {
-      const token = localStorage.getItem("token");
-      if (!token) return showToast("Please log in to revoke access","info");
 
       const profileRes = await fetch("/api/auth/profile");
 
@@ -355,7 +359,7 @@ export default function MyFiles() {
 
       const sharedFilesRes = await fetch("/api/files/getViewAccess", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json","x-csrf":csrf },
         body: JSON.stringify({ userId }),
       });
 
@@ -369,7 +373,7 @@ export default function MyFiles() {
       for (const share of fileShares) {
         const revokeRes = await fetch("/api/files/revokeViewAccess", {
           method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
           body: JSON.stringify({ fileId: file.id, userId, recipientId: share.recipient_id }),
         });
 
