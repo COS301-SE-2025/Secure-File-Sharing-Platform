@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { PDFDocument, rgb } from "pdf-lib";
 import axios from 'axios';
 
 import { 
@@ -203,25 +204,7 @@ const fetchFiles = async () => {
     }
   };
 
-  const handleOpenFullView = async (file) => {
-    const result = await handleLoadFile(file);
-    if (!result) return;
-
-    let contentUrl = null;
-    let textFull = null;
-
-    if (file.type === "image" || file.type === "video" || file.type === "audio") {
-      contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
-    } else if (file.type === "pdf") {
-      contentUrl = URL.createObjectURL(new Blob([result.decrypted], { type: "application/pdf" }));
-    } else if (file.type === "txt" || file.type === "json" || file.type === "csv") {
-      textFull = new TextDecoder().decode(result.decrypted);
-    }
-
-    setViewerContent({ url: contentUrl, text: textFull });
-    setViewerFile(file);
-  };
-   useEffect(() => {
+  useEffect(() => {
       const fetchProfile = async () => {
         const token = localStorage.getItem('token');
         if (!token) return;
@@ -241,8 +224,8 @@ const fetchFiles = async () => {
       };
   
       fetchProfile();
-    }, []); 
-    
+  }, []); 
+
   const handleOpenPreview = async (rawFile) => {
     const username = user?.username;
     const file = {
@@ -258,40 +241,117 @@ const fetchFiles = async () => {
     let contentUrl = null;
     let textFull = null;
 
-    if (file.type === "image" ){
-        // Convert decrypted bytes to an ImageBitmap
-    const imgBlob = new Blob([result.decrypted], { type: file.type });
-    const imgBitmap = await createImageBitmap(imgBlob);
+    if (file.type === "image") {
 
-    // Draw on canvas with watermark
-    const canvas = document.createElement("canvas");
-    canvas.width = imgBitmap.width;
-    canvas.height = imgBitmap.height;
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(imgBitmap, 0, 0);
+      const imgBlob = new Blob([result.decrypted], { type: file.type });
+      const imgBitmap = await createImageBitmap(imgBlob);
 
-    // Add watermark (userID)
-    const fontSize = Math.floor(imgBitmap.width / 20); // dynamic font size
-    ctx.font = `${fontSize}px Arial`;
-    ctx.fillStyle = "rgba(255, 0, 0, 1)"; // semi-transparent
-    ctx.textAlign = "center";
-    ctx.fillText(username, imgBitmap.width / 2, imgBitmap.height / 2);
+      const canvas = document.createElement("canvas");
+      canvas.width = imgBitmap.width;
+      canvas.height = imgBitmap.height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(imgBitmap, 0, 0);
 
-    // Convert canvas to blob URL
-    contentUrl = canvas.toDataURL(file.type);
-    }
+      const fontSize = Math.floor(imgBitmap.width / 20);
+      ctx.font = `${fontSize}px Arial`;
+      ctx.fillStyle = "rgba(255, 0, 0, 0.4)"; // semi-transparent
+      ctx.textAlign = "center";
+      ctx.fillText(username, imgBitmap.width / 2, imgBitmap.height / 2);
+
+      contentUrl = canvas.toDataURL(file.type);
+    } 
+    
+    else if (file.type === "pdf") {
+      const pdfDoc = await PDFDocument.load(result.decrypted);
+      const pages = pdfDoc.getPages();
+
+      pages.forEach((page) => {
+        const { width, height } = page.getSize();
+        page.drawText(username, {
+          x: width / 2 - 50,
+          y: height / 2,
+          size: 36,
+          color: rgba(255, 0, 0, 1), // red text
+          // opacity: 0.4,
+          rotate: { type: "degrees", angle: 45 },
+        });
+      });
+
+      const modifiedPdfBytes = await pdfDoc.save();
+      contentUrl = URL.createObjectURL(new Blob([modifiedPdfBytes], { type: "application/pdf" }));
+    } 
+    
       
-      else if(file.type === "video" || file.type === "audio") {
+    else if (file.type === "video" || file.type === "audio") {
       contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
-    } else if (file.type === "pdf") {
-      contentUrl = URL.createObjectURL(new Blob([result.decrypted], { type: "application/pdf" }));
-    } else if (file.type === "txt" || file.type === "json" || file.type === "csv") {
+    } 
+    else if (["txt", "json", "csv"].includes(file.type)) {
       textFull = new TextDecoder().decode(result.decrypted);
     }
 
     setPreviewContent({ url: contentUrl, text: textFull });
     setPreviewFile(file);
-  };  
+  };
+
+  const handleOpenFullView = async (file) => {
+    const username = user?.username;
+     const result = await handleLoadFile(file);
+     if (!result) return;
+   
+     let contentUrl = null;
+     let textFull = null;
+   
+     if (file.type === "image") {
+       const imgBlob = new Blob([result.decrypted], { type: file.type });
+       const imgBitmap = await createImageBitmap(imgBlob);
+   
+       const canvas = document.createElement("canvas");
+       canvas.width = imgBitmap.width;
+       canvas.height = imgBitmap.height;
+       const ctx = canvas.getContext("2d");
+       ctx.drawImage(imgBitmap, 0, 0);
+   
+       const fontSize = Math.floor(imgBitmap.width / 20);
+       ctx.font = `${fontSize}px Arial`;
+       ctx.fillStyle = "rgba(255, 0, 0, 1)";
+       ctx.textAlign = "center";
+       ctx.fillText(username, imgBitmap.width / 2, imgBitmap.height / 2);
+   
+       contentUrl = canvas.toDataURL(file.type);
+     } 
+     
+    
+     else if (file.type === "pdf") {
+       const pdfDoc = await PDFDocument.load(result.decrypted);
+       const pages = pdfDoc.getPages();
+   
+       pages.forEach((page) => {
+         const { width, height } = page.getSize();
+         page.drawText(username, {
+           x: width / 2 - 50,
+           y: height / 2,
+           size: 36,
+           color: rgb(1, 0, 0), //keep ths rgb or errors
+           opacity: 0.4,
+           rotate: { type: "degrees", angle: 45 },
+         });
+       });
+   
+       const modifiedPdfBytes = await pdfDoc.save();
+       contentUrl = URL.createObjectURL(new Blob([modifiedPdfBytes], { type: "application/pdf" }));
+     } 
+      else if (file.type === "video" || file.type === "audio") {
+       contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
+     } 
+     
+     else if (["txt", "json", "csv"].includes(file.type)) {
+       textFull = new TextDecoder().decode(result.decrypted);
+     }
+
+    setViewerContent({ url: contentUrl, text: textFull });
+    setViewerFile(file);
+  };
+
 
   const fetchNotifications = async () => {
     const token = localStorage.getItem("token");
