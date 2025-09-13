@@ -106,33 +106,36 @@ const fetchFiles = async () => {
       return [];
     }
 
-    const sortedFiles = data.sort(
-      (a, b) => new Date(b.date) - new Date(a.date)
-    );
 
-    setRecentFiles(sortedFiles.slice(0, 3));
+    if(data != null){
+      const sortedFiles = data.sort(
+        (a, b) => new Date(b.date) - new Date(a.date)
+      );
 
-    const formatted = data
-      .filter((f) => {
-        const tags = f.tags ? f.tags.replace(/[{}]/g, "").split(",") : [];
-        return (
-          !tags.includes("deleted") &&
-          !tags.some((tag) => tag.trim().startsWith("deleted_time:"))
-        );
-      })
-      .map((f) => ({
-        id: f.fileId || "",
-        name: f.fileName || "Unnamed file",
-        size: formatFileSize(f.fileSize || 0),
-        type: getFileType(f.fileType || ""),
-        modified: f.createdAt ? new Date(f.createdAt).toLocaleDateString() : "",
-        shared: false,
-        starred: false,
-      }));
+      setRecentFiles(sortedFiles.slice(0, 3));
 
-    setFiles(formatted);
+      const formatted = data
+        .filter((f) => {
+          const tags = f.tags ? f.tags.replace(/[{}]/g, "").split(",") : [];
+          return (
+            !tags.includes("deleted") &&
+            !tags.some((tag) => tag.trim().startsWith("deleted_time:"))
+          );
+        })
+        .map((f) => ({
+          id: f.fileId || "",
+          name: f.fileName || "Unnamed file",
+          size: formatFileSize(f.fileSize || 0),
+          type: getFileType(f.fileType || ""),
+          modified: f.createdAt ? new Date(f.createdAt).toLocaleDateString() : "",
+          shared: false,
+          starred: false,
+        }));
 
-    return formatted;
+      setFiles(formatted);
+
+      return formatted;
+    }
   } catch (err) {
     console.error("Failed to fetch files:", err);
     return [];
@@ -394,28 +397,30 @@ const fetchRecentAccessLogs = async () => {
       });
 
       const data = await res.json();
-
-      // Separate active and deleted files
-      const activeFiles = data.filter(file => {
+    
+      if(data != null){
+        // Separate active and deleted files
+        const activeFiles = data.filter(file => {
         const tags = parseTagString(file.tags);
         return !tags.includes('deleted');
-      });
+        });
 
-      const deletedFiles = data.filter(file => {
+        const deletedFiles = data.filter(file => {
         const tags = parseTagString(file.tags);
         return tags.includes('deleted');
-      });
+        });
 
-	  const receivedFiles = data.filter(file => {
-		const tags = parseTagString(file.tags);
-	  return tags.includes("received");
-	});
+        const receivedFiles = data.filter(file => {
+        const tags = parseTagString(file.tags);
+        return tags.includes("received");
+        });
+  
+        setFileCount(activeFiles.length);
+        setTrashedFilesCount(deletedFiles.length);
+        setReceivedFilesCount(receivedFiles.length);
+    }
 
       
- 
-      setFileCount(activeFiles.length);
-      setTrashedFilesCount(deletedFiles.length);
-      setReceivedFilesCount(receivedFiles.length);
     } catch (error) {
       console.error("Failed to fetch files metadata:", error);
     } finally {
