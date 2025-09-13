@@ -18,6 +18,7 @@ import { PreviewDrawer } from "./previewDrawer";
 import { FullViewModal } from "./fullViewModal";
 import { RevokeAccessDialog } from "./revokeAccessDialog";
 import { ChangeShareMethodDialog } from "./changeShareMethodDialog";
+import { formatDate } from "../../../lib/dateUtils";
 
 function Toast({ message, type = "info", onClose }) {
   return (
@@ -192,7 +193,7 @@ export default function MyFiles() {
             description: f.description || "",
             path: f.cid || "",
             modified: f.createdAt
-              ? new Date(f.createdAt).toLocaleDateString()
+              ? formatDate(f.createdAt)
               : "",
             shared: false,
             starred: false,

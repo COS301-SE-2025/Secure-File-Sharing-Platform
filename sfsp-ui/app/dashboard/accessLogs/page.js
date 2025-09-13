@@ -7,6 +7,7 @@ import { useDashboardSearch } from '@/app/dashboard/components/DashboardSearchCo
 import { useEncryptionStore } from '@/app/SecureKeyStorage';
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { formatDateTime } from '../../../lib/dateUtils';
 
 function Toast({ message, type = "info", onClose }) {
   return (
@@ -128,7 +129,7 @@ export default function AccessLogsPage() {
                 file: file.fileName || 'Unnamed file',
                 // date: new Date(log.timestamp).toLocaleString(),
                 timestamp: log.timestamp,
-                dateFormatted: new Date(log.timestamp).toLocaleString(),
+                dateFormatted: formatDateTime(log.timestamp),
               });
             }
           } catch (err) {
