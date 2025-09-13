@@ -70,6 +70,10 @@ export default function DashboardHomePage() {
   const [logs, setLogs] = useState([]);          
   const [recentAccessLogs, setRecentAccessLogs] = useState([]);
   const [actionFilter, setActionFilter] = useState("All actions"); 
+  const [user, setUser] = useState(null); //watermark 
+
+
+
 
 
   const formatTimestamp = (timestamp) => {
@@ -217,7 +221,30 @@ const fetchFiles = async () => {
     setViewerContent({ url: contentUrl, text: textFull });
     setViewerFile(file);
   };
+   useEffect(() => {
+      const fetchProfile = async () => {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+  
+        try {
+          const res = await fetch('http://localhost:5000/api/users/profile', {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+  
+          const result = await res.json();
+          if (!res.ok) throw new Error(result.message || 'Failed to fetch profile');
+  
+          setUser(result.data);
+        } catch (err) {
+          console.error('Failed to fetch profile:', err.message);
+        }
+      };
+  
+      fetchProfile();
+    }, []); 
+    
   const handleOpenPreview = async (rawFile) => {
+    const username = user?.username;
     const file = {
       ...rawFile,
       type: getFileType(rawFile.fileType || rawFile.type || ""),
@@ -231,7 +258,30 @@ const fetchFiles = async () => {
     let contentUrl = null;
     let textFull = null;
 
-    if (file.type === "image" || file.type === "video" || file.type === "audio") {
+    if (file.type === "image" ){
+        // Convert decrypted bytes to an ImageBitmap
+    const imgBlob = new Blob([result.decrypted], { type: file.type });
+    const imgBitmap = await createImageBitmap(imgBlob);
+
+    // Draw on canvas with watermark
+    const canvas = document.createElement("canvas");
+    canvas.width = imgBitmap.width;
+    canvas.height = imgBitmap.height;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(imgBitmap, 0, 0);
+
+    // Add watermark (userID)
+    const fontSize = Math.floor(imgBitmap.width / 20); // dynamic font size
+    ctx.font = `${fontSize}px Arial`;
+    ctx.fillStyle = "rgba(255, 0, 0, 1)"; // semi-transparent
+    ctx.textAlign = "center";
+    ctx.fillText(username, imgBitmap.width / 2, imgBitmap.height / 2);
+
+    // Convert canvas to blob URL
+    contentUrl = canvas.toDataURL(file.type);
+    }
+      
+      else if(file.type === "video" || file.type === "audio") {
       contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
     } else if (file.type === "pdf") {
       contentUrl = URL.createObjectURL(new Blob([result.decrypted], { type: "application/pdf" }));

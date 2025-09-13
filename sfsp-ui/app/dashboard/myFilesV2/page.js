@@ -476,11 +476,11 @@ const handlePreview = async (file) => {
     contentUrl = canvas.toDataURL(file.type);
 
     
+    }else if (file.type === "pdf") {
+      contentUrl = URL.createObjectURL(new Blob([result.decrypted], { type: "application/pdf" }));
     
     }else if(file.type.startsWith("video") || file.type.startsWith("audio")) {
       contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
-    } else if (file.type === "pdf") {
-      contentUrl = URL.createObjectURL(new Blob([result.decrypted], { type: "application/pdf" }));
     } else if (["txt", "json", "csv"].some((ext) => file.type.includes(ext))) {
       textFull = new TextDecoder().decode(result.decrypted);
     }
