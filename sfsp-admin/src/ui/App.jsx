@@ -7,7 +7,7 @@ function App() {
   const [credentials, setCredentials] = useState({
     username: "",
     password: "",
-    otp: "",
+    otp: ["", "", "", "", "", ""],
   });
   const [isLoading, setIsLoading] = useState(false);
   const inputRefs = useRef([]);
@@ -46,13 +46,88 @@ function App() {
     setIsLoading(true);
     setTimeout(() => {
       setIsLoading(false);
-      // Navigate to dashboard here if you want
+      
     }, 1000);
   };
 
   const handleBackToCredentials = () => {
     setStep("credentials");
     setCredentials({ ...credentials, otp: "" });
+  };
+
+  const focusInput = (index) => {
+    const input = inputRefs.current[index];
+    if (input) {
+      input.focus();
+      const length = input.value.length;
+      input.setSelectionRange(length, length);
+    }
+  };
+
+  const handleOTPChange = (e, index) => {
+    const val = e.target.value.replace(/[^0-9]/g, "");
+    if (!val) return;
+
+    const otpArr = [...credentials.otp];
+
+    if (val.length > 1) {
+      const paste = val.split("");
+      for (let i = 0; i < paste.length && index + i < 6; i++) {
+        otpArr[index + i] = paste[i];
+      }
+      setCredentials({ ...credentials, otp: otpArr });
+      focusInput(Math.min(index + paste.length, 5));
+      return;
+    }
+
+    otpArr[index] = val;
+    setCredentials({ ...credentials, otp: otpArr });
+
+    const target = e.target;
+    if (target.selectionStart === target.value.length && index < 5) {
+      focusInput(index + 1);
+    }
+  };
+
+  const handleOTPKeyDown = (e, index) => {
+    const otpArr = [...credentials.otp];
+
+    if (e.key === "Backspace") {
+      if (otpArr[index]) {
+        otpArr[index] = "";
+        setCredentials({ ...credentials, otp: otpArr });
+      } else if (index > 0) {
+
+        focusInput(index - 1);
+        const prevArr = [...credentials.otp];
+        prevArr[index - 1] = "";
+        setCredentials({ ...credentials, otp: prevArr });
+      }
+      e.preventDefault();
+    }
+
+    if (e.key === "ArrowLeft" && index > 0) {
+      focusInput(index - 1);
+      e.preventDefault();
+    }
+
+    if (e.key === "ArrowRight" && index < 5) {
+      focusInput(index + 1);
+      e.preventDefault();
+    }
+  };
+
+  const handleOTPPaste = (e, startIndex = 0) => {
+    e.preventDefault();
+    const paste = e.clipboardData.getData("text").slice(0, 6).split("");
+    const otpArr = [...credentials.otp];
+
+    for (let i = 0; i < paste.length && startIndex + i < 6; i++) {
+      otpArr[startIndex + i] = paste[i];
+    }
+
+    setCredentials({ ...credentials, otp: otpArr });
+    focusInput(Math.min(startIndex + paste.length, 5));
   };
 
   return (
@@ -80,9 +155,7 @@ function App() {
                   <ArrowLeft size={16} />
                 </button>
               )}
-              {step === "credentials"
-                ? ""
-                : "PIN"}
+              {step === "credentials" ? "Secure Authentication" : "PIN"}
             </h2>
             <p className="card-description">
               {step === "credentials"
@@ -134,7 +207,6 @@ function App() {
                   </div>
                 </div>
 
-                {/* Submit */}
                 <button type="submit" className="btn" disabled={isLoading}>
                   {isLoading ? "Verifying..." : "Continue"}
                 </button>
@@ -154,37 +226,10 @@ function App() {
                         type="text"
                         maxLength={1}
                         ref={(el) => (inputRefs.current[i] = el)}
-                        value={credentials.otp[i] || ""}
-                        onChange={(e) => {
-                          const val = e.target.value.replace(/[^0-9]/g, "");
-                          if (!val) return;
-
-                          const newOtp = credentials.otp.split("");
-                          newOtp[i] = val;
-                          setCredentials({ ...credentials, otp: newOtp.join("") });
-
-                          // Move focus to next input
-                          if (i < 5) inputRefs.current[i + 1].focus();
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Backspace") {
-                            const newOtp = credentials.otp.split("");
-                            newOtp[i] = "";
-                            setCredentials({ ...credentials, otp: newOtp.join("") });
-
-                            // Move back if empty
-                            if (i > 0 && !credentials.otp[i]) {
-                              inputRefs.current[i - 1].focus();
-                            }
-                          }
-                        }}
-                        onPaste={(e) => {
-                          e.preventDefault();
-                          const paste = e.clipboardData.getData("text").slice(0, 6);
-                          const newOtp = [...paste.padEnd(6, "")].join("");
-                          setCredentials({ ...credentials, otp: newOtp });
-                          inputRefs.current[Math.min(paste.length, 5)].focus();
-                        }}
+                        value={credentials.otp[i]}
+                        onChange={(e) => handleOTPChange(e, i)}
+                        onKeyDown={(e) => handleOTPKeyDown(e, i)}
+                        onPaste={(e) => handleOTPPaste(e, i)}
                       />
                     ))}
                   </div>
@@ -201,7 +246,6 @@ function App() {
             )}
           </div>
         </div>
-
       </div>
     </div>
   );
