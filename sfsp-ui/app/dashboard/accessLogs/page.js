@@ -8,6 +8,7 @@ import { useEncryptionStore } from '@/app/SecureKeyStorage';
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatDateTime } from '../../../lib/dateUtils';
+import { UserAvatar } from '@/app/lib/avatarUtils';
 
 function Toast({ message, type = "info", onClose }) {
   return (
@@ -74,10 +75,16 @@ export default function AccessLogsPage() {
         let filesData = await filesRes.json();
         if (!Array.isArray(filesData)) filesData = [];
 
+        // Filter out deleted files
+        const files = filesData.filter(f => {
+          const tags = f.tags ? f.tags.replace(/[{}]/g, '').split(',') : [];
+          return !tags.includes('deleted') && !tags.some(tag => tag.trim().startsWith('deleted_time:'));
+        });
+
         // Fetch logs for each file
         const allLogs = [];
 
-        for (const file of filesData) {
+        for (const file of files) {
           try {
             const logsRes = await fetch('http://localhost:5000/api/files/getAccesslog', {
               method: 'POST',
@@ -346,31 +353,12 @@ export default function AccessLogsPage() {
                   {filteredLogs.map((log, idx) => (
                     <tr key={idx} className="border-b border-gray-200 dark:border-gray-700">
                       <td className="py-4 flex items-center gap-3">
-                        {log.avatar ? (
-                          <Image
-                            src={log.avatar}
-                            alt={log.user}
-                            width={32}
-                            height={32}
-                            className="rounded-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-bold">
-                            {(() => {
-                              if (!log.user) return '??';
-                              const parts = log.user.split(/[_\-\s\.]+/).filter(part => 
-                                part.length > 0 && !/^\d+$/.test(part)
-                              );
-                              if (parts.length >= 2) {
-                                return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
-                              } else if (parts.length === 1) {
-                                return parts[0].slice(0, 2).toUpperCase();
-                              } else {
-                                return log.user.slice(0, 2).toUpperCase();
-                              }
-                            })()}
-                          </div>
-                        )}
+                        <UserAvatar
+                          avatarUrl={log.avatar}
+                          username={log.user}
+                          size="w-8 h-8"
+                          alt={log.user}
+                        />
                         <div>
                           <div className="font-medium">{log.user}</div>
                           <div className="text-xs text-gray-500 dark:text-gray-400">{log.email}</div>
