@@ -26,4 +26,8 @@ router.get('/notifications', authMiddleware, userController.getNotificationSetti
 router.put('/notifications', authMiddleware, userController.updateNotificationSettings);
 router.post('/avatar-url', authMiddleware, userController.updateAvatarUrl);
 
+// Session management routes
+router.get('/sessions', authMiddleware, userController.getUserSessions);
+router.delete('/sessions/:sessionId', authMiddleware, userController.deactivateUserSession);
+
 module.exports = router;

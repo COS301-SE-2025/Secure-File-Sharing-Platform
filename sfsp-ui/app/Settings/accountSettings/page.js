@@ -91,6 +91,41 @@ export default function AccountSettings() {
     setMounted(true);
   }, []);
 
+  // ------------------------------ Load Notification Settings ----------------------------------------
+  useEffect(() => {
+    async function fetchNotificationSettings() {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      try {
+        const res = await fetch(`${API_BASE_URL}/notifications`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const result = await res.json();
+        if (res.ok && result.data?.notificationSettings) {
+          setNotificationSettings(result.data.notificationSettings);
+          // Also save to localStorage as backup
+          localStorage.setItem('notificationSettings', JSON.stringify(result.data.notificationSettings));
+        } else {
+          // Fallback to localStorage if backend doesn't have settings
+          const savedSettings = localStorage.getItem('notificationSettings');
+          if (savedSettings) {
+            setNotificationSettings(JSON.parse(savedSettings));
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch notification settings:', error.message);
+        // Fallback to localStorage on error
+        const savedSettings = localStorage.getItem('notificationSettings');
+        if (savedSettings) {
+          setNotificationSettings(JSON.parse(savedSettings));
+        }
+      }
+    }
+
+    fetchNotificationSettings();
+  }, []);
+
   const toggleTheme = () => {
     setTheme(resolvedTheme === 'dark' ? 'light' : 'dark');
   };
@@ -565,13 +600,18 @@ export default function AccountSettings() {
   };
 
   const handleNotificationChange = (category, setting, value) => {
-    setNotificationSettings((prev) => ({
-      ...prev,
-      [category]: {
-        ...prev[category],
-        [setting]: value,
-      },
-    }));
+    setNotificationSettings((prev) => {
+      const updatedSettings = {
+        ...prev,
+        [category]: {
+          ...prev[category],
+          [setting]: value,
+        },
+      };
+      // Save to localStorage immediately for better UX
+      localStorage.setItem('notificationSettings', JSON.stringify(updatedSettings));
+      return updatedSettings;
+    });
   };
 
   const handleSaveNotifications = async () => {
@@ -591,6 +631,8 @@ export default function AccountSettings() {
       });
 
       if (response.ok) {
+        // Save to localStorage as backup
+        localStorage.setItem('notificationSettings', JSON.stringify(notificationSettings));
         setNotificationMessage('Notification settings updated successfully!');
         setTimeout(() => setNotificationMessage(''), 3000);
       } else {

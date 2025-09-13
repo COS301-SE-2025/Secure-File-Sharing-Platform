@@ -1,4 +1,5 @@
 const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
 const axios = require("axios");
 const { supabase } = require("../config/database");
 const userService = require("../services/userService");
@@ -233,6 +234,44 @@ class UserController {
         console.log("🔍 DEBUG - Retrieved vault keys for user:", result.user.id);
         console.log("🔍 DEBUG - Retrieved OPKs:", keyBundle.opks_private?.map(opk => opk.opk_id));
         result.keyBundle = keyBundle;
+
+        // Track user session and detect new devices
+        try {
+          const userAgent = req.headers['user-agent'] || '';
+          const ipAddress = req.ip || req.connection.remoteAddress || req.socket.remoteAddress || 'Unknown';
+          const deviceFingerprint = userService.generateDeviceFingerprint(userAgent, ipAddress);
+
+          // Parse browser and device info
+          const browserInfo = userService.parseUserAgent(userAgent);
+
+          // Get location from IP (simplified - in production, use a geolocation service)
+          const location = 'Unknown'; // TODO: Implement IP geolocation
+
+          const deviceInfo = {
+            deviceFingerprint,
+            userAgent,
+            ipAddress,
+            location,
+            ...browserInfo
+          };
+
+          // Create or update user session
+          const sessionResult = await userService.createOrUpdateUserSession(result.user.id, deviceInfo);
+
+          // Send notification for new device/browser sign-in
+          if (sessionResult.isNewDevice) {
+            const notificationService = require('../services/notificationService');
+            await notificationService.sendNewBrowserSignInAlert(
+              result.user.id,
+              browserInfo,
+              location,
+              ipAddress
+            );
+          }
+        } catch (sessionError) {
+          console.error('Error tracking user session:', sessionError);
+          // Don't fail login if session tracking fails
+        }
       }
 
       res.status(200).json({
@@ -846,6 +885,74 @@ class UserController {
       res.status(500).json({
         success: false,
         message: error.message || "Google authentication failed",
+      });
+    }
+  }
+
+  // Session management methods
+  async getUserSessions(req, res) {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({
+          success: false,
+          message: "Authorization token missing or invalid.",
+        });
+      }
+
+      const token = authHeader.split(" ")[1];
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const userId = decoded.id;
+
+      const sessions = await userService.getUserSessions(userId);
+
+      res.status(200).json({
+        success: true,
+        message: "User sessions retrieved successfully",
+        data: sessions,
+      });
+    } catch (error) {
+      console.error("Error retrieving user sessions:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to retrieve user sessions",
+      });
+    }
+  }
+
+  async deactivateUserSession(req, res) {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({
+          success: false,
+          message: "Authorization token missing or invalid.",
+        });
+      }
+
+      const token = authHeader.split(" ")[1];
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const userId = decoded.id;
+      const { sessionId } = req.params;
+
+      if (!sessionId) {
+        return res.status(400).json({
+          success: false,
+          message: "Session ID is required",
+        });
+      }
+
+      await userService.deactivateUserSession(sessionId, userId);
+
+      res.status(200).json({
+        success: true,
+        message: "Session deactivated successfully",
+      });
+    } catch (error) {
+      console.error("Error deactivating user session:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to deactivate session",
       });
     }
   }

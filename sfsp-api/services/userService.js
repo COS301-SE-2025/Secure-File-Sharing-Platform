@@ -757,6 +757,374 @@ class UserService {
     }
   }
 
+  // Email notification functions
+  async sendStorageAlertEmail(userId, email, username, usedSpace, totalSpace) {
+    const shouldSend = await this.shouldSendEmail(userId, 'runningOutOfSpace', 'alerts');
+    if (!shouldSend) return;
+
+    const transporter = nodemailer.createTransporter({
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT),
+      secure: false,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
+
+    const usedPercentage = ((usedSpace / totalSpace) * 100).toFixed(1);
+    const mailOptions = {
+      from: `${process.env.FROM_NAME} <${process.env.SMTP_FROM}>`,
+      to: email,
+      subject: 'SecureShare - Storage Alert: Running Low on Space',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #dc2626;">SecureShare - Storage Alert</h2>
+          
+          <p>Hello ${username},</p>
+          
+          <p><strong>You're running low on storage space!</strong></p>
+          
+          <div style="background-color: #fef2f2; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #dc2626;">
+            <p style="margin: 0;"><strong>Current Usage:</strong> ${usedPercentage}% (${(usedSpace / (1024 * 1024 * 1024)).toFixed(2)} GB of ${(totalSpace / (1024 * 1024 * 1024)).toFixed(2)} GB)</p>
+          </div>
+          
+          <p>To free up space, you can:</p>
+          <ul>
+            <li>Delete unnecessary files</li>
+            <li>Move files to external storage</li>
+            <li>Upgrade your storage plan</li>
+          </ul>
+          
+          <p>Visit your <a href="${process.env.FRONTEND_URL}/dashboard/myFilesV2" style="color: #2563eb;">dashboard</a> to manage your files.</p>
+          
+          <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
+          <p style="color: #6b7280; font-size: 14px;">
+            This email was sent from SecureShare. You can manage your notification preferences in your account settings.
+          </p>
+        </div>
+      `,
+    };
+
+    try {
+      await transporter.sendMail(mailOptions);
+      console.log('Storage alert email sent to:', email);
+    } catch (error) {
+      console.error('Failed to send storage alert email:', error);
+    }
+  }
+
+  async sendLargeFileDeletionEmail(userId, email, username, deletedFilesCount, totalSizeDeleted) {
+    const shouldSend = await this.shouldSendEmail(userId, 'deleteLargeFiles', 'alerts');
+    if (!shouldSend) return;
+
+    const transporter = nodemailer.createTransporter({
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT),
+      secure: false,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
+
+    const mailOptions = {
+      from: `${process.env.FROM_NAME} <${process.env.SMTP_FROM}>`,
+      to: email,
+      subject: 'SecureShare - Large File Deletion Alert',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #f59e0b;">SecureShare - File Deletion Alert</h2>
+          
+          <p>Hello ${username},</p>
+          
+          <p>We noticed you recently deleted a large number of files from your account.</p>
+          
+          <div style="background-color: #fef3c7; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #f59e0b;">
+            <p style="margin: 0;"><strong>Deletion Summary:</strong></p>
+            <ul style="margin: 10px 0 0 20px;">
+              <li>Files deleted: ${deletedFilesCount}</li>
+              <li>Total size: ${(totalSizeDeleted / (1024 * 1024 * 1024)).toFixed(2)} GB</li>
+            </ul>
+          </div>
+          
+          <p>If this was not you, please:</p>
+          <ul>
+            <li>Change your password immediately</li>
+            <li>Review your recent activity logs</li>
+            <li>Contact our support team</li>
+          </ul>
+          
+          <p>Check your <a href="${process.env.FRONTEND_URL}/dashboard/trash" style="color: #2563eb;">trash</a> to restore any accidentally deleted files.</p>
+          
+          <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
+          <p style="color: #6b7280; font-size: 14px;">
+            This email was sent from SecureShare. You can manage your notification preferences in your account settings.
+          </p>
+        </div>
+      `,
+    };
+
+    try {
+      await transporter.sendMail(mailOptions);
+      console.log('Large file deletion alert email sent to:', email);
+    } catch (error) {
+      console.error('Failed to send large file deletion alert email:', error);
+    }
+  }
+
+  async sendNewBrowserSignInEmail(userId, email, username, browserInfo, location, ipAddress) {
+    const shouldSend = await this.shouldSendEmail(userId, 'newBrowserSignIn', 'alerts');
+    if (!shouldSend) return;
+
+    const transporter = nodemailer.createTransporter({
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT),
+      secure: false,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
+
+    const mailOptions = {
+      from: `${process.env.FROM_NAME} <${process.env.SMTP_FROM}>`,
+      to: email,
+      subject: 'SecureShare - New Browser Sign-In Detected',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #7c3aed;">SecureShare - New Sign-In Alert</h2>
+          
+          <p>Hello ${username},</p>
+          
+          <p>We detected a new sign-in to your SecureShare account from a different browser.</p>
+          
+          <div style="background-color: #f3e8ff; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #7c3aed;">
+            <p style="margin: 0;"><strong>Sign-in Details:</strong></p>
+            <ul style="margin: 10px 0 0 20px;">
+              <li>Browser: ${browserInfo || 'Unknown'}</li>
+              <li>Location: ${location || 'Unknown'}</li>
+              <li>IP Address: ${ipAddress || 'Unknown'}</li>
+              <li>Time: ${new Date().toLocaleString()}</li>
+            </ul>
+          </div>
+          
+          <p><strong>If this was you:</strong> No action is needed.</p>
+          <p><strong>If this wasn't you:</strong> Please change your password immediately and review your account security.</p>
+          
+          <p>You can view your recent activity in your <a href="${process.env.FRONTEND_URL}/dashboard/accessLogs" style="color: #2563eb;">access logs</a>.</p>
+          
+          <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
+          <p style="color: #6b7280; font-size: 14px;">
+            This email was sent from SecureShare. You can manage your notification preferences in your account settings.
+          </p>
+        </div>
+      `,
+    };
+
+    try {
+      await transporter.sendMail(mailOptions);
+      console.log('New browser sign-in alert email sent to:', email);
+    } catch (error) {
+      console.error('Failed to send new browser sign-in alert email:', error);
+    }
+  }
+
+  async sendNewDeviceLinkedEmail(userId, email, username, deviceInfo, deviceType) {
+    const shouldSend = await this.shouldSendEmail(userId, 'newDeviceLinked', 'alerts');
+    if (!shouldSend) return;
+
+    const transporter = nodemailer.createTransporter({
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT),
+      secure: false,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
+
+    const mailOptions = {
+      from: `${process.env.FROM_NAME} <${process.env.SMTP_FROM}>`,
+      to: email,
+      subject: 'SecureShare - New Device Linked',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #059669;">SecureShare - New Device Linked</h2>
+          
+          <p>Hello ${username},</p>
+          
+          <p>A new device has been linked to your SecureShare account.</p>
+          
+          <div style="background-color: #ecfdf5; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #059669;">
+            <p style="margin: 0;"><strong>Device Details:</strong></p>
+            <ul style="margin: 10px 0 0 20px;">
+              <li>Device: ${deviceInfo || 'Unknown device'}</li>
+              <li>Type: ${deviceType || 'Unknown'}</li>
+              <li>Linked: ${new Date().toLocaleString()}</li>
+            </ul>
+          </div>
+          
+          <p>If you didn't authorize this device linking, please:</p>
+          <ul>
+            <li>Remove the device from your account settings</li>
+            <li>Change your password</li>
+            <li>Contact our support team</li>
+          </ul>
+          
+          <p>Manage your devices in your <a href="${process.env.FRONTEND_URL}/dashboard/settings" style="color: #2563eb;">account settings</a>.</p>
+          
+          <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
+          <p style="color: #6b7280; font-size: 14px;">
+            This email was sent from SecureShare. You can manage your notification preferences in your account settings.
+          </p>
+        </div>
+      `,
+    };
+
+    try {
+      await transporter.sendMail(mailOptions);
+      console.log('New device linked alert email sent to:', email);
+    } catch (error) {
+      console.error('Failed to send new device linked alert email:', error);
+    }
+  }
+
+  async sendNewAppConnectedEmail(userId, email, username, appName, permissions) {
+    const shouldSend = await this.shouldSendEmail(userId, 'newAppConnected', 'alerts');
+    if (!shouldSend) return;
+
+    const transporter = nodemailer.createTransporter({
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT),
+      secure: false,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
+
+    const mailOptions = {
+      from: `${process.env.FROM_NAME} <${process.env.SMTP_FROM}>`,
+      to: email,
+      subject: 'SecureShare - New App Connected',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #0891b2;">SecureShare - New App Connected</h2>
+          
+          <p>Hello ${username},</p>
+          
+          <p>A new application has been connected to your SecureShare account.</p>
+          
+          <div style="background-color: #ecfeff; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #0891b2;">
+            <p style="margin: 0;"><strong>App Details:</strong></p>
+            <ul style="margin: 10px 0 0 20px;">
+              <li>Application: ${appName || 'Unknown app'}</li>
+              <li>Permissions: ${permissions || 'Standard access'}</li>
+              <li>Connected: ${new Date().toLocaleString()}</li>
+            </ul>
+          </div>
+          
+          <p>If you didn't authorize this app connection, please:</p>
+          <ul>
+            <li>Revoke the app's access immediately</li>
+            <li>Change your password</li>
+            <li>Review your connected apps</li>
+          </ul>
+          
+          <p>Manage your connected apps in your <a href="${process.env.FRONTEND_URL}/dashboard/settings" style="color: #2563eb;">account settings</a>.</p>
+          
+          <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
+          <p style="color: #6b7280; font-size: 14px;">
+            This email was sent from SecureShare. You can manage your notification preferences in your account settings.
+          </p>
+        </div>
+      `,
+    };
+
+    try {
+      await transporter.sendMail(mailOptions);
+      console.log('New app connected alert email sent to:', email);
+    } catch (error) {
+      console.error('Failed to send new app connected alert email:', error);
+    }
+  }
+
+  async sendWeeklySharedFolderDigest(userId, email, username, activities) {
+    const shouldSend = await this.shouldSendEmail(userId, 'sharedFolderActivity', 'files');
+    if (!shouldSend) return;
+
+    const transporter = nodemailer.createTransporter({
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT),
+      secure: false,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
+
+    // Group activities by folder
+    const folderActivities = {};
+    activities.forEach(activity => {
+      const folder = activity.folderName || 'General';
+      if (!folderActivities[folder]) {
+        folderActivities[folder] = [];
+      }
+      folderActivities[folder].push(activity);
+    });
+
+    const activitySummary = Object.entries(folderActivities)
+      .map(([folder, acts]) => `<li><strong>${folder}:</strong> ${acts.length} activities</li>`)
+      .join('');
+
+    const mailOptions = {
+      from: `${process.env.FROM_NAME} <${process.env.SMTP_FROM}>`,
+      to: email,
+      subject: 'SecureShare - Weekly Shared Folder Activity Digest',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #2563eb;">SecureShare - Weekly Activity Digest</h2>
+          
+          <p>Hello ${username},</p>
+          
+          <p>Here's your weekly summary of activity in your shared folders:</p>
+          
+          <div style="background-color: #eff6ff; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #2563eb;">
+            <h3 style="margin-top: 0; color: #1e40af;">Activity Summary</h3>
+            <ul style="margin: 10px 0 0 20px;">
+              ${activitySummary}
+            </ul>
+          </div>
+          
+          <h3>Recent Activities:</h3>
+          <div style="background-color: #f9fafb; padding: 15px; margin: 20px 0; border-radius: 8px;">
+            ${activities.slice(0, 10).map(activity => `
+              <div style="margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #e5e7eb;">
+                <p style="margin: 0;"><strong>${activity.user}:</strong> ${activity.action} <em>${activity.fileName}</em></p>
+                <small style="color: #6b7280;">${new Date(activity.timestamp).toLocaleString()}</small>
+              </div>
+            `).join('')}
+          </div>
+          
+          <p>View detailed activity logs in your <a href="${process.env.FRONTEND_URL}/dashboard/accessLogs" style="color: #2563eb;">access logs</a>.</p>
+          
+          <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
+          <p style="color: #6b7280; font-size: 14px;">
+            This email was sent from SecureShare. You can manage your notification preferences in your account settings.
+          </p>
+        </div>
+      `,
+    };
+
+    try {
+      await transporter.sendMail(mailOptions);
+      console.log('Weekly shared folder digest email sent to:', email);
+    } catch (error) {
+      console.error('Failed to send weekly shared folder digest email:', error);
+    }
+  }
+
   async updateAvatarUrl(userId, avatarUrl) {
     const { data, error } = await supabase
       .from('users')
@@ -769,6 +1137,367 @@ class UserService {
     if (!data) throw new Error('User not found');
 
     return data.avatar_url;
+  }
+
+  // Device tracking and session management methods
+  async createOrUpdateUserSession(userId, deviceInfo) {
+    const {
+      deviceFingerprint,
+      userAgent,
+      ipAddress,
+      location,
+      browserName,
+      browserVersion,
+      osName,
+      osVersion,
+      deviceType,
+      isMobile,
+      isTablet,
+      isDesktop
+    } = deviceInfo;
+
+    try {
+      // Check if session already exists
+      const { data: existingSession, error: fetchError } = await supabase
+        .from('user_sessions')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('device_fingerprint', deviceFingerprint)
+        .single();
+
+      if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 = no rows returned
+        throw fetchError;
+      }
+
+      if (existingSession) {
+        // Update existing session
+        const { data, error } = await supabase
+          .from('user_sessions')
+          .update({
+            last_login_at: new Date().toISOString(),
+            login_count: existingSession.login_count + 1,
+            is_active: true
+          })
+          .eq('id', existingSession.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+        return { session: data, isNewDevice: false };
+      } else {
+        // Create new session
+        const { data, error } = await supabase
+          .from('user_sessions')
+          .insert({
+            user_id: userId,
+            device_fingerprint: deviceFingerprint,
+            user_agent: userAgent,
+            ip_address: ipAddress,
+            location: location,
+            browser_name: browserName,
+            browser_version: browserVersion,
+            os_name: osName,
+            os_version: osVersion,
+            device_type: deviceType,
+            is_mobile: isMobile,
+            is_tablet: isTablet,
+            is_desktop: isDesktop
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        return { session: data, isNewDevice: true };
+      }
+    } catch (error) {
+      console.error('Error creating/updating user session:', error);
+      throw new Error('Failed to track user session: ' + error.message);
+    }
+  }
+
+  async getUserSessions(userId) {
+    try {
+      const { data, error } = await supabase
+        .from('user_sessions')
+        .select('*')
+        .eq('user_id', userId)
+        .order('last_login_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching user sessions:', error);
+      throw new Error('Failed to fetch user sessions: ' + error.message);
+    }
+  }
+
+  async deactivateUserSession(sessionId, userId) {
+    try {
+      const { data, error } = await supabase
+        .from('user_sessions')
+        .update({ is_active: false })
+        .eq('id', sessionId)
+        .eq('user_id', userId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error deactivating user session:', error);
+      throw new Error('Failed to deactivate session: ' + error.message);
+    }
+  }
+
+  // Parse user agent string to extract device/browser info
+  parseUserAgent(userAgent) {
+    if (!userAgent) return {};
+
+    const ua = userAgent.toLowerCase();
+
+    // Browser detection
+    let browserName = 'Unknown';
+    let browserVersion = 'Unknown';
+
+    if (ua.includes('chrome') && !ua.includes('edg')) {
+      browserName = 'Chrome';
+      const match = ua.match(/chrome\/([\d.]+)/);
+      browserVersion = match ? match[1] : 'Unknown';
+    } else if (ua.includes('firefox')) {
+      browserName = 'Firefox';
+      const match = ua.match(/firefox\/([\d.]+)/);
+      browserVersion = match ? match[1] : 'Unknown';
+    } else if (ua.includes('safari') && !ua.includes('chrome')) {
+      browserName = 'Safari';
+      const match = ua.match(/version\/([\d.]+)/);
+      browserVersion = match ? match[1] : 'Unknown';
+    } else if (ua.includes('edg')) {
+      browserName = 'Edge';
+      const match = ua.match(/edg\/([\d.]+)/);
+      browserVersion = match ? match[1] : 'Unknown';
+    }
+
+    // OS detection
+    let osName = 'Unknown';
+    let osVersion = 'Unknown';
+
+    if (ua.includes('windows')) {
+      osName = 'Windows';
+      const match = ua.match(/windows nt ([\d.]+)/);
+      osVersion = match ? match[1] : 'Unknown';
+    } else if (ua.includes('ios') || ua.includes('iphone') || ua.includes('ipad')) {
+      osName = 'iOS';
+      const match = ua.match(/os ([\d_]+)/);
+      osVersion = match ? match[1].replace(/_/g, '.') : 'Unknown';
+    } else if (ua.includes('mac os x')) {
+      osName = 'macOS';
+      const match = ua.match(/mac os x ([\d_]+)/);
+      osVersion = match ? match[1].replace(/_/g, '.') : 'Unknown';
+    } else if (ua.includes('linux')) {
+      osName = 'Linux';
+    } else if (ua.includes('android')) {
+      osName = 'Android';
+      const match = ua.match(/android ([\d.]+)/);
+      osVersion = match ? match[1] : 'Unknown';
+    }
+
+    // Device type detection
+    let deviceType = 'desktop';
+    let isMobile = false;
+    let isTablet = false;
+    let isDesktop = true;
+
+    if (ua.includes('mobile') || ua.includes('android') || ua.includes('iphone')) {
+      deviceType = 'mobile';
+      isMobile = true;
+      isDesktop = false;
+    } else if (ua.includes('tablet') || ua.includes('ipad')) {
+      deviceType = 'tablet';
+      isTablet = true;
+      isDesktop = false;
+    }
+
+    return {
+      browserName,
+      browserVersion,
+      osName,
+      osVersion,
+      deviceType,
+      isMobile,
+      isTablet,
+      isDesktop
+    };
+  }
+
+  // Generate device fingerprint for tracking
+  generateDeviceFingerprint(userAgent, ipAddress) {
+    const crypto = require('crypto');
+    const fingerprint = `${userAgent || ''}:${ipAddress || ''}`;
+    return crypto.createHash('sha256').update(fingerprint).digest('hex');
+  }
+
+  // Email templates for new device/browser notifications
+  async sendNewBrowserSignInEmail(userId, email, username, browserInfo, location, ipAddress) {
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: 'New Browser Sign-In Detected - SecureShare',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #ffffff;">
+          <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+            <h2 style="color: #1f2937; margin: 0 0 10px 0;">🔐 New Browser Sign-In Detected</h2>
+            <p style="color: #6b7280; margin: 0;">Hi ${username},</p>
+          </div>
+
+          <div style="background-color: #fef3c7; border: 1px solid #f59e0b; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+            <p style="margin: 0 0 15px 0; color: #92400e;">
+              <strong>⚠️ Security Alert:</strong> We detected a sign-in from a new browser or device.
+            </p>
+          </div>
+
+          <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+            <h3 style="color: #1f2937; margin: 0 0 15px 0;">Sign-In Details:</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb; font-weight: bold;">Browser:</td>
+                <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb;">${browserInfo.browserName} ${browserInfo.browserVersion}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb; font-weight: bold;">Operating System:</td>
+                <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb;">${browserInfo.osName} ${browserInfo.osVersion}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb; font-weight: bold;">Device Type:</td>
+                <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb;">${browserInfo.deviceType}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb; font-weight: bold;">Location:</td>
+                <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb;">${location || 'Unknown'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold;">IP Address:</td>
+                <td style="padding: 8px 0;">${ipAddress || 'Unknown'}</td>
+              </tr>
+            </table>
+          </div>
+
+          <div style="background-color: #ecfdf5; border: 1px solid #10b981; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+            <p style="margin: 0 0 15px 0; color: #065f46;">
+              <strong> Was this you?</strong>
+            </p>
+            <p style="margin: 0 0 15px 0; color: #065f46;">
+              If you recently signed in from this browser/device, no action is needed.
+            </p>
+            <p style="margin: 0; color: #065f46;">
+              If this wasn't you, please <a href="${process.env.FRONTEND_URL}/settings/security" style="color: #059669; text-decoration: underline;">change your password immediately</a> and review your account activity.
+            </p>
+          </div>
+
+          <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+            <h3 style="color: #1f2937; margin: 0 0 15px 0;">Manage Your Devices:</h3>
+            <p style="margin: 0 0 15px 0;">
+              You can view and manage all your active sessions in your account settings.
+            </p>
+            <a href="${process.env.FRONTEND_URL}/settings/security" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">View Active Sessions</a>
+          </div>
+
+          <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
+          <p style="color: #6b7280; font-size: 14px;">
+            This email was sent from SecureShare. You can manage your notification preferences in your account settings.
+          </p>
+        </div>
+      `,
+    };
+
+    try {
+      await transporter.sendMail(mailOptions);
+      console.log('New browser sign-in alert email sent to:', email);
+    } catch (error) {
+      console.error('Failed to send new browser sign-in alert email:', error);
+    }
+  }
+
+  async sendNewDeviceLinkedEmail(userId, email, username, deviceInfo, deviceType) {
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: 'New Device Linked - SecureShare',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #ffffff;">
+          <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+            <h2 style="color: #1f2937; margin: 0 0 10px 0;">🔗 New Device Linked</h2>
+            <p style="color: #6b7280; margin: 0;">Hi ${username},</p>
+          </div>
+
+          <div style="background-color: #ecfdf5; border: 1px solid #10b981; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+            <p style="margin: 0 0 15px 0; color: #065f46;">
+              <strong>Device Successfully Linked</strong>
+            </p>
+            <p style="margin: 0; color: #065f46;">
+              A new ${deviceType} device has been linked to your SecureShare account.
+            </p>
+          </div>
+
+          <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+            <h3 style="color: #1f2937; margin: 0 0 15px 0;">Device Details:</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb; font-weight: bold;">Device Type:</td>
+                <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb;">${deviceType}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb; font-weight: bold;">Operating System:</td>
+                <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb;">${deviceInfo.osName} ${deviceInfo.osVersion}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb; font-weight: bold;">Browser:</td>
+                <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb;">${deviceInfo.browserName} ${deviceInfo.browserVersion}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold;">Linked At:</td>
+                <td style="padding: 8px 0;">${new Date().toLocaleString()}</td>
+              </tr>
+            </table>
+          </div>
+
+          <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+            <h3 style="color: #1f2937; margin: 0 0 15px 0;">Manage Your Devices:</h3>
+            <p style="margin: 0 0 15px 0;">
+              You can view and manage all your linked devices in your account settings.
+            </p>
+            <a href="${process.env.FRONTEND_URL}/settings/security" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Manage Devices</a>
+          </div>
+
+          <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
+          <p style="color: #6b7280; font-size: 14px;">
+            This email was sent from SecureShare. You can manage your notification preferences in your account settings.
+          </p>
+        </div>
+      `,
+    };
+
+    try {
+      await transporter.sendMail(mailOptions);
+      console.log('New device linked email sent to:', email);
+    } catch (error) {
+      console.error('Failed to send new device linked email:', error);
+    }
   }
 }
 
