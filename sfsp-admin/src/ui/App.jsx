@@ -1,11 +1,23 @@
-import { useState } from 'react'
+import { useState , useEffect} from 'react'
 import reactLogo from './assets/react.svg'
 import './App.css'
 
 function App() {
   const [count, setCount] = useState(0)
 
-  window.electron.getStaticData();
+  console.log("window.electron", window.electron);
+  
+  useEffect(() => {
+    const unsubscribe = window.electron.subscribeStatistics((stats) => {
+      console.log("Stats:", stats);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // useEffect(()=>{
+  //   window.electron.subscribeStatistics((stats) => console.log(stats));
+  // },[]);
 
   return (
     <>
