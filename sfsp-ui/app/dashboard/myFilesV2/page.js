@@ -18,6 +18,7 @@ import { PreviewDrawer } from "./previewDrawer";
 import { FullViewModal } from "./fullViewModal";
 import { RevokeAccessDialog } from "./revokeAccessDialog";
 import { ChangeShareMethodDialog } from "./changeShareMethodDialog";
+//import fetchProfile from "../components/Sidebar"
 
 function Toast({ message, type = "info", onClose }) {
   return (
@@ -89,6 +90,8 @@ export default function MyFiles() {
   const [viewerContent, setViewerContent] = useState(null);
 
   const [toast, setToast] = useState(null);
+
+const [user, setUser] = useState(null); //watermark 
 
   const showToast = (message, type = "info", duration = 3000) => {
     setToast({ message, type });
@@ -357,36 +360,87 @@ export default function MyFiles() {
       return null;
     }
   };
+  //helper for getting user profile 
+  // Load user profile
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) return;
 
+      try {
+        const res = await fetch('http://localhost:5000/api/users/profile', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
-  const handlePreview = async (file) => {
-    console.log("Inside handlePreview");
-    if (file.type === "folder") {
-      setPreviewContent({ url: null, text: "This is a folder. Double-click to open." });
-      setPreviewFile(file);
-      return;
-    }
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.message || 'Failed to fetch profile');
 
-    const result = await handleLoadFile(file);
-    if (!result) return;
+        setUser(result.data);
+      } catch (err) {
+        console.error('Failed to fetch profile:', err.message);
+      }
+    };
 
-    let contentUrl = null;
-    let textSnippet = null;
+    fetchProfile();
+  }, []); 
+  
+const handlePreview = async (file) => {
+  const username = user?.username;
+  //const userEmail = useEncryptionStore.getState().user
 
-    if (file.type.startsWith("image") || file.type.startsWith("video") || file.type.startsWith("audio")) {
-      contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
-    } else if (file.type === "pdf") {
-      contentUrl = URL.createObjectURL(new Blob([result.decrypted], { type: "application/pdf" }));
-    } else if (["txt", "json", "csv"].some((ext) => file.type.includes(ext))) {
-      textSnippet = new TextDecoder().decode(result.decrypted).slice(0, 1000);
-    }
-
-    setPreviewContent({ url: contentUrl, text: textSnippet });
+  console.log("Inside handlePreview");
+  if (file.type === "folder") {
+    setPreviewContent({ url: null, text: "This is a folder. Double-click to open." });
     setPreviewFile(file);
-  };
+    return;
+  }
+
+  const result = await handleLoadFile(file);
+  if (!result) return;
+
+  let contentUrl = null;
+  let textSnippet = null;
+
+  if (file.type.startsWith("image")) {
+    // Convert decrypted bytes to an ImageBitmap
+    const imgBlob = new Blob([result.decrypted], { type: file.type });
+    const imgBitmap = await createImageBitmap(imgBlob);
+
+    // Draw on canvas with watermark
+    const canvas = document.createElement("canvas");
+    canvas.width = imgBitmap.width;
+    canvas.height = imgBitmap.height;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(imgBitmap, 0, 0);
+
+    // Add watermark (userID)
+    const fontSize = Math.floor(imgBitmap.width / 20); // dynamic font size
+    ctx.font = `${fontSize}px Arial`;
+    ctx.fillStyle = "rgba(255, 0, 0, 1)"; // semi-transparent
+    ctx.textAlign = "center";
+    ctx.fillText(username, imgBitmap.width / 2, imgBitmap.height / 2);
+
+    // Convert canvas to blob URL
+    contentUrl = canvas.toDataURL(file.type);
+
+  } else if (file.type.startsWith("video") || file.type.startsWith("audio")) {
+    contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
+  } else if (file.type === "pdf") {
+    contentUrl = URL.createObjectURL(new Blob([result.decrypted], { type: "application/pdf" }));
+  } else if (["txt", "json", "csv"].some((ext) => file.type.includes(ext))) {
+    textSnippet = new TextDecoder().decode(result.decrypted).slice(0, 1000);
+  }
+
+  setPreviewContent({ url: contentUrl, text: textSnippet });
+  setPreviewFile(file);
+};
+
 
 
   const handleOpenFullView = async (file) => {
+      const username = user?.username;
+
+
     if (file.type === "folder") {
       setPreviewContent({ url: null, text: "This is a folder. Double-click to open." });
       setPreviewFile(file);
@@ -399,7 +453,31 @@ export default function MyFiles() {
     let contentUrl = null;
     let textFull = null;
 
-    if (file.type.startsWith("image") || file.type.startsWith("video") || file.type.startsWith("audio")) {
+    if (file.type.startsWith("image")){
+      // Convert decrypted bytes to an ImageBitmap
+    const imgBlob = new Blob([result.decrypted], { type: file.type });
+    const imgBitmap = await createImageBitmap(imgBlob);
+
+    // Draw on canvas with watermark
+    const canvas = document.createElement("canvas");
+    canvas.width = imgBitmap.width;
+    canvas.height = imgBitmap.height;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(imgBitmap, 0, 0);
+
+    // Add watermark (userID)
+    const fontSize = Math.floor(imgBitmap.width / 20); // dynamic font size
+    ctx.font = `${fontSize}px Arial`;
+    ctx.fillStyle = "rgba(255, 0, 0, 1)"; // semi-transparent
+    ctx.textAlign = "center";
+    ctx.fillText(username, imgBitmap.width / 2, imgBitmap.height / 2);
+
+    // Convert canvas to blob URL
+    contentUrl = canvas.toDataURL(file.type);
+
+    
+    
+    }else if(file.type.startsWith("video") || file.type.startsWith("audio")) {
       contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
     } else if (file.type === "pdf") {
       contentUrl = URL.createObjectURL(new Blob([result.decrypted], { type: "application/pdf" }));
