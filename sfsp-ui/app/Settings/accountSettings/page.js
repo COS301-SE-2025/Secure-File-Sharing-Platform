@@ -170,6 +170,14 @@ export default function AccountSettings() {
     }
   }, []);
 
+  // ------------------------------ Date Format Logic ----------------------------------------
+  useEffect(() => {
+    const savedDateFormat = localStorage.getItem('dateFormat');
+    if (savedDateFormat) {
+      setDateFormat(savedDateFormat);
+    }
+  }, []);
+
   const toggleSidebar = () => {
     const newState = !isCollapsed;
     setIsCollapsed(newState);
