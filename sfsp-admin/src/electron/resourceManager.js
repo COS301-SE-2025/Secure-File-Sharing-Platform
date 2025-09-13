@@ -5,20 +5,36 @@ import os from "os";
 import { BrowserWindow } from "electron";
 
 const POLLING_INTERVAL = 500;
+let intervalId = null;
 
 export function pollResources(mainWindow) {
-  setInterval(async () => {
-    const cpuUsage = await getCpuUsage();
-    const ramUsage = getRamUsage();
-    const storageData = getStorageData();
-    mainWindow.webContents.send("statistics", {
-      cpuUsage,
-      ramUsage,
-      storageUsage: storageData.usage
-    });
+  // Clear any old interval if exists
+  if (intervalId) clearInterval(intervalId);
+
+  intervalId = setInterval(async () => {
+    if (mainWindow.isDestroyed()) {
+      clearInterval(intervalId);
+      intervalId = null;
+      return;
+    }
+
+    try {
+      const cpuUsage = await getCpuUsage();
+      const ramUsage = getRamUsage();
+      const storageData = getStorageData();
+
+      if (!mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("statistics", {
+          cpuUsage,
+          ramUsage,
+          storageUsage: storageData.usage,
+        });
+      }
+    } catch (err) {
+      console.warn("Polling failed:", err.message);
+    }
   }, POLLING_INTERVAL);
 }
-
 
 export function getStaticData() {
   const totalStorage = getStorageData().total;

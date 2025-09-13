@@ -3,8 +3,9 @@
 import { app, BrowserWindow, ipcMain } from "electron";
 import { isDev, validateEventFrame } from "./util.js";
 import { getStaticData, pollResources } from "./resourceManager.js";
-import { getPreloadPath, getUIPath} from "./pathResolver.js";
+import { getPreloadPath, getUIPath } from "./pathResolver.js";
 import { newTray } from "./tray.js";
+import { newMenu } from "./menu.js";
 
 
 app.on("ready", () => {
@@ -28,28 +29,49 @@ app.on("ready", () => {
 
     newTray(mainWindow);
     handleClose(mainWindow);
+    newMenu(mainWindow);
 
 });
 
 function handleClose(mainWindow) {
-    let boolClose = false;
+    let isQuitting = false;
 
+    // Only block close when not quitting
     mainWindow.on("close", (e) => {
-        if(boolClose){
-            return;
-        }
-        e.preventDefault();
-        mainWindow.hide();
-        if(app.dock){
-            app.dock.hide();
+        if (!isQuitting) {
+            e.preventDefault();
+            mainWindow.hide();
+            if (app.dock) {
+                app.dock.hide();
+            }
         }
     });
 
-    app.on("before quit", () => {
-        boolClose = true;
-    });
-
-    mainWindow.on("show", () => {
-        boolClose = false;
+    // Mark as quitting before app.quit()
+    app.on("before-quit", () => {
+        isQuitting = true;
     });
 }
+
+// function handleClose(mainWindow) {
+//     let boolClose = false;
+
+//     mainWindow.on("close", (e) => {
+//         if(boolClose){
+//             return;
+//         }
+//         e.preventDefault();
+//         mainWindow.hide();
+//         if(app.dock){
+//             app.dock.hide();
+//         }
+//     });
+
+//     app.on("before quit", () => {
+//         boolClose = true;
+//     });
+
+//     mainWindow.on("show", () => {
+//         boolClose = false;
+//     });
+// }

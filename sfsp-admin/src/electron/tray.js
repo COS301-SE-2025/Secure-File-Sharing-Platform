@@ -14,15 +14,21 @@ export function newTray(mainWindow) {
                 label: "Show",
                 click: () => {
                     mainWindow.show();
-                    if(app.dock){
+                    if (app.dock) {
                         app.dock.show();
                     }
                 }
             },
             {
                 label: "Quit",
-                click: () => app.quit()
-            }
+                click: () => {
+                    if (tray) {
+                        tray.destroy();
+                        tray = null;
+                    }
+                    app.quit(); //
+                }
+            },
         ]));
 
     tray.setToolTip("SFSP Admin");
