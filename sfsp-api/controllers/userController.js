@@ -533,7 +533,7 @@ class UserController {
         });
       }
 
-      const token = userService.generateToken(userId, user.email);
+      const token = userService.generateToken(userId);
 
       return res.status(200).json({
         success: true,
@@ -568,11 +568,15 @@ class UserController {
         });
       }
 
+      // Get user info from database instead of token (more secure)
+      const userInfo = await userService.getUserById(result.decoded.userId);
+
       return res.status(200).json({
         success: true,
         data: {
           userId: result.decoded.userId,
-          email: result.decoded.email
+          username: userInfo.username,
+          // Email removed for security - not exposed via token
         }
       });
     } catch (error) {
@@ -804,7 +808,7 @@ class UserController {
       // Only generate token for existing verified users
       let token = null;
       if (!isNewUser && user.is_verified) {
-        token = await userService.generateToken(user.id, user.email);
+        token = await userService.generateToken(user.id);
       }
 
       let keyBundle_response = null;

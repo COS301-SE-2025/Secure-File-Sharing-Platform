@@ -14,11 +14,23 @@ const authMiddleware = async (req, res, next) => {
             });
         }
 
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        // Use enhanced secure token verification
+        const decoded = jwt.verify(token, process.env.JWT_SECRET, {
+            issuer: "sfsp-api"
+        });
 
+        // Validate essential claims
+        if (!decoded.userId || !decoded.iat || !decoded.exp) {
+            return res.status(401).json({
+                success: false,
+                message: 'Token missing required claims.'
+            });
+        }
+
+        // Fetch user data from database (never trust token data for user info)
         const {data: user, error} = await supabase
             .from('users')
-            .select('*')
+            .select('id, username, is_verified')
             .eq('id', decoded.userId)
             .single();
 
@@ -29,7 +41,12 @@ const authMiddleware = async (req, res, next) => {
             });
         }
 
-        req.user = user;
+        // Only set essential user info (no email for security)
+        req.user = {
+            id: user.id,
+            username: user.username,
+            is_verified: user.is_verified
+        };
         next();
     } catch (error) {
         res.status(401).json({
