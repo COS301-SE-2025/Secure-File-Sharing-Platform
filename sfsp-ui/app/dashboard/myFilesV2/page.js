@@ -18,6 +18,8 @@ import { PreviewDrawer } from "./previewDrawer";
 import { FullViewModal } from "./fullViewModal";
 import { RevokeAccessDialog } from "./revokeAccessDialog";
 import { ChangeShareMethodDialog } from "./changeShareMethodDialog";
+import { PDFDocument, rgb } from "pdf-lib";
+//import fetchProfile from "../components/Sidebar"
 
 function Toast({ message, type = "info", onClose }) {
   return (
@@ -89,6 +91,8 @@ export default function MyFiles() {
   const [viewerContent, setViewerContent] = useState(null);
 
   const [toast, setToast] = useState(null);
+
+  const [user, setUser] = useState(null); 
 
   const showToast = (message, type = "info", duration = 3000) => {
     setToast({ message, type });
@@ -358,54 +362,158 @@ export default function MyFiles() {
     }
   };
 
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) return;
 
-  const handlePreview = async (file) => {
-    console.log("Inside handlePreview");
-    if (file.type === "folder") {
-      setPreviewContent({ url: null, text: "This is a folder. Double-click to open." });
-      setPreviewFile(file);
-      return;
-    }
+      try {
+        const res = await fetch('http://localhost:5000/api/users/profile', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
-    const result = await handleLoadFile(file);
-    if (!result) return;
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.message || 'Failed to fetch profile');
 
-    let contentUrl = null;
-    let textSnippet = null;
+        setUser(result.data);
+      } catch (err) {
+        console.error('Failed to fetch profile:', err.message);
+      }
+    };
 
-    if (file.type.startsWith("image") || file.type.startsWith("video") || file.type.startsWith("audio")) {
-      contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
-    } else if (file.type === "pdf") {
-      contentUrl = URL.createObjectURL(new Blob([result.decrypted], { type: "application/pdf" }));
-    } else if (["txt", "json", "csv"].some((ext) => file.type.includes(ext))) {
-      textSnippet = new TextDecoder().decode(result.decrypted).slice(0, 1000);
-    }
-
-    setPreviewContent({ url: contentUrl, text: textSnippet });
-    setPreviewFile(file);
+    fetchProfile();
+  }, []); 
+  
+const handlePreview = async (rawFile) => {
+  const username = user?.username;
+  const file = {
+    ...rawFile,
+    type: getFileType(rawFile.fileType || rawFile.type || ""),
+    name: rawFile.fileName || rawFile.name,
+    size: formatFileSize(rawFile.fileSize || rawFile.size || 0),
   };
+
+  const result = await handleLoadFile(file);
+  if (!result) return;
+
+  let contentUrl = null;
+  let textFull = null;
+
+  if (file.type === "image") {
+    const imgBlob = new Blob([result.decrypted], { type: file.type });
+    const imgBitmap = await createImageBitmap(imgBlob);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = imgBitmap.width;
+    canvas.height = imgBitmap.height;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(imgBitmap, 0, 0);
+
+    const fontSize = Math.floor(imgBitmap.width / 20);
+    ctx.font = `${fontSize}px Arial`;
+    ctx.fillStyle = "rgba(255, 0, 0, 1)";
+    ctx.textAlign = "center";
+    ctx.fillText(username, imgBitmap.width / 2, imgBitmap.height / 2);
+
+    contentUrl = canvas.toDataURL(file.type);
+  } 
+  
+ 
+  else if (file.type === "pdf") {
+    const pdfDoc = await PDFDocument.load(result.decrypted);
+    const pages = pdfDoc.getPages();
+
+    pages.forEach((page) => {
+      const { width, height } = page.getSize();
+      page.drawText(username, {
+        x: width / 2 - 50,
+        y: height / 2,
+        size: 36,
+        color: rgb(1, 0, 0), //keep ths rgb or errors
+        opacity: 0.4,
+        rotate: { type: "degrees", angle: 45 },
+      });
+    });
+
+    const modifiedPdfBytes = await pdfDoc.save();
+    contentUrl = URL.createObjectURL(new Blob([modifiedPdfBytes], { type: "application/pdf" }));
+  } 
+   else if (file.type === "video" || file.type === "audio") {
+    contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
+  } 
+  
+  else if (["txt", "json", "csv"].includes(file.type)) {
+    textFull = new TextDecoder().decode(result.decrypted);
+  }
+
+
+  setPreviewContent({ url: contentUrl, text: textFull });
+  setPreviewFile(file);
+};
 
 
   const handleOpenFullView = async (file) => {
+      const username = user?.username;
+
+
     if (file.type === "folder") {
       setPreviewContent({ url: null, text: "This is a folder. Double-click to open." });
       setPreviewFile(file);
       return;
     }
 
-    const result = await handleLoadFile(file);
-    if (!result) return;
+   const result = await handleLoadFile(file);
+  if (!result) return;
 
-    let contentUrl = null;
-    let textFull = null;
+  let contentUrl = null;
+  let textFull = null;
 
-    if (file.type.startsWith("image") || file.type.startsWith("video") || file.type.startsWith("audio")) {
-      contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
-    } else if (file.type === "pdf") {
-      contentUrl = URL.createObjectURL(new Blob([result.decrypted], { type: "application/pdf" }));
-    } else if (["txt", "json", "csv"].some((ext) => file.type.includes(ext))) {
-      textFull = new TextDecoder().decode(result.decrypted);
-    }
+  if (file.type === "image") {
+    const imgBlob = new Blob([result.decrypted], { type: file.type });
+    const imgBitmap = await createImageBitmap(imgBlob);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = imgBitmap.width;
+    canvas.height = imgBitmap.height;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(imgBitmap, 0, 0);
+
+    const fontSize = Math.floor(imgBitmap.width / 20);
+    ctx.font = `${fontSize}px Arial`;
+    ctx.fillStyle = "rgba(255, 0, 0, 1)";
+    ctx.textAlign = "center";
+    ctx.fillText(username, imgBitmap.width / 2, imgBitmap.height / 2);
+
+    contentUrl = canvas.toDataURL(file.type);
+  } 
+  
+ 
+  else if (file.type === "pdf") {
+    const pdfDoc = await PDFDocument.load(result.decrypted);
+    const pages = pdfDoc.getPages();
+
+    pages.forEach((page) => {
+      const { width, height } = page.getSize();
+      page.drawText(username, {
+        x: width / 2 - 50,
+        y: height / 2,
+        size: 36,
+        color: rgb(1, 0, 0), //keep ths rgb or errors
+        opacity: 0.4,
+        rotate: { type: "degrees", angle: 45 },
+      });
+    });
+
+    const modifiedPdfBytes = await pdfDoc.save();
+    contentUrl = URL.createObjectURL(new Blob([modifiedPdfBytes], { type: "application/pdf" }));
+  } 
+   else if (file.type === "video" || file.type === "audio") {
+    contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
+  } 
+  
+  else if (["txt", "json", "csv"].includes(file.type)) {
+    textFull = new TextDecoder().decode(result.decrypted);
+  }
 
     setViewerContent({ url: contentUrl, text: textFull });
     setViewerFile(file);
