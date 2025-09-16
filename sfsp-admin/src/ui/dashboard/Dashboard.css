@@ -1,0 +1,168 @@
+.dashboard {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    background: #1e2938;
+}
+
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.dashboard-header h1 {
+    font-size: 1.8rem;
+    font-weight: bold;
+}
+
+.dashboard-header p {
+    color: #777;
+}
+
+.btn-admin {
+    background: #20b2db;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.btn-admin:hover {
+    background: #33bae2;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+
+}
+
+.stat-card {
+    background: #30374a;
+    border: 1px solid #e5e7eb;
+    padding: 1rem;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.stat-title {
+    color: #6b7280;
+    font-size: 0.9rem;
+}
+
+.stat-value {
+    color: white;
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+.stat-icon {
+    height: 32px;
+    width: 32px;
+}
+
+.success {
+    color: green;
+}
+
+.danger {
+    color: red;
+}
+
+.warning {
+    color: orange;
+}
+
+.main-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.card {
+    background: #30374a;
+    border: 1px solid #e5e7eb;
+    padding: 1rem;
+    border-radius: 8px;
+}
+
+.card h2 {
+    font-size: 1.2rem;
+    margin-bottom: 0.3rem;
+}
+
+.muted {
+    color: #6b7280;
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+.activity-list {
+    background: #1e2938;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+}
+
+.activity-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid #f3f4f6;
+    padding: 0.6rem;
+    border-radius: 6px;
+}
+
+.activity-action {
+    font-weight: 500;
+}
+
+.activity-user {
+    font-size: 0.85rem;
+    color: #6b7280;
+}
+
+.dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 0.5rem;
+}
+
+.badge {
+    font-size: 0.8rem;
+    color: #555;
+    border: 1px solid #e5e7eb;
+    padding: 0.2rem 0.6rem;
+    border-radius: 12px;
+}
+
+.quick-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.btn-outline {
+    background: #1e2938;
+    border: 1px solid #e5e7eb;
+    padding: 0.6rem;
+    border-radius: 6px;
+    text-align: left;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-outline:hover {
+    background: #f9fafb;
+}

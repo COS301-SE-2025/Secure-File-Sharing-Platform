@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { Shield, Lock, Key, ArrowLeft } from "lucide-react";
 import "./App.css";
+import { useNavigate } from "react-router-dom";
 
 function App() {
+  const navigate = useNavigate();
   const [step, setStep] = useState("credentials");
   const [credentials, setCredentials] = useState({
     username: "",
@@ -46,7 +48,7 @@ function App() {
     setIsLoading(true);
     setTimeout(() => {
       setIsLoading(false);
-      
+      navigate("/dashboard"); 
     }, 1000);
   };
 
@@ -61,31 +63,6 @@ function App() {
       input.focus();
       const length = input.value.length;
       input.setSelectionRange(length, length);
-    }
-  };
-
-  const handleOTPChange = (e, index) => {
-    const val = e.target.value.replace(/[^0-9]/g, "");
-    if (!val) return;
-
-    const otpArr = [...credentials.otp];
-
-    if (val.length > 1) {
-      const paste = val.split("");
-      for (let i = 0; i < paste.length && index + i < 6; i++) {
-        otpArr[index + i] = paste[i];
-      }
-      setCredentials({ ...credentials, otp: otpArr });
-      focusInput(Math.min(index + paste.length, 5));
-      return;
-    }
-
-    otpArr[index] = val;
-    setCredentials({ ...credentials, otp: otpArr });
-
-    const target = e.target;
-    if (target.selectionStart === target.value.length && index < 5) {
-      focusInput(index + 1);
     }
   };
 
@@ -143,7 +120,7 @@ function App() {
         </div>
 
         {/* Card */}
-        <div className="card">
+        <div className="card-boxed">
           <div className="card-header">
             <h2 className="card-title">
               {step === "otp" && (
@@ -155,7 +132,7 @@ function App() {
                   <ArrowLeft size={16} />
                 </button>
               )}
-              {step === "credentials" ? "Secure Authentication" : "PIN"}
+              {step === "credentials" ? "" : "PIN"}
             </h2>
             <p className="card-description">
               {step === "credentials"
@@ -224,11 +201,32 @@ function App() {
                       <input
                         key={i}
                         type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
                         maxLength={1}
                         ref={(el) => (inputRefs.current[i] = el)}
                         value={credentials.otp[i]}
-                        onChange={(e) => handleOTPChange(e, i)}
-                        onKeyDown={(e) => handleOTPKeyDown(e, i)}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/[^0-9]/g, "");
+                          const otpArr = [...credentials.otp];
+                          otpArr[i] = val;
+                          setCredentials({ ...credentials, otp: otpArr });
+
+                          if (val && i < 5) focusInput(i + 1);
+                        }}
+                        onKeyDown={(e) => {
+                          if (
+                            !/[0-9]/.test(e.key) &&
+                            e.key !== "Backspace" &&
+                            e.key !== "ArrowLeft" &&
+                            e.key !== "ArrowRight" &&
+                            e.key !== "Tab"
+                          ) {
+                            e.preventDefault();
+                          }
+
+                          handleOTPKeyDown(e, i);
+                        }}
                         onPaste={(e) => handleOTPPaste(e, i)}
                       />
                     ))}
