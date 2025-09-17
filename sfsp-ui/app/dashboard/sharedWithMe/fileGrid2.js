@@ -133,10 +133,11 @@ export function FileGrid({
     const timestamp = new Date().toISOString();
     const tags = ["deleted", `deleted_time:${timestamp}`];
 
+    console.log("X-csrf is: ", csrf)
     try {
       const res = await fetch("/api/files/addTags", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
+        headers: { "Content-Type": "application/json", "x-csrf": csrf||"" },
         body: JSON.stringify({ fileId: file.id, tags }),
       });
 

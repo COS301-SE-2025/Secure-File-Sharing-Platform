@@ -142,7 +142,7 @@ export default function TrashPage() {
     if (!confirm) return;
 
     try {
-      const res = await fetch("/api/files/deleteFiles", {
+      const res = await fetch("/api/files/deleteFile", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
         body: JSON.stringify({ fileId: fileId, userId: userId }),

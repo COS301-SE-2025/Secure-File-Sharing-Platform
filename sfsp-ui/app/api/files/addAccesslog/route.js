@@ -8,9 +8,9 @@ import {
 
 export async function POST(request) {
   const securityCheck = enforceSecurity(request, {
-    useTokenRateLimit: true, 
+    useTokenRateLimit: true,
   });
-  
+
   if (securityCheck) {
     return securityCheck;
   }
@@ -21,17 +21,14 @@ export async function POST(request) {
   }
 
   try {
-    const body = await withTimeout(
-      request.json(),
-      5000
-    );
+    const body = await withTimeout(request.json(), 5000);
 
     const token = request.cookies.get("auth_token")?.value;
 
     if (!token) {
       return respond(401, {
         success: false,
-        message: "Authentication required"
+        message: "Authentication required",
       });
     }
 
@@ -48,12 +45,9 @@ export async function POST(request) {
 
     if (!verifyResponse.ok) {
       let errorMessage = "Invalid or expired token";
-      
+
       try {
-        const verifyError = await withTimeout(
-          verifyResponse.text(),
-          3000 
-        );
+        const verifyError = await withTimeout(verifyResponse.text(), 3000);
         console.warn("Token verification failed:", verifyError);
 
         if (verifyResponse.status === 401) {
@@ -67,7 +61,7 @@ export async function POST(request) {
 
       return respond(401, {
         valid: false,
-        message: errorMessage
+        message: errorMessage,
       });
     }
 
@@ -80,13 +74,13 @@ export async function POST(request) {
         },
         body: JSON.stringify(body),
       }),
-      15000 
+      15000
     );
 
     if (!filesRes.ok) {
       let errorData = {
         success: false,
-        message: "Backend service error"
+        message: "Backend service error",
       };
 
       try {
@@ -109,42 +103,41 @@ export async function POST(request) {
       filesRes.json(),
       5000 // 5 second timeout for success response parsing
     );
-    
-    return respond(200, result);
 
+    return respond(200, result);
   } catch (error) {
     console.error("addAccessLog proxy error:", error);
-    
+
     // 7. Enhanced error handling with specific error types
-    if (error.message.includes('timeout')) {
+    if (error.message.includes("timeout")) {
       return respond(408, {
         success: false,
         message: "Request timed out - backend service is slow",
-        error: "REQUEST_TIMEOUT"
+        error: "REQUEST_TIMEOUT",
       });
     }
-    
-    if (error.message.includes('ECONNREFUSED')) {
+
+    if (error.message.includes("ECONNREFUSED")) {
       return respond(503, {
         success: false,
         message: "Backend service is unavailable",
-        error: "SERVICE_UNAVAILABLE"
+        error: "SERVICE_UNAVAILABLE",
       });
     }
-    
-    if (error.name === 'SyntaxError') {
+
+    if (error.name === "SyntaxError") {
       return respond(400, {
         success: false,
         message: "Invalid request format",
-        error: "INVALID_JSON"
+        error: "INVALID_JSON",
       });
     }
-    
+
     // Generic server error
     return respond(500, {
       success: false,
       message: "Internal server error",
-      error: "INTERNAL_ERROR"
+      error: "INTERNAL_ERROR",
     });
   }
 }

@@ -190,7 +190,7 @@ export function FileGrid({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-crsf":csrf||"",
+          "x-csrf": csrf || "",
         },
         body: JSON.stringify({ fileId: file.id, tags }),
       });
@@ -215,7 +215,7 @@ export function FileGrid({
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "x-csrf":csrf||"",
+            "x-csrf": csrf || "",
           },
           body: JSON.stringify({
             file_id: file.id,

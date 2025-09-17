@@ -102,7 +102,7 @@ export function FileList({
 
           await fetch("/api/files/addAccesslogs", {
             method: "POST",
-            headers: { "Content-Type": "application/json", "x-crsf":csrf||"" },
+            headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
             body: JSON.stringify({
               file_id: file.id,
               user_id: profileResult.data.id,
