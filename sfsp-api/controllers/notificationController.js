@@ -3,6 +3,13 @@ const axios = require("axios");
 require("dotenv").config();
 
 exports.getNotifications = async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({
+      success: false,
+      message: "Authorization token missing or invalid.",
+    });
+  }
   const { userId } = req.body;
 
   if (!userId) {
@@ -34,6 +41,13 @@ exports.getNotifications = async (req, res) => {
 };
 
 exports.markAsRead = async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({
+      success: false,
+      message: "Authorization token missing or invalid.",
+    });
+  }
   const { id } = req.body;
 
   if (!id) {
@@ -63,6 +77,13 @@ exports.markAsRead = async (req, res) => {
 };
 
 exports.respondToShareRequest = async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({
+      success: false,
+      message: "Authorization token missing or invalid.",
+    });
+  }
   const { id, status } = req.body;
 
   if (!id || !status) {
@@ -99,6 +120,13 @@ exports.respondToShareRequest = async (req, res) => {
 };
 
 exports.clearNotification = async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({
+      success: false,
+      message: "Authorization token missing or invalid.",
+    });
+  }
   const { id } = req.body;
 
   if (!id) {

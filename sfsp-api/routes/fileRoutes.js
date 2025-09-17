@@ -28,7 +28,7 @@ router.post('/restoreFile', fileController.restoreFile);
 router.post('/deleteFile',authMiddleware, fileController.deleteFile);
 router.post('/addDescription',authMiddleware, fileController.addDescription);
 router.post('/createFolder',authMiddleware, fileController.createFolder);
-router.patch('/updateFilePath', fileController.updateFilePath);
+router.patch('/updateFilePath',authMiddleware,fileController.updateFilePath);
 
 // send by view endpoints
 router.post('/revokeViewAccess',authMiddleware, fileController.revokeViewAccess);

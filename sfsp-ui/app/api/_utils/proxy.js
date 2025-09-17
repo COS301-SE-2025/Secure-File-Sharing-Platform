@@ -47,7 +47,6 @@ export function isAllowedPath(path) {
   return ALLOWED_PATHS.has(path.replace(/\/$/, ""));
 }
 
-// ---- Rate Limiting ----
 export function rateLimit(key) {
   const now = Date.now();
   const rec = rlStore.get(key);
@@ -73,7 +72,6 @@ export function respond(status, body, extraHeaders = {}) {
   });
 }
 
-// ---- IP Extraction ----
 export function getClientIP(req) {
   const h = req.headers;
   return (
@@ -83,7 +81,6 @@ export function getClientIP(req) {
   );
 }
 
-// ---- Timeout Wrapper ----
 export function withTimeout(promise, ms, signal) {
   return Promise.race([
     promise,
@@ -97,7 +94,6 @@ export function withTimeout(promise, ms, signal) {
   ]);
 }
 
-// ---- Unified Security Enforcement ----
 export function enforceSecurity(request, options = {}) {
   const path = new URL(request.url).pathname;
   const token = request.cookies.get("auth_token")?.value;
