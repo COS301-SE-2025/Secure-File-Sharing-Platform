@@ -97,7 +97,7 @@ export async function POST(request) {
 
     return respond(200, result);
   } catch (error) {
-    console.error("addAccessLog proxy error:", error);
+    console.error("addDescription proxy error:", error);
 
     if (error.message.includes("timeout")) {
       return respond(408, {
