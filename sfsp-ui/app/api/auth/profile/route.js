@@ -40,10 +40,8 @@ export async function GET(request) {
 				{ status: backendRes.status }
 			);
 		}
-		console.log("The response from backendRes in profiles route is okay");
 
 		const result = await backendRes.json();
-		console.log('✅ Profile retrieved:', result);
 		return NextResponse.json(result);
 				
 	}catch(error){

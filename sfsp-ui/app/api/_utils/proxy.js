@@ -161,6 +161,7 @@ export function getClientIP(req) {
 
 export function withTimeout(promise, ms = CONFIG.TIMEOUT_MS, signal) {
   if (signal?.aborted) {
+    console.log("Request aborted");
     return Promise.reject(new Error("Request already aborted"));
   }
 
@@ -184,12 +185,15 @@ export function enforceSecurity(request, options = {}) {
     const path = url.pathname;
 
     if (!isAllowedPath(path)) {
+      console.log("Path is not allowed");
       console.warn(`Blocked access to disallowed path: ${path}`);
       return respond(403, {
         error: "Forbidden",
         message: "Path not allowed",
       });
     }
+
+    console.log("The path: ", path, " is allowed");
 
     if (options.skipRateLimit) {
       return null;
@@ -225,11 +229,7 @@ export function enforceSecurity(request, options = {}) {
       );
     }
 
-    return respond(200, { success: true }, {
-      "X-RateLimit-Remaining": rateResult.remaining.toString(),
-      "X-RateLimit-Reset": rateResult.resetAt?.toString() || "",
-    });
-
+    return null;
   } catch (error) {
     console.error("Security enforcement error:", error);
     return respond(500, {

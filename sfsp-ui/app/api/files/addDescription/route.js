@@ -1,62 +1,131 @@
-import { NextResponse } from 'next/server';
-import { enforceCsrf } from '../../_utils/csrf';
+import { NextResponse } from "next/server";
+import { enforceCsrf } from "../../_utils/csrf";
+import {
+  enforceSecurity,
+  respond,
+  withTimeout,
+  CONFIG,
+} from "../../_utils/proxy";
 
 export async function POST(request) {
-	const deny = enforceCsrf(request);
-	if(deny){
-		return deny;
-	}
-	try {
-		const body = await request.json();
-		const token = request.cookies.get('auth_token')?.value;
-		
-		if (!token) {
-			return NextResponse.json(
-				{ success: false, message: 'Authentication required' },
-				{ status: 401 }
-			);
-		}
+  const securityCheck = enforceSecurity(request, {
+    useTokenRateLimit: true,
+  });
 
-		const verifyResponse = await fetch('http://localhost:5000/api/users/verify-token', {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-            },
-        });
+  if (securityCheck) {
+    console.log("returning security check");
+    return securityCheck;
+  }
+  console.log("Security checks out");
+  const deny = enforceCsrf(request);
+  if (deny) {
+    return deny;
+  }
+  try {
+    const body = await withTimeout(request.json(), 5000);
+    const token = request.cookies.get("auth_token")?.value;
 
-        if (!verifyResponse.ok) {
-            const verifyError = await verifyResponse.text();
-            console.warn('Token verification failed:', verifyError);
-            return NextResponse.json(
-                { valid: false, message: 'Invalid or expired token' },
-                { status: 401 }
-            );
+    if (!token) {
+      return respond(401, {
+        success: false,
+        message: "Authentication required",
+      });
+    }
+
+    const verifyResponse = await withTimeout(
+      fetch("http://localhost:5000/api/users/verify-token", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }),
+      1000
+    );
+
+    if (!verifyResponse.ok) {
+      let errorMessage = "Invalid or expired token";
+
+      try {
+        const verifyError = await withTimeout(verifyResponse.text(), 3000);
+        console.warn("Token verification failed:", verifyError);
+
+        if (verifyResponse.status === 401) {
+          errorMessage = "Token has expired";
+        } else if (verifyResponse.status === 403) {
+          errorMessage = "Token is invalid";
         }
+      } catch (parseError) {
+        console.warn("Failed to parse verification error:", parseError);
+      }
 
-		const filesRes = await fetch('http://localhost:5000/api/files/addDescription', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				'Authorization': `Bearer ${token}`
-			},
-			body: JSON.stringify(body),
-		});
+      return respond(401, {
+        valid: false,
+        message: errorMessage,
+      });
+    }
 
-		if (!filesRes.ok) {
-			const errorData = await filesRes.json();
-			console.log('❌ Backend error:', errorData);
-			return NextResponse.json(errorData, { status: filesRes.status });
-		}
+    const filesRes = await withTimeout(
+      fetch("http://localhost:5000/api/files/addDescription", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      }),
+      15000
+    );
 
-		const result = await filesRes.json();
-		return NextResponse.json(result);
+    if (!filesRes.ok) {
+      let errorData = {
+        success: false,
+        message: "Backend service error",
+      };
 
-	} catch (error) {
-		console.error('AddDescription proxy error metadata API error:', error);
-		return NextResponse.json(
-			{ success: false, message: 'Service unavailable' },
-			{ status: 500 }
-		);
-	}
+      try {
+        errorData = await withTimeout(filesRes.json(), 5000);
+        console.error("Backend error:", errorData);
+      } catch (parseError) {
+        console.warn("Failed to parse backend error response:", parseError);
+      }
+
+      return respond(filesRes.status, errorData);
+    }
+
+    const result = await withTimeout(filesRes.json(), 5000);
+
+    return respond(200, result);
+  } catch (error) {
+    console.error("addAccessLog proxy error:", error);
+
+    if (error.message.includes("timeout")) {
+      return respond(408, {
+        success: false,
+        message: "Request timed out - backend service is slow",
+        error: "REQUEST_TIMEOUT",
+      });
+    }
+
+    if (error.message.includes("ECONNREFUSED")) {
+      return respond(503, {
+        success: false,
+        message: "Backend service is unavailable",
+        error: "SERVICE_UNAVAILABLE",
+      });
+    }
+
+    if (error.name === "SyntaxError") {
+      return respond(400, {
+        success: false,
+        message: "Invalid request format",
+        error: "INVALID_JSON",
+      });
+    }
+    return respond(500, {
+      success: false,
+      message: "Internal server error",
+      error: "INTERNAL_ERROR",
+    });
+  }
 }

@@ -53,10 +53,7 @@ export function enforceCsrf(Request) {
   //double submit check
   const header = Request.headers.get("x-csrf") || "";
   const cookie = Request.cookies?.get?.("csrf_token")?.value || "";
-
-  console.log("x-csrf request header is: ", Request.headers.get("x-csrf"));
-  console.log("cookie is: ", cookie);
-
+  
   if (!header || !cookie) {
 	console.log("Missing CSRF token");
     return NextResponse.json(
