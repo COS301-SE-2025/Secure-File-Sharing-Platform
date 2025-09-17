@@ -231,21 +231,18 @@ class UserController {
         const keyBundle = await VaultController.retrieveKeyBundle(
           result.user.id
         );
-        console.log("🔍 DEBUG - Retrieved vault keys for user:", result.user.id);
-        console.log("🔍 DEBUG - Retrieved OPKs:", keyBundle.opks_private?.map(opk => opk.opk_id));
         result.keyBundle = keyBundle;
 
-        // Track user session and detect new devices
         try {
           const userAgent = req.headers['user-agent'] || '';
           const ipAddress = req.ip || req.connection.remoteAddress || req.socket.remoteAddress || 'Unknown';
           const deviceFingerprint = userService.generateDeviceFingerprint(userAgent, ipAddress);
 
-          // Parse browser and device info
           const browserInfo = userService.parseUserAgent(userAgent);
+          console.log('Detected browser and OS info:', browserInfo);
 
-          // Get location from IP (simplified - in production, use a geolocation service)
-          const location = 'Unknown'; // TODO: Implement IP geolocation
+          const location = userService.getLocationFromIP(ipAddress);
+          console.log('Detected location:', location);
 
           const deviceInfo = {
             deviceFingerprint,
@@ -254,11 +251,11 @@ class UserController {
             location,
             ...browserInfo
           };
+          
+          console.log('Final device info:', deviceInfo);
 
-          // Create or update user session
           const sessionResult = await userService.createOrUpdateUserSession(result.user.id, deviceInfo);
 
-          // Send notification for new device/browser sign-in
           if (sessionResult.isNewDevice) {
             const notificationService = require('../services/notificationService');
             await notificationService.sendNewBrowserSignInAlert(
@@ -270,7 +267,6 @@ class UserController {
           }
         } catch (sessionError) {
           console.error('Error tracking user session:', sessionError);
-          // Don't fail login if session tracking fails
         }
       }
 
@@ -902,8 +898,24 @@ class UserController {
 
       const token = authHeader.split(" ")[1];
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const userId = decoded.id;
-
+      console.log("Decoded token:", decoded); // Debug log
+      
+      // Check if userId exists in the token
+      if (!decoded.userId) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid token: User ID not found in token",
+        });
+      }
+      
+      const userId = decoded.userId;
+      console.log("User ID from token:", userId); // Debug log
+      
+      // We don't need to validate if the user exists in the database for session management
+      // Sessions can exist for users that may have been removed from the users table
+      // or if there's a database synchronization issue
+      
+      console.log("Fetching sessions for user ID:", userId);
       const sessions = await userService.getUserSessions(userId);
 
       res.status(200).json({
@@ -932,7 +944,19 @@ class UserController {
 
       const token = authHeader.split(" ")[1];
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const userId = decoded.id;
+      console.log("Decoded token (deactivate):", decoded); // Debug log
+      
+      // Check if userId exists in the token
+      if (!decoded.userId) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid token: User ID not found in token",
+        });
+      }
+      
+      const userId = decoded.userId;
+      console.log("User ID from token (deactivate):", userId); // Debug log
+      
       const { sessionId } = req.params;
 
       if (!sessionId) {

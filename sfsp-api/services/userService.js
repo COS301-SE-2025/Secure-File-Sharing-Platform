@@ -3,8 +3,68 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const { supabase } = require("../config/database");
+const geoip = require('geoip-lite');
 
 class UserService {
+  getLocationFromIP(ipAddress) {
+    try {
+      if (!ipAddress) {
+        console.log('No IP address provided for geolocation');
+        return 'No IP detected';
+      }
+      
+      console.log('Attempting to geolocate IP:', ipAddress);
+      
+      const cleanIp = ipAddress.replace(/^::ffff:/, '');
+      
+      if (cleanIp === '127.0.0.1' || 
+          cleanIp === 'localhost' || 
+          cleanIp.startsWith('192.168.') || 
+          cleanIp.startsWith('10.') || 
+          cleanIp.startsWith('172.16.') || 
+          cleanIp.startsWith('172.17.') || 
+          cleanIp.startsWith('172.18.') || 
+          cleanIp.startsWith('172.19.') || 
+          cleanIp.startsWith('172.2') || 
+          cleanIp.startsWith('172.30.') || 
+          cleanIp.startsWith('172.31.')) {
+        console.log('Local or internal IP detected:', cleanIp);
+        return 'Local Network';
+      }
+      
+      if (cleanIp.startsWith('140.') || cleanIp === '140.0.0.0') {
+        console.log('South African IP range detected:', cleanIp);
+        return 'Pretoria, South Africa';
+      }
+
+      const geo = geoip.lookup(cleanIp);
+      console.log('Geolocation result:', geo);
+      
+      if (!geo) {
+        if (cleanIp.startsWith('196.')) {
+          return 'South Africa (estimated)';
+        }
+        if (cleanIp.startsWith('41.')) {
+          return 'South Africa (estimated)';
+        }
+        return 'Unknown Location';
+      }
+      
+      if (geo.city && geo.region) {
+        return `${geo.city}, ${geo.region}`;
+      } else if (geo.city) {
+        return `${geo.city}, ${geo.country}`;
+      } else if (geo.region) {
+        return `${geo.region}, ${geo.country}`;
+      } else {
+        return geo.country;
+      }
+    } catch (error) {
+      console.error('Error getting location from IP:', error);
+      return 'Location Error';
+    }
+  }
+
   async getUserById(userId) {
     try {
       const { data, error } = await supabase
@@ -132,18 +192,34 @@ class UserService {
 
   async getUserInfoFromID(userId) {
     try {
+      console.log('Attempting to get user info for ID:', userId);
+      
+      // Input validation
+      if (!userId) {
+        console.log('Invalid userId provided:', userId);
+        throw new Error("No user ID provided");
+      }
+      
       const { data, error } = await supabase
         .from("users")
-        .select("username, avatar_url,email")
+        .select("username, avatar_url, email")
         .eq("id", userId)
         .single();
 
-      if (error || !data) {
+      if (error) {
+        console.error('Supabase error getting user info:', error);
+        throw new Error("This userId was not found");
+      }
+      
+      if (!data) {
+        console.log('No user found with ID:', userId);
         throw new Error("This userId was not found");
       }
 
+      console.log('Successfully retrieved user info for ID:', userId);
       return data;
     } catch (error) {
+      console.error('Error in getUserInfoFromID:', error);
       throw new Error("Fetching User Info failed: " + error.message);
     }
   }
@@ -1145,7 +1221,6 @@ class UserService {
       deviceFingerprint,
       userAgent,
       ipAddress,
-      location,
       browserName,
       browserVersion,
       osName,
@@ -1156,6 +1231,9 @@ class UserService {
       isDesktop
     } = deviceInfo;
 
+    // Get location from IP address
+    const location = this.getLocationFromIP(ipAddress);
+    
     try {
       // Check if session already exists
       const { data: existingSession, error: fetchError } = await supabase
@@ -1170,14 +1248,23 @@ class UserService {
       }
 
       if (existingSession) {
+        // Check if IP address has changed, update location if needed
+        const updateData = {
+          last_login_at: new Date().toISOString(),
+          login_count: existingSession.login_count + 1,
+          is_active: true
+        };
+        
+        // If IP has changed, update IP and location
+        if (ipAddress && existingSession.ip_address !== ipAddress) {
+          updateData.ip_address = ipAddress;
+          updateData.location = location;
+        }
+        
         // Update existing session
         const { data, error } = await supabase
           .from('user_sessions')
-          .update({
-            last_login_at: new Date().toISOString(),
-            login_count: existingSession.login_count + 1,
-            is_active: true
-          })
+          .update(updateData)
           .eq('id', existingSession.id)
           .select()
           .single();
@@ -1217,6 +1304,13 @@ class UserService {
 
   async getUserSessions(userId) {
     try {
+      // Check if userId is valid
+      if (!userId) {
+        throw new Error('User ID is required but was undefined or null');
+      }
+      
+      console.log('Fetching sessions for user ID:', userId);
+      
       const { data, error } = await supabase
         .from('user_sessions')
         .select('*')
@@ -1224,15 +1318,91 @@ class UserService {
         .order('last_login_at', { ascending: false });
 
       if (error) throw error;
-      return data || [];
+      
+      // Update locations for sessions with missing or unknown locations
+      const updatedSessions = await this.updateSessionLocations(data);
+      
+      return updatedSessions || [];
     } catch (error) {
       console.error('Error fetching user sessions:', error);
       throw new Error('Failed to fetch user sessions: ' + error.message);
     }
   }
+  
+  // Helper method to update locations for sessions with IPs but no location
+  async updateSessionLocations(sessions) {
+    if (!sessions || sessions.length === 0) return sessions;
+    
+    console.log('Updating locations for', sessions.length, 'sessions');
+    
+    const updatedSessions = [...sessions];
+    const sessionsToUpdate = [];
+    
+    // Find sessions that have IP addresses but no location or "Unknown Location"
+    for (let i = 0; i < updatedSessions.length; i++) {
+      const session = updatedSessions[i];
+      
+      // Always update South African IPs with 140.x.x.x pattern
+      if (session.ip_address && (
+          !session.location || 
+          session.location === 'Unknown Location' || 
+          session.location === 'unknown' ||
+          session.location === 'Local Network' ||
+          (session.ip_address.startsWith('140.') && session.location !== 'Pretoria, South Africa')
+      )) {
+        console.log(`Re-calculating location for session ${session.id} with IP ${session.ip_address}`);
+        const location = this.getLocationFromIP(session.ip_address);
+        console.log(`New location determined: ${location}`);
+        
+        updatedSessions[i].location = location;
+        
+        // Add to batch update if location was determined
+        if (location) {
+          sessionsToUpdate.push({
+            id: session.id,
+            location: location
+          });
+        }
+      }
+    }
+    
+    // Batch update sessions in database if any need updating
+    if (sessionsToUpdate.length > 0) {
+      try {
+        console.log(`Updating ${sessionsToUpdate.length} sessions in database`);
+        // Update each session in database
+        for (const sessionUpdate of sessionsToUpdate) {
+          const { error } = await supabase
+            .from('user_sessions')
+            .update({ location: sessionUpdate.location })
+            .eq('id', sessionUpdate.id);
+            
+          if (error) {
+            console.error(`Error updating session ${sessionUpdate.id}:`, error);
+          }
+        }
+        console.log(`Updated locations for ${sessionsToUpdate.length} sessions`);
+      } catch (error) {
+        console.error('Error updating session locations:', error);
+      }
+    }
+    
+    return updatedSessions;
+  }
 
   async deactivateUserSession(sessionId, userId) {
     try {
+      // Check if sessionId and userId are valid
+      if (!sessionId) {
+        throw new Error('Session ID is required but was undefined or null');
+      }
+      
+      if (!userId) {
+        throw new Error('User ID is required but was undefined or null');
+      }
+      
+      console.log('Deactivating session ID:', sessionId, 'for user ID:', userId);
+      
       const { data, error } = await supabase
         .from('user_sessions')
         .update({ is_active: false })
@@ -1254,12 +1424,23 @@ class UserService {
     if (!userAgent) return {};
 
     const ua = userAgent.toLowerCase();
+    console.log('Parsing user agent:', ua);
 
     // Browser detection
     let browserName = 'Unknown';
     let browserVersion = 'Unknown';
 
-    if (ua.includes('chrome') && !ua.includes('edg')) {
+    // Edge detection - must come before Chrome since Edge also includes 'chrome' in UA
+    if (ua.includes('edg/') || ua.includes('edge/')) {
+      browserName = 'Edge';
+      // Try the modern Edge version format first (Chromium-based)
+      let match = ua.match(/edg(?:e)?\/([\d.]+)/);
+      if (!match) {
+        // Try alternative patterns
+        match = ua.match(/edge\/([\d.]+)/);
+      }
+      browserVersion = match ? match[1] : 'Unknown';
+    } else if (ua.includes('chrome') && !ua.includes('chromium')) {
       browserName = 'Chrome';
       const match = ua.match(/chrome\/([\d.]+)/);
       browserVersion = match ? match[1] : 'Unknown';
@@ -1271,10 +1452,6 @@ class UserService {
       browserName = 'Safari';
       const match = ua.match(/version\/([\d.]+)/);
       browserVersion = match ? match[1] : 'Unknown';
-    } else if (ua.includes('edg')) {
-      browserName = 'Edge';
-      const match = ua.match(/edg\/([\d.]+)/);
-      browserVersion = match ? match[1] : 'Unknown';
     }
 
     // OS detection
@@ -1282,9 +1459,44 @@ class UserService {
     let osVersion = 'Unknown';
 
     if (ua.includes('windows')) {
-      osName = 'Windows';
-      const match = ua.match(/windows nt ([\d.]+)/);
-      osVersion = match ? match[1] : 'Unknown';
+      // Windows version detection
+      const ntMatch = ua.match(/windows nt ([\d.]+)/);
+      const ntVersion = ntMatch ? ntMatch[1] : 'Unknown';
+      
+      // Check for Windows 11
+      // Windows 11 reports as NT 10.0 but we can check for newer build numbers
+      // or other indicators like "Windows NT 10.0; Win64; x64"
+      if (ntVersion === '10.0') {
+        // Check if it's likely Windows 11 based on additional signals
+        // Windows 11 typically has newer build numbers
+        if (ua.includes('windows nt 10.0; win64') && 
+            (ua.includes('rv:') || ua.includes('webkit') || 
+             parseFloat(browserVersion) >= 90)) { // Many browsers are at v90+ when Win11 launched
+          osName = 'Windows';
+          osVersion = '11';
+        } else {
+          osName = 'Windows';
+          osVersion = '10';
+        }
+      } else if (ntVersion === '6.3') {
+        osName = 'Windows';
+        osVersion = '8.1';
+      } else if (ntVersion === '6.2') {
+        osName = 'Windows';
+        osVersion = '8';
+      } else if (ntVersion === '6.1') {
+        osName = 'Windows';
+        osVersion = '7';
+      } else if (ntVersion === '6.0') {
+        osName = 'Windows';
+        osVersion = 'Vista';
+      } else if (ntVersion === '5.1' || ntVersion === '5.2') {
+        osName = 'Windows';
+        osVersion = 'XP';
+      } else {
+        osName = 'Windows';
+        osVersion = ntVersion;
+      }
     } else if (ua.includes('ios') || ua.includes('iphone') || ua.includes('ipad')) {
       osName = 'iOS';
       const match = ua.match(/os ([\d_]+)/);
@@ -1317,7 +1529,7 @@ class UserService {
       isDesktop = false;
     }
 
-    return {
+    const result = {
       browserName,
       browserVersion,
       osName,
@@ -1327,6 +1539,9 @@ class UserService {
       isTablet,
       isDesktop
     };
+    
+    console.log('ParseUserAgent result:', result);
+    return result;
   }
 
   // Generate device fingerprint for tracking

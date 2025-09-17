@@ -647,7 +647,7 @@ const fetchRecentAccessLogs = async () => {
                     {formatTimestamp(file.date || file.createdAt)}
                   </p>
                 </div>
-               <button
+              <button
                 onClick={() => handleOpenPreview(file)}
                 className="text-blue-500 hover:underline"
               >

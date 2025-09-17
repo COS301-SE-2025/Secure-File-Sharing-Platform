@@ -1,11 +1,12 @@
 // AccountSettings.jsx
 'use client';
 import { useEffect, useState } from 'react';
-import { PanelLeftClose, PanelLeftOpen, ArrowLeft, User, Shield, Bell, Palette, Camera, Trash2, Sun, Moon, ChevronUp, ChevronDown } from 'lucide-react';
+import { PanelLeftClose, PanelLeftOpen, ArrowLeft, User, Shield, Bell, Palette, Camera, Trash2, Sun, Moon, ChevronUp, ChevronDown, Monitor, Smartphone, Laptop, X, RefreshCw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { UserAvatar } from '@/app/lib/avatarUtils';
 import axios from 'axios';
+import { format, formatDistance } from 'date-fns';
 
 const API_BASE_URL = 'http://localhost:5000/api/users';
 
@@ -14,7 +15,7 @@ export default function AccountSettings() {
   const { setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [dateFormat, setDateFormat] = useState('MM/DD/YYYY');
-  const tabs = ['MY ACCOUNT', 'CHANGE PASSWORD', 'NOTIFICATIONS'];
+  const tabs = ['MY ACCOUNT', 'CHANGE PASSWORD', 'NOTIFICATIONS', 'DEVICES'];
   const [activeTab, setActiveTab] = useState(tabs[0]);
   const [user, setUser] = useState(null);
   const [formData, setFormData] = useState({ username: '', email: '' });
@@ -60,6 +61,14 @@ export default function AccountSettings() {
   const [deleteMessage, setDeleteMessage] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showSessionRevokeModal, setShowSessionRevokeModal] = useState(false);
+  const [sessionToRevoke, setSessionToRevoke] = useState(null);
+  
+  // Session management state
+  const [sessions, setSessions] = useState([]);
+  const [isLoadingSessions, setIsLoadingSessions] = useState(false);
+  const [sessionError, setSessionError] = useState('');
+  const [isRevokingSession, setIsRevokingSession] = useState(false);
 
   useEffect(() => {
     async function fetchProfile() {
@@ -225,6 +234,7 @@ export default function AccountSettings() {
     { name: 'MY ACCOUNT', icon: User },
     { name: 'CHANGE PASSWORD', icon: Shield },
     { name: 'NOTIFICATIONS', icon: Bell },
+    { name: 'DEVICES', icon: Laptop },
   ];
 
   // ------------------------------------Sidebar Toggle Logic------------------------------------
@@ -645,6 +655,149 @@ export default function AccountSettings() {
       setIsUpdatingNotifications(false);
     }
   };
+
+  // ------------------------------ Session Management Logic ----------------------------------------
+  const fetchSessions = async () => {
+    setIsLoadingSessions(true);
+    setSessionError('');
+
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        router.push('/auth/login');
+        return;
+      }
+      
+      console.log('Fetching sessions...');
+      
+      // We'll directly use the token for authentication without trying to get user info first
+      // The backend will extract the user ID from the token
+      const response = await axios.get(`${API_BASE_URL}/sessions`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.data.success) {
+        console.log('Sessions received:', response.data.data);
+        setSessions(response.data.data);
+      } else {
+        console.error('Failed to load session data:', response.data);
+        setSessionError('Failed to load session data');
+      }
+    } catch (error) {
+      console.error('Error fetching sessions:', error);
+      setSessionError(
+        error.response?.data?.message || 'Failed to load session data'
+      );
+    } finally {
+      setIsLoadingSessions(false);
+    }
+  };
+
+  const confirmSessionRevoke = (sessionId, isCurrentDevice) => {
+    setSessionToRevoke({
+      id: sessionId,
+      isCurrentDevice
+    });
+    setShowSessionRevokeModal(true);
+  };
+
+  const handleConfirmSessionRevoke = () => {
+    if (sessionToRevoke) {
+      handleRevokeSession(sessionToRevoke.id, sessionToRevoke.isCurrentDevice);
+      setShowSessionRevokeModal(false);
+    }
+  };
+
+  const handleCancelSessionRevoke = () => {
+    setShowSessionRevokeModal(false);
+    setSessionToRevoke(null);
+  };
+
+  const handleRevokeSession = async (sessionId, isCurrentDevice) => {
+    setIsRevokingSession(true);
+    
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        router.push('/auth/login');
+        return;
+      }
+      
+      console.log('Revoking session:', sessionId, 'Is current device:', isCurrentDevice);
+      
+      // Directly use the token - the backend will extract the user ID
+      const response = await axios.delete(`${API_BASE_URL}/sessions/${sessionId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.data.success) {
+        if (isCurrentDevice) {
+          console.log('Current device session revoked, logging out...');
+          // This is the current device session, log the user out
+          localStorage.removeItem('token');
+          sessionStorage.clear(); // Clear any session data
+          
+          // Show a brief message before redirecting
+          setSessionError('Your current session has been revoked. Redirecting to login...');
+          
+          // Give the user a moment to see the message before redirecting
+          setTimeout(() => {
+            console.log('Redirecting to login page...');
+            window.location.href = '/auth/login'; // Force a full page reload
+          }, 1500);
+        } else {
+          // Just update the sessions list by filtering out the revoked session
+          setSessions(sessions.filter(session => session.id !== sessionId));
+        }
+      } else {
+        setSessionError('Failed to revoke session');
+      }
+    } catch (error) {
+      console.error('Error revoking session:', error);
+      setSessionError(
+        error.response?.data?.message || 'Failed to revoke session'
+      );
+    } finally {
+      setIsRevokingSession(false);
+      // Close the modal
+      setShowSessionRevokeModal(false);
+      setSessionToRevoke(null);
+    }
+  };
+
+  // Check token validity
+  const checkToken = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        return false;
+      }
+
+      // Just to verify we can make an authenticated request
+      const response = await axios.get(`${API_BASE_URL}/profile`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      return response.data.success;
+    } catch (error) {
+      console.error('Token validation error:', error);
+      return false;
+    }
+  };
+
+  // Load sessions when tab changes to DEVICES
+  useEffect(() => {
+    if (activeTab === 'DEVICES' && mounted && typeof window !== 'undefined') {
+      // First verify token
+      checkToken().then(isValid => {
+        if (isValid) {
+          fetchSessions();
+        } else {
+          setSessionError('Your session has expired. Please log in again.');
+        }
+      });
+    }
+  }, [activeTab, mounted]);
 
   return (
     <div className="flex min-h-screen">
@@ -1336,6 +1489,133 @@ export default function AccountSettings() {
               </div>
             </div>
           )}
+
+          {/* Devices & Sessions Tab */}
+          {activeTab === 'DEVICES' && (
+            <div className="max-w-2xl relative">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Devices & Sessions</h3>
+                <button
+                  onClick={fetchSessions}
+                  disabled={isLoadingSessions}
+                  className="flex items-center space-x-1 text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+                >
+                  <RefreshCw size={16} className={isLoadingSessions ? 'animate-spin' : ''} />
+                  <span>Refresh</span>
+                </button>
+              </div>
+
+              {sessionError && (
+                <div className="mb-6 p-3 rounded-md bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300">
+                  {sessionError}
+                </div>
+              )}
+
+              {isLoadingSessions ? (
+                <div className="text-center py-10">
+                  <div className="animate-spin h-10 w-10 mx-auto mb-4 text-blue-600">
+                    <RefreshCw size={40} />
+                  </div>
+                  <p className="text-gray-600 dark:text-gray-300">Loading your devices...</p>
+                </div>
+              ) : sessions.length === 0 ? (
+                <div className="text-center py-10 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <p className="text-gray-600 dark:text-gray-300">No active sessions found</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                    These are the devices that are currently logged into your account. You can revoke access for any device that you don't recognize.
+                  </p>
+                  
+                  {sessions.map((session) => {
+                    // Determine device icon
+                    let DeviceIcon = Laptop;
+                    if (session.is_mobile) DeviceIcon = Smartphone;
+                    else if (session.is_tablet) DeviceIcon = Monitor;
+                    
+                    // Format the last login date
+                    const lastLogin = session.last_login_at ? new Date(session.last_login_at) : new Date();
+                    const formattedDate = format(lastLogin, 'MMM d, yyyy h:mm a');
+                    const timeAgo = formatDistance(lastLogin, new Date(), { addSuffix: true });
+                    
+                    // Is this the current device?
+                    // We need a better way to identify the current device
+                    const isCurrentDevice = session.is_active && 
+                      mounted && 
+                      typeof window !== 'undefined' &&
+                      typeof navigator !== 'undefined' && 
+                      navigator.userAgent && 
+                      (
+                        // Check if the current session is the most recent one for the current browser
+                        (
+                          (session.browser_name?.includes('Firefox') && navigator.userAgent.includes('Firefox')) ||
+                          (session.browser_name?.includes('Chrome') && navigator.userAgent.includes('Chrome') && !navigator.userAgent.includes('Edg')) ||
+                          (session.browser_name?.includes('Safari') && navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chrome')) ||
+                          (session.browser_name?.includes('Edge') && navigator.userAgent.includes('Edg'))
+                        ) &&
+                        // Additional check for the last login time - must be the most recent session for this browser
+                        session.last_login_at && 
+                        new Date(session.last_login_at).getTime() > Date.now() - (1000 * 60 * 60) // Within the last hour
+                      );
+                    
+                    return (
+                      <div
+                        key={session.id}
+                        className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-start space-x-3">
+                            <div className="bg-blue-100 dark:bg-blue-900 p-2 rounded-full">
+                              <DeviceIcon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <div>
+                              <h4 className="font-medium text-gray-900 dark:text-white flex items-center">
+                                {session.browser_name || 'Unknown browser'} on {session.os_name || 'Unknown OS'}
+                                {isCurrentDevice && (
+                                  <span className="ml-2 px-2 py-0.5 text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 rounded-full">
+                                    Current
+                                  </span>
+                                )}
+                              </h4>
+                              <p className="text-sm text-gray-600 dark:text-gray-400">
+                                {session.device_type || 'Unknown device'} • {session.browser_version || 'Unknown version'} • {session.os_version || 'Unknown version'}
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                                Last active {timeAgo} ({formattedDate})
+                              </p>
+                              <div className="flex items-center mt-1">
+                                <p className="text-xs text-gray-500 dark:text-gray-500">
+                                  <span className="font-medium">IP:</span> {session.ip_address || 'Unknown'} • <span className="font-medium">Location:</span> {session.location || 'Unknown'}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => confirmSessionRevoke(session.id, isCurrentDevice)}
+                            disabled={isRevokingSession}
+                            className="text-red-600 hover:text-red-500 focus:outline-none transition-colors"
+                            title={isCurrentDevice ? "Sign out from this device" : "Revoke access"}
+                          >
+                            <X size={20} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+                <div className="bg-yellow-50 dark:bg-yellow-900/30 p-4 rounded-md text-sm">
+                  <h4 className="font-medium text-yellow-800 dark:text-yellow-300 mb-1">Security Tip</h4>
+                  <p className="text-yellow-700 dark:text-yellow-200">
+                    If you notice any devices or locations you don't recognize, revoke access immediately and change your password.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -1363,6 +1643,45 @@ export default function AccountSettings() {
                 className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
               >
                 Yes, Delete Account
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Session Revoke Confirmation Modal */}
+      {showSessionRevokeModal && sessionToRevoke && activeTab === 'DEVICES' && (
+        <div className="absolute inset-0 flex items-center justify-center z-20 backdrop-blur-sm bg-white/30 dark:bg-gray-900/30">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full shadow-xl border border-gray-200 dark:border-gray-700">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              {sessionToRevoke.isCurrentDevice 
+                ? "Sign out from current device?" 
+                : "Revoke device access?"}
+            </h3>
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
+              {sessionToRevoke.isCurrentDevice 
+                ? "You are about to sign out from your current device. You will be logged out immediately and redirected to the login page." 
+                : "This will revoke access for this device. The user will need to log in again to access their account."}
+            </p>
+            {sessionToRevoke.isCurrentDevice && (
+              <div className="p-3 bg-yellow-50 dark:bg-yellow-900/30 rounded-md mb-6">
+                <p className="text-sm text-yellow-800 dark:text-yellow-200 font-medium">
+                  Warning: You will be logged out immediately after confirming.
+                </p>
+              </div>
+            )}
+            <div className="flex space-x-3 justify-end">
+              <button
+                onClick={handleCancelSessionRevoke}
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmSessionRevoke}
+                className="px-4 py-2 rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none"
+              >
+                {sessionToRevoke.isCurrentDevice ? "Sign Out" : "Revoke Access"}
               </button>
             </div>
           </div>
