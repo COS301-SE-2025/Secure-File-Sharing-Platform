@@ -1,3 +1,12 @@
+import { NextResponse } from "next/server";
+import { enforceCsrf } from "../../_utils/csrf";
+import {
+  enforceSecurity,
+  respond,
+  withTimeout,
+  CONFIG,
+} from "../../_utils/proxy";
+
 export async function POST(request) {
   const securityCheck = enforceSecurity(request, {
     useTokenRateLimit: true,
@@ -13,13 +22,11 @@ export async function POST(request) {
   }
 
   try {
-    // Safe JSON parsing with validation
     let body = {};
     
     const contentType = request.headers.get('content-type');
     const contentLength = request.headers.get('content-length');
-    
-    // Check if there's actually content to parse
+
     if (contentType?.includes('application/json') && contentLength !== '0') {
       try {
         const textBody = await withTimeout(request.text(), 5000);
@@ -46,7 +53,6 @@ export async function POST(request) {
       });
     }
 
-    // Token verification
     const verifyResponse = await withTimeout(
       fetch("http://localhost:5000/api/users/verify-token", {
         method: "GET",
@@ -66,7 +72,6 @@ export async function POST(request) {
       });
     }
 
-    // Make the API call
     const filesRes = await withTimeout(
       fetch("http://localhost:5000/api/files/getAccessLog", {
         method: "POST",
@@ -74,7 +79,7 @@ export async function POST(request) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(body), // This is now safe
+        body: JSON.stringify(body), 
       }),
       15000
     );
@@ -97,7 +102,6 @@ export async function POST(request) {
       return respond(filesRes.status, errorData);
     }
 
-    // Parse success response safely
     const resultText = await withTimeout(filesRes.text(), 5000);
     let result = { success: true };
     
