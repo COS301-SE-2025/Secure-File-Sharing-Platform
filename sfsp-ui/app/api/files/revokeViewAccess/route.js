@@ -63,7 +63,7 @@ export async function POST(request) {
       });
     }
 
-    const backendRes = await withTimeout(fetch(
+    const filesRes = await withTimeout(fetch(
       "http://localhost:5000/api/files/revokeViewAccess",
       {
         method: "POST",
