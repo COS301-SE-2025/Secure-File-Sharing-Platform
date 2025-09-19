@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Shield, Lock, Key, ArrowLeft } from "lucide-react";
 import "./App.css";
 import { useNavigate } from "react-router-dom";
+import LightRays from "./components/designs/appBack.jsx";
 
 function App() {
   const navigate = useNavigate();
@@ -48,7 +49,7 @@ function App() {
     setIsLoading(true);
     setTimeout(() => {
       setIsLoading(false);
-      navigate("/dashboard"); 
+      navigate("/dashboard");
     }, 1000);
   };
 
@@ -109,6 +110,22 @@ function App() {
 
   return (
     <div className="login-container">
+      <div className="background-wrapper">
+        {/* The lightRays Code from: 
+https://reactbits.dev/backgrounds/light-rays , 18 September 2025*/}
+        <LightRays
+          raysOrigin="top-center"
+          raysColor="#00ffff"
+          raysSpeed={1.5}
+          lightSpread={0.8}
+          rayLength={1.2}
+          followMouse={true}
+          mouseInfluence={0.1}
+          noiseAmount={0.1}
+          distortion={0.05}
+          className="custom-rays"
+        />
+      </div>
       <div className="login-box">
         {/* Logo and Header */}
         <div className="login-header">
