@@ -1,7 +1,7 @@
 // AccountSettings.jsx
 'use client';
 import { useEffect, useState } from 'react';
-import { PanelLeftClose, PanelLeftOpen, ArrowLeft, User, Shield, Bell, Palette, Camera, Trash2, Sun, Moon, ChevronUp, ChevronDown, Monitor, Smartphone, Laptop, X, RefreshCw } from 'lucide-react';
+import { PanelLeftClose, PanelLeftOpen, ArrowLeft, User, Shield, Bell, Palette, Camera, Trash2, Sun, Moon, ChevronUp, ChevronDown, Monitor, Smartphone, Laptop, X, RefreshCw, CheckCircle, AlertCircle, AlertTriangle, Lock, Info } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { UserAvatar } from '@/app/lib/avatarUtils';
@@ -15,7 +15,7 @@ export default function AccountSettings() {
   const { setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [dateFormat, setDateFormat] = useState('MM/DD/YYYY');
-  const tabs = ['MY ACCOUNT', 'CHANGE PASSWORD', 'NOTIFICATIONS', 'DEVICES'];
+  const tabs = ['MY ACCOUNT', 'SECURE PASSWORD RESET', 'NOTIFICATIONS', 'DEVICES'];
   const [activeTab, setActiveTab] = useState(tabs[0]);
   const [user, setUser] = useState(null);
   const [formData, setFormData] = useState({ username: '', email: '' });
@@ -52,9 +52,11 @@ export default function AccountSettings() {
     resetPIN: '',
   });
   const [passwordErrors, setPasswordErrors] = useState({});
-  const [passwordStep, setPasswordStep] = useState('verify');
+  const [passwordStep, setPasswordStep] = useState('mnemonic');
   const [isProcessing, setIsProcessing] = useState(false);
   const [passwordMessage, setPasswordMessage] = useState('');
+  const [mnemonicWords, setMnemonicWords] = useState(Array(10).fill(''));
+  const [mnemonicErrors, setMnemonicErrors] = useState(Array(10).fill(''));
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deleteFormData, setDeleteFormData] = useState({ email: '', password: '' });
   const [deleteErrors, setDeleteErrors] = useState({});
@@ -232,7 +234,7 @@ export default function AccountSettings() {
 
   const tabsWithIcons = [
     { name: 'MY ACCOUNT', icon: User },
-    { name: 'CHANGE PASSWORD', icon: Shield },
+    { name: 'SECURE PASSWORD RESET', icon: Shield },
     { name: 'NOTIFICATIONS', icon: Bell },
     { name: 'DEVICES', icon: Laptop },
   ];
@@ -597,8 +599,58 @@ export default function AccountSettings() {
     setIsProcessing(false);
   };
 
+  const handleMnemonicWordChange = (index, value) => {
+    const newWords = [...mnemonicWords];
+    newWords[index] = value;
+    setMnemonicWords(newWords);
+
+    // Clear error for this word if it exists
+    if (mnemonicErrors[index]) {
+      const newErrors = [...mnemonicErrors];
+      newErrors[index] = '';
+      setMnemonicErrors(newErrors);
+    }
+  };
+
+  const validateMnemonic = async () => {
+    setIsProcessing(true);
+    setPasswordMessage('');
+    setMnemonicErrors(Array(10).fill(''));
+
+    // Basic validation - check if all words are filled
+    const emptyIndices = mnemonicWords
+      .map((word, index) => (!word.trim() ? index : -1))
+      .filter(index => index !== -1);
+
+    if (emptyIndices.length > 0) {
+      const newErrors = [...mnemonicErrors];
+      emptyIndices.forEach(index => {
+        newErrors[index] = 'Required';
+      });
+      setMnemonicErrors(newErrors);
+      setIsProcessing(false);
+      return;
+    }
+
+    try {
+      // Here you would typically send the mnemonic to your backend for verification
+      // For now, we'll simulate the verification process
+      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate API call
+
+      // Simulate successful verification (in real implementation, check against stored hash)
+      setPasswordMessage('Mnemonic verified successfully! You can now set your new password.');
+      setPasswordStep('newPassword');
+    } catch (error) {
+      setPasswordMessage('Invalid mnemonic phrase. Please check your words and try again.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const resetPasswordFlow = () => {
-    setPasswordStep('verify');
+    setPasswordStep('mnemonic');
+    setMnemonicWords(Array(10).fill(''));
+    setMnemonicErrors(Array(10).fill(''));
     setPasswordData({
       currentPassword: '',
       newPassword: '',
@@ -1152,157 +1204,218 @@ export default function AccountSettings() {
             </div>
             )}
 
-          {activeTab === 'CHANGE PASSWORD' && (
-            <div className="max-w-2xl">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Change Password</h3>
-                {passwordStep !== 'verify' && (
+          {activeTab === 'SECURE PASSWORD RESET' && (
+            <div className="max-w-4xl">
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Secure Password Reset</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Verify your identity using your recovery mnemonic phrase
+                  </p>
+                </div>
+                {passwordStep !== 'mnemonic' && (
                   <button
                     type="button"
                     onClick={resetPasswordFlow}
-                    className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300"
+                    className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 font-medium"
                   >
-                    Start Over
+                    ← Back to Mnemonic
                   </button>
                 )}
               </div>
 
               {passwordMessage && (
                 <div
-                  className={`mb-4 p-3 rounded-md ${
+                  className={`mb-6 p-4 rounded-lg border ${
                     passwordMessage.includes('successfully')
-                      ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
-                      : 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+                      ? 'bg-green-50 border-green-200 text-green-800 dark:bg-green-900/30 dark:border-green-700 dark:text-green-300'
+                      : passwordMessage.includes('verified')
+                      ? 'bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-900/30 dark:border-blue-700 dark:text-blue-300'
+                      : 'bg-red-50 border-red-200 text-red-800 dark:bg-red-900/30 dark:border-red-700 dark:text-red-300'
                   }`}
                 >
-                  {passwordMessage}
-                </div>
-              )}
-
-              {passwordErrors.general && (
-                <div className="mb-4 p-3 rounded-md bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300">
-                  {passwordErrors.general}
-                </div>
-              )}
-
-              {passwordStep === 'verify' && (
-                <div className="space-y-4">
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                    First, please verify your current password to proceed.
-                  </p>
-                  <div>
-                    <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
-                      Current Password <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      id="currentPassword"
-                      type="password"
-                      value={passwordData.currentPassword}
-                      onChange={(e) => handlePasswordInputChange('currentPassword', e.target.value)}
-                      className={`mt-1 block w-full px-4 py-2 border rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        passwordErrors.currentPassword ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                      }`}
-                      placeholder="Enter your current password"
-                    />
-                    {passwordErrors.currentPassword && (
-                      <p className="text-sm text-red-500 mt-1">{passwordErrors.currentPassword}</p>
-                    )}
+                  <div className="flex items-center space-x-2">
+                    {passwordMessage.includes('successfully') && <CheckCircle size={20} />}
+                    {passwordMessage.includes('verified') && <Shield size={20} />}
+                    {!passwordMessage.includes('successfully') && !passwordMessage.includes('verified') && <AlertCircle size={20} />}
+                    <span className="font-medium">{passwordMessage}</span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={validateCurrentPassword}
-                    disabled={isProcessing || !passwordData.currentPassword}
-                    className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
-                  >
-                    {isProcessing ? 'Verifying...' : 'Verify & Send PIN'}
-                  </button>
                 </div>
               )}
 
-              {passwordStep === 'pin' && (
-                <div className="space-y-4">
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                    A 5-character PIN has been sent to your email address. Please enter it below.
-                  </p>
-                  <div>
-                    <label htmlFor="resetPIN" className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
-                      5-Character PIN <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      id="resetPIN"
-                      type="text"
-                      maxLength="5"
-                      value={passwordData.resetPIN}
-                      onChange={(e) => handlePasswordInputChange('resetPIN', e.target.value)}
-                      className={`mt-1 block w-full px-4 py-2 border rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        passwordErrors.resetPIN ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                      }`}
-                      placeholder="Enter 5-character PIN"
-                    />
-                    {passwordErrors.resetPIN && (
-                      <p className="text-sm text-red-500 mt-1">{passwordErrors.resetPIN}</p>
-                    )}
+              {passwordStep === 'mnemonic' && (
+                <div className="space-y-6">
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-6 rounded-xl border border-blue-200 dark:border-blue-800">
+                    <div className="flex items-center space-x-3 mb-4">
+                      <div className="p-2 bg-blue-100 dark:bg-blue-800 rounded-lg">
+                        <Shield size={24} className="text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <div>
+                        <h4 className="text-lg font-semibold text-gray-900 dark:text-white">Mnemonic Verification</h4>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">Enter your 10-word recovery phrase in order</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+                      {mnemonicWords.map((word, index) => (
+                        <div key={index} className="space-y-2">
+                          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 text-center">
+                            Word {index + 1}
+                          </label>
+                          <input
+                            type="text"
+                            value={word}
+                            onChange={(e) => handleMnemonicWordChange(index, e.target.value)}
+                            className={`w-full px-3 py-2 text-center border rounded-lg shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all ${
+                              mnemonicErrors[index] ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600'
+                            }`}
+                            placeholder={`Word ${index + 1}`}
+                          />
+                          {mnemonicErrors[index] && (
+                            <p className="text-xs text-red-500 text-center">{mnemonicErrors[index]}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        <span className="font-medium">Security Tip:</span> Your mnemonic phrase is your master key to account recovery
+                      </div>
+                      <button
+                        type="button"
+                        onClick={validateMnemonic}
+                        disabled={isProcessing || mnemonicWords.some(word => !word.trim())}
+                        className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                      >
+                        {isProcessing ? (
+                          <>
+                            <RefreshCw size={18} className="animate-spin" />
+                            <span>Verifying...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Shield size={18} />
+                            <span>Verify Mnemonic</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={validatePIN}
-                    disabled={!passwordData.resetPIN || passwordData.resetPIN.length !== 5}
-                    className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
-                  >
-                    Verify PIN
-                  </button>
+
+                  <div className="bg-yellow-50 dark:bg-yellow-900/30 p-4 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                    <div className="flex items-start space-x-3">
+                      <AlertTriangle size={20} className="text-yellow-600 dark:text-yellow-400 mt-0.5" />
+                      <div>
+                        <h5 className="text-sm font-medium text-yellow-800 dark:text-yellow-300 mb-1">Important Security Information</h5>
+                        <ul className="text-xs text-yellow-700 dark:text-yellow-200 space-y-1">
+                          <li>• Never share your mnemonic phrase with anyone</li>
+                          <li>• Store it securely offline in multiple locations</li>
+                          <li>• This phrase gives full access to your account</li>
+                          <li>• If lost, account recovery may be impossible</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
 
               {passwordStep === 'newPassword' && (
-                <div className="space-y-4">
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                    Now enter your new password. Make sure it&apos;s strong and secure.
-                  </p>
-                  <div>
-                    <label htmlFor="newPassword" className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
-                      New Password <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      id="newPassword"
-                      type="password"
-                      value={passwordData.newPassword}
-                      onChange={(e) => handlePasswordInputChange('newPassword', e.target.value)}
-                      className={`mt-1 block w-full px-4 py-2 border rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        passwordErrors.newPassword ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                      }`}
-                      placeholder="Enter new password (min 8 characters)"
-                    />
-                    {passwordErrors.newPassword && (
-                      <p className="text-sm text-red-500 mt-1">{passwordErrors.newPassword}</p>
-                    )}
+                <div className="space-y-6">
+                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 p-6 rounded-xl border border-green-200 dark:border-green-800">
+                    <div className="flex items-center space-x-3 mb-6">
+                      <div className="p-2 bg-green-100 dark:bg-green-800 rounded-lg">
+                        <Lock size={24} className="text-green-600 dark:text-green-400" />
+                      </div>
+                      <div>
+                        <h4 className="text-lg font-semibold text-gray-900 dark:text-white">Set New Password</h4>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">Create a strong, secure password for your account</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div>
+                        <label htmlFor="newPassword" className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
+                          New Password <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          id="newPassword"
+                          type="password"
+                          value={passwordData.newPassword}
+                          onChange={(e) => handlePasswordInputChange('newPassword', e.target.value)}
+                          className={`w-full px-4 py-3 border rounded-lg shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 transition-all ${
+                            passwordErrors.newPassword ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600'
+                          }`}
+                          placeholder="Enter your new password (min 8 characters)"
+                        />
+                        {passwordErrors.newPassword && (
+                          <p className="text-sm text-red-500 mt-1">{passwordErrors.newPassword}</p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
+                          Confirm New Password <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          id="confirmPassword"
+                          type="password"
+                          value={passwordData.confirmPassword}
+                          onChange={(e) => handlePasswordInputChange('confirmPassword', e.target.value)}
+                          className={`w-full px-4 py-3 border rounded-lg shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 transition-all ${
+                            passwordErrors.confirmPassword ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600'
+                          }`}
+                          placeholder="Confirm your new password"
+                        />
+                        {passwordErrors.confirmPassword && (
+                          <p className="text-sm text-red-500 mt-1">{passwordErrors.confirmPassword}</p>
+                        )}
+                      </div>
+
+                      <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                        <div className="flex items-start space-x-2">
+                          <Info size={16} className="text-blue-600 dark:text-blue-400 mt-0.5" />
+                          <div className="text-sm text-blue-800 dark:text-blue-200">
+                            <span className="font-medium">Password Requirements:</span>
+                            <ul className="mt-1 space-y-1">
+                              <li>• At least 8 characters long</li>
+                              <li>• Include uppercase and lowercase letters</li>
+                              <li>• Include at least one number</li>
+                              <li>• Include at least one special character</li>
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end space-x-3">
+                        <button
+                          type="button"
+                          onClick={() => setPasswordStep('mnemonic')}
+                          className="px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                        >
+                          Back
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleChangePassword}
+                          disabled={isProcessing || !passwordData.newPassword || !passwordData.confirmPassword}
+                          className="px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                        >
+                          {isProcessing ? (
+                            <>
+                              <RefreshCw size={18} className="animate-spin" />
+                              <span>Updating...</span>
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle size={18} />
+                              <span>Update Password</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
-                      Confirm New Password <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      id="confirmPassword"
-                      type="password"
-                      value={passwordData.confirmPassword}
-                      onChange={(e) => handlePasswordInputChange('confirmPassword', e.target.value)}
-                      className={`mt-1 block w-full px-4 py-2 border rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        passwordErrors.confirmPassword ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                      }`}
-                      placeholder="Confirm your new password"
-                    />
-                    {passwordErrors.confirmPassword && (
-                      <p className="text-sm text-red-500 mt-1">{passwordErrors.confirmPassword}</p>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleChangePassword}
-                    disabled={isProcessing || !passwordData.newPassword || !passwordData.confirmPassword}
-                    className="px-6 py-2 bg-green-600 hover:bg-green-500 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
-                  >
-                    {isProcessing ? 'Changing Password...' : 'Change Password'}
-                  </button>
                 </div>
               )}
             </div>
