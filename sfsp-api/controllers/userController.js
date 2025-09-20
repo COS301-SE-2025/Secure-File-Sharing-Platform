@@ -996,13 +996,20 @@ class UserController {
 
   async verifyMnemonic(req, res) {
     try {
-      const { mnemonicWords } = req.body;
-      const userId = req.user?.id;
+      const { mnemonicWords, email } = req.body;
+      let userId = req.user?.id;
+
+      if (!userId && email) {
+        const userLookup = await userService.getUserIdFromEmail(email);
+        if (userLookup && userLookup.userId) {
+          userId = userLookup.userId;
+        }
+      }
 
       if (!userId) {
         return res.status(401).json({
           success: false,
-          error: "Authentication required"
+          error: "Authentication required or valid email must be provided"
         });
       }
 
@@ -1032,20 +1039,27 @@ class UserController {
 
       res.status(500).json({
         success: false,
-        error: "Verification failed"
+        error: "Failed to verify mnemonic"
       });
     }
   }
 
   async changePasswordWithMnemonic(req, res) {
     try {
-      const { mnemonicWords, newPassword } = req.body;
-      const userId = req.user?.id;
+      const { mnemonicWords, newPassword, email } = req.body;
+      let userId = req.user?.id;
+
+      if (!userId && email) {
+        const userLookup = await userService.getUserIdFromEmail(email);
+        if (userLookup && userLookup.userId) {
+          userId = userLookup.userId;
+        }
+      }
 
       if (!userId) {
         return res.status(401).json({
           success: false,
-          error: "Authentication required"
+          error: "Authentication required or valid email must be provided"
         });
       }
 

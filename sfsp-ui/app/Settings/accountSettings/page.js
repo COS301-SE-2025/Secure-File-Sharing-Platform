@@ -1,7 +1,7 @@
 // AccountSettings.jsx
 'use client';
 import { useEffect, useState } from 'react';
-import { PanelLeftClose, PanelLeftOpen, ArrowLeft, User, Shield, Bell, Palette, Camera, Trash2, Sun, Moon, ChevronUp, ChevronDown, Monitor, Smartphone, Laptop, X, RefreshCw, CheckCircle, AlertCircle, AlertTriangle, Lock, Info, Copy } from 'lucide-react';
+import { PanelLeftClose, PanelLeftOpen, ArrowLeft, User, Shield, Bell, Palette, Camera, Trash2, Sun, Moon, ChevronUp, ChevronDown, Monitor, Smartphone, Laptop, X, RefreshCw, CheckCircle, AlertCircle, AlertTriangle, Lock, Info, Copy, Eye, EyeOff } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { UserAvatar } from '@/app/lib/avatarUtils';
@@ -66,6 +66,18 @@ export default function AccountSettings() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showSessionRevokeModal, setShowSessionRevokeModal] = useState(false);
   const [sessionToRevoke, setSessionToRevoke] = useState(null);
+  
+  // Password requirements and visibility state
+  const [passwordRequirements, setPasswordRequirements] = useState({
+    hasMinLength: false,
+    hasUppercase: false,
+    hasLowercase: false,
+    hasNumber: false,
+    hasSpecialChar: false,
+  });
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
   
   // Session management state
   const [sessions, setSessions] = useState([]);
@@ -465,6 +477,18 @@ export default function AccountSettings() {
     setPasswordData((prev) => ({ ...prev, [field]: value }));
     if (passwordErrors[field]) {
       setPasswordErrors((prev) => ({ ...prev, [field]: '' }));
+    }
+    
+    // Update password requirements for newPassword field
+    if (field === 'newPassword') {
+      const requirements = {
+        hasMinLength: value.length >= 8,
+        hasUppercase: /[A-Z]/.test(value),
+        hasLowercase: /[a-z]/.test(value),
+        hasNumber: /\d/.test(value),
+        hasSpecialChar: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(value),
+      };
+      setPasswordRequirements(requirements);
     }
   };
 
@@ -1414,16 +1438,25 @@ export default function AccountSettings() {
                         <label htmlFor="newPassword" className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
                           New Password <span className="text-red-500">*</span>
                         </label>
-                        <input
-                          id="newPassword"
-                          type="password"
-                          value={passwordData.newPassword}
-                          onChange={(e) => handlePasswordInputChange('newPassword', e.target.value)}
-                          className={`w-full px-4 py-3 border rounded-lg shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 transition-all ${
-                            passwordErrors.newPassword ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600'
-                          }`}
-                          placeholder="Enter your new password (min 8 characters)"
-                        />
+                        <div className="relative">
+                          <input
+                            id="newPassword"
+                            type={showNewPassword ? "text" : "password"}
+                            value={passwordData.newPassword}
+                            onChange={(e) => handlePasswordInputChange('newPassword', e.target.value)}
+                            className={`w-full px-4 py-3 pr-12 border rounded-lg shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 transition-all ${
+                              passwordErrors.newPassword ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600'
+                            }`}
+                            placeholder="Enter your new password (min 8 characters)"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowNewPassword(!showNewPassword)}
+                            className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                          >
+                            {showNewPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                          </button>
+                        </div>
                         {passwordErrors.newPassword && (
                           <p className="text-sm text-red-500 mt-1">{passwordErrors.newPassword}</p>
                         )}
@@ -1433,16 +1466,25 @@ export default function AccountSettings() {
                         <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
                           Confirm New Password <span className="text-red-500">*</span>
                         </label>
-                        <input
-                          id="confirmPassword"
-                          type="password"
-                          value={passwordData.confirmPassword}
-                          onChange={(e) => handlePasswordInputChange('confirmPassword', e.target.value)}
-                          className={`w-full px-4 py-3 border rounded-lg shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 transition-all ${
-                            passwordErrors.confirmPassword ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600'
-                          }`}
-                          placeholder="Confirm your new password"
-                        />
+                        <div className="relative">
+                          <input
+                            id="confirmPassword"
+                            type={showConfirmPassword ? "text" : "password"}
+                            value={passwordData.confirmPassword}
+                            onChange={(e) => handlePasswordInputChange('confirmPassword', e.target.value)}
+                            className={`w-full px-4 py-3 pr-12 border rounded-lg shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 transition-all ${
+                              passwordErrors.confirmPassword ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600'
+                            }`}
+                            placeholder="Confirm your new password"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                          >
+                            {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                          </button>
+                        </div>
                         {passwordErrors.confirmPassword && (
                           <p className="text-sm text-red-500 mt-1">{passwordErrors.confirmPassword}</p>
                         )}
@@ -1453,11 +1495,27 @@ export default function AccountSettings() {
                           <Info size={16} className="text-blue-600 dark:text-blue-400 mt-0.5" />
                           <div className="text-sm text-blue-800 dark:text-blue-200">
                             <span className="font-medium">Password Requirements:</span>
-                            <ul className="mt-1 space-y-1">
-                              <li>• At least 8 characters long</li>
-                              <li>• Include uppercase and lowercase letters</li>
-                              <li>• Include at least one number</li>
-                              <li>• Include at least one special character</li>
+                            <ul className="mt-2 space-y-1">
+                              <li className={`flex items-center space-x-2 ${passwordRequirements.hasMinLength ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                                <CheckCircle size={14} className={passwordRequirements.hasMinLength ? 'text-green-600 dark:text-green-400' : 'text-gray-400'} />
+                                <span>At least 8 characters long</span>
+                              </li>
+                              <li className={`flex items-center space-x-2 ${passwordRequirements.hasUppercase ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                                <CheckCircle size={14} className={passwordRequirements.hasUppercase ? 'text-green-600 dark:text-green-400' : 'text-gray-400'} />
+                                <span>Include uppercase letter</span>
+                              </li>
+                              <li className={`flex items-center space-x-2 ${passwordRequirements.hasLowercase ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                                <CheckCircle size={14} className={passwordRequirements.hasLowercase ? 'text-green-600 dark:text-green-400' : 'text-gray-400'} />
+                                <span>Include lowercase letter</span>
+                              </li>
+                              <li className={`flex items-center space-x-2 ${passwordRequirements.hasNumber ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                                <CheckCircle size={14} className={passwordRequirements.hasNumber ? 'text-green-600 dark:text-green-400' : 'text-gray-400'} />
+                                <span>Include at least one number</span>
+                              </li>
+                              <li className={`flex items-center space-x-2 ${passwordRequirements.hasSpecialChar ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                                <CheckCircle size={14} className={passwordRequirements.hasSpecialChar ? 'text-green-600 dark:text-green-400' : 'text-gray-400'} />
+                                <span>Include special character</span>
+                              </li>
                             </ul>
                           </div>
                         </div>

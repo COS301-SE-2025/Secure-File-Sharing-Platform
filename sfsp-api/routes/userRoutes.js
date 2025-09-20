@@ -19,6 +19,9 @@ router.post('/send-reset-pin', authMiddleware, userController.sendResetPIN);
 router.post('/verify-mnemonic', authMiddleware, mnemonicRateLimit, userController.verifyMnemonic);
 router.post('/change-password-with-mnemonic', authMiddleware, userController.changePasswordWithMnemonic);
 router.post('/re-encrypt-vault-keys', authMiddleware, mnemonicRateLimit, userController.reEncryptVaultKeysWithMnemonic);
+
+router.post('/verify-mnemonic-recovery', mnemonicRateLimit, userController.verifyMnemonic);
+router.post('/change-password-with-mnemonic-recovery', userController.changePasswordWithMnemonic);
 router.get('/public-keys/:userId', userController.getPublicKeys);
 router.get('/getUserId/:email', userController.getUserIdFromEmail);
 router.get('/getUserInfo/:userId', userController.getUserInfoFromID);
