@@ -1,9 +1,9 @@
-const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const axios = require("axios");
 const { supabase } = require("../config/database");
 const userService = require("../services/userService");
 const VaultController = require("./vaultController");
+const MnemonicCrypto = require("../utils/mnemonicCrypto");
 
 class UserController {
   async register(req, res) {
@@ -67,7 +67,6 @@ class UserController {
           });
         }
 
-        // Send verification email for new regular users
         try {
           await userService.sendVerificationCode(
             result.user.id,
@@ -77,7 +76,21 @@ class UserController {
           console.log("Verification email sent to new user:", result.user.email);
         } catch (emailError) {
           console.error("Failed to send verification email to new user:", emailError);
-          // Don't fail registration if email sending fails
+        }
+
+        try {
+          if (result.mnemonicWords && result.mnemonicWords.length === 10) {
+            await userService.sendMnemonicEmail(
+              result.user.email,
+              result.user.username || "User",
+              result.mnemonicWords
+            );
+            console.log("Mnemonic email sent to new user:", result.user.email);
+          } else {
+            console.error("No mnemonic words found in registration result");
+          }
+        } catch (emailError) {
+          console.error("Failed to send mnemonic email to new user:", emailError);
         }
       }
       console.log("The is before the 201");
@@ -465,7 +478,7 @@ class UserController {
         });
       }
 
-      const isValid = await bcrypt.compare(currentPassword, user.password);
+      const isValid = await MnemonicCrypto.validatePassword(currentPassword, user.password);
 
       if (!isValid) {
         return res.status(400).json({
@@ -977,6 +990,144 @@ class UserController {
       res.status(500).json({
         success: false,
         message: "Failed to deactivate session",
+      });
+    }
+  }
+
+  async verifyMnemonic(req, res) {
+    try {
+      const { mnemonicWords } = req.body;
+      const userId = req.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          error: "Authentication required"
+        });
+      }
+
+      if (!Array.isArray(mnemonicWords) || mnemonicWords.length !== 10) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid mnemonic: must be exactly 10 words"
+        });
+      }
+
+      const result = await userService.verifyMnemonic(userId, mnemonicWords, req);
+
+      res.json({
+        success: true,
+        message: result.message
+      });
+
+    } catch (error) {
+      console.error('Verify mnemonic error:', error.message);
+
+      if (error.message.includes('Invalid mnemonic')) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid mnemonic words"
+        });
+      }
+
+      res.status(500).json({
+        success: false,
+        error: "Verification failed"
+      });
+    }
+  }
+
+  async changePasswordWithMnemonic(req, res) {
+    try {
+      const { mnemonicWords, newPassword } = req.body;
+      const userId = req.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          error: "Authentication required"
+        });
+      }
+
+      if (!Array.isArray(mnemonicWords) || mnemonicWords.length !== 10) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid mnemonic: must be exactly 10 words"
+        });
+      }
+
+      if (!newPassword || newPassword.length < 8) {
+        return res.status(400).json({
+          success: false,
+          error: "New password must be at least 8 characters long"
+        });
+      }
+
+      const result = await userService.changePasswordWithMnemonic(userId, mnemonicWords, newPassword);
+
+      res.json({
+        success: true,
+        newMnemonicWords: result.newMnemonicWords,
+        message: result.message
+      });
+
+    } catch (error) {
+      console.error('Change password with mnemonic error:', error.message);
+
+      if (error.message.includes('Invalid mnemonic')) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid mnemonic words"
+        });
+      }
+
+      res.status(500).json({
+        success: false,
+        error: "Password change failed"
+      });
+    }
+  }
+
+  async reEncryptVaultKeysWithMnemonic(req, res) {
+    try {
+      const { mnemonicWords, newPassword } = req.body;
+      const userId = req.user.id;
+
+      if (!mnemonicWords || !Array.isArray(mnemonicWords) || mnemonicWords.length !== 10) {
+        return res.status(400).json({
+          success: false,
+          error: "Please provide exactly 10 mnemonic words"
+        });
+      }
+
+      if (!newPassword) {
+        return res.status(400).json({
+          success: false,
+          error: "New password is required"
+        });
+      }
+
+      const userService = require('../services/userService');
+      const result = await userService.reEncryptVaultKeysWithMnemonic(userId, mnemonicWords, newPassword);
+
+      res.json({
+        success: true,
+        message: "Vault keys re-encrypted successfully"
+      });
+
+    } catch (error) {
+      console.error('Re-encrypt vault keys with mnemonic error:', error.message);
+
+      if (error.message.includes('Invalid mnemonic')) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid mnemonic words"
+        });
+      }
+
+      res.status(500).json({
+        success: false,
+        error: "Failed to re-encrypt vault keys"
       });
     }
   }

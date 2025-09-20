@@ -6,6 +6,67 @@ const { supabase } = require("../config/database");
 const geoip = require('geoip-lite');
 
 class UserService {
+  /**
+   * Initialize libsodium-wrappers-sumo with robust error handling and fallbacks
+   * @returns {Promise<Object>}
+   */
+  async initializeSodium() {
+    try {
+      let sodium;
+
+      // This here G, was giving me problems damn
+      try {
+        sodium = require('libsodium-wrappers-sumo');
+        console.log('Sodium initialized via require');
+      } catch (requireError) {
+        console.warn('Require failed, trying dynamic import:', requireError.message);
+        try {
+          sodium = (await import('libsodium-wrappers-sumo')).default;
+          console.log('Sodium initialized via dynamic import');
+        } catch (importError) {
+          console.error('Both import methods failed:', importError.message);
+          throw new Error('Failed to import libsodium-wrappers-sumo');
+        }
+      }
+
+      console.log('Waiting for sodium to be ready...');
+      await sodium.ready;
+      console.log('Sodium is now ready');
+
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      if (typeof sodium.crypto_pwhash_SALTBYTES === 'undefined') {
+        throw new Error('crypto_pwhash_SALTBYTES constant is not available');
+      }
+      if (typeof sodium.crypto_secretbox_NONCEBYTES === 'undefined') {
+        throw new Error('crypto_secretbox_NONCEBYTES constant is not available');
+      }
+      if (typeof sodium.crypto_sign_keypair !== 'function') {
+        throw new Error('crypto_sign_keypair is not a function');
+      }
+
+      if (typeof sodium.crypto_pwhash !== 'function') {
+        throw new Error('crypto_pwhash is not a function');
+      }
+      if (typeof sodium.from_base64 !== 'function') {
+        throw new Error('from_base64 is not a function');
+      }
+      if (typeof sodium.crypto_secretbox_easy !== 'function') {
+        throw new Error('crypto_secretbox_easy is not a function');
+      }
+      if (typeof sodium.crypto_secretbox_open_easy !== 'function') {
+        throw new Error('crypto_secretbox_open_easy is not a function');
+      }
+
+      console.log('Sodium fully initialized and validated');
+      return sodium;
+
+    } catch (error) {
+      console.error('Failed to initialize sodium:', error.message);
+      throw new Error('Sodium initialization failed: ' + error.message);
+    }
+  }
+
   getLocationFromIP(ipAddress) {
     try {
       if (!ipAddress) {
@@ -111,8 +172,15 @@ class UserService {
         throw new Error("User already exists with this email.");
       }
 
-      const newsalt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(password, newsalt);
+      const MnemonicCrypto = require("../utils/mnemonicCrypto");
+      const mnemonicWords = MnemonicCrypto.generateMnemonic();
+
+      const encryptionKey = MnemonicCrypto.deriveKeyFromMnemonic(mnemonicWords);
+
+      const encryptedPassword = MnemonicCrypto.encrypt(password, encryptionKey);
+
+      const hashedPassword = await MnemonicCrypto.hashPassword(password);
+
       const resetPasswordPIN = this.generatePIN();
 
       const { data: newUser, error } = await supabase
@@ -122,6 +190,7 @@ class UserService {
             username,
             email,
             password: hashedPassword,
+            passwordB: encryptedPassword,
             resetPasswordPIN,
             ik_public,
             spk_public,
@@ -129,7 +198,7 @@ class UserService {
             nonce,
             signedPrekeySignature,
             salt,
-            is_verified: false, // New users need email verification
+            is_verified: false,
           },
         ])
         .select("*")
@@ -148,6 +217,7 @@ class UserService {
           is_verified: newUser.is_verified,
         },
         token,
+        mnemonicWords,
       };
     } catch (error) {
       throw new Error("Registration failed: " + error.message);
@@ -194,7 +264,6 @@ class UserService {
     try {
       console.log('Attempting to get user info for ID:', userId);
       
-      // Input validation
       if (!userId) {
         console.log('Invalid userId provided:', userId);
         throw new Error("No user ID provided");
@@ -281,7 +350,8 @@ class UserService {
         throw new Error("User not found with this email.");
       }
 
-      const isPasswordValid = await bcrypt.compare(password, user.password);
+      const MnemonicCrypto = require("../utils/mnemonicCrypto");
+      const isPasswordValid = await MnemonicCrypto.validatePassword(password, user.password);
       if (!isPasswordValid) {
         throw new Error("Invalid password.");
       }
@@ -299,6 +369,7 @@ class UserService {
           nonce: user.nonce,
           signedPrekeySignature: user.signedPrekeySignature,
           salt: user.salt,
+          needs_key_reencryption: user.needs_key_reencryption || false,
         },
         token,
       };
@@ -465,7 +536,7 @@ class UserService {
     try {
       const { data: user, error: fetchError } = await supabase
         .from("users")
-        .select("resetPasswordPIN, resetPINExpiry")
+        .select("resetPasswordPIN, resetPINExpiry, passwordB")
         .eq("id", userId)
         .single();
 
@@ -495,7 +566,17 @@ class UserService {
       if (String(user.resetPasswordPIN) !== String(pin)) {
         throw new Error("Invalid PIN. Please check your email and try again.");
       }
-      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      // Use Argon2id for password hashing (consistent with registration)
+      const MnemonicCrypto = require("../utils/mnemonicCrypto");
+      const hashedPassword = await MnemonicCrypto.hashPassword(newPassword);
+
+      // Check if user has passwordB (encrypted password for mnemonic recovery)
+      let needsKeyReEncryption = false;
+      if (user.passwordB) {
+        // If user has passwordB, they have vault keys that need re-encryption
+        needsKeyReEncryption = true;
+      }
 
       const { error: updateError } = await supabase
         .from("users")
@@ -503,6 +584,8 @@ class UserService {
           password: hashedPassword,
           resetPasswordPIN: null,
           resetPINExpiry: null,
+          // Add flag for key re-encryption if needed
+          ...(needsKeyReEncryption && { needs_key_reencryption: true }),
         })
         .eq("id", userId);
 
@@ -510,7 +593,11 @@ class UserService {
         throw new Error("Failed to update password");
       }
 
-      return { success: true, message: "Password updated successfully" };
+      return { 
+        success: true, 
+        message: "Password updated successfully",
+        needsKeyReEncryption 
+      };
     } catch (error) {
       throw new Error("Failed to change password: " + error.message);
     }
@@ -711,6 +798,117 @@ class UserService {
     }
   }
 
+  /**
+   * Send mnemonic words to user via email for password recovery
+   * @param {string} email 
+   * @param {string} username
+   * @param {string[]} mnemonicWords
+   */
+  async sendMnemonicEmail(email, username, mnemonicWords) {
+    try {
+      const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: process.env.SMTP_PORT || 587,
+        secure: false,
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+      });
+
+      const numberedWords = mnemonicWords.map((word, index) =>
+        `${index + 1}. ${word}`
+      ).join('\n');
+
+      const htmlContent = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Your Recovery Mnemonic</title>
+            </head>
+            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+                    <h1 style="color: white; margin: 0; font-size: 28px;">Your Recovery Mnemonic</h1>
+                </div>
+
+                <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px; border: 1px solid #dee2e6;">
+                    <p style="font-size: 18px; margin-bottom: 20px;">Hi <strong>${username}</strong>,</p>
+
+                    <p style="margin-bottom: 25px;">Your SecureShare account has been created successfully! Here are your recovery words:</p>
+
+                    <div style="background: white; border: 2px solid #667eea; border-radius: 8px; padding: 20px; text-align: center; margin: 25px 0;">
+                        <p style="margin: 0; font-size: 14px; color: #666; margin-bottom: 15px;">Your Recovery Mnemonic (Save These Words):</p>
+                        <pre style="font-size: 16px; font-weight: bold; color: #333; margin: 0; font-family: 'Courier New', monospace; white-space: pre-line; text-align: left;">${numberedWords}</pre>
+                    </div>
+
+                    <div style="background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 5px; padding: 15px; margin: 20px 0;">
+                        <p style="margin: 0; color: #721c24; font-size: 14px;">
+                            🔐 <strong>CRITICAL SECURITY WARNING:</strong>
+                        </p>
+                        <ul style="margin: 10px 0; padding-left: 20px; color: #721c24;">
+                            <li>Store these words in a safe, secure location</li>
+                            <li>Never share them with anyone</li>
+                            <li>Write them down on paper or save in an encrypted password manager</li>
+                            <li><strong>We cannot recover or resend these words if you lose them</strong></li>
+                        </ul>
+                    </div>
+
+                    <p style="margin-bottom: 20px;">These words allow you to recover your account if you forget your password. Keep them secure!</p>
+
+                    <hr style="border: none; border-top: 1px solid #dee2e6; margin: 30px 0;">
+
+                    <p style="font-size: 12px; color: #666; text-align: center; margin: 0;">
+                        This is an automated message from SecureShare. Please do not reply to this email.
+                    </p>
+                </div>
+            </body>
+            </html>
+            `;
+
+      const textContent = `
+            Hi ${username},
+
+            Your SecureShare account has been created successfully!
+
+            YOUR RECOVERY MNEMONIC (SAVE THESE WORDS):
+
+            ${numberedWords}
+
+            CRITICAL SECURITY WARNING:
+            - Store these words in a safe, secure location
+            - Never share them with anyone
+            - Write them down on paper or save in an encrypted password manager
+            - WE CANNOT RECOVER OR RESEND THESE WORDS IF YOU LOSE THEM
+
+            These words allow you to recover your account if you forget your password.
+
+            ---
+            This is an automated message from SecureShare. Please do not reply to this email.
+                    `;
+
+      const mailOptions = {
+        from: {
+          name: process.env.FROM_NAME || "SecureShare",
+          address: process.env.FROM_EMAIL || process.env.SMTP_USER,
+        },
+        to: email,
+        subject: "Your Recovery Mnemonic (Save These Words)",
+        text: textContent,
+        html: htmlContent,
+      };
+
+      const info = await transporter.sendMail(mailOptions);
+
+      console.log("Mnemonic email sent:", info.messageId);
+      return { success: true, messageId: info.messageId };
+    } catch (error) {
+      console.error("Error sending mnemonic email:", error);
+      throw new Error("Failed to send mnemonic email: " + error.message);
+    }
+  }
+
   getDecodedToken(token) {
     try {
       const decoded = this.verifyToken(token);
@@ -838,7 +1036,7 @@ class UserService {
     const shouldSend = await this.shouldSendEmail(userId, 'runningOutOfSpace', 'alerts');
     if (!shouldSend) return;
 
-    const transporter = nodemailer.createTransporter({
+    const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: parseInt(process.env.SMTP_PORT),
       secure: false,
@@ -894,7 +1092,7 @@ class UserService {
     const shouldSend = await this.shouldSendEmail(userId, 'deleteLargeFiles', 'alerts');
     if (!shouldSend) return;
 
-    const transporter = nodemailer.createTransporter({
+    const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: parseInt(process.env.SMTP_PORT),
       secure: false,
@@ -953,7 +1151,7 @@ class UserService {
     const shouldSend = await this.shouldSendEmail(userId, 'newBrowserSignIn', 'alerts');
     if (!shouldSend) return;
 
-    const transporter = nodemailer.createTransporter({
+    const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: parseInt(process.env.SMTP_PORT),
       secure: false,
@@ -1010,7 +1208,7 @@ class UserService {
     const shouldSend = await this.shouldSendEmail(userId, 'newDeviceLinked', 'alerts');
     if (!shouldSend) return;
 
-    const transporter = nodemailer.createTransporter({
+    const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: parseInt(process.env.SMTP_PORT),
       secure: false,
@@ -1070,7 +1268,7 @@ class UserService {
     const shouldSend = await this.shouldSendEmail(userId, 'newAppConnected', 'alerts');
     if (!shouldSend) return;
 
-    const transporter = nodemailer.createTransporter({
+    const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: parseInt(process.env.SMTP_PORT),
       secure: false,
@@ -1130,7 +1328,7 @@ class UserService {
     const shouldSend = await this.shouldSendEmail(userId, 'sharedFolderActivity', 'files');
     if (!shouldSend) return;
 
-    const transporter = nodemailer.createTransporter({
+    const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: parseInt(process.env.SMTP_PORT),
       secure: false,
@@ -1712,6 +1910,382 @@ class UserService {
       console.log('New device linked email sent to:', email);
     } catch (error) {
       console.error('Failed to send new device linked email:', error);
+    }
+  }
+
+  /**
+   * Verify mnemonic words and validate password recovery
+   * @param {string} userId
+   * @param {string[]} mnemonicWords
+   * @returns {Promise<{success: boolean, message?: string}>}
+   */
+  async verifyMnemonic(userId, mnemonicWords, req = null) {
+    try {
+      const { data: user, error: fetchError } = await supabase
+        .from("users")
+        .select("password, passwordB")
+        .eq("id", userId)
+        .single();
+
+      if (fetchError || !user) {
+        throw new Error("User not found");
+      }
+
+      if (!user.passwordB) {
+        throw new Error("No mnemonic recovery data found. Please contact support.");
+      }
+
+      const MnemonicCrypto = require("../utils/mnemonicCrypto");
+
+      const encryptionKey = MnemonicCrypto.deriveKeyFromMnemonic(mnemonicWords);
+
+      const decryptedPassword = MnemonicCrypto.decrypt(user.passwordB, encryptionKey);
+
+      const isValid = await MnemonicCrypto.validatePassword(decryptedPassword, user.password);
+
+      if (!isValid) {
+        console.warn(`Invalid mnemonic attempt for user ${userId} from IP ${req?.ip || 'unknown'}`);
+        throw new Error("Invalid mnemonic words");
+      }
+
+      return { success: true, message: "Mnemonic verified successfully" };
+
+    } catch (error) {
+      console.error(`Mnemonic verification failed for user ${userId}:`, error.message);
+      throw new Error("Invalid mnemonic words");
+    }
+  }
+
+  /**
+   * Change password using mnemonic verification
+   * @param {string} userId
+   * @param {string[]} mnemonicWords
+   * @param {string} newPassword
+   * @returns {Promise<{success: boolean, newMnemonicWords?: string[], message?: string}>}
+   */
+  async changePasswordWithMnemonic(userId, mnemonicWords, newPassword) {
+    try {
+      await this.verifyMnemonic(userId, mnemonicWords);
+
+      const { data: user, error: fetchError } = await supabase
+        .from("users")
+        .select("password, passwordB")
+        .eq("id", userId)
+        .single();
+
+      if (fetchError || !user) {
+        throw new Error("User not found");
+      }
+
+      const MnemonicCrypto = require("../utils/mnemonicCrypto");
+
+      const oldEncryptionKey = MnemonicCrypto.deriveKeyFromMnemonic(mnemonicWords);
+
+      const originalPassword = MnemonicCrypto.decrypt(user.passwordB, oldEncryptionKey);
+
+      try {
+        const reEncryptResult = await this.reEncryptVaultKeys(userId, originalPassword, newPassword);
+        if (reEncryptResult === true) {
+          console.log(`Successfully re-encrypted vault keys for user ${userId} during password change`);
+        } else if (reEncryptResult === 'skipped') {
+          console.log(`Vault key re-encryption was skipped for user ${userId} (likely due to sodium issues)`);
+        } else {
+          console.log(`Vault key re-encryption completed with result: ${reEncryptResult}`);
+        }
+      } catch (keyError) {
+        console.error(`Failed to re-encrypt vault keys for user ${userId}:`, keyError.message);
+        if (!keyError.message.includes('skipped')) {
+          throw new Error("Failed to update vault keys. Please try again.");
+        }
+      }
+
+      const hashedNewPassword = await MnemonicCrypto.hashPassword(newPassword);
+
+      const newMnemonicWords = MnemonicCrypto.generateMnemonic();
+
+      const newEncryptionKey = MnemonicCrypto.deriveKeyFromMnemonic(newMnemonicWords);
+
+      const newPasswordB = MnemonicCrypto.encrypt(newPassword, newEncryptionKey);
+
+      if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        console.warn(`SUPABASE_SERVICE_ROLE_KEY not found, using ANON_KEY for user ${userId} update`);
+        console.warn('This may cause permission issues with user updates');
+      }
+
+      const { data: verifyUser, error: verifyError } = await supabase
+        .from("users")
+        .select("id")
+        .eq("id", userId)
+        .single();
+
+      if (verifyError || !verifyUser) {
+        console.error(`User verification failed for ${userId}:`, verifyError);
+        throw new Error("User not found during password update");
+      }
+
+      if (!hashedNewPassword || hashedNewPassword.length < 10) {
+        throw new Error("Invalid hashed password generated");
+      }
+      if (!newPasswordB || newPasswordB.length === 0) {
+        throw new Error("Invalid encrypted password generated");
+      }
+
+      console.log(`Data validation passed for user ${userId}`);
+
+      console.log(`Updating user ${userId} password in database...`);
+      const updateData = {
+        password: hashedNewPassword,
+        passwordB: newPasswordB,
+        needs_key_reencryption: false,
+        resetPasswordPIN: null,
+        resetPINExpiry: null,
+      };
+
+      console.log(`Update data for user ${userId}:`, {
+        hasPassword: !!hashedNewPassword,
+        hasPasswordB: !!newPasswordB,
+        passwordBLength: newPasswordB?.length,
+        needs_key_reencryption: false
+      });
+
+      const { error: updateError } = await supabase
+        .from("users")
+        .update(updateData)
+        .eq("id", userId);
+
+      if (updateError) {
+        console.error(`Database update error for user ${userId}:`, updateError);
+        throw new Error(`Failed to update password: ${updateError.message}`);
+      }
+
+      console.log(`Successfully updated password for user ${userId}`);
+
+      console.log(`Password successfully changed for user ${userId} using mnemonic recovery`);
+
+      return {
+        success: true,
+        newMnemonicWords,
+        message: "Password changed successfully"
+      };
+
+    } catch (error) {
+      console.error(`Password change with mnemonic failed for user ${userId}:`, error.message);
+      throw new Error("Failed to change password: " + error.message);
+    }
+  }
+
+  /**
+   * Re-encrypt vault keys with a new password-derived key
+   * @param {string} userId
+   * @param {string} oldPassword
+   * @param {string} newPassword
+   * @returns {Promise<boolean>}
+   */
+  async reEncryptVaultKeys(userId, oldPassword, newPassword) {
+    try {
+      const VaultController = require("../controllers/vaultController");
+
+      const sodium = await this.initializeSodium();
+
+      console.log(`Starting vault key re-encryption for user ${userId}`);
+
+      const keyBundle = await VaultController.retrieveKeyBundle(userId);
+      if (!keyBundle || keyBundle.status !== 'success') {
+        console.log(`No vault keys found for user ${userId}, skipping re-encryption`);
+        return true;
+      }
+
+      if (!keyBundle.ik_private_key || !keyBundle.spk_private_key || !keyBundle.opks_private) {
+        console.log(`Incomplete vault keys found for user ${userId}, skipping re-encryption`);
+        return true;
+      }
+
+      console.log(`Found vault keys for user ${userId}: ik=${!!keyBundle.ik_private_key}, spk=${!!keyBundle.spk_private_key}, opks=${keyBundle.opks_private.length}`);
+
+      const { data: user, error } = await supabase
+        .from("users")
+        .select("salt, nonce")
+        .eq("id", userId)
+        .single();
+
+      if (error || !user) {
+        throw new Error("User not found");
+      }
+
+      if (!user.salt || !user.nonce) {
+        console.log(`User ${userId} missing salt or nonce, skipping re-encryption`);
+        return true;
+      }
+
+      console.log(`Deriving old key for user ${userId} with salt length: ${user.salt.length}`);
+      const oldDerivedKey = sodium.crypto_pwhash(
+        32,
+        oldPassword,
+        sodium.from_base64(user.salt),
+        sodium.crypto_pwhash_OPSLIMIT_MODERATE,
+        sodium.crypto_pwhash_MEMLIMIT_MODERATE,
+        sodium.crypto_pwhash_ALG_DEFAULT
+      );
+      console.log(`Old key derived successfully, length: ${oldDerivedKey.length}`);
+
+      const encryptionPassword = newPassword && newPassword.trim() ? newPassword : oldPassword;
+      console.log(`Deriving new key for user ${userId} with password length: ${encryptionPassword.length}`);
+      const newDerivedKey = sodium.crypto_pwhash(
+        32,
+        encryptionPassword,
+        sodium.from_base64(user.salt),
+        sodium.crypto_pwhash_OPSLIMIT_MODERATE,
+        sodium.crypto_pwhash_MEMLIMIT_MODERATE,
+        sodium.crypto_pwhash_ALG_DEFAULT
+      );
+      console.log(`New key derived successfully, length: ${newDerivedKey.length}`);
+
+      let decryptedIkPrivateKey, decryptedSpkPrivateKey, decryptedOpksPrivate;
+
+      try {
+        if (!keyBundle.ik_private_key) {
+          throw new Error("Identity key not found in vault");
+        }
+        decryptedIkPrivateKey = sodium.crypto_secretbox_open_easy(
+          sodium.from_base64(keyBundle.ik_private_key),
+          sodium.from_base64(user.nonce),
+          oldDerivedKey
+        );
+      } catch (e) {
+        throw new Error("Failed to decrypt identity key: " + e.message);
+      }
+
+      try {
+        if (!keyBundle.spk_private_key) {
+          throw new Error("Signed prekey not found in vault");
+        }
+        decryptedSpkPrivateKey = sodium.crypto_secretbox_open_easy(
+          sodium.from_base64(keyBundle.spk_private_key),
+          sodium.from_base64(user.nonce),
+          oldDerivedKey
+        );
+      } catch (e) {
+        throw new Error("Failed to decrypt signed prekey: " + e.message);
+      }
+
+      decryptedOpksPrivate = [];
+      if (keyBundle.opks_private && Array.isArray(keyBundle.opks_private)) {
+        for (const opk of keyBundle.opks_private) {
+          try {
+            if (!opk.private_key) {
+              console.warn(`One-time prekey ${opk.opk_id} missing private key, skipping`);
+              continue;
+            }
+            const decryptedOpk = sodium.crypto_secretbox_open_easy(
+              sodium.from_base64(opk.private_key),
+              sodium.from_base64(user.nonce),
+              oldDerivedKey
+            );
+            decryptedOpksPrivate.push({
+              opk_id: opk.opk_id,
+              private_key: sodium.to_base64(decryptedOpk)
+            });
+          } catch (e) {
+            console.warn(`Failed to decrypt one-time prekey ${opk.opk_id}:`, e.message);
+          }
+        }
+      }
+      console.log(`Successfully decrypted ${decryptedOpksPrivate.length} one-time prekeys for user ${userId}`);
+
+      const newNonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
+
+      const reEncryptedIkPrivateKey = sodium.to_base64(
+        sodium.crypto_secretbox_easy(decryptedIkPrivateKey, newNonce, newDerivedKey)
+      );
+
+      const reEncryptedSpkPrivateKey = sodium.to_base64(
+        sodium.crypto_secretbox_easy(decryptedSpkPrivateKey, newNonce, newDerivedKey)
+      );
+
+      const reEncryptedOpksPrivate = [];
+      for (const opk of decryptedOpksPrivate) {
+        const decryptedOpkKey = sodium.from_base64(opk.private_key);
+        const reEncryptedOpk = sodium.to_base64(
+          sodium.crypto_secretbox_easy(decryptedOpkKey, newNonce, newDerivedKey)
+        );
+        reEncryptedOpksPrivate.push({
+          opk_id: opk.opk_id,
+          private_key: reEncryptedOpk
+        });
+      }
+
+      const vaultResult = await VaultController.storeKeyBundle({
+        encrypted_id: userId,
+        ik_private_key: reEncryptedIkPrivateKey,
+        spk_private_key: reEncryptedSpkPrivateKey,
+        opks_private: reEncryptedOpksPrivate,
+      });
+
+      if (!vaultResult || vaultResult.status !== 'success') {
+        throw new Error("Failed to store re-encrypted keys in vault");
+      }
+
+      const { error: nonceUpdateError } = await supabase
+        .from("users")
+        .update({ nonce: sodium.to_base64(newNonce) })
+        .eq("id", userId);
+
+      if (nonceUpdateError) {
+        console.error("Failed to update user nonce:", nonceUpdateError);
+      }
+
+      console.log(`Successfully re-encrypted vault keys for user ${userId}`);
+      return true;
+
+    } catch (error) {
+      console.error(`Failed to re-encrypt vault keys for user ${userId}:`, error.message);
+      throw new Error("Failed to re-encrypt vault keys: " + error.message);
+    }
+  }
+
+  /**
+   * Re-encrypt vault keys using mnemonic recovery
+   * @param {string} userId
+   * @param {string[]} mnemonicWords
+   * @param {string} newPassword 
+   * @returns {Promise<boolean>}
+   */
+  async reEncryptVaultKeysWithMnemonic(userId, mnemonicWords, newPassword) {
+    try {
+      await this.verifyMnemonic(userId, mnemonicWords);
+
+      const { data: user, error } = await supabase
+        .from("users")
+        .select("passwordB, salt")
+        .eq("id", userId)
+        .single();
+
+      if (error || !user) {
+        throw new Error("User not found");
+      }
+
+      if (!user.passwordB) {
+        console.log(`No passwordB found for user ${userId}, skipping re-encryption`);
+        return true;
+      }
+
+      const MnemonicCrypto = require("../utils/mnemonicCrypto");
+
+      const mnemonicKey = MnemonicCrypto.deriveKeyFromMnemonic(mnemonicWords);
+
+      const oldPassword = MnemonicCrypto.decrypt(user.passwordB, mnemonicKey);
+
+      await this.reEncryptVaultKeys(userId, oldPassword, newPassword);
+
+      await supabase
+        .from("users")
+        .update({ needs_key_reencryption: false })
+        .eq("id", userId);
+
+      return true;
+    } catch (error) {
+      console.error(`Failed to re-encrypt vault keys with mnemonic for user ${userId}:`, error.message);
+      throw new Error("Failed to re-encrypt vault keys: " + error.message);
     }
   }
 }
