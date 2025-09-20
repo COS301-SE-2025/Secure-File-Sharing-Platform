@@ -3,7 +3,7 @@
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
-    background: #e5e7eb;
+    background: #F8F9FA;
 }
 
 .dashboard-header {
@@ -15,6 +15,7 @@
 .dashboard-header h1 {
     font-size: 1.8rem;
     font-weight: bold;
+    color: #000000;
 }
 
 .dashboard-header p {
@@ -22,7 +23,7 @@
 }
 
 .btn-admin {
-    background: #20b2db;
+    background: #183446;
     color: white;
     border: none;
     padding: 0.5rem 1rem;
@@ -39,47 +40,70 @@
 
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 1rem;
-
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
 }
 
 .stat-card {
-    background: #30374a;
-    border: 1px solid #e5e7eb;
-    padding: 1rem;
-    border-radius: 8px;
     display: flex;
     justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    border-radius: 12px;
+    color: white;
+    font-family: Arial, sans-serif;
+}
+
+.stat-success {
+    background: #38AECC;
+
+}
+
+.stat-danger {
+    background: #0090C1;
+}
+
+.stat-warning {
+    background: #046E8F;
+    color: #1a1a1a;
 }
 
 .stat-title {
-    color: #6b7280;
-    font-size: 0.9rem;
+    font-size: 18px;
+    opacity: 0.9;
+    font-weight: bold;
 }
 
 .stat-value {
-    color: white;
-    font-size: 1.5rem;
+    font-size: 24px;
     font-weight: bold;
 }
 
 .stat-icon {
-    height: 32px;
-    width: 32px;
+    font-size: 28px;
+    opacity: 0.8;
+}
+
+.dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 0.8 rem;
+    flex-shrink: 0;
 }
 
 .success {
-    color: green;
+    background-color: green;
 }
 
 .danger {
-    color: red;
+    background-color: red;
 }
 
 .warning {
-    color: orange;
+    background-color: orange;
 }
+
 
 .main-grid {
     display: grid;
@@ -88,31 +112,35 @@
 }
 
 .card {
-    background: #30374a;
+    background: #183446;
     border: 1px solid #e5e7eb;
     padding: 1rem;
     border-radius: 8px;
 }
 
 .card h2 {
-    font-size: 1.2rem;
+    font-size: 1.4rem;
     margin-bottom: 0.3rem;
 }
 
 .muted {
-    color: #6b7280;
+    color: #9196a0;
     font-size: 0.9rem;
     margin-bottom: 1rem;
 }
 
 .activity-list {
-    background: #1e2938;
     display: flex;
     flex-direction: column;
     gap: 0.8rem;
+    max-height: 15rem;  /* height for ~5 items */
+    overflow-y: auto;    /* enable vertical scrolling */
+    padding-right: 0.3rem; /* optional: space for scrollbar */
 }
 
+
 .activity-item {
+    background: #F8F9FA;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -121,8 +149,15 @@
     border-radius: 6px;
 }
 
+.activity-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
 .activity-action {
     font-weight: 500;
+    color: #000000;
 }
 
 .activity-user {
@@ -140,7 +175,7 @@
 .badge {
     font-size: 0.8rem;
     color: #555;
-    border: 1px solid #e5e7eb;
+    border: 1px solid #046E8F;
     padding: 0.2rem 0.6rem;
     border-radius: 12px;
 }
@@ -152,7 +187,8 @@
 }
 
 .btn-outline {
-    background: #1e2938;
+    color: #000000;
+    background: #F8F9FA;
     border: 1px solid #e5e7eb;
     padding: 0.6rem;
     border-radius: 6px;
@@ -164,5 +200,5 @@
 }
 
 .btn-outline:hover {
-    background: #f9fafb;
+    background: #67c6e5;
 }

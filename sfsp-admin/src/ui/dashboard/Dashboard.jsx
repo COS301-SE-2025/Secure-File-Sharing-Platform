@@ -3,11 +3,11 @@ import { Users, UserX, AlertTriangle, ExternalLink, Activity, Shield } from "luc
 
 function Dashboard() {
   const stats = [
-    { title: "Active Users", value: "2,847",  icon: Users, color: "success" },
-    { title: "Blocked Users", value: "23", icon: UserX, color: "danger" },
-    { title: "Pending Reports", value: "7", icon: AlertTriangle, color: "warning" },
-
+    { title: "Active Users", value: "2,847", icon: Users, className: "stat-success" },
+    { title: "Blocked Users", value: "23", icon: UserX, className: "stat-danger" },
+    { title: "Pending Reports", value: "7", icon: AlertTriangle, className: "stat-warning" },
   ];
+
 
   const announcements = [
     { action: "User blocked", user: "john.doe@example.com", time: "2 minutes ago", severity: "high" },
@@ -40,16 +40,16 @@ function Dashboard() {
       {/* Stats */}
       <div className="stats-grid">
         {stats.map((stat, i) => (
-          <div key={i} className={`stat-card ${stat.color}`}>
+          <div key={i} className={`stat-card ${stat.className}`}>
             <div>
               <p className="stat-title">{stat.title}</p>
               <p className="stat-value">{stat.value}</p>
-              <p className={`stat-change ${stat.color}`}>{stat.change}</p>
             </div>
-            <stat.icon className={`stat-icon ${stat.color}`} />
+            <stat.icon className="stat-icon" />
           </div>
         ))}
       </div>
+
 
       {/* Main Grid */}
       <div className="main-grid">
@@ -58,17 +58,20 @@ function Dashboard() {
           <h2><Activity className="icon" /> Announcements</h2>
           <p className="muted">Latest actions and events in the system</p>
           <div className="activity-list">
-            {announcements.map((a, i) => (
+            {announcements.slice(0, 5).map((a, i) => (
               <div key={i} className="activity-item">
-                <div className={`dot ${getSeverityColor(a.severity)}`} />
-                <div>
-                  <p className="activity-action">{a.action}</p>
-                  <p className="activity-user">{a.user}</p>
+                <div className="activity-info">
+                  <div className={`dot ${getSeverityColor(a.severity)}`} />
+                  <div>
+                    <p className="activity-action">{a.action}</p>
+                    <p className="activity-user">{a.user}</p>
+                  </div>
                 </div>
                 <span className="badge">{a.time}</span>
               </div>
             ))}
           </div>
+
         </div>
 
         {/* Quick Actions */}
