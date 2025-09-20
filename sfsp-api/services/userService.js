@@ -209,6 +209,15 @@ class UserService {
       }
       const token = this.generateToken(newUser.id);
 
+      // Send email with mnemonic words
+      try {
+        await this.sendMnemonicEmail(newUser.email, newUser.username, mnemonicWords);
+        console.log(`Recovery email sent to ${newUser.email} for new user ${newUser.id}`);
+      } catch (emailError) {
+        console.error(`Failed to send recovery email to ${newUser.email}:`, emailError.message);
+        // Don't fail registration if email fails, but log it
+      }
+
       return {
         user: {
           id: newUser.id,
@@ -1969,7 +1978,7 @@ class UserService {
 
       const { data: user, error: fetchError } = await supabase
         .from("users")
-        .select("password, passwordB")
+        .select("password, passwordB, email, username")
         .eq("id", userId)
         .single();
 
@@ -2059,6 +2068,15 @@ class UserService {
       }
 
       console.log(`Successfully updated password for user ${userId}`);
+
+      // Send email with new mnemonic words
+      try {
+        await this.sendMnemonicEmail(user.email, user.username || 'User', newMnemonicWords);
+        console.log(`Recovery email sent to ${user.email} for user ${userId}`);
+      } catch (emailError) {
+        console.error(`Failed to send recovery email to ${user.email}:`, emailError.message);
+        // Don't fail the password change if email fails, but log it
+      }
 
       console.log(`Password successfully changed for user ${userId} using mnemonic recovery`);
 
