@@ -10,15 +10,15 @@ function Dashboard() {
   ];
 
   const [announcements, setAnnouncements] = useState([
-    { action: "User blocked", user: "john.doe@example.com", time: "2 minutes ago", severity: "high",info:"this is " },
-    { action: "Report resolved", user: "jane.smith@example.com", time: "15 minutes ago", severity: "medium",info:"this is " },
-    { action: "New user registered", user: "mike.wilson@example.com", time: "1 hour ago", severity: "low",info:"this is " },
-    { action: "File access granted", user: "sarah.jones@example.com", time: "2 hours ago", severity: "low",info:"this is " },
-    { action: "File access granted", user: "sarah.jones@example.com", time: "2 hours ago", severity: "low" ,info:"this is "},
-    { action: "User blocked", user: "john.doe@example.com", time: "2 minutes ago", severity: "high",info:"this is " },
-    { action: "Report resolved", user: "jane.smith@example.com", time: "15 minutes ago", severity: "medium",info:"this is "},
-    { action: "New user registered", user: "mike.wilson@example.com", time: "6 hour ago", severity: "low",info:"this is " },
-    { action: "File access granted", user: "sarah.jones@example.com", time: "2 hours ago", severity: "low",info:"this is " },
+    { action: "User blocked", user: "john.doe@example.com", time: "2 minutes ago", severity: "high", info: "this is " },
+    { action: "Report resolved", user: "jane.smith@example.com", time: "15 minutes ago", severity: "medium", info: "this is " },
+    { action: "New user registered", user: "mike.wilson@example.com", time: "1 hour ago", severity: "low", info: "this is " },
+    { action: "File access granted", user: "sarah.jones@example.com", time: "2 hours ago", severity: "low", info: "this is " },
+    { action: "File access granted", user: "sarah.jones@example.com", time: "2 hours ago", severity: "low", info: "this is " },
+    { action: "User blocked", user: "john.doe@example.com", time: "2 minutes ago", severity: "high", info: "this is " },
+    { action: "Report resolved", user: "jane.smith@example.com", time: "15 minutes ago", severity: "medium", info: "this is " },
+    { action: "New user registered", user: "mike.wilson@example.com", time: "6 hour ago", severity: "low", info: "this is " },
+    { action: "File access granted", user: "sarah.jones@example.com", time: "2 hours ago", severity: "low", info: "this is " },
   ]);
 
   const [showModal, setShowModal] = useState(false);
@@ -27,6 +27,8 @@ function Dashboard() {
     info: "",
     severity: "success",
   });
+  const [infoModal, setInfoModal] = useState({ show: false, announcement: null });
+
   const currentUser = "admin@example.com";
 
   const getSeverityColor = (severity) => {
@@ -99,7 +101,15 @@ function Dashboard() {
                     <p className="activity-user">{a.user}</p>
                   </div>
                 </div>
-                <span className="badge">{a.time}</span>
+                <div className="timestamp-info">
+                  <span className="badge">{a.time}</span>
+                  <button
+                    className="info-btn"
+                    onClick={() => setInfoModal({ show: true, announcement: a })}
+                  >
+                    i
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -162,7 +172,29 @@ function Dashboard() {
           </div>
         </div>
       )}
-      y
+
+      {infoModal.show && infoModal.announcement && (
+        <div
+          className="modal-backdrop"
+          onClick={() => setInfoModal({ show: false, announcement: null })}
+        >
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <h3>Announcement Details</h3>
+            <p><strong>Action:</strong> {infoModal.announcement.action}</p>
+            <p><strong>Info:</strong> {infoModal.announcement.info}</p>
+            <p><strong>User:</strong> {infoModal.announcement.user}</p>
+            <p><strong>Severity:</strong> {infoModal.announcement.severity}</p>
+            <p><strong>Time:</strong> {infoModal.announcement.time}</p>
+
+            <div className="modal-actions">
+              <button onClick={() => setInfoModal({ show: false, announcement: null })}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
