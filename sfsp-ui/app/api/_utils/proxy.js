@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
-// Configuration constants
+//Configs constants
 export const CONFIG = {
   MAX_UPLOAD_BYTES: 2 * 1024 * 1024 * 1024,
   RATE_LIMIT: {
