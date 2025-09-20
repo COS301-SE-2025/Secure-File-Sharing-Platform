@@ -64,7 +64,7 @@ export async function POST(request) {
 
     const body = await withTimeout(request.json(), 5000);
 
-    const backendRes = await withTimeout(fetch(
+    const filesRes = await withTimeout(fetch(
       "http://localhost:5000/api/notifications/clear",
       {
         method: "POST",
@@ -75,6 +75,7 @@ export async function POST(request) {
         body: JSON.stringify(body),
       }),15000
     );
+    
     if (!filesRes.ok) {
       let errorData = {
         success: false,
