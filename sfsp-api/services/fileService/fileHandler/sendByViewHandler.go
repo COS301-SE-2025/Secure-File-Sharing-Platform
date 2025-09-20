@@ -404,6 +404,145 @@ func GetViewFileAccessLogs(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(logs)
 }
 
+// VerifyViewAccessHandler verifies if a user has access to view a file
+func VerifyViewAccessHandler(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		UserID string `json:"userId"`
+		FileID string `json:"fileId"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	if req.UserID == "" || req.FileID == "" {
+		http.Error(w, "Missing required fields", http.StatusBadRequest)
+		return
+	}
+
+	var revoked bool
+	var expiresAt time.Time
+
+	err := DB.QueryRow(`
+        SELECT revoked, expires_at
+        FROM shared_files_view
+        WHERE recipient_id = $1 AND file_id = $2
+    `, req.UserID, req.FileID).Scan(&revoked, &expiresAt)
+
+	hasAccess := false
+	if err == nil && !revoked && time.Now().Before(expiresAt) {
+		hasAccess = true
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]bool{
+		"hasAccess": hasAccess,
+	})
+}
+
+// StreamViewFileChunkHandler streams individual chunks of view-only files
+func StreamViewFileChunkHandler(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		UserID    string `json:"userId"`
+		FileID    string `json:"fileId"`
+		ChunkIndex int   `json:"chunkIndex"`
+		ChunkSize  int   `json:"chunkSize"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	if req.UserID == "" || req.FileID == "" {
+		http.Error(w, "Missing required fields", http.StatusBadRequest)
+		return
+	}
+
+	var senderID, sharedID string
+	var revoked bool
+	var expiresAt time.Time
+
+	err := DB.QueryRow(`
+        SELECT id, sender_id, revoked, expires_at
+        FROM shared_files_view
+        WHERE recipient_id = $1 AND file_id = $2
+    `, req.UserID, req.FileID).Scan(&sharedID, &senderID, &revoked, &expiresAt)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "View file access not found", http.StatusNotFound)
+		} else {
+			log.Println("Database error:", err)
+			http.Error(w, "Database error", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	if revoked || time.Now().After(expiresAt) {
+		http.Error(w, "Access denied or expired", http.StatusForbidden)
+		return
+	}
+
+	targetPath := fmt.Sprintf("files/%s/shared_view", senderID)
+	sharedFileKey := fmt.Sprintf("%s_%s", req.FileID, req.UserID)
+	fullPath := fmt.Sprintf("%s/%s", targetPath, sharedFileKey)
+
+	stream, err := owncloud.DownloadSentFileStream(fullPath)
+	if err != nil {
+		log.Println("Failed to download view file from OwnCloud:", err)
+		http.Error(w, "Failed to retrieve view file", http.StatusInternalServerError)
+		return
+	}
+	defer stream.Close()
+
+	// Skip to the requested chunk position
+	chunkSize := req.ChunkSize
+	if chunkSize <= 0 {
+		chunkSize = 64 * 1024 // Default 64KB
+	}
+
+	skipBytes := int64(req.ChunkIndex * chunkSize)
+	if skipBytes > 0 {
+		if _, err := io.CopyN(io.Discard, stream, skipBytes); err != nil {
+			log.Println("Failed to skip to chunk position:", err)
+			http.Error(w, "Failed to position stream", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	// Read the chunk
+	chunkData := make([]byte, chunkSize)
+	n, err := stream.Read(chunkData)
+	if err != nil && err != io.EOF {
+		log.Println("Failed to read chunk:", err)
+		http.Error(w, "Failed to read chunk", http.StatusInternalServerError)
+		return
+	}
+
+	hasMoreChunks := err != io.EOF
+	actualChunk := chunkData[:n]
+
+	// Log access
+	_, err = DB.Exec(`
+        INSERT INTO access_logs (file_id, user_id, action, message, view_only)
+        VALUES ($1, $2, $3, $4, $5)
+    `, req.FileID, req.UserID, "streamed_chunk",
+		fmt.Sprintf("Streamed chunk %d", req.ChunkIndex), true)
+	if err != nil {
+		log.Println("Failed to log chunk access:", err)
+	}
+
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("X-Chunk-Index", fmt.Sprintf("%d", req.ChunkIndex))
+	w.Header().Set("X-Has-More-Chunks", fmt.Sprintf("%t", hasMoreChunks))
+	w.WriteHeader(http.StatusOK)
+
+	w.Write(actualChunk)
+	log.Printf("Streamed chunk %d (%d bytes) for file %s", req.ChunkIndex, n, req.FileID)
+}
+
 func DownloadViewFileHandler(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		UserID string `json:"userId"`
@@ -425,8 +564,8 @@ func DownloadViewFileHandler(w http.ResponseWriter, r *http.Request) {
 	var expiresAt time.Time
 
 	err := DB.QueryRow(`
-        SELECT id, sender_id, metadata, revoked, expires_at 
-        FROM shared_files_view 
+        SELECT id, sender_id, metadata, revoked, expires_at
+        FROM shared_files_view
         WHERE recipient_id = $1 AND file_id = $2
     `, req.UserID, req.FileID).Scan(&sharedID, &senderID, &metadata, &revoked, &expiresAt)
 

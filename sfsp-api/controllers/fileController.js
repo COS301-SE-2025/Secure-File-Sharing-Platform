@@ -714,6 +714,137 @@ exports.revokeViewAccess = async (req, res) => {
 };
 
 
+const crypto = require('crypto');
+
+const streamingSessions = new Map();
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [token, session] of streamingSessions.entries()) {
+    if (session.expiresAt < now) {
+      streamingSessions.delete(token);
+    }
+  }
+}, 5 * 60 * 1000);
+
+exports.createViewStreamSession = async (req, res) => {
+  const { userId, fileId } = req.body;
+
+  if (!userId || !fileId) {
+    return res.status(400).send("Missing userId or fileId");
+  }
+
+  try {
+    const verifyResponse = await axios({
+      method: "post",
+      url: `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/verifyViewAccess`,
+      data: { userId, fileId },
+      headers: { "Content-Type": "application/json" },
+    });
+
+    if (!verifyResponse.data.hasAccess) {
+      return res.status(403).send("Access denied or expired");
+    }
+
+    // Generate secure streaming token
+    const streamToken = crypto.randomBytes(32).toString('hex');
+    const expiresAt = Date.now() + (5 * 60 * 1000);
+
+    streamingSessions.set(streamToken, {
+      userId,
+      fileId,
+      expiresAt,
+      chunksDelivered: 0,
+      startedAt: Date.now()
+    });
+
+    res.json({
+      streamToken,
+      expiresAt,
+      chunkSize: 64 * 1024,
+      chunkDelay: 100 // 100ms delay between chunks
+    });
+
+  } catch (err) {
+    console.error("Create stream session error:", err.message);
+    if (err.response && err.response.status === 403) {
+      return res.status(403).send("Access denied or expired");
+    }
+    return res.status(500).send("Failed to create stream session");
+  }
+};
+
+exports.streamViewFileChunk = async (req, res) => {
+  const { streamToken, chunkIndex } = req.body;
+
+  if (!streamToken) {
+    return res.status(400).send("Missing stream token");
+  }
+
+  const session = streamingSessions.get(streamToken);
+  if (!session) {
+    return res.status(403).send("Invalid or expired stream token");
+  }
+
+  if (Date.now() > session.expiresAt) {
+    streamingSessions.delete(streamToken);
+    return res.status(403).send("Stream session expired");
+  }
+
+  try {
+
+    const timeSinceStart = Date.now() - session.startedAt;
+    const maxChunks = Math.floor(timeSinceStart / 100);
+    if (session.chunksDelivered >= maxChunks) {
+      return res.status(429).send("Rate limit exceeded");
+    }
+
+    const response = await axios({
+      method: "post",
+      url: `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/streamViewFileChunk`,
+      data: {
+        userId: session.userId,
+        fileId: session.fileId,
+        chunkIndex: chunkIndex || 0,
+        chunkSize: 64 * 1024
+      },
+      headers: { "Content-Type": "application/json" },
+      responseType: "stream",
+    });
+
+    // Secure headers to prevent caching and downloading
+    res.set({
+      "Content-Type": "application/octet-stream",
+      "Cache-Control": "no-store, no-cache, must-revalidate, private",
+      "Pragma": "no-cache",
+      "Expires": "0",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY",
+      "Content-Security-Policy": "default-src 'none'",
+      "Access-Control-Expose-Headers": "X-Chunk-Index, X-Has-More-Chunks",
+      "X-Chunk-Index": response.headers["x-chunk-index"] || "0",
+      "X-Has-More-Chunks": response.headers["x-has-more-chunks"] || "false"
+    });
+
+    session.chunksDelivered++;
+
+    response.data.pipe(res);
+
+    response.data.on("error", (err) => {
+      console.error("Stream chunk error:", err.message);
+      res.end();
+    });
+
+  } catch (err) {
+    console.error("Stream chunk error:", err.message);
+    if (err.response && err.response.status === 403) {
+      streamingSessions.delete(streamToken);
+      return res.status(403).send("Access denied");
+    }
+    return res.status(500).send("Stream chunk failed");
+  }
+};
+
 exports.downloadViewFile = async (req, res) => {
   const { userId, fileId } = req.body;
 
@@ -754,7 +885,7 @@ exports.downloadViewFile = async (req, res) => {
 
     response.data.on("error", (err) => {
       console.error("Stream error from Go service:", err.message);
-      res.end(); 
+      res.end();
     });
 
   } catch (err) {

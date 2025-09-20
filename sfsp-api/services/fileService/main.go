@@ -80,6 +80,10 @@ func main() {
 	http.HandleFunc("/getViewFileAccessLogs", fileHandler.GetViewFileAccessLogs)
 	http.HandleFunc("/downloadViewFile", fileHandler.DownloadViewFileHandler)
 
+	// Secure streaming endpoints for view-only files
+	http.HandleFunc("/verifyViewAccess", fileHandler.VerifyViewAccessHandler)
+	http.HandleFunc("/streamViewFileChunk", fileHandler.StreamViewFileChunkHandler)
+
 	//test from here
 	http.HandleFunc("/addSentFiles", metadata.AddSentFileHandler)
 	http.HandleFunc("/getSentFiles", metadata.GetSentFilesHandler)

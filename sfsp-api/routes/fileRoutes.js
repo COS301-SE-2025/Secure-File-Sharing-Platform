@@ -37,4 +37,8 @@ router.post('/getViewAccesslogs', fileController.getViewFileAccessLogs);
 router.post('/downloadViewFile', fileController.downloadViewFile);
 router.post('/changeShareMethod', fileController.changeShareMethod);
 
+// Secure streaming endpoints for view-only files
+router.post('/createViewStreamSession', fileController.createViewStreamSession);
+router.post('/streamViewFileChunk', fileController.streamViewFileChunk);
+
 module.exports = router;
