@@ -324,3 +324,86 @@
     border-radius: 4px;
     z-index: 100;
 }
+
+.modal-title {
+  font-size: 1.25rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+}
+
+/* Create Admin Section */
+.admin-create-section {
+  margin-bottom: 2rem;
+}
+
+.admin-create-section h4 {
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+.admin-create-section input {
+  width: 100%;
+  padding: 6px;
+  margin-bottom: 0.5rem;
+  border-radius: 4px;
+  border: 1px solid #D1D5DB;
+}
+
+.admin-create-section button {
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  background: #2563EB;
+  color: white;
+}
+
+.admin-create-section button:hover {
+  background: #1D4ED8;
+}
+
+/* Existing Admins Section */
+.existing-admins-section h4 {
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+.existing-admins-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.admin-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px;
+  border: 1px solid #D1D5DB;
+  border-radius: 6px;
+}
+
+.admin-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.admin-name {
+  font-weight: 500;
+}
+
+.admin-username {
+  font-size: 0.75rem;
+  color: #6B7280;
+}
+
+/* Role select */
+.role-select {
+  padding: 4px 6px;
+  border-radius: 4px;
+  border: 1px solid #D1D5DB;
+  font-size: 0.875rem;
+  background: #fff;
+  color: #111827;
+}

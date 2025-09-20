@@ -14,9 +14,9 @@ const Users = () => {
 
     const usersData = [
         { id: 1, username: "johnsmith", name: "John Smith", email: "john.smith@example.com", avatar: "", role: "admin", verified: true, status: "Active", joinDate: "2024-01-15", lastAccess: "2 hours ago", filesShared: 45 },
-        { id: 2, username: "sarahjohnson", name: "Sarah Johnson", email: "sarah.johnson@example.com", avatar: "", role: "general", verified: true, status: "Active", joinDate: "2024-02-10", lastAccess: "1 day ago", filesShared: 23 },
+        { id: 2, username: "sarahjohnson", name: "Sarah Johnson", email: "sarah.johnson@example.com", avatar: "", role: "admin", verified: true, status: "Active", joinDate: "2024-02-10", lastAccess: "1 day ago", filesShared: 23 },
         { id: 3, username: "mikewilson", name: "Mike Wilson", email: "mike.wilson@example.com", avatar: "", role: "admin", verified: false, status: "Inactive", joinDate: "2024-01-20", lastAccess: "1 week ago", filesShared: 67 },
-        { id: 4, username: "emmadavis", name: "Emma Davis", email: "emma.davis@example.com", avatar: "", role: "general", verified: true, status: "Active", joinDate: "2024-03-05", lastAccess: "30 minutes ago", filesShared: 12 },
+        { id: 4, username: "emmadavis", name: "Emma Davis", email: "emma.davis@example.com", avatar: "", role: "admin", verified: true, status: "Active", joinDate: "2024-03-05", lastAccess: "30 minutes ago", filesShared: 12 },
         { id: 5, username: "alexbrown", name: "Alex Brown", email: "alex.brown@example.com", avatar: "", role: "admin", verified: true, status: "Active", joinDate: "2024-02-20", lastAccess: "5 minutes ago", filesShared: 89 }
     ];
 
@@ -64,6 +64,16 @@ const Users = () => {
         setTimeout(() => setToastMessage(""), 3000);
     };
 
+    const handleRoleChange = (userId, newRole) => {
+        setUsers((prevUsers) =>
+            prevUsers.map((user) =>
+                user.id === userId ? { ...user, role: newRole } : user
+            )
+        );
+        setToastMessage(`User role updated to ${newRole}`);
+        setTimeout(() => setToastMessage(""), 3000);
+    };
+
     const getRoleColor = (role) => role === "admin" ? "role-admin" : "role-general";
 
     return (
@@ -106,18 +116,70 @@ const Users = () => {
             {/* Admin Dialog */}
             {isAdminDialogOpen && (
                 <div className="modal-backdrop" onClick={() => setIsAdminDialogOpen(false)}>
-                    <div className="modal" onClick={e => e.stopPropagation()}>
-                        <h3>Manage Admin Users</h3>
-                        <div className="admin-create">
+                    <div className="modal" onClick={(e) => e.stopPropagation()}>
+                        <h3 className="modal-title">Manage Admin Users</h3>
+
+                        {/* Create New Admin */}
+                        <div className="admin-create-section">
+                            <h4>Create New Admin User</h4>
                             <label>Username</label>
-                            <input type="text" value={newAdminUsername} onChange={e => setNewAdminUsername(e.target.value)} />
+                            <input
+                                type="text"
+                                value={newAdminUsername}
+                                onChange={(e) => setNewAdminUsername(e.target.value)}
+                                placeholder="Enter username"
+                            />
                             <label>Email</label>
-                            <input type="email" value={newAdminEmail} onChange={e => setNewAdminEmail(e.target.value)} />
+                            <input
+                                type="email"
+                                value={newAdminEmail}
+                                onChange={(e) => setNewAdminEmail(e.target.value)}
+                                placeholder="Enter email"
+                            />
                             <button onClick={handleCreateAdmin}>Create Admin</button>
+                        </div>
+
+                        {/* Existing Admins */}
+                        <div className="existing-admins-section">
+                            <h4>Existing Admin Users</h4>
+                            <div className="existing-admins-list">
+                                {users
+                                    .filter((user) => user.role === "admin")
+                                    .map((admin) => (
+                                        <div key={admin.id} className="admin-row">
+                                            <div className="admin-info">
+                                                {admin.avatar ? (
+                                                    <img src={admin.avatar} alt="avatar" className="avatar" />
+                                                ) : (
+                                                    <div className="avatar-fallback">
+                                                        {admin.name
+                                                            .split(" ")
+                                                            .map((n) => n[0])
+                                                            .join("")}
+                                                    </div>
+                                                )}
+                                                <div>
+                                                    <p className="admin-name">{admin.name}</p>
+                                                    <p className="admin-username">@{admin.username}</p>
+                                                </div>
+                                            </div>
+
+                                            <select
+                                                value={admin.role}
+                                                onChange={(e) => handleRoleChange(admin.id, e.target.value)}
+                                                className="role-select"
+                                            >
+                                                <option value="admin">Admin</option>
+                                                <option value="general">General</option>
+                                            </select>
+                                        </div>
+                                    ))}
+                            </div>
                         </div>
                     </div>
                 </div>
             )}
+
 
             {/* Users Table */}
             <div className="users-table-card">
