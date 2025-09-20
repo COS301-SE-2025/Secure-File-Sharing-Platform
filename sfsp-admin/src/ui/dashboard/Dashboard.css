@@ -134,11 +134,8 @@
     flex-direction: column;
     gap: 0.8rem;
     max-height: 25rem;
-    /* height for ~5 items */
     overflow-y: auto;
-    /* enable vertical scrolling */
     padding-right: 0.3rem;
-    /* optional: space for scrollbar */
 }
 
 .activity-list::-webkit-scrollbar {
@@ -147,11 +144,8 @@
 
 .activity-list::-webkit-scrollbar-thumb {
     background-color: #4b5563;
-    /* dark gray */
     border-radius: 3px;
 }
-
-
 
 .activity-item {
     background: #F8F9FA;
@@ -242,7 +236,6 @@
     background: #67c6e5;
 }
 
-/* Card header with + button */
 .card-header {
     display: flex;
     justify-content: space-between;
