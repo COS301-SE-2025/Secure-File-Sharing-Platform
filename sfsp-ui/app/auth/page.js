@@ -588,6 +588,23 @@ export default function AuthPage() {
 
     console.log("encrypted ik is: ", encryptedIK);
 
+    const encryptedSPK = sodium.crypto_secretbox_easy(
+      spk.privateKey,
+      nonce,
+      derivedKey
+    );
+
+    console.log("encrypted spk is: ", encryptedSPK);
+
+    const encryptedOPKs = opks.map((opk) => ({
+      opk_id: opk.opk_id,
+      private_key: sodium.to_base64(
+        sodium.crypto_secretbox_easy(opk.keypair.privateKey, nonce, derivedKey)
+      ),
+    }));
+
+    console.log("encrypted opks are: ", encryptedOPKs);
+
     console.log("SPK pub (raw):", spk.publicKey);
     console.log("IK pub (Ed25519):", ik.publicKey);
     console.log("SPK Signature:", spkSignature);
@@ -603,11 +620,8 @@ export default function AuthPage() {
       })),
 
       ik_private_key: sodium.to_base64(encryptedIK),
-      spk_private_key: sodium.to_base64(spk.privateKey),
-      opks_private: opks.map((opk) => ({
-        opk_id: opk.opk_id,
-        private_key: sodium.to_base64(opk.keypair.privateKey),
-      })),
+      spk_private_key: sodium.to_base64(encryptedSPK),
+      opks_private: encryptedOPKs,
 
       salt: sodium.to_base64(salt),
       nonce: sodium.to_base64(nonce),

@@ -1,7 +1,7 @@
 // AccountSettings.jsx
 'use client';
 import { useEffect, useState } from 'react';
-import { PanelLeftClose, PanelLeftOpen, ArrowLeft, User, Shield, Bell, Palette, Camera, Trash2, Sun, Moon, ChevronUp, ChevronDown, Monitor, Smartphone, Laptop, X, RefreshCw, CheckCircle, AlertCircle, AlertTriangle, Lock, Info } from 'lucide-react';
+import { PanelLeftClose, PanelLeftOpen, ArrowLeft, User, Shield, Bell, Palette, Camera, Trash2, Sun, Moon, ChevronUp, ChevronDown, Monitor, Smartphone, Laptop, X, RefreshCw, CheckCircle, AlertCircle, AlertTriangle, Lock, Info, Copy } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { UserAvatar } from '@/app/lib/avatarUtils';
@@ -57,6 +57,7 @@ export default function AccountSettings() {
   const [passwordMessage, setPasswordMessage] = useState('');
   const [mnemonicWords, setMnemonicWords] = useState(Array(10).fill(''));
   const [mnemonicErrors, setMnemonicErrors] = useState(Array(10).fill(''));
+  const [copiedMnemonic, setCopiedMnemonic] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deleteFormData, setDeleteFormData] = useState({ email: '', password: '' });
   const [deleteErrors, setDeleteErrors] = useState({});
@@ -565,29 +566,38 @@ export default function AccountSettings() {
     setIsProcessing(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/change-password`, {
+      const response = await fetch(`${API_BASE_URL}/change-password-with-mnemonic`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${localStorage.getItem('token')}`,
         },
         body: JSON.stringify({
-          pin: passwordData.resetPIN,
+          mnemonicWords: mnemonicWords, // Include the verified mnemonic words
           newPassword: passwordData.newPassword,
         }),
       });
 
       if (response.ok) {
-        setPasswordMessage('Password changed successfully!');
+        const data = await response.json();
+
+        // Display success message with new mnemonic words
+        setPasswordMessage(`Password changed successfully! Your new recovery mnemonic is: ${data.newMnemonicWords.join(' ')}`);
+
+        // Reset form and show success
         setPasswordData({
           currentPassword: '',
           newPassword: '',
           confirmPassword: '',
           resetPIN: '',
         });
-        setPasswordStep('verify');
+        setMnemonicWords(Array(10).fill(''));
+        setMnemonicErrors(Array(10).fill(''));
+        setPasswordStep('mnemonic');
         setPasswordErrors({});
-        setTimeout(() => setPasswordMessage(''), 3000);
+
+        // Auto-hide success message after 10 seconds (longer for mnemonic display)
+        setTimeout(() => setPasswordMessage(''), 10000);
       } else {
         const error = await response.json();
         setPasswordErrors({ general: error.message || 'Failed to change password' });
@@ -633,17 +643,50 @@ export default function AccountSettings() {
     }
 
     try {
-      // Here you would typically send the mnemonic to your backend for verification
-      // For now, we'll simulate the verification process
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate API call
+      // Send mnemonic words to backend for verification
+      const response = await fetch(`${API_BASE_URL}/verify-mnemonic`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({
+          mnemonicWords: mnemonicWords,
+        }),
+      });
 
-      // Simulate successful verification (in real implementation, check against stored hash)
-      setPasswordMessage('Mnemonic verified successfully! You can now set your new password.');
-      setPasswordStep('newPassword');
+      if (response.ok) {
+        const data = await response.json();
+        setPasswordMessage('Mnemonic verified successfully! You can now set your new password.');
+        setPasswordStep('newPassword');
+      } else {
+        const error = await response.json();
+        if (error.invalidWords && Array.isArray(error.invalidWords)) {
+          // Highlight specific invalid words
+          const newErrors = [...mnemonicErrors];
+          error.invalidWords.forEach(index => {
+            newErrors[index] = 'Invalid word';
+          });
+          setMnemonicErrors(newErrors);
+          setPasswordMessage('Some mnemonic words are incorrect. Please check and try again.');
+        } else {
+          setPasswordMessage(error.message || 'Invalid mnemonic phrase. Please check your words and try again.');
+        }
+      }
     } catch (error) {
-      setPasswordMessage('Invalid mnemonic phrase. Please check your words and try again.');
+      setPasswordMessage('Network error. Please try again.');
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const handleCopyMnemonic = async (mnemonicText) => {
+    try {
+      await navigator.clipboard.writeText(mnemonicText);
+      setCopiedMnemonic(true);
+      setTimeout(() => setCopiedMnemonic(false), 2000);
+    } catch (error) {
+      console.error('Failed to copy mnemonic:', error);
     }
   };
 
@@ -1234,11 +1277,34 @@ export default function AccountSettings() {
                       : 'bg-red-50 border-red-200 text-red-800 dark:bg-red-900/30 dark:border-red-700 dark:text-red-300'
                   }`}
                 >
-                  <div className="flex items-center space-x-2">
-                    {passwordMessage.includes('successfully') && <CheckCircle size={20} />}
-                    {passwordMessage.includes('verified') && <Shield size={20} />}
-                    {!passwordMessage.includes('successfully') && !passwordMessage.includes('verified') && <AlertCircle size={20} />}
-                    <span className="font-medium">{passwordMessage}</span>
+                  <div className="flex items-start space-x-2">
+                    {passwordMessage.includes('successfully') && <CheckCircle size={20} className="mt-0.5" />}
+                    {passwordMessage.includes('verified') && <Shield size={20} className="mt-0.5" />}
+                    {!passwordMessage.includes('successfully') && !passwordMessage.includes('verified') && <AlertCircle size={20} className="mt-0.5" />}
+                    <div className="flex-1">
+                      <p className="font-medium mb-2">{passwordMessage.split('!')[0]}!</p>
+                      {passwordMessage.includes('recovery mnemonic') && (
+                        <div className="bg-white dark:bg-gray-800 p-3 rounded-md border border-gray-200 dark:border-gray-600">
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Your New Recovery Mnemonic:</p>
+                            <button
+                              onClick={() => handleCopyMnemonic(passwordMessage.split('mnemonic is: ')[1])}
+                              className="flex items-center space-x-1 text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+                              title="Copy to clipboard"
+                            >
+                              <Copy size={14} />
+                              <span className="text-xs">{copiedMnemonic ? 'Copied!' : 'Copy'}</span>
+                            </button>
+                          </div>
+                          <p className="text-sm font-mono bg-gray-100 dark:bg-gray-700 p-2 rounded border text-center break-words">
+                            {passwordMessage.split('mnemonic is: ')[1]}
+                          </p>
+                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
+                            ⚠️ Save these words securely. They are required to recover your account if you forget your password.
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
@@ -1300,6 +1366,16 @@ export default function AccountSettings() {
                           </>
                         )}
                       </button>
+                    </div>
+
+                    <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-900/30 rounded-lg border border-amber-200 dark:border-amber-800">
+                      <div className="flex items-start space-x-2">
+                        <Info size={16} className="text-amber-600 dark:text-amber-400 mt-0.5" />
+                        <div className="text-sm text-amber-800 dark:text-amber-200">
+                          <span className="font-medium">Can't find your mnemonic?</span>
+                          <p className="mt-1">Check your email from registration, password recovery emails, or secure storage where you saved them during account setup.</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
