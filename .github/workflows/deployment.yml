@@ -1,0 +1,69 @@
+name: Deploy Frontend
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Build and Deploy Frontend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: ./sfsp-ui/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./sfsp-ui
+        run: npm ci
+
+      - name: Build application
+        working-directory: ./sfsp-ui
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+        run: npm run build
+
+      - name: Install sshpass
+        run: sudo apt-get update && sudo apt-get install -y sshpass
+
+      - name: Prepare SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deployment_key
+          chmod 600 ~/.ssh/deployment_key
+          ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to server
+        working-directory: ./sfsp-ui
+        env:
+          SSHPASS: ${{ secrets.SSH_PASSPHRASE }}
+        run: |
+          sshpass -e scp -i ~/.ssh/deployment_key -r .next/standalone ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:~/
+
+      - name: Setup application on server
+        env:
+          SSHPASS: ${{ secrets.SSH_PASSPHRASE }}
+        run: |
+          sshpass -e ssh -i ~/.ssh/deployment_key ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} << 'EOF'
+            sudo mv standalone /var/www/secureshare
+            cd /var/www/secureshare/standalone
+            pm2 stop secureshare || true
+            pm2 delete secureshare || true
+            pm2 start server.js --name "secureshare"
+            pm2 startup
+            pm2 save
+          EOF
+
+      - name: Cleanup
+        if: always()
+        run: |
+          rm -f ~/.ssh/deployment_key
