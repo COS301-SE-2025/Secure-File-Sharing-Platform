@@ -210,7 +210,7 @@ class UserService {
         throw new Error("Invalid password.");
       }
 
-      const token = this.generateToken(user.id, user.email);
+      const token = this.generateToken(user.id);
       return {
         user: {
           id: user.id,
@@ -266,7 +266,7 @@ class UserService {
         throw new Error("User not found.");
       }
 
-      const token = this.generateToken(user.id, user.email);
+      const token = this.generateToken(user.id);
       return token;
     } catch (error) {
       throw new Error("Failed to refresh token: " + error.message);
@@ -335,17 +335,34 @@ class UserService {
     return resetPIN;
   }
 
-  generateToken(userId, email) {
-    return jwt.sign({ userId, email }, process.env.JWT_SECRET, {
+  generateToken(userId) {
+    const payload = {
+      userId,
+      iat: Math.floor(Date.now() / 1000),
+      nonce: Math.random().toString(36).substring(2, 15)
+    };
+    return jwt.sign(payload, process.env.JWT_SECRET, {
       expiresIn: "1h",
+      issuer: "sfsp-api",
+      subject: userId.toString()
     });
   }
 
   verifyToken(token) {
     try {
-      return jwt.verify(token, process.env.JWT_SECRET);
+      const decoded = jwt.verify(token, process.env.JWT_SECRET, {
+        issuer: "sfsp-api"
+      });
+
+      return {
+        userId: decoded.userId,
+        iat: decoded.iat,
+        exp: decoded.exp,
+        iss: decoded.iss,
+        sub: decoded.sub
+      };
     } catch (error) {
-      throw new Error("Invalid token", error.message);
+      throw new Error("Invalid token: " + error.message);
     }
   }
 
