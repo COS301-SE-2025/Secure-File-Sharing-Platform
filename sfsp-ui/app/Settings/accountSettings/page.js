@@ -128,10 +128,8 @@ export default function AccountSettings() {
         const result = await res.json();
         if (res.ok && result.data?.notificationSettings) {
           setNotificationSettings(result.data.notificationSettings);
-          // Also save to localStorage as backup
           localStorage.setItem('notificationSettings', JSON.stringify(result.data.notificationSettings));
         } else {
-          // Fallback to localStorage if backend doesn't have settings
           const savedSettings = localStorage.getItem('notificationSettings');
           if (savedSettings) {
             setNotificationSettings(JSON.parse(savedSettings));
@@ -139,7 +137,6 @@ export default function AccountSettings() {
         }
       } catch (error) {
         console.error('Failed to fetch notification settings:', error.message);
-        // Fallback to localStorage on error
         const savedSettings = localStorage.getItem('notificationSettings');
         if (savedSettings) {
           setNotificationSettings(JSON.parse(savedSettings));
@@ -871,7 +868,6 @@ export default function AccountSettings() {
       
       console.log('Revoking session:', sessionId, 'Is current device:', isCurrentDevice);
       
-      // Directly use the token - the backend will extract the user ID
       const response = await axios.delete(`${API_BASE_URL}/sessions/${sessionId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -879,20 +875,16 @@ export default function AccountSettings() {
       if (response.data.success) {
         if (isCurrentDevice) {
           console.log('Current device session revoked, logging out...');
-          // This is the current device session, log the user out
           localStorage.removeItem('token');
-          sessionStorage.clear(); // Clear any session data
+          sessionStorage.clear();
           
-          // Show a brief message before redirecting
           setSessionError('Your current session has been revoked. Redirecting to login...');
           
-          // Give the user a moment to see the message before redirecting
           setTimeout(() => {
             console.log('Redirecting to login page...');
-            window.location.href = '/auth/login'; // Force a full page reload
+            window.location.href = '/auth/login';
           }, 1500);
         } else {
-          // Just update the sessions list by filtering out the revoked session
           setSessions(sessions.filter(session => session.id !== sessionId));
         }
       } else {
@@ -905,13 +897,11 @@ export default function AccountSettings() {
       );
     } finally {
       setIsRevokingSession(false);
-      // Close the modal
       setShowSessionRevokeModal(false);
       setSessionToRevoke(null);
     }
   };
 
-  // Check token validity
   const checkToken = async () => {
     try {
       const token = localStorage.getItem('token');
@@ -919,7 +909,6 @@ export default function AccountSettings() {
         return false;
       }
 
-      // Just to verify we can make an authenticated request
       const response = await axios.get(`${API_BASE_URL}/profile`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -931,10 +920,8 @@ export default function AccountSettings() {
     }
   };
 
-  // Load sessions when tab changes to DEVICES
   useEffect(() => {
     if (activeTab === 'DEVICES' && mounted && typeof window !== 'undefined') {
-      // First verify token
       checkToken().then(isValid => {
         if (isValid) {
           console.log('Loading sessions for DEVICES tab');
@@ -1308,7 +1295,7 @@ export default function AccountSettings() {
                     Verify your identity using your recovery mnemonic phrase
                   </p>
                 </div>
-                {passwordStep !== 'mnemonic' && (
+                {!user?.is_google_user && passwordStep !== 'mnemonic' && (
                   <button
                     type="button"
                     onClick={resetPasswordFlow}
@@ -1318,8 +1305,25 @@ export default function AccountSettings() {
                   </button>
                 )}
               </div>
+              
+              {user?.is_google_user && (
+                <div className="mb-6 p-6 rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-900/30 dark:border-blue-700">
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0 mt-0.5">
+                      <Info className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div className="ml-3">
+                      <h3 className="text-base font-medium text-blue-800 dark:text-blue-300">Google Account Authentication</h3>
+                      <div className="mt-2 text-sm text-blue-700 dark:text-blue-400">
+                        <p>You signed in using your Google account. Password management is handled through Google.</p>
+                        <p className="mt-2">To change your password, please visit your Google account settings at <a href="https://myaccount.google.com/security" target="_blank" rel="noopener noreferrer" className="font-medium underline">Google Security Settings</a>.</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
-              {passwordMessage && (
+              {!user?.is_google_user && passwordMessage && (
                 <div
                   className={`mb-6 p-4 rounded-lg border ${
                     passwordMessage.includes('successfully')
@@ -1361,7 +1365,7 @@ export default function AccountSettings() {
                 </div>
               )}
 
-              {passwordStep === 'mnemonic' && (
+              {!user?.is_google_user && passwordStep === 'mnemonic' && (
                 <div className="space-y-6">
                   <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-6 rounded-xl border border-blue-200 dark:border-blue-800">
                     <div className="flex items-center space-x-3 mb-4">
@@ -1448,7 +1452,7 @@ export default function AccountSettings() {
                 </div>
               )}
 
-              {passwordStep === 'newPassword' && (
+              {!user?.is_google_user && passwordStep === 'newPassword' && (
                 <div className="space-y-6">
                   <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 p-6 rounded-xl border border-green-200 dark:border-green-800">
                     <div className="flex items-center space-x-3 mb-6">

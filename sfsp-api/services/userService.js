@@ -426,6 +426,7 @@ class UserService {
         username: user.username,
         email: user.email,
         avatar_url: user.avatar_url,
+        is_google_user: !!user.google_id, // Add flag to indicate if this is a Google user
       };
     } catch (error) {
       throw new Error("Failed to fetch user profile: " + error.message);
@@ -1446,6 +1447,20 @@ class UserService {
 
   // Device tracking and session management methods
   async createOrUpdateUserSession(userId, deviceInfo) {
+    console.log('Creating/updating session for user:', userId);
+    console.log('Device info provided:', {
+      browserName: deviceInfo.browserName,
+      browserVersion: deviceInfo.browserVersion,
+      osName: deviceInfo.osName,
+      osVersion: deviceInfo.osVersion,
+      deviceType: deviceInfo.deviceType,
+      isMobile: deviceInfo.isMobile,
+      isTablet: deviceInfo.isTablet,
+      isDesktop: deviceInfo.isDesktop,
+      fingerprintPrefix: deviceInfo.deviceFingerprint?.substring(0, 10) + '...',
+      ipAddressPartial: deviceInfo.ipAddress?.substring(0, 7) + '...',
+      userAgentPartial: deviceInfo.userAgent?.substring(0, 30) + '...'
+    });
     const {
       deviceFingerprint,
       userAgent,
@@ -1477,14 +1492,12 @@ class UserService {
       }
 
       if (existingSession) {
-        // Check if IP address has changed, update location if needed
         const updateData = {
           last_login_at: new Date().toISOString(),
           login_count: existingSession.login_count + 1,
           is_active: true
         };
         
-        // Always update browser info in case detection has improved
         updateData.browser_name = browserName;
         updateData.browser_version = browserVersion;
         updateData.os_name = osName;
@@ -1494,13 +1507,11 @@ class UserService {
         updateData.is_tablet = isTablet;
         updateData.is_desktop = isDesktop;
         
-        // If IP has changed, update IP and location
         if (ipAddress && existingSession.ip_address !== ipAddress) {
           updateData.ip_address = ipAddress;
           updateData.location = location;
         }
         
-        // Update existing session
         const { data, error } = await supabase
           .from('user_sessions')
           .update(updateData)
@@ -1511,7 +1522,6 @@ class UserService {
         if (error) throw error;
         return { session: data, isNewDevice: false };
       } else {
-        // Create new session
         const { data, error } = await supabase
           .from('user_sessions')
           .insert({
@@ -1543,7 +1553,6 @@ class UserService {
 
   async getUserSessions(userId) {
     try {
-      // Check if userId is valid
       if (!userId) {
         throw new Error('User ID is required but was undefined or null');
       }
@@ -1744,16 +1753,133 @@ class UserService {
     }
   }
 
-  parseUserAgent(userAgent) {
+  // Check if the browser is Brave based on headers
+  detectBraveBrowser(headers) {
+    // If headers are empty or not provided, can't detect Brave
+    if (!headers || Object.keys(headers).length === 0) {
+      console.log('No headers provided for Brave detection');
+      return false;
+    }
+
+    // If headers are passed in deviceInfo object, extract them
+    if (headers && headers.headers) {
+      headers = headers.headers;
+    }
+    
+    // List of headers that can help identify Brave
+    const braveIndicators = [
+      'sec-ch-ua-full-version-list', // Brave includes this header
+      'sec-ch-ua-platform-version',  // Brave specific header
+      'x-client-data',               // Chromium-based metadata
+      'sec-fetch-site',              // Modern browsers like Brave use these fetch metadata headers
+      'sec-fetch-mode',
+      'sec-fetch-dest'
+    ];
+    
+    // Log all headers for debugging
+    console.log('Checking headers for Brave detection:');
+    Object.keys(headers).forEach(header => {
+      console.log(`${header}: ${headers[header]}`);
+    });
+    
+    // Look for 'brave' in any header value
+    for (const [key, value] of Object.entries(headers)) {
+      if (typeof value === 'string' && value.toLowerCase().includes('brave')) {
+        console.log(`Found 'brave' in header ${key}: ${value}`);
+        return true;
+      }
+    }
+    
+    // Check for Brave's unique patterns in sec-ch-ua
+    if (headers['sec-ch-ua']) {
+      const ua = headers['sec-ch-ua'].toLowerCase();
+      if (ua.includes('brave') || (ua.includes('chrome') && !ua.includes('google chrome'))) {
+        console.log('Detected Brave from sec-ch-ua pattern:', ua);
+        return true;
+      }
+    }
+    
+    // Check if most Brave-specific headers are present
+    let braveHeadersCount = 0;
+    braveIndicators.forEach(header => {
+      if (headers[header]) {
+        braveHeadersCount++;
+      }
+    });
+    
+    // If browser has "Chrome" in UA and has most of the Brave-specific headers
+    if (braveHeadersCount >= 4) {
+      console.log(`Detected ${braveHeadersCount} Brave-like headers`);
+      
+      // Additional check for specific combinations
+      if (headers['sec-ch-ua'] && headers['sec-fetch-site'] && headers['sec-fetch-mode']) {
+        if (!headers['x-requested-with']) { // Brave typically doesn't send this header
+          console.log('Header pattern matches Brave');
+          return true;
+        }
+      }
+    }
+    
+    // Examine user-agent string for Brave hints
+    if (headers['user-agent']) {
+      const ua = headers['user-agent'].toLowerCase();
+      
+      // Check for Brave/Chrome patterns without "Google Chrome"
+      if (ua.includes('chrome/') && !ua.includes('google chrome') && 
+          (ua.includes('safari/') && !ua.includes('edg') && !ua.includes('opr'))) {
+        console.log('User agent pattern suggests Brave (Chrome without identifiers)');
+        // Additional verification - this is a heuristic approach
+        if (headers['sec-ch-ua'] && headers['sec-ch-ua'].includes('Chrome')) {
+          console.log('Additional verification from sec-ch-ua supports Brave detection');
+          return true;
+        }
+      }
+    }
+    
+    console.log('Not detected as Brave browser');
+    return false;
+  }
+
+  parseUserAgent(userAgent, headers = {}) {
     if (!userAgent) return {};
+
+    // If headers are passed in deviceInfo object, extract them
+    if (headers && headers.headers) {
+      headers = headers.headers;
+    }
 
     const ua = userAgent.toLowerCase();
     console.log('Parsing user agent:', ua);
+    
+    // Log headers for debugging browser detection
+    if (headers && Object.keys(headers).length > 0) {
+      console.log('Headers available for browser detection:');
+      ['user-agent', 'sec-ch-ua', 'sec-ch-ua-mobile', 'sec-ch-ua-platform', 'sec-fetch-site', 'sec-fetch-mode'].forEach(header => {
+        if (headers[header]) {
+          console.log(`  ${header}: ${headers[header]}`);
+        }
+      });
+    }
 
     let browserName = 'Unknown';
     let browserVersion = 'Unknown';
 
-    if (ua.includes('edg/') || ua.includes('edge/')) {
+    // First check for Brave using request headers - most reliable method
+    if (this.detectBraveBrowser(headers)) {
+      browserName = 'Brave';
+      console.log('Detected Brave browser from request headers');
+      const match = ua.match(/chrome\/([\d.]+)/);
+      browserVersion = match ? match[1] : 'Unknown';
+    }
+    // Explicit Brave in user agent string
+    else if (ua.includes('brave')) {
+      browserName = 'Brave';
+      console.log('Detected Brave browser from explicit mention in UA');
+      const match = ua.match(/chrome\/([\d.]+)/);
+      browserVersion = match ? match[1] : 'Unknown';
+    } 
+    // Edge detection (both Chromium and Legacy Edge)
+    else if (ua.includes('edg/') || ua.includes('edge/')) {
       browserName = 'Edge';
       console.log('Detected Edge browser');
       let match = ua.match(/edg(?:e)?\/([\d.]+)/);
@@ -1761,12 +1887,9 @@ class UserService {
         match = ua.match(/edge\/([\d.]+)/);
       }
       browserVersion = match ? match[1] : 'Unknown';
-    } else if (ua.includes('brave')) {
-      browserName = 'Brave';
-      console.log('Detected Brave browser');
-      const match = ua.match(/brave\/([\d.]+)/);
-      browserVersion = match ? match[1] : 'Unknown';
-    } else if (ua.includes('opera') || ua.includes('opr/')) {
+    } 
+    // Opera detection (including Opera Mini)
+    else if (ua.includes('opr/') || ua.includes('opera/')) {
       browserName = 'Opera';
       console.log('Detected Opera browser');
       let match = ua.match(/opr\/([\d.]+)/);
@@ -1774,140 +1897,207 @@ class UserService {
         match = ua.match(/opera\/([\d.]+)/);
       }
       browserVersion = match ? match[1] : 'Unknown';
-    } else if (ua.includes('opera mini') || ua.includes('operamini')) {
+    } 
+    // Opera Mini has a different user agent structure
+    else if (ua.includes('opera mini')) {
       browserName = 'Opera Mini';
       console.log('Detected Opera Mini browser');
       const match = ua.match(/opera mini\/([\d.]+)/);
       browserVersion = match ? match[1] : 'Unknown';
-    } else if (ua.includes('vivaldi')) {
+    } 
+    // Vivaldi browser detection
+    else if (ua.includes('vivaldi')) {
       browserName = 'Vivaldi';
       console.log('Detected Vivaldi browser');
       const match = ua.match(/vivaldi\/([\d.]+)/);
       browserVersion = match ? match[1] : 'Unknown';
-    } else if (ua.includes('chrome') && !ua.includes('chromium')) {
-      console.log('Checking for Brave indicators...');
-      
-      let isBrave = false;
-      
-      if (ua.includes('brave') || ua.includes('brave/')) {
-        isBrave = true;
-        console.log('Found explicit Brave indicators');
-      }
-      else if (ua.includes('chrome') && ua.includes('safari') && !ua.includes('edg')) {
-        const chromeMatch = ua.match(/chrome\/([\d.]+)/);
-        if (chromeMatch) {
-          const versionStr = chromeMatch[1];
-          const chromeVer = parseInt(versionStr.split('.')[0]); // Get major version
-          console.log('Chrome version string:', versionStr, 'Major version:', chromeVer);
-          
-          // We should not detect Brave based only on Chrome version
-          // as Chrome is now regularly above version 100
-          // Only detect Brave if there are specific Brave indicators
-          if (ua.includes('brave')) {
-            isBrave = true;
-            console.log('Detected Brave from "brave" in user agent');
-          }
-        }
-      }
-      
-      if (isBrave) {
-        browserName = 'Brave';
-        console.log('✅ FINAL: Detected Brave browser');
-      } else {
-        browserName = 'Chrome';
-        console.log('✅ FINAL: Detected Chrome browser');
-      }
-      
-      const match = ua.match(/chrome\/([\d.]+)/);
+    } 
+    // Yandex Browser detection
+    else if (ua.includes('yabrowser')) {
+      browserName = 'Yandex';
+      console.log('Detected Yandex Browser');
+      const match = ua.match(/yabrowser\/([\d.]+)/);
       browserVersion = match ? match[1] : 'Unknown';
-    } else if (ua.includes('firefox') || ua.includes('mozilla') && ua.includes('gecko') && !ua.includes('webkit')) {
-      // More accurate Firefox detection - Mozilla is Firefox's vendor
-      // Gecko is Firefox's engine and differentiates it from WebKit-based browsers
-      browserName = 'Firefox';
-      console.log('Detected Firefox browser');
-      const match = ua.match(/firefox\/([\d.]+)/);
-      browserVersion = match ? match[1] : 'Unknown';
-    } else if (ua.includes('safari') && !ua.includes('chrome')) {
-      browserName = 'Safari';
-      console.log('Detected Safari browser');
-      const match = ua.match(/version\/([\d.]+)/);
-      browserVersion = match ? match[1] : 'Unknown';
-    } else if (ua.includes('samsungbrowser')) {
-      browserName = 'Samsung Internet';
-      console.log('Detected Samsung Internet browser');
-      const match = ua.match(/samsungbrowser\/([\d.]+)/);
-      browserVersion = match ? match[1] : 'Unknown';
-    } else if (ua.includes('ucbrowser') || ua.includes('uc browser')) {
+    }
+    // UC Browser detection
+    else if (ua.includes('ucbrowser') || ua.includes('uc browser')) {
       browserName = 'UC Browser';
       console.log('Detected UC Browser');
       const match = ua.match(/ucbrowser\/([\d.]+)/);
       browserVersion = match ? match[1] : 'Unknown';
-    } else if (ua.includes('yabrowser')) {
-      browserName = 'Yandex Browser';
-      console.log('Detected Yandex Browser');
-      const match = ua.match(/yabrowser\/([\d.]+)/);
+    }
+    // Samsung Internet Browser detection
+    else if (ua.includes('samsungbrowser')) {
+      browserName = 'Samsung Internet';
+      console.log('Detected Samsung Internet browser');
+      const match = ua.match(/samsungbrowser\/([\d.]+)/);
       browserVersion = match ? match[1] : 'Unknown';
-    } else {
-      console.log('No specific browser detected, using Unknown');
+    }
+    // Firefox detection
+    else if (ua.includes('firefox/')) {
+      browserName = 'Firefox';
+      console.log('Detected Firefox browser');
+      const match = ua.match(/firefox\/([\d.]+)/);
+      browserVersion = match ? match[1] : 'Unknown';
+    }
+    // Safari detection (must come after Chrome since Chrome also includes Safari in UA)
+    else if (ua.includes('safari/') && !ua.includes('chrome/')) {
+      browserName = 'Safari';
+      console.log('Detected Safari browser');
+      const match = ua.match(/version\/([\d.]+)/);
+      browserVersion = match ? match[1] : 'Unknown';
+    }
+    // Chrome detection (must come after all other Chromium browsers)
+    else if (ua.includes('chrome/')) {
+      // Chrome for iOS detection
+      if (ua.includes('crios/')) {
+        browserName = 'Chrome iOS';
+        console.log('Detected Chrome for iOS');
+        const match = ua.match(/crios\/([\d.]+)/);
+        browserVersion = match ? match[1] : 'Unknown';
+      } 
+      // Chrome on Android
+      else if (ua.includes('chrome/') && ua.includes('android')) {
+        browserName = 'Chrome Android';
+        console.log('Detected Chrome for Android');
+        const match = ua.match(/chrome\/([\d.]+)/);
+        browserVersion = match ? match[1] : 'Unknown';
+      }
+      // Generic Chrome detection
+      else {
+        browserName = 'Chrome';
+        console.log('Detected Chrome browser');
+        const match = ua.match(/chrome\/([\d.]+)/);
+        browserVersion = match ? match[1] : 'Unknown';
+      }
+    }
+    // Generic Mozilla detection as fallback
+    else if (ua.includes('mozilla/')) {
+      browserName = 'Mozilla-based';
+      console.log('Detected generic Mozilla-based browser');
+      const match = ua.match(/rv:([\d.]+)/);
+      browserVersion = match ? match[1] : 'Unknown';
     }
 
     // OS detection
     let osName = 'Unknown';
     let osVersion = 'Unknown';
 
-    if (ua.includes('windows')) {
-      // Windows version detection
-      const ntMatch = ua.match(/windows nt ([\d.]+)/);
-      const ntVersion = ntMatch ? ntMatch[1] : 'Unknown';
+    // Check sec-ch-ua-platform header for more accurate OS detection first
+    if (headers && headers['sec-ch-ua-platform']) {
+      // Remove quotes from the platform value
+      const platform = headers['sec-ch-ua-platform'].replace(/"/g, '').toLowerCase();
+      console.log('Platform from sec-ch-ua-platform:', platform);
       
-      // Check for Windows 11
-      // Windows 11 reports as NT 10.0 but we can check for newer build numbers
-      // or other indicators like "Windows NT 10.0; Win64; x64"
-      if (ntVersion === '10.0') {
-        // Check if it's likely Windows 11 based on additional signals
-        // Windows 11 typically has newer build numbers
-        if (ua.includes('windows nt 10.0; win64') && 
-            (ua.includes('rv:') || ua.includes('webkit') || 
-             parseFloat(browserVersion) >= 90)) { // Many browsers are at v90+ when Win11 launched
+      if (platform.includes('windows')) {
+        osName = 'Windows';
+        // Try to get version from platform-version
+        if (headers['sec-ch-ua-platform-version']) {
+          const versionMatch = headers['sec-ch-ua-platform-version'].match(/"([^"]+)"/);
+          if (versionMatch) {
+            const versionNumber = parseFloat(versionMatch[1]);
+            // Windows 11 reports as 10.0 but with higher build numbers
+            if (versionNumber >= 10) {
+              const fullVersion = versionMatch[1];
+              // Windows 11 typically has build number 22000 or higher
+              if (fullVersion.includes('.22') || parseInt(fullVersion.split('.')[2]) >= 22000) {
+                osVersion = '11';
+              } else {
+                osVersion = '10';
+              }
+            }
+          }
+        }
+      } else if (platform.includes('mac')) {
+        osName = 'macOS';
+        // Try to get version from platform-version
+        if (headers['sec-ch-ua-platform-version']) {
+          const versionMatch = headers['sec-ch-ua-platform-version'].match(/"([^"]+)"/);
+          if (versionMatch) {
+            osVersion = versionMatch[1];
+          }
+        }
+      } else if (platform.includes('linux')) {
+        osName = 'Linux';
+      } else if (platform.includes('android')) {
+        osName = 'Android';
+        // Try to get version from platform-version
+        if (headers['sec-ch-ua-platform-version']) {
+          const versionMatch = headers['sec-ch-ua-platform-version'].match(/"([^"]+)"/);
+          if (versionMatch) {
+            osVersion = versionMatch[1];
+          }
+        }
+      } else if (platform.includes('ios')) {
+        osName = 'iOS';
+        // Try to get version from platform-version
+        if (headers['sec-ch-ua-platform-version']) {
+          const versionMatch = headers['sec-ch-ua-platform-version'].match(/"([^"]+)"/);
+          if (versionMatch) {
+            osVersion = versionMatch[1];
+          }
+        }
+      } else {
+        osName = platform.charAt(0).toUpperCase() + platform.slice(1); // Capitalize the platform name
+      }
+    }
+    
+    // Fallback to user agent string if we couldn't determine OS from headers
+    if (osName === 'Unknown') {
+      if (ua.includes('windows')) {
+        // Windows version detection
+        const ntMatch = ua.match(/windows nt ([\d.]+)/);
+        const ntVersion = ntMatch ? ntMatch[1] : 'Unknown';
+        
+        // Check for Windows 11
+        // Windows 11 reports as NT 10.0 but we can check for newer build numbers
+        // or other indicators like "Windows NT 10.0; Win64; x64"
+        if (ntVersion === '10.0') {
+          // Check if it's likely Windows 11 based on additional signals
+          // Windows 11 typically has newer build numbers
+          if (ua.includes('windows nt 10.0; win64') && 
+              (ua.includes('rv:') || ua.includes('webkit') || 
+              parseFloat(browserVersion) >= 90)) { // Many browsers are at v90+ when Win11 launched
+            osName = 'Windows';
+            osVersion = '11';
+          } else {
+            osName = 'Windows';
+            osVersion = '10';
+          }
+        } else if (ntVersion === '6.3') {
           osName = 'Windows';
-          osVersion = '11';
+          osVersion = '8.1';
+        } else if (ntVersion === '6.2') {
+          osName = 'Windows';
+          osVersion = '8';
+        } else if (ntVersion === '6.1') {
+          osName = 'Windows';
+          osVersion = '7';
+        } else if (ntVersion === '6.0') {
+          osName = 'Windows';
+          osVersion = 'Vista';
+        } else if (ntVersion === '5.1' || ntVersion === '5.2') {
+          osName = 'Windows';
+          osVersion = 'XP';
         } else {
           osName = 'Windows';
-          osVersion = '10';
+          osVersion = ntVersion;
         }
-      } else if (ntVersion === '6.3') {
-        osName = 'Windows';
-        osVersion = '8.1';
-      } else if (ntVersion === '6.2') {
-        osName = 'Windows';
-        osVersion = '8';
-      } else if (ntVersion === '6.1') {
-        osName = 'Windows';
-        osVersion = '7';
-      } else if (ntVersion === '6.0') {
-        osName = 'Windows';
-        osVersion = 'Vista';
-      } else if (ntVersion === '5.1' || ntVersion === '5.2') {
-        osName = 'Windows';
-        osVersion = 'XP';
-      } else {
-        osName = 'Windows';
-        osVersion = ntVersion;
+      } else if (ua.includes('ios') || ua.includes('iphone') || ua.includes('ipad')) {
+        osName = 'iOS';
+        const match = ua.match(/os ([\d_]+)/);
+        osVersion = match ? match[1].replace(/_/g, '.') : 'Unknown';
+      } else if (ua.includes('mac os x')) {
+        osName = 'macOS';
+        const match = ua.match(/mac os x ([\d_]+)/);
+        osVersion = match ? match[1].replace(/_/g, '.') : 'Unknown';
+      } else if (ua.includes('linux')) {
+        osName = 'Linux';
+      } else if (ua.includes('android')) {
+        osName = 'Android';
+        const match = ua.match(/android ([\d.]+)/);
+        osVersion = match ? match[1] : 'Unknown';
       }
-    } else if (ua.includes('ios') || ua.includes('iphone') || ua.includes('ipad')) {
-      osName = 'iOS';
-      const match = ua.match(/os ([\d_]+)/);
-      osVersion = match ? match[1].replace(/_/g, '.') : 'Unknown';
-    } else if (ua.includes('mac os x')) {
-      osName = 'macOS';
-      const match = ua.match(/mac os x ([\d_]+)/);
-      osVersion = match ? match[1].replace(/_/g, '.') : 'Unknown';
-    } else if (ua.includes('linux')) {
-      osName = 'Linux';
-    } else if (ua.includes('android')) {
-      osName = 'Android';
-      const match = ua.match(/android ([\d.]+)/);
-      osVersion = match ? match[1] : 'Unknown';
     }
 
     // Device type detection
@@ -1916,14 +2106,46 @@ class UserService {
     let isTablet = false;
     let isDesktop = true;
 
-    if (ua.includes('mobile') || ua.includes('android') || ua.includes('iphone')) {
-      deviceType = 'mobile';
-      isMobile = true;
-      isDesktop = false;
-    } else if (ua.includes('tablet') || ua.includes('ipad')) {
-      deviceType = 'tablet';
-      isTablet = true;
-      isDesktop = false;
+    // Check sec-ch-ua-mobile header first for more accurate mobile detection
+    if (headers && headers['sec-ch-ua-mobile'] !== undefined) {
+      const mobileHeader = headers['sec-ch-ua-mobile'].toLowerCase();
+      if (mobileHeader.includes('?1') || mobileHeader === 'true' || mobileHeader === '1') {
+        deviceType = 'mobile';
+        isMobile = true;
+        isDesktop = false;
+        console.log('Mobile device detected from sec-ch-ua-mobile header');
+      }
+    }
+    
+    // Additional checks from user agent
+    if (deviceType === 'desktop') {
+      if (ua.includes('mobile') || ua.includes('android') || ua.includes('iphone')) {
+        deviceType = 'mobile';
+        isMobile = true;
+        isDesktop = false;
+        console.log('Mobile device detected from user agent string');
+      } else if (ua.includes('tablet') || ua.includes('ipad')) {
+        deviceType = 'tablet';
+        isTablet = true;
+        isDesktop = false;
+        console.log('Tablet device detected from user agent string');
+      }
+    }
+    
+    // Specific checks for iPads which may not identify as 'tablet' in newer iOS versions
+    if (headers && headers['sec-ch-ua-platform'] && 
+        headers['sec-ch-ua-platform'].toLowerCase().includes('ios')) {
+      if (ua.includes('ipad') || 
+          // Check for typical iPad screen resolutions
+          (ua.includes('macintosh') && 
+           typeof navigator !== 'undefined' && 
+           navigator.maxTouchPoints > 1)) {
+        deviceType = 'tablet';
+        isTablet = true;
+        isMobile = false;
+        isDesktop = false;
+        console.log('iPad detected from platform header and device characteristics');
+      }
     }
 
     // Create the result object
@@ -1946,7 +2168,28 @@ class UserService {
       result.browserVersion = 'Unknown';
     }
     
-    console.log('ParseUserAgent result:', result);
+    // Apply post-processing fixes for special cases
+    
+    // If detected as Chrome but headers suggest Brave, override it
+    if (result.browserName === 'Chrome' && this.detectBraveBrowser(headers)) {
+      console.log('Post-processing: Changing Chrome to Brave based on header detection');
+      result.browserName = 'Brave';
+    }
+    
+    // If mobile Chrome, make sure it's correctly labeled
+    if (result.browserName === 'Chrome' && result.isMobile && !result.browserName.includes('Mobile')) {
+      console.log('Post-processing: Labeling as Chrome Mobile');
+      result.browserName = 'Chrome Mobile';
+    }
+    
+    // Clean up version strings
+    if (result.browserVersion && result.browserVersion.length > 10) {
+      // Truncate overly long version strings to first 2 version parts (e.g. 115.0.5790.171 -> 115.0)
+      result.browserVersion = result.browserVersion.split('.').slice(0, 2).join('.');
+      console.log('Post-processing: Truncated long browser version to', result.browserVersion);
+    }
+    
+    console.log('ParseUserAgent final result:', result);
     return result;
   }
 

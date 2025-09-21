@@ -253,7 +253,7 @@ class UserController {
           const ipAddress = req.ip || req.connection.remoteAddress || req.socket.remoteAddress || 'Unknown';
           const deviceFingerprint = userService.generateDeviceFingerprint(userAgent, ipAddress);
 
-          const browserInfo = userService.parseUserAgent(userAgent);
+          const browserInfo = userService.parseUserAgent(userAgent, req.headers);
           console.log('Detected browser and OS info:', browserInfo);
 
           const location = userService.getLocationFromIP(ipAddress);
@@ -264,6 +264,7 @@ class UserController {
             userAgent,
             ipAddress,
             location,
+            headers: req.headers,
             ...browserInfo
           };
           
@@ -738,6 +739,20 @@ class UserController {
           message: "Email and Google ID are required.",
         });
       }
+      
+      const userAgent = req.headers['user-agent'] || '';
+      const ipAddress = req.ip || req.connection.remoteAddress || req.socket.remoteAddress || 'Unknown';
+      const deviceFingerprint = userService.generateDeviceFingerprint(userAgent, ipAddress);
+      const browserInfo = userService.parseUserAgent(userAgent, req.headers);
+      
+      const deviceInfo = {
+        deviceFingerprint,
+        userAgent,
+        ipAddress,
+        ...browserInfo
+      };
+      
+      console.log('Google auth device info:', deviceInfo);
 
       const { data: existingUser, error: checkError } = await supabase
         .from("users")
@@ -878,6 +893,17 @@ class UserController {
         } catch (vaultError) {
           console.warn("Failed to retrieve keys for existing Google user:", vaultError.message);
         }
+      }
+      
+      // Create or update session for both new and existing Google users
+      try {
+        // Include request headers for better browser detection (especially Brave)
+        deviceInfo.headers = req.headers;
+        const sessionResult = await userService.createOrUpdateUserSession(user.id, deviceInfo);
+        console.log('Google user session created/updated:', sessionResult?.session?.id);
+      } catch (sessionError) {
+        console.error('Error creating session for Google user:', sessionError.message);
+        // Continue with the authentication process even if session creation fails
       }
 
       res.status(200).json({
