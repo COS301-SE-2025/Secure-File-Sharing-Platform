@@ -247,6 +247,8 @@ class UserController {
         result.keyBundle = keyBundle;
 
         try {
+          console.log('🔄 STARTING SESSION CREATION PROCESS FOR USER:', result.user.id);
+          
           const userAgent = req.headers['user-agent'] || '';
           const ipAddress = req.ip || req.connection.remoteAddress || req.socket.remoteAddress || 'Unknown';
           const deviceFingerprint = userService.generateDeviceFingerprint(userAgent, ipAddress);
@@ -268,6 +270,15 @@ class UserController {
           console.log('Final device info:', deviceInfo);
 
           const sessionResult = await userService.createOrUpdateUserSession(result.user.id, deviceInfo);
+          
+          console.log('Session creation result:', {
+            sessionId: sessionResult.session?.id,
+            isNewDevice: sessionResult.isNewDevice,
+            browser: sessionResult.session?.browser_name,
+            ip: sessionResult.session?.ip_address,
+            location: sessionResult.session?.location,
+            lastLogin: sessionResult.session?.last_login_at
+          });
 
           if (sessionResult.isNewDevice) {
             const notificationService = require('../services/notificationService');
@@ -279,7 +290,12 @@ class UserController {
             );
           }
         } catch (sessionError) {
-          console.error('Error tracking user session:', sessionError);
+          console.error('SESSION CREATION ERROR:', sessionError);
+          console.error('Session error details:', {
+            message: sessionError.message,
+            stack: sessionError.stack,
+            deviceInfo: deviceInfo
+          });
         }
       }
 
@@ -723,7 +739,6 @@ class UserController {
         });
       }
 
-      // Check if user exists with this email
       const { data: existingUser, error: checkError } = await supabase
         .from("users")
         .select("*")
@@ -743,7 +758,8 @@ class UserController {
             .from("users")
             .update({
               google_id: google_id,
-              avatar_url: picture || existingUser.avatar_url
+              avatar_url: picture || existingUser.avatar_url,
+              is_verified: true
             })
             .eq("id", existingUser.id)
             .select()
@@ -755,9 +771,12 @@ class UserController {
           user = updatedUser;
         } else {
           user = existingUser;
+          
+          if (!existingUser.is_verified) {
+            console.log("Existing Google user is not verified, keeping unverified status for 2FA");
+          }
         }
 
-        // Ensure user is added to PostgreSQL database via file service (for both new and existing users)
         try {
           const postgresRes = await axios.post(
             `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/addUser`,
@@ -767,12 +786,11 @@ class UserController {
           console.log("User successfully ensured in PostgreSQL database");
         } catch (postgresError) {
           console.error("Failed to add user to PostgreSQL database:", postgresError.message);
-          // Don't fail the login if PostgreSQL insertion fails
         }
+        
       } else {
         isNewUser = true;
         
-        // For new Google users, we need key bundle data
         if (!keyBundle || !keyBundle.ik_public || !keyBundle.spk_public || 
             !keyBundle.opks_public || !keyBundle.nonce || 
             !keyBundle.signedPrekeySignature || !keyBundle.salt) {
@@ -806,7 +824,6 @@ class UserController {
         }
         user = newUser;
 
-        // Store private keys in vault
         const vaultres = await VaultController.storeKeyBundle({
           encrypted_id: user.id,
           ik_private_key: keyBundle.ik_private_key,
@@ -822,7 +839,6 @@ class UserController {
           });
         }
 
-        // Add user to PostgreSQL database via file service
         try {
           const postgresRes = await axios.post(
             `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/addUser`,
@@ -832,10 +848,8 @@ class UserController {
           console.log("Google user successfully added to PostgreSQL database");
         } catch (postgresError) {
           console.error("Failed to add Google user to PostgreSQL database:", postgresError.message);
-          // Don't fail the registration if PostgreSQL insertion fails
         }
 
-        // Send verification email for new Google users using the backend service
         try {
           await userService.sendVerificationCode(
             user.id,
@@ -849,9 +863,8 @@ class UserController {
         }
       }
 
-      // Only generate token for existing verified users
       let token = null;
-      if (!isNewUser && user.is_verified) {
+      if (user.is_verified) {
         token = await userService.generateToken(user.id, user.email);
       }
 
@@ -898,7 +911,6 @@ class UserController {
     }
   }
 
-  // Session management methods
   async getUserSessions(req, res) {
     try {
       const authHeader = req.headers.authorization;
@@ -911,9 +923,8 @@ class UserController {
 
       const token = authHeader.split(" ")[1];
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      console.log("Decoded token:", decoded); // Debug log
+      console.log("Decoded token:", decoded);
       
-      // Check if userId exists in the token
       if (!decoded.userId) {
         return res.status(400).json({
           success: false,
@@ -922,19 +933,74 @@ class UserController {
       }
       
       const userId = decoded.userId;
-      console.log("User ID from token:", userId); // Debug log
-      
-      // We don't need to validate if the user exists in the database for session management
-      // Sessions can exist for users that may have been removed from the users table
-      // or if there's a database synchronization issue
+      console.log("User ID from token:", userId);
       
       console.log("Fetching sessions for user ID:", userId);
       const sessions = await userService.getUserSessions(userId);
+      
+      console.log('Raw sessions returned from service:', sessions?.length || 0);
+      sessions?.forEach((session, index) => {
+        console.log(`Session ${index + 1}:`, {
+          id: session.id,
+          browser: session.browser_name,
+          ip: session.ip_address,
+          location: session.location,
+          last_login: session.last_login_at,
+          is_active: session.is_active
+        });
+      });
+
+      let updatedSessions = [...sessions];
+      try {
+        const userAgent = req.headers['user-agent'] || '';
+        const ipAddress = req.ip || req.connection.remoteAddress || req.socket.remoteAddress || 'Unknown';
+        console.log('Session fetch - UA:', userAgent?.substring(0, 100) + '...', 'IP:', ipAddress);
+        const deviceFingerprint = userService.generateDeviceFingerprint(userAgent, ipAddress);
+        
+        const browserInfo = userService.parseUserAgent(userAgent);
+        console.log('Parsed browser info for update:', browserInfo);
+        
+        await userService.updateSessionBrowserInfo(userId, deviceFingerprint, browserInfo);
+        await userService.updateSessionLastLogin(userId, deviceFingerprint);
+        
+        const currentTime = new Date().toISOString();
+        updatedSessions = sessions.map(session => {
+          const sessionFingerprint = userService.generateDeviceFingerprint(
+            session.user_agent || '', 
+            session.ip_address || ''
+          );
+          console.log(`Comparing fingerprints: current=${deviceFingerprint}, session=${sessionFingerprint}`);
+          if (sessionFingerprint === deviceFingerprint) {
+            console.log('Updating session in memory:', session.id);
+            return { 
+              ...session, 
+              last_login_at: currentTime,
+              browser_name: browserInfo.browserName,
+              browser_version: browserInfo.browserVersion,
+              os_name: browserInfo.osName,
+              os_version: browserInfo.osVersion,
+              device_type: browserInfo.deviceType,
+              is_mobile: browserInfo.isMobile,
+              is_tablet: browserInfo.isTablet,
+              is_desktop: browserInfo.isDesktop
+            };
+          }
+          return session;
+        });
+      } catch (updateError) {
+        console.error('Error updating current session last login:', updateError);
+      }
 
       res.status(200).json({
         success: true,
         message: "User sessions retrieved successfully",
-        data: sessions,
+        data: updatedSessions,
+        timestamp: new Date().toISOString(),
+        debug: {
+          userAgent: req.headers['user-agent']?.substring(0, 200),
+          ip: req.ip || req.connection.remoteAddress || req.socket.remoteAddress,
+          userId: userId
+        }
       });
     } catch (error) {
       console.error("Error retrieving user sessions:", error);
@@ -957,9 +1023,8 @@ class UserController {
 
       const token = authHeader.split(" ")[1];
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      console.log("Decoded token (deactivate):", decoded); // Debug log
+      console.log("Decoded token (deactivate):", decoded);
       
-      // Check if userId exists in the token
       if (!decoded.userId) {
         return res.status(400).json({
           success: false,
@@ -968,7 +1033,7 @@ class UserController {
       }
       
       const userId = decoded.userId;
-      console.log("User ID from token (deactivate):", userId); // Debug log
+      console.log("User ID from token (deactivate):", userId);
       
       const { sessionId } = req.params;
 
@@ -990,6 +1055,56 @@ class UserController {
       res.status(500).json({
         success: false,
         message: "Failed to deactivate session",
+      });
+    }
+  }
+
+  async createTestSession(req, res) {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({
+          success: false,
+          message: "Authorization token missing or invalid.",
+        });
+      }
+
+      const token = authHeader.split(" ")[1];
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const userId = decoded.userId;
+
+      const userAgent = req.headers['user-agent'] || '';
+      const ipAddress = req.ip || req.connection.remoteAddress || req.socket.remoteAddress || 'Unknown';
+      const deviceFingerprint = userService.generateDeviceFingerprint(userAgent, ipAddress);
+      const browserInfo = userService.parseUserAgent(userAgent);
+      const location = userService.getLocationFromIP(ipAddress);
+
+      const deviceInfo = {
+        deviceFingerprint,
+        userAgent,
+        ipAddress,
+        location,
+        ...browserInfo
+      };
+
+      console.log(' Creating test session for user:', userId);
+      console.log('Test session device info:', deviceInfo);
+
+      const sessionResult = await userService.createOrUpdateUserSession(userId, deviceInfo);
+
+      console.log(' Test session creation result:', sessionResult);
+
+      res.status(200).json({
+        success: true,
+        message: "Test session created",
+        data: sessionResult
+      });
+    } catch (error) {
+      console.error(' Test session creation error:', error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to create test session",
+        error: error.message
       });
     }
   }

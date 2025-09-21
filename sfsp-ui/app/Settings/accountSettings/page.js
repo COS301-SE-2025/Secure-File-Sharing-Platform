@@ -479,7 +479,6 @@ export default function AccountSettings() {
       setPasswordErrors((prev) => ({ ...prev, [field]: '' }));
     }
     
-    // Update password requirements for newPassword field
     if (field === 'newPassword') {
       const requirements = {
         hasMinLength: value.length >= 8,
@@ -597,7 +596,7 @@ export default function AccountSettings() {
           Authorization: `Bearer ${localStorage.getItem('token')}`,
         },
         body: JSON.stringify({
-          mnemonicWords: mnemonicWords, // Include the verified mnemonic words
+          mnemonicWords: mnemonicWords,
           newPassword: passwordData.newPassword,
         }),
       });
@@ -605,10 +604,8 @@ export default function AccountSettings() {
       if (response.ok) {
         const data = await response.json();
 
-        // Display success message with new mnemonic words
         setPasswordMessage(`Password changed successfully! Your new recovery mnemonic is: ${data.newMnemonicWords.join(' ')}`);
 
-        // Reset form and show success
         setPasswordData({
           currentPassword: '',
           newPassword: '',
@@ -620,7 +617,6 @@ export default function AccountSettings() {
         setPasswordStep('mnemonic');
         setPasswordErrors({});
 
-        // Auto-hide success message after 10 seconds (longer for mnemonic display)
         setTimeout(() => setPasswordMessage(''), 10000);
       } else {
         const error = await response.json();
@@ -638,7 +634,6 @@ export default function AccountSettings() {
     newWords[index] = value;
     setMnemonicWords(newWords);
 
-    // Clear error for this word if it exists
     if (mnemonicErrors[index]) {
       const newErrors = [...mnemonicErrors];
       newErrors[index] = '';
@@ -651,7 +646,6 @@ export default function AccountSettings() {
     setPasswordMessage('');
     setMnemonicErrors(Array(10).fill(''));
 
-    // Basic validation - check if all words are filled
     const emptyIndices = mnemonicWords
       .map((word, index) => (!word.trim() ? index : -1))
       .filter(index => index !== -1);
@@ -667,7 +661,6 @@ export default function AccountSettings() {
     }
 
     try {
-      // Send mnemonic words to backend for verification
       const response = await fetch(`${API_BASE_URL}/verify-mnemonic`, {
         method: 'POST',
         headers: {
@@ -686,7 +679,6 @@ export default function AccountSettings() {
       } else {
         const error = await response.json();
         if (error.invalidWords && Array.isArray(error.invalidWords)) {
-          // Highlight specific invalid words
           const newErrors = [...mnemonicErrors];
           error.invalidWords.forEach(index => {
             newErrors[index] = 'Invalid word';
@@ -737,7 +729,6 @@ export default function AccountSettings() {
           [setting]: value,
         },
       };
-      // Save to localStorage immediately for better UX
       localStorage.setItem('notificationSettings', JSON.stringify(updatedSettings));
       return updatedSettings;
     });
@@ -760,7 +751,6 @@ export default function AccountSettings() {
       });
 
       if (response.ok) {
-        // Save to localStorage as backup
         localStorage.setItem('notificationSettings', JSON.stringify(notificationSettings));
         setNotificationMessage('Notification settings updated successfully!');
         setTimeout(() => setNotificationMessage(''), 3000);
@@ -789,15 +779,52 @@ export default function AccountSettings() {
       
       console.log('Fetching sessions...');
       
-      // We'll directly use the token for authentication without trying to get user info first
-      // The backend will extract the user ID from the token
       const response = await axios.get(`${API_BASE_URL}/sessions`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
       if (response.data.success) {
         console.log('Sessions received:', response.data.data);
-        setSessions(response.data.data);
+        
+        let userLocation = null;
+        try {
+          const geoResponse = await fetch('https://ipapi.co/json/');
+          const geoData = await geoResponse.json();
+          if (geoData && geoData.city && geoData.country_name) {
+            userLocation = geoData.region 
+              ? `${geoData.city}, ${geoData.region}, ${geoData.country_name}`
+              : `${geoData.city}, ${geoData.country_name}`;
+            console.log('Retrieved user location from client:', userLocation);
+          }
+        } catch (err) {
+          console.error('Failed to get location from client-side:', err);
+        }
+        
+        const updatedSessions = response.data.data.map(session => {
+          // Determine if current session based only on recency
+          const isCurrentSession = 
+            session.last_login_at && 
+            (Date.now() - new Date(session.last_login_at).getTime()) < (1000 * 60 * 5);
+            
+          if (isCurrentSession && userLocation && 
+              (session.location === 'Local Network' || !session.location || session.location === 'Unknown Location')) {
+            return { 
+              ...session, 
+              location: userLocation,
+              ip_address: session.ip_address === "140.0.0.0" ? "" : session.ip_address,
+              browser_version: session.browser_version === "140.0.0.0" ? "" : session.browser_version 
+            };
+          }
+          return { 
+            ...session, 
+            ip_address: session.ip_address === "140.0.0.0" ? "" : session.ip_address,
+            browser_version: session.browser_version === "140.0.0.0" ? "" : session.browser_version 
+          };
+        });
+        
+        setSessions(updatedSessions);
+        
+        console.log('Sessions state updated with client-side enhancement');
       } else {
         console.error('Failed to load session data:', response.data);
         setSessionError('Failed to load session data');
@@ -910,6 +937,7 @@ export default function AccountSettings() {
       // First verify token
       checkToken().then(isValid => {
         if (isValid) {
+          console.log('Loading sessions for DEVICES tab');
           fetchSessions();
         } else {
           setSessionError('Your session has expired. Please log in again.');
@@ -1771,11 +1799,34 @@ export default function AccountSettings() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                    These are the devices that are currently logged into your account. You can revoke access for any device that you don't recognize.
-                  </p>
+                  <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-md">
+                    <h4 className="font-medium text-blue-800 dark:text-blue-300 mb-2 flex items-center">
+                      <span className="w-3 h-3 bg-blue-500 rounded-full mr-2 animate-pulse"></span>
+                      Session Management
+                    </h4>
+                    <p className="text-sm text-blue-700 dark:text-blue-200">
+                      Your current session is highlighted in green. Other sessions are listed by most recent activity.
+                    </p>
+                  </div>
                   
-                  {sessions.map((session) => {
+                  {sessions
+                    .sort((a, b) => {
+                      // Use the same current session detection logic
+                      const currentUA = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+                      
+                      const getIsCurrent = (session) => {
+                        // Use recency-based detection instead of browser-specific
+                        return session.last_login_at && 
+                          (Date.now() - new Date(session.last_login_at).getTime()) < (1000 * 60 * 5);
+                      };
+                      const aIsCurrent = getIsCurrent(a);
+                      const bIsCurrent = getIsCurrent(b);
+                      
+                      if (aIsCurrent && !bIsCurrent) return -1;
+                      if (!aIsCurrent && bIsCurrent) return 1;
+                      return new Date(b.last_login_at || 0) - new Date(a.last_login_at || 0);
+                    })
+                    .map((session) => {
                     // Determine device icon
                     let DeviceIcon = Laptop;
                     if (session.is_mobile) DeviceIcon = Smartphone;
@@ -1787,64 +1838,77 @@ export default function AccountSettings() {
                     const timeAgo = formatDistance(lastLogin, new Date(), { addSuffix: true });
                     
                     // Is this the current device?
-                    // We need a better way to identify the current device
-                    const isCurrentDevice = session.is_active && 
-                      mounted && 
-                      typeof window !== 'undefined' &&
-                      typeof navigator !== 'undefined' && 
-                      navigator.userAgent && 
-                      (
-                        // Check if the current session is the most recent one for the current browser
-                        (
-                          (session.browser_name?.includes('Firefox') && navigator.userAgent.includes('Firefox')) ||
-                          (session.browser_name?.includes('Chrome') && navigator.userAgent.includes('Chrome') && !navigator.userAgent.includes('Edg')) ||
-                          (session.browser_name?.includes('Safari') && navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chrome')) ||
-                          (session.browser_name?.includes('Edge') && navigator.userAgent.includes('Edg'))
-                        ) &&
-                        // Additional check for the last login time - must be the most recent session for this browser
-                        session.last_login_at && 
-                        new Date(session.last_login_at).getTime() > Date.now() - (1000 * 60 * 60) // Within the last hour
-                      );
-                    
+                    // Use recency-based detection instead of browser-specific
+                    const finalIsCurrentDevice = 
+                      session.last_login_at &&
+                      (Date.now() - new Date(session.last_login_at).getTime()) < (1000 * 60 * 5); // Within 5 minutes
+
                     return (
                       <div
                         key={session.id}
-                        className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
+                        className={`p-4 border-2 rounded-lg ${
+                          finalIsCurrentDevice 
+                            ? 'border-green-500 bg-green-50 dark:bg-green-900/20 shadow-lg ring-2 ring-green-200 dark:ring-green-800' 
+                            : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'
+                        }`}
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex items-start space-x-3">
-                            <div className="bg-blue-100 dark:bg-blue-900 p-2 rounded-full">
-                              <DeviceIcon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                            <div className={`p-2 rounded-full ${
+                              finalIsCurrentDevice 
+                                ? 'bg-green-100 dark:bg-green-800' 
+                                : 'bg-blue-100 dark:bg-blue-900'
+                            }`}>
+                              <DeviceIcon className={`h-6 w-6 ${
+                                finalIsCurrentDevice 
+                                  ? 'text-green-600 dark:text-green-400' 
+                                  : 'text-blue-600 dark:text-blue-400'
+                              }`} />
                             </div>
-                            <div>
+                            <div className="flex-1">
                               <h4 className="font-medium text-gray-900 dark:text-white flex items-center">
                                 {session.browser_name || 'Unknown browser'} on {session.os_name || 'Unknown OS'}
-                                {isCurrentDevice && (
-                                  <span className="ml-2 px-2 py-0.5 text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 rounded-full">
+                                {finalIsCurrentDevice && (
+                                  <span className="ml-3 px-4 py-2 text-sm font-bold bg-gradient-to-r from-green-500 to-green-600 text-white rounded-full flex items-center shadow-lg">
+                                    <span className="w-3 h-3 bg-white rounded-full mr-2 animate-pulse"></span>
                                     Current
                                   </span>
                                 )}
                               </h4>
                               <p className="text-sm text-gray-600 dark:text-gray-400">
-                                {session.device_type || 'Unknown device'} • {session.browser_version || 'Unknown version'} • {session.os_version || 'Unknown version'}
+                                {session.device_type || 'Unknown device'} 
+                                {session.browser_version && session.browser_version !== "140.0.0.0" ? ` • ${session.browser_version}` : ""} 
+                                {session.os_version ? ` • ${session.os_version}` : ""}
                               </p>
                               <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
                                 Last active {timeAgo} ({formattedDate})
                               </p>
                               <div className="flex items-center mt-1">
                                 <p className="text-xs text-gray-500 dark:text-gray-500">
-                                  <span className="font-medium">IP:</span> {session.ip_address || 'Unknown'} • <span className="font-medium">Location:</span> {session.location || 'Unknown'}
+                                  <span className="font-medium">IP:</span> {
+                                    (session.ip_address === "::1" || session.ip_address === "127.0.0.1" || 
+                                     session.ip_address === "140.0.0.0" || session.ip_address?.startsWith("140.")) ? 
+                                      "Private Network Address" : 
+                                      session.ip_address || 'Unknown'
+                                  } • 
+                                  <span className="font-medium">Location:</span> {session.location || 'Unknown'}
                                 </p>
                               </div>
                             </div>
                           </div>
                           <button
-                            onClick={() => confirmSessionRevoke(session.id, isCurrentDevice)}
-                            disabled={isRevokingSession}
-                            className="text-red-600 hover:text-red-500 focus:outline-none transition-colors"
-                            title={isCurrentDevice ? "Sign out from this device" : "Revoke access"}
+                            onClick={() => confirmSessionRevoke(session.id, finalIsCurrentDevice)}
+                            disabled={isRevokingSession || finalIsCurrentDevice}
+                            className={`text-red-600 hover:text-red-500 focus:outline-none transition-colors ${
+                              finalIsCurrentDevice ? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-700 px-3 py-2 rounded-md' : ''
+                            }`}
+                            title={finalIsCurrentDevice ? "Cannot revoke your current session" : "Revoke access"}
                           >
-                            <X size={20} />
+                            {finalIsCurrentDevice ? (
+                              <span className="text-gray-500 dark:text-gray-400 text-sm font-medium">Active</span>
+                            ) : (
+                              <X size={20} />
+                            )}
                           </button>
                         </div>
                       </div>
@@ -1858,6 +1922,20 @@ export default function AccountSettings() {
                   <h4 className="font-medium text-yellow-800 dark:text-yellow-300 mb-1">Security Tip</h4>
                   <p className="text-yellow-700 dark:text-yellow-200">
                     If you notice any devices or locations you don't recognize, revoke access immediately and change your password.
+                  </p>
+                </div>
+                
+                <div className="bg-green-50 dark:bg-green-900/30 p-4 rounded-md text-sm mt-4">
+                  <h4 className="font-medium text-green-800 dark:text-green-300 mb-1">Current Session</h4>
+                  <p className="text-green-700 dark:text-green-200">
+                    Your current session is always listed first and highlighted in green. For privacy and security, your actual location is displayed for your current session.
+                  </p>
+                </div>
+                
+                <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-md text-sm mt-4">
+                  <h4 className="font-medium text-blue-800 dark:text-blue-300 mb-1">Privacy & Security Information</h4>
+                  <p className="text-blue-700 dark:text-blue-200">
+                    For security reasons, your actual IP address is not displayed. Your location is determined based on your network connection and may be used to identify suspicious login attempts.
                   </p>
                 </div>
               </div>

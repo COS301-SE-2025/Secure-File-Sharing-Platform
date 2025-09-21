@@ -67,7 +67,7 @@ class UserService {
     }
   }
 
-  getLocationFromIP(ipAddress) {
+  async getLocationFromIP(ipAddress) {
     try {
       if (!ipAddress) {
         console.log('No IP address provided for geolocation');
@@ -77,9 +77,11 @@ class UserService {
       console.log('Attempting to geolocate IP:', ipAddress);
       
       const cleanIp = ipAddress.replace(/^::ffff:/, '');
+      console.log('Clean IP:', cleanIp);
       
       if (cleanIp === '127.0.0.1' || 
           cleanIp === 'localhost' || 
+          cleanIp === '::1' ||
           cleanIp.startsWith('192.168.') || 
           cleanIp.startsWith('10.') || 
           cleanIp.startsWith('172.16.') || 
@@ -90,12 +92,32 @@ class UserService {
           cleanIp.startsWith('172.30.') || 
           cleanIp.startsWith('172.31.')) {
         console.log('Local or internal IP detected:', cleanIp);
+        try {
+          const response = await fetch('https://ipapi.co/json/');
+          const data = await response.json();
+          
+          if (data && data.city && (data.region || data.country_name)) {
+            const location = data.region 
+              ? `${data.city}, ${data.region}, ${data.country_name}`
+              : `${data.city}, ${data.country_name}`;
+            console.log('Retrieved location from external service:', location);
+            return location;
+          }
+        } catch (err) {
+          console.log('Failed to get location from external service:', err.message);
+        }
+        
         return 'Local Network';
       }
       
       if (cleanIp.startsWith('140.') || cleanIp === '140.0.0.0') {
         console.log('South African IP range detected:', cleanIp);
-        return 'Pretoria, South Africa';
+        return 'Pretoria, Gauteng, South Africa';
+      }
+
+      if (cleanIp.startsWith('196.') || cleanIp.startsWith('41.') || cleanIp.startsWith('105.')) {
+        console.log('South African IP range detected:', cleanIp);
+        return 'South Africa (IP-based)';
       }
 
       const geo = geoip.lookup(cleanIp);
@@ -1439,7 +1461,7 @@ class UserService {
     } = deviceInfo;
 
     // Get location from IP address
-    const location = this.getLocationFromIP(ipAddress);
+    const location = await this.getLocationFromIP(ipAddress);
     
     try {
       // Check if session already exists
@@ -1461,6 +1483,16 @@ class UserService {
           login_count: existingSession.login_count + 1,
           is_active: true
         };
+        
+        // Always update browser info in case detection has improved
+        updateData.browser_name = browserName;
+        updateData.browser_version = browserVersion;
+        updateData.os_name = osName;
+        updateData.os_version = osVersion;
+        updateData.device_type = deviceType;
+        updateData.is_mobile = isMobile;
+        updateData.is_tablet = isTablet;
+        updateData.is_desktop = isDesktop;
         
         // If IP has changed, update IP and location
         if (ipAddress && existingSession.ip_address !== ipAddress) {
@@ -1526,8 +1558,25 @@ class UserService {
 
       if (error) throw error;
       
+      console.log('Raw sessions from database:', data?.map(s => ({
+        id: s.id,
+        browser: s.browser_name,
+        ip: s.ip_address,
+        location: s.location,
+        last_login: s.last_login_at,
+        fingerprint: s.device_fingerprint?.substring(0, 16) + '...'
+      })));
+      
       // Update locations for sessions with missing or unknown locations
       const updatedSessions = await this.updateSessionLocations(data);
+      
+      console.log('Final sessions to return:', updatedSessions?.map(s => ({
+        id: s.id,
+        browser: s.browser_name,
+        ip: s.ip_address,
+        location: s.location,
+        last_login: s.last_login_at
+      })));
       
       return updatedSessions || [];
     } catch (error) {
@@ -1548,17 +1597,20 @@ class UserService {
     // Find sessions that have IP addresses but no location or "Unknown Location"
     for (let i = 0; i < updatedSessions.length; i++) {
       const session = updatedSessions[i];
+      console.log(`Processing session ${i + 1}/${updatedSessions.length}: ID=${session.id}, IP=${session.ip_address}, location=${session.location}`);
       
-      // Always update South African IPs with 140.x.x.x pattern
+      // Always update South African IPs with 140.x.x.x pattern OR sessions with old/incorrect locations
       if (session.ip_address && (
           !session.location || 
           session.location === 'Unknown Location' || 
           session.location === 'unknown' ||
           session.location === 'Local Network' ||
-          (session.ip_address.startsWith('140.') && session.location !== 'Pretoria, South Africa')
+          session.location === 'Local Development Environment' ||
+          session.location === 'Location Error' ||
+          (session.ip_address.startsWith('140.') && session.location !== 'Pretoria, Gauteng, South Africa')
       )) {
         console.log(`Re-calculating location for session ${session.id} with IP ${session.ip_address}`);
-        const location = this.getLocationFromIP(session.ip_address);
+        const location = await this.getLocationFromIP(session.ip_address);
         console.log(`New location determined: ${location}`);
         
         updatedSessions[i].location = location;
@@ -1570,6 +1622,8 @@ class UserService {
             location: location
           });
         }
+      } else {
+        console.log(`Skipping location update for session ${session.id} - condition not met`);
       }
     }
     
@@ -1603,16 +1657,16 @@ class UserService {
       if (!sessionId) {
         throw new Error('Session ID is required but was undefined or null');
       }
-      
+
       if (!userId) {
         throw new Error('User ID is required but was undefined or null');
       }
-      
-      console.log('Deactivating session ID:', sessionId, 'for user ID:', userId);
-      
+
+      console.log('Deleting session ID:', sessionId, 'for user ID:', userId);
+
       const { data, error } = await supabase
         .from('user_sessions')
-        .update({ is_active: false })
+        .delete()
         .eq('id', sessionId)
         .eq('user_id', userId)
         .select()
@@ -1621,44 +1675,180 @@ class UserService {
       if (error) throw error;
       return data;
     } catch (error) {
-      console.error('Error deactivating user session:', error);
-      throw new Error('Failed to deactivate session: ' + error.message);
+      console.error('Error deleting user session:', error);
+      throw new Error('Failed to delete session: ' + error.message);
     }
   }
 
-  // Parse user agent string to extract device/browser info
+  async updateSessionBrowserInfo(userId, deviceFingerprint, browserInfo) {
+    try {
+      console.log('Updating browser info for session:', deviceFingerprint);
+      const { error } = await supabase
+        .from('user_sessions')
+        .update({
+          browser_name: browserInfo.browserName,
+          browser_version: browserInfo.browserVersion,
+          os_name: browserInfo.osName,
+          os_version: browserInfo.osVersion,
+          device_type: browserInfo.deviceType,
+          is_mobile: browserInfo.isMobile,
+          is_tablet: browserInfo.isTablet,
+          is_desktop: browserInfo.isDesktop
+        })
+        .eq('user_id', userId)
+        .eq('device_fingerprint', deviceFingerprint);
+
+      if (error) throw error;
+      console.log('Successfully updated browser info for session');
+    } catch (error) {
+      console.error('Error updating session browser info:', error);
+      throw error;
+    }
+  }
+
+  async updateSessionLastLogin(userId, deviceFingerprint) {
+    try {
+      console.log('Updating last login for user:', userId, 'with fingerprint:', deviceFingerprint);
+      
+      // First try to update by exact fingerprint match
+      let { error } = await supabase
+        .from('user_sessions')
+        .update({ last_login_at: new Date().toISOString() })
+        .eq('user_id', userId)
+        .eq('device_fingerprint', deviceFingerprint);
+
+      if (error) {
+        console.log('Exact fingerprint match failed, trying alternative approach');
+        
+        // If exact match fails, update the most recent active session for this user
+        // This handles cases where IP addresses might differ between login and session fetch
+        const { error: altError } = await supabase
+          .from('user_sessions')
+          .update({ last_login_at: new Date().toISOString() })
+          .eq('user_id', userId)
+          .eq('is_active', true)
+          .order('last_login_at', { ascending: false })
+          .limit(1);
+
+        if (altError) {
+          console.error('Alternative update also failed:', altError);
+          throw altError;
+        }
+        console.log('Successfully updated last login timestamp using alternative method');
+      } else {
+        console.log('Successfully updated last login timestamp with exact match');
+      }
+    } catch (error) {
+      console.error('Error updating session last login:', error);
+      throw error;
+    }
+  }
+
   parseUserAgent(userAgent) {
     if (!userAgent) return {};
 
     const ua = userAgent.toLowerCase();
     console.log('Parsing user agent:', ua);
 
-    // Browser detection
     let browserName = 'Unknown';
     let browserVersion = 'Unknown';
 
-    // Edge detection - must come before Chrome since Edge also includes 'chrome' in UA
     if (ua.includes('edg/') || ua.includes('edge/')) {
       browserName = 'Edge';
-      // Try the modern Edge version format first (Chromium-based)
+      console.log('Detected Edge browser');
       let match = ua.match(/edg(?:e)?\/([\d.]+)/);
       if (!match) {
-        // Try alternative patterns
         match = ua.match(/edge\/([\d.]+)/);
       }
       browserVersion = match ? match[1] : 'Unknown';
+    } else if (ua.includes('brave')) {
+      browserName = 'Brave';
+      console.log('Detected Brave browser');
+      const match = ua.match(/brave\/([\d.]+)/);
+      browserVersion = match ? match[1] : 'Unknown';
+    } else if (ua.includes('opera') || ua.includes('opr/')) {
+      browserName = 'Opera';
+      console.log('Detected Opera browser');
+      let match = ua.match(/opr\/([\d.]+)/);
+      if (!match) {
+        match = ua.match(/opera\/([\d.]+)/);
+      }
+      browserVersion = match ? match[1] : 'Unknown';
+    } else if (ua.includes('opera mini') || ua.includes('operamini')) {
+      browserName = 'Opera Mini';
+      console.log('Detected Opera Mini browser');
+      const match = ua.match(/opera mini\/([\d.]+)/);
+      browserVersion = match ? match[1] : 'Unknown';
+    } else if (ua.includes('vivaldi')) {
+      browserName = 'Vivaldi';
+      console.log('Detected Vivaldi browser');
+      const match = ua.match(/vivaldi\/([\d.]+)/);
+      browserVersion = match ? match[1] : 'Unknown';
     } else if (ua.includes('chrome') && !ua.includes('chromium')) {
-      browserName = 'Chrome';
+      console.log('Checking for Brave indicators...');
+      
+      let isBrave = false;
+      
+      if (ua.includes('brave') || ua.includes('brave/')) {
+        isBrave = true;
+        console.log('Found explicit Brave indicators');
+      }
+      else if (ua.includes('chrome') && ua.includes('safari') && !ua.includes('edg')) {
+        const chromeMatch = ua.match(/chrome\/([\d.]+)/);
+        if (chromeMatch) {
+          const versionStr = chromeMatch[1];
+          const chromeVer = parseInt(versionStr.split('.')[0]); // Get major version
+          console.log('Chrome version string:', versionStr, 'Major version:', chromeVer);
+          
+          // We should not detect Brave based only on Chrome version
+          // as Chrome is now regularly above version 100
+          // Only detect Brave if there are specific Brave indicators
+          if (ua.includes('brave')) {
+            isBrave = true;
+            console.log('Detected Brave from "brave" in user agent');
+          }
+        }
+      }
+      
+      if (isBrave) {
+        browserName = 'Brave';
+        console.log('✅ FINAL: Detected Brave browser');
+      } else {
+        browserName = 'Chrome';
+        console.log('✅ FINAL: Detected Chrome browser');
+      }
+      
       const match = ua.match(/chrome\/([\d.]+)/);
       browserVersion = match ? match[1] : 'Unknown';
-    } else if (ua.includes('firefox')) {
+    } else if (ua.includes('firefox') || ua.includes('mozilla') && ua.includes('gecko') && !ua.includes('webkit')) {
+      // More accurate Firefox detection - Mozilla is Firefox's vendor
+      // Gecko is Firefox's engine and differentiates it from WebKit-based browsers
       browserName = 'Firefox';
+      console.log('Detected Firefox browser');
       const match = ua.match(/firefox\/([\d.]+)/);
       browserVersion = match ? match[1] : 'Unknown';
     } else if (ua.includes('safari') && !ua.includes('chrome')) {
       browserName = 'Safari';
+      console.log('Detected Safari browser');
       const match = ua.match(/version\/([\d.]+)/);
       browserVersion = match ? match[1] : 'Unknown';
+    } else if (ua.includes('samsungbrowser')) {
+      browserName = 'Samsung Internet';
+      console.log('Detected Samsung Internet browser');
+      const match = ua.match(/samsungbrowser\/([\d.]+)/);
+      browserVersion = match ? match[1] : 'Unknown';
+    } else if (ua.includes('ucbrowser') || ua.includes('uc browser')) {
+      browserName = 'UC Browser';
+      console.log('Detected UC Browser');
+      const match = ua.match(/ucbrowser\/([\d.]+)/);
+      browserVersion = match ? match[1] : 'Unknown';
+    } else if (ua.includes('yabrowser')) {
+      browserName = 'Yandex Browser';
+      console.log('Detected Yandex Browser');
+      const match = ua.match(/yabrowser\/([\d.]+)/);
+      browserVersion = match ? match[1] : 'Unknown';
+    } else {
+      console.log('No specific browser detected, using Unknown');
     }
 
     // OS detection
@@ -1736,6 +1926,7 @@ class UserService {
       isDesktop = false;
     }
 
+    // Create the result object
     const result = {
       browserName,
       browserVersion,
@@ -1747,6 +1938,14 @@ class UserService {
       isDesktop
     };
     
+    // Safeguard: ensure browserVersion is not an IP address
+    if (result.browserVersion && 
+        (result.browserVersion === '140.0.0.0' || 
+         result.browserVersion.match(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/))) {
+      console.log('⚠️ Detected IP-like pattern in browserVersion, setting to "Unknown"');
+      result.browserVersion = 'Unknown';
+    }
+    
     console.log('ParseUserAgent result:', result);
     return result;
   }
@@ -1755,7 +1954,9 @@ class UserService {
   generateDeviceFingerprint(userAgent, ipAddress) {
     const crypto = require('crypto');
     const fingerprint = `${userAgent || ''}:${ipAddress || ''}`;
-    return crypto.createHash('sha256').update(fingerprint).digest('hex');
+    const hashedFingerprint = crypto.createHash('sha256').update(fingerprint).digest('hex');
+    console.log('Generated fingerprint for UA:', userAgent?.substring(0, 100) + '...', 'IP:', ipAddress, '->', hashedFingerprint);
+    return hashedFingerprint;
   }
 
   // Email templates for new device/browser notifications
