@@ -242,16 +242,34 @@ export default function AuthPage() {
         sodium.crypto_pwhash_ALG_DEFAULT
       );
 
-      // Decrypt + convert identity key
-      const decryptedIkPrivateKeyRaw = sodium.crypto_secretbox_open_easy(
+      // Decrypt vault keys (they are encrypted with the password-derived key)
+      const decryptedIkPrivateKey = sodium.crypto_secretbox_open_easy(
         sodium.from_base64(ik_private_key),
         sodium.from_base64(nonce),
         derivedKey
       );
 
-      if (!decryptedIkPrivateKeyRaw) {
-        throw new Error("Failed to decrypt identity key private key");
+      let decryptedSpkPrivateKey;
+      try {
+        decryptedSpkPrivateKey = sodium.crypto_secretbox_open_easy(
+          sodium.from_base64(spk_private_key),
+          sodium.from_base64(nonce),
+          derivedKey
+        );
+      } catch (spkError) {
+        // If SPK decryption fails, assume it's not encrypted (for backward compatibility)
+        console.log("SPK decryption failed, assuming unencrypted:", spkError.message);
+        decryptedSpkPrivateKey = sodium.from_base64(spk_private_key);
       }
+
+      const decryptedOpksPrivate = opks_private.map((opk) => ({
+        opk_id: opk.opk_id,
+        private_key: sodium.crypto_secretbox_open_easy(
+          sodium.from_base64(opk.private_key),
+          sodium.from_base64(nonce),
+          derivedKey
+        ),
+      }));
 
       let opks_public_temp;
       if (typeof opks_public === "string") {
@@ -263,17 +281,11 @@ export default function AuthPage() {
       } else {
         opks_public_temp = opks_public;
       }
+
       const userKeys = {
-        identity_private_key: decryptedIkPrivateKeyRaw, // ✅ fixed
-        signedpk_private_key: sodium.from_base64(spk_private_key),
-        oneTimepks_private: opks_private.map((opk) => ({
-          opk_id: opk.opk_id,
-          private_key: sodium.crypto_secretbox_open_easy(
-            sodium.from_base64(opk.private_key),
-            sodium.from_base64(nonce),
-            derivedKey
-          ),
-        })),
+        identity_private_key: decryptedIkPrivateKey,
+        signedpk_private_key: decryptedSpkPrivateKey,
+        oneTimepks_private: decryptedOpksPrivate,
         identity_public_key: sodium.from_base64(ik_public),
         signedpk_public_key: sodium.from_base64(spk_public),
         oneTimepks_public: opks_public_temp.map((opk) => ({
@@ -285,7 +297,7 @@ export default function AuthPage() {
         nonce: sodium.from_base64(nonce),
       };
 
-      console.log("Ik private is: ", decryptedIkPrivateKeyRaw);
+      console.log("User keys decrypted from vault successfully:", userKeys);
 
       await storeDerivedKeyEncrypted(derivedKey); // stores with unlockToken
       sessionStorage.setItem("unlockToken", "session-unlock");

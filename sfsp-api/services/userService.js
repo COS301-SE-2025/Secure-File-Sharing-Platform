@@ -175,6 +175,9 @@ class UserService {
       username,
       email,
       password,
+      ik_private_key,
+      spk_private_key,
+      opks_private,
       ik_public,
       spk_public,
       opks_public,
@@ -229,6 +232,28 @@ class UserService {
       if (error) {
         throw new Error("Failed to create user: " + error.message);
       }
+
+      // Store private keys in vault immediately after user creation
+      try {
+        const VaultController = require("../controllers/vaultController");
+        const vaultResult = await VaultController.storeKeyBundle({
+          userId: newUser.id,
+          ik_private_key,
+          spk_private_key,
+          opks_private,
+        });
+
+        if (!vaultResult || vaultResult.status !== 'success') {
+          console.error('Failed to store keys in vault during registration:', vaultResult);
+          // Don't fail registration if vault storage fails, but log it
+        } else {
+          console.log(`Keys stored in vault for new user ${newUser.id}`);
+        }
+      } catch (vaultError) {
+        console.error('Error storing keys in vault during registration:', vaultError);
+        // Don't fail registration if vault storage fails
+      }
+
       const token = this.generateToken(newUser.id);
 
       // Send email with mnemonic words

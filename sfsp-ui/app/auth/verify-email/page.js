@@ -290,6 +290,30 @@ function VerifyEmailInner() {
                         throw new Error("Failed to decrypt identity key private key");
                     }
 
+                    // Decrypt signed prekey
+                    let decryptedSpkPrivateKey;
+                    try {
+                        decryptedSpkPrivateKey = sodium.crypto_secretbox_open_easy(
+                            sodium.from_base64(spk_private_key),
+                            sodium.from_base64(nonce),
+                            derivedKey
+                        );
+                    } catch (spkDecryptError) {
+                        // If SPK decryption fails, assume it's not encrypted (for backward compatibility)
+                        console.log("SPK decryption failed, assuming unencrypted:", spkDecryptError.message);
+                        decryptedSpkPrivateKey = sodium.from_base64(spk_private_key);
+                    }
+
+                    // Decrypt one-time prekeys
+                    const decryptedOpksPrivate = opks_private.map((opk) => ({
+                        opk_id: opk.opk_id,
+                        private_key: sodium.crypto_secretbox_open_easy(
+                            sodium.from_base64(opk.private_key),
+                            sodium.from_base64(nonce),
+                            derivedKey
+                        ),
+                    }));
+
                     let opks_public_temp;
                     if (typeof opks_public === "string") {
                         try {
@@ -303,11 +327,8 @@ function VerifyEmailInner() {
 
                     const userKeys = {
                         identity_private_key: decryptedIkPrivateKeyRaw,
-                        signedpk_private_key: sodium.from_base64(spk_private_key),
-                        oneTimepks_private: opks_private.map((opk) => ({
-                            opk_id: opk.opk_id,
-                            private_key: sodium.from_base64(opk.private_key),
-                        })),
+                        signedpk_private_key: decryptedSpkPrivateKey,
+                        oneTimepks_private: decryptedOpksPrivate,
                         identity_public_key: sodium.from_base64(ik_public),
                         signedpk_public_key: sodium.from_base64(spk_public),
                         oneTimepks_public: opks_public_temp.map((opk) => ({
