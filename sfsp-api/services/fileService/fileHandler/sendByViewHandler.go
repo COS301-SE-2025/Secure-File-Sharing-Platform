@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
-	"github.com/google/uuid"
 )
 
 func SendByViewHandler(w http.ResponseWriter, r *http.Request) {
@@ -91,10 +90,7 @@ func SendByViewHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Generate a new UUID for recipient’s shared file
-	recipientFileID := uuid.New().String()
-
-	sharedFileKey := recipientFileID
+	sharedFileKey := fmt.Sprintf("%s_%s", fileID, recipientID)
 	targetPath := fmt.Sprintf("files/%s/shared_view", userID)
 	log.Printf("🔗 Merging chunks into shared_view path: %s/%s", targetPath, sharedFileKey)
 
@@ -155,7 +151,7 @@ func SendByViewHandler(w http.ResponseWriter, r *http.Request) {
             INSERT INTO shared_files_view (sender_id, recipient_id, file_id, newfile_id, metadata, expires_at)
             VALUES ($1, $2, $3, $4, $5, $6)
             RETURNING id
-        `, userID, recipientID, fileID, recipientFileID, metadataJSON, time.Now().Add(48*time.Hour)).Scan(&shareID)
+        `, userID, recipientID, fileID, fileID, metadataJSON, time.Now().Add(48*time.Hour)).Scan(&shareID)
 		if err != nil {
 			log.Println("Failed to insert shared file view:", err)
 			http.Error(w, "Failed to track shared file", http.StatusInternalServerError)

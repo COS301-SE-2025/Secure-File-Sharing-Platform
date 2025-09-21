@@ -20,6 +20,7 @@ import { useDashboardSearch } from "./components/DashboardSearchContext";
 
 import { getSodium } from "@/app/lib/sodium";
 import { useEncryptionStore } from "@/app/SecureKeyStorage";
+import { UserAvatar } from '@/app/lib/avatarUtils';
 
 // Helper functions
 
@@ -464,14 +465,14 @@ const fetchRecentAccessLogs = async () => {
 
           // Get user info
           let userName = "Unknown User";
-          let avatar = "/default-avatar.png";
+          let avatar = null; // Let UserAvatar component handle the fallback
           try {
             const userRes = await fetch(`http://localhost:5000/api/users/getUserInfo/${log.user_id}`);
             if (userRes.ok) {
               const userInfo = await userRes.json();
               if (userInfo?.data?.username) {
                 userName = userInfo.data.username;
-                avatar = userInfo.data.avatar_url || avatar;
+                avatar = userInfo.data.avatar_url; // No fallback needed here
               }
             }
           } catch {}
@@ -711,15 +712,16 @@ const fetchRecentAccessLogs = async () => {
             {recentAccessLogs.length > 0 ? (
               recentAccessLogs.map((log, idx) => (
                 <div key={idx} className="flex items-start gap-2">
-                  <img
-                    src={log.avatar || "/default-avatar.png"}
+                  <UserAvatar
+                    avatarUrl={log.avatar}
+                    username={log.user}
+                    size="w-8 h-8"
                     alt={log.user}
-                    className="w-8 h-8 rounded-full"
                   />
                   <div className="flex flex-col">
                     <span className="font-semibold">{log.user}</span>
                     <span className="text-xs text-gray-500 dark:text-gray-400">
-                      {log.action} <strong>{log.file}</strong> at {log.date}
+                      {log.action} <strong>{log.file}</strong> at {log.dateFormatted}
                     </span>
                   </div>
                 </div>
@@ -755,7 +757,7 @@ const fetchRecentAccessLogs = async () => {
                     {formatTimestamp(file.date || file.createdAt)}
                   </p>
                 </div>
-               <button
+              <button
                 onClick={() => handleOpenPreview(file)}
                 className="text-blue-500 hover:underline"
               >

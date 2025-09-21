@@ -4,6 +4,7 @@ import React, { useEffect, useState, useRef} from "react";
 import { useEncryptionStore } from "@/app/SecureKeyStorage";
 import { getSodium } from "@/app/lib/sodium";
 import pako from "pako";
+import { UserAvatar } from '@/app/lib/avatarUtils';
 
 export function PreviewDrawer({
   file,
@@ -271,17 +272,12 @@ export function PreviewDrawer({
                     }
                   >
                     {/* Avatar */}
-                    {user.recipient_avatar ? (
-                      <img
-                        src={user.recipient_avatar}
-                        alt={user.recipient_name}
-                        className="w-6 h-6 rounded-full border border-gray-300"
-                      />
-                    ) : (
-                      <div className="w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center text-xs text-white">
-                        {user.recipient_name?.[0] || "?"}
-                      </div>
-                    )}
+                    <UserAvatar
+                      avatarUrl={user.recipient_avatar}
+                      username={user.recipient_name}
+                      size="w-6 h-6"
+                      alt={user.recipient_name}
+                    />
 
                     {/* Name / Email */}
                     <div className="text-xs text-gray-700">
