@@ -306,14 +306,13 @@ class UserService {
         .eq("id", userId)
         .single();
 
-      if (error) {
-        console.error('Supabase error getting user info:', error);
-        throw new Error("This userId was not found");
-      }
-      
-      if (!data) {
-        console.log('No user found with ID:', userId);
-        throw new Error("This userId was not found");
+      if (error || !data) {
+        console.warn(`User with ID ${userId} not found in database`);
+        return {
+          username: "Unknown User",
+          avatar_url: null,
+          email: null
+        };
       }
 
       console.log('Successfully retrieved user info for ID:', userId);
