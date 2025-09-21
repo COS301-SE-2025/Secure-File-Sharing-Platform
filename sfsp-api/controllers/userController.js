@@ -1286,6 +1286,47 @@ class UserController {
       });
     }
   }
+  
+  async checkGoogleAccount(req, res) {
+    try {
+      const { email } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({
+          success: false,
+          message: "Email is required"
+        });
+      }
+      
+      // Check if the user exists and if they're a Google user
+      const { data: user, error } = await supabase
+        .from("users")
+        .select("google_id")
+        .eq("email", email)
+        .single();
+      
+      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
+        throw new Error(error.message);
+      }
+      
+      // Return whether this is a Google account
+      const isGoogleAccount = user && user.google_id ? true : false;
+      
+      return res.status(200).json({
+        success: true,
+        isGoogleAccount,
+        message: isGoogleAccount ? 
+          "This email is linked to a Google account" : 
+          "This email is not linked to a Google account"
+      });
+    } catch (error) {
+      console.error("Error checking Google account:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Error checking Google account"
+      });
+    }
+  }
 }
 
 module.exports = new UserController();

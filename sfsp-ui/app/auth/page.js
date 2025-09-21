@@ -578,6 +578,30 @@ export default function AuthPage() {
     setRecoveryErrors({});
 
     try {
+      // First check if this is a Google account
+      const checkResponse = await fetch(`${API_BASE_URL}/check-google-account`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: recoveryEmail }),
+      });
+      
+      if (checkResponse.ok) {
+        const checkData = await checkResponse.json();
+        
+        if (checkData.isGoogleAccount) {
+          setRecoveryMessage(
+            'This email is linked to a Google account. Please use Google\'s account recovery to reset your password. ' +
+            'You can visit Google account recovery by clicking ' +
+            '<a href="https://accounts.google.com/signin/recovery" target="_blank" rel="noopener noreferrer" class="text-blue-500 underline">here</a>.'
+          );
+          setIsLoading(false);
+          return;
+        }
+      }
+      
+      // Continue with regular password recovery if not a Google account
       const response = await fetch(`${API_BASE_URL}/getUserId/${encodeURIComponent(recoveryEmail)}`, {
         method: 'GET',
       });
@@ -665,7 +689,6 @@ export default function AuthPage() {
       setRecoveryErrors((prev) => ({ ...prev, [field]: '' }));
     }
     
-    // Update password requirements for newPassword field
     if (field === 'newPassword') {
       const requirements = {
         hasMinLength: value.length >= 8,
@@ -1320,8 +1343,8 @@ export default function AuthPage() {
                 recoveryMessage.includes('successfully')
                   ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
                   : 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
-              }`}>
-                {recoveryMessage}
+              }`}
+              dangerouslySetInnerHTML={{ __html: recoveryMessage }}>
               </div>
             )}
 
