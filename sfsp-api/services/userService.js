@@ -2561,11 +2561,17 @@ class UserService {
         if (!keyBundle.spk_private_key) {
           throw new Error("Signed prekey not found in vault");
         }
-        decryptedSpkPrivateKey = sodium.crypto_secretbox_open_easy(
-          sodium.from_base64(keyBundle.spk_private_key),
-          sodium.from_base64(user.nonce),
-          oldDerivedKey
-        );
+
+        try {
+          decryptedSpkPrivateKey = sodium.crypto_secretbox_open_easy(
+            sodium.from_base64(keyBundle.spk_private_key),
+            sodium.from_base64(user.nonce),
+            oldDerivedKey
+          );
+        } catch (decryptError) {
+          console.log(`SPK decryption failed for user ${userId}, assuming it's not encrypted:`, decryptError.message);
+          decryptedSpkPrivateKey = sodium.from_base64(keyBundle.spk_private_key);
+        }
       } catch (e) {
         throw new Error("Failed to decrypt signed prekey: " + e.message);
       }

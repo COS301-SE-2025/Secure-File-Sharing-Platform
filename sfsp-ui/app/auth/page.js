@@ -268,7 +268,11 @@ export default function AuthPage() {
         signedpk_private_key: sodium.from_base64(spk_private_key),
         oneTimepks_private: opks_private.map((opk) => ({
           opk_id: opk.opk_id,
-          private_key: sodium.from_base64(opk.private_key),
+          private_key: sodium.crypto_secretbox_open_easy(
+            sodium.from_base64(opk.private_key),
+            sodium.from_base64(nonce),
+            derivedKey
+          ),
         })),
         identity_public_key: sodium.from_base64(ik_public),
         signedpk_public_key: sodium.from_base64(spk_public),
@@ -426,7 +430,11 @@ export default function AuthPage() {
         signedpk_private_key: sodium.from_base64(spk_private_key),
         oneTimepks_private: opks_private.map((opk) => ({
           opk_id: opk.opk_id,
-          private_key: sodium.from_base64(opk.private_key),
+          private_key: sodium.crypto_secretbox_open_easy(
+            sodium.from_base64(opk.private_key),
+            sodium.from_base64(nonce),
+            derivedKey
+          ),
         })),
         identity_public_key: sodium.from_base64(ik_public),
         signedpk_public_key: sodium.from_base64(spk_public),
@@ -806,14 +814,6 @@ export default function AuthPage() {
 
     console.log("encrypted ik is: ", encryptedIK);
 
-    const encryptedSPK = sodium.crypto_secretbox_easy(
-      spk.privateKey,
-      nonce,
-      derivedKey
-    );
-
-    console.log("encrypted spk is: ", encryptedSPK);
-
     const encryptedOPKs = opks.map((opk) => ({
       opk_id: opk.opk_id,
       private_key: sodium.to_base64(
@@ -838,7 +838,7 @@ export default function AuthPage() {
       })),
 
       ik_private_key: sodium.to_base64(encryptedIK),
-      spk_private_key: sodium.to_base64(encryptedSPK),
+      spk_private_key: sodium.to_base64(spk.privateKey),
       opks_private: encryptedOPKs,
 
       salt: sodium.to_base64(salt),

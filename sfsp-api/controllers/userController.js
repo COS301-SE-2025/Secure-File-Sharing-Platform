@@ -78,20 +78,8 @@ class UserController {
           console.error("Failed to send verification email to new user:", emailError);
         }
 
-        try {
-          if (result.mnemonicWords && result.mnemonicWords.length === 10) {
-            await userService.sendMnemonicEmail(
-              result.user.email,
-              result.user.username || "User",
-              result.mnemonicWords
-            );
-            console.log("Mnemonic email sent to new user:", result.user.email);
-          } else {
-            console.error("No mnemonic words found in registration result");
-          }
-        } catch (emailError) {
-          console.error("Failed to send mnemonic email to new user:", emailError);
-        }
+        // Mnemonic email is already sent by userService.register
+        // No need to send it again here
       }
       console.log("The is before the 201");
       return res.status(201).json({
