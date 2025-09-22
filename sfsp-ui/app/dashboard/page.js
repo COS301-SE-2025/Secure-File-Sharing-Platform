@@ -21,7 +21,6 @@ import { useDashboardSearch } from "./components/DashboardSearchContext";
 import { getSodium } from "@/app/lib/sodium";
 import { useEncryptionStore } from "@/app/SecureKeyStorage";
 
-// Helper functions
 
 function getFileType(mimeType) {
   if (!mimeType) return "unknown";
@@ -53,27 +52,6 @@ function parseTagString(tagString = '') {
   return tagString.replace(/[{}]/g, '').split(',').map(t => t.trim());
 }
 
-export default function DashboardHomePage() {
-  const [files, setFiles] = useState([]);
-  const [fileCount, setFileCount] = useState(0);
-  const [trashedFilesCount, setTrashedFilesCount] = useState([]);
-  const [receivedFilesCount, setReceivedFilesCount] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [isUploadOpen, setIsUploadOpen] = useState(false);
-  const userId = useEncryptionStore.getState().userId;
-  const { search } = useDashboardSearch();
-  const [notifications, setNotifications] = useState([]);
-  const [recentFiles, setRecentFiles] = useState([]);
-  const [viewerFile, setViewerFile] = useState(null);
-  const [viewerContent, setViewerContent] = useState(null);
-  const [previewFile, setPreviewFile] = useState(null);
-  const [previewContent, setPreviewContent] = useState(null);
-  const [logs, setLogs] = useState([]);          
-  const [recentAccessLogs, setRecentAccessLogs] = useState([]);
-  const [actionFilter, setActionFilter] = useState("All actions"); 
-  const [user, setUser] = useState(null); //watermark 
-
-
 
 
 
@@ -88,6 +66,27 @@ export default function DashboardHomePage() {
     if (hours < 24) return `${hours}h ago`;
     return `${Math.floor(hours / 24)}d ago`;
   };
+
+export default function DashboardHomePage() {
+  const [files, setFiles] = useState([]);
+  const [fileCount, setFileCount] = useState(0);
+  const [trashedFilesCount, setTrashedFilesCount] = useState([]);
+  const [receivedFilesCount, setReceivedFilesCount] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const userId = useEncryptionStore.getState().userId;
+  const { search } = useDashboardSearch();
+  const [notifications, setNotifications] = useState([]);
+  const [recentFiles, setRecentFiles] = useState([]);
+  const [viewerFile, setViewerFile] = useState(null);
+  const [viewerContent, setViewerContent] = useState(null);
+  const [previewFile, setPreviewFile] = useState(null);
+  const [previewContent, setPreviewContent] = useState(null);      
+  const [recentAccessLogs, setRecentAccessLogs] = useState([]);
+  const [actionFilter, setActionFilter] = useState("All actions"); 
+  const [user, setUser] = useState(null); //watermark 
+
+
 
 const fetchFiles = async () => {
   try {
@@ -117,7 +116,6 @@ const fetchFiles = async () => {
         (a, b) => new Date(b.date) - new Date(a.date)
       );
 
-      setRecentFiles(sortedFiles.slice(0, 3));
 
       const formatted = data
         .filter((f) => {
@@ -137,6 +135,8 @@ const fetchFiles = async () => {
           starred: false,
         }));
 
+
+      setRecentFiles(sortedFiles.slice(0, 3));
       setFiles(formatted);
 
       return formatted;
@@ -146,6 +146,11 @@ const fetchFiles = async () => {
     return [];
   }
 };
+
+useEffect(() => {
+  fetchFiles(); // Fetch when component mounts or userId changes
+}, [userId]);
+
 
 
   const handleLoadFile = async (file) => {
