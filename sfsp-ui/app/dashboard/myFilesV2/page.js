@@ -577,7 +577,7 @@ const handlePreview = async (rawFile) => {
       return;
     }
 
-   const result = await handleLoadFile(file);
+  const result = await handleLoadFile(file);
   if (!result) return;
 
   let contentUrl = null;
@@ -618,6 +618,7 @@ const handlePreview = async (rawFile) => {
         rotate: { type: "degrees", angle: 45 },
       });
     });
+    
 
     const modifiedPdfBytes = await pdfDoc.save();
     contentUrl = URL.createObjectURL(new Blob([modifiedPdfBytes], { type: "application/pdf" }));
