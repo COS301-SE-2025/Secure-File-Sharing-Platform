@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef} from "react";
 import { useEncryptionStore } from "@/app/SecureKeyStorage";
 import { getSodium } from "@/app/lib/sodium";
 import pako from "pako";
+import { UserAvatar } from '@/app/lib/avatarUtils';
 
 export function PreviewDrawer({
   file,
@@ -15,11 +16,26 @@ export function PreviewDrawer({
   const [description, setDescription] = useState(file?.description || "");
   const [isSaving, setIsSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-
   const [sharedWith, setSharedWith] = useState([]);
   const [loadingAccess, setLoadingAccess] = useState(false);
-
   const [openMenuUserId, setOpenMenuUserId] = useState(null);
+  const drawerRef = useRef(null);
+
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (drawerRef.current && !drawerRef.current.contains(event.target)) {
+        onClose(null); // close drawer
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [onClose]);
+
+
 
   useEffect(() => {
     setDescription(file?.description || "");
@@ -51,7 +67,8 @@ export function PreviewDrawer({
         }
       );
       const sharedFiles = await sharedFilesRes.json();
-      const fileShares = sharedFiles.filter((share) => share.file_id === file.id);
+      if(sharedFiles != null){
+            const fileShares = sharedFiles.filter((share) => share.file_id === file.id);
 
       // Enrich each share with recipient info
       const enrichedShares = await Promise.all(
@@ -84,6 +101,9 @@ export function PreviewDrawer({
 
       console.log(enrichedShares)
       setSharedWith(enrichedShares || []);
+
+      }
+  
     } catch (err) {
       console.error("Failed to fetch access list:", err);
     } finally {
@@ -91,7 +111,7 @@ export function PreviewDrawer({
     }
   };
 
-  const handleRevokeAccess = async (recipientId) => {
+  /*const handleRevokeAccess = async (recipientId) => {
     try {
       const token = localStorage.getItem("token");
       if (!token) return;
@@ -121,7 +141,7 @@ export function PreviewDrawer({
       console.error("Error revoking access:", err);
     }
   };
-
+*/
   const handleSave = async () => {
     if (!file) return;
     try {
@@ -145,6 +165,7 @@ export function PreviewDrawer({
 
   return (
     <div
+     ref={drawerRef}
       className={`fixed top-0 right-0 w-96 h-full bg-white dark:bg-gray-200 shadow-lg z-50 transform transition-transform duration-300 ${file ? "translate-x-0" : "translate-x-full"
         }`}
     >
@@ -251,17 +272,12 @@ export function PreviewDrawer({
                     }
                   >
                     {/* Avatar */}
-                    {user.recipient_avatar ? (
-                      <img
-                        src={user.recipient_avatar}
-                        alt={user.recipient_name}
-                        className="w-6 h-6 rounded-full border border-gray-300"
-                      />
-                    ) : (
-                      <div className="w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center text-xs text-white">
-                        {user.recipient_name?.[0] || "?"}
-                      </div>
-                    )}
+                    <UserAvatar
+                      avatarUrl={user.recipient_avatar}
+                      username={user.recipient_name}
+                      size="w-6 h-6"
+                      alt={user.recipient_name}
+                    />
 
                     {/* Name / Email */}
                     <div className="text-xs text-gray-700">
