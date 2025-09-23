@@ -1,6 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&family=Source+Code+Pro:ital,wght@0,200..900;1,200..900&display=swap');
+
 .users-page {
     padding: 20px;
-    font-family: Arial, sans-serif;
+    font-family: "Roboto", sans-serif;
     background: #F8F9FA;
     color: #1F2937;
 }
@@ -125,10 +127,18 @@
     width: 220px;
 }
 
+.search-wrapper input:hover{
+    outline: 2px solid #34bfee;
+}
+.search-wrapper input:focus{
+    outline: 2px solid #34bfee;
+}
+
 /* Users Table */
 .users-table {
     width: 100%;
     border-collapse: collapse;
+    
 }
 
 .users-table th,
@@ -161,17 +171,17 @@
 }
 
 .avatar-fallback {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: #2a5d7d;
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  font-size: 0.875rem;
-  text-transform: uppercase;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #2a5d7d;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.875rem;
+    text-transform: uppercase;
 }
 
 
@@ -215,18 +225,18 @@
 }
 
 .actions-cell button {
-  display: inline-block; 
-  margin-right: 0.5rem;  
-  padding: 0.25rem 0.5rem;
-  border-radius: 6px;
-  border: none;
-  cursor: pointer;
-  font-size: 0.875rem;
-  vertical-align: middle; 
+    display: inline-block;
+    margin-right: 0.5rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-size: 0.875rem;
+    vertical-align: middle;
 }
 
 .actions-cell button:last-child {
-  margin-right: 0; 
+    margin-right: 0;
 }
 
 .btn-info {
@@ -284,7 +294,7 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
-.btn-close{
+.btn-close {
     background: #4b5563;
 }
 
@@ -326,84 +336,111 @@
 }
 
 .modal-title {
-  font-size: 1.25rem;
-  font-weight: bold;
-  margin-bottom: 1rem;
+    font-size: 1.25rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
 }
 
 /* Create Admin Section */
 .admin-create-section {
-  margin-bottom: 2rem;
+    margin-bottom: 2rem;
 }
 
 .admin-create-section h4 {
-  font-weight: 500;
-  margin-bottom: 0.5rem;
+    font-weight: bold;
+    margin-bottom: 1.5rem;
+    font-size:large;
+}
+
+.admin-create-section label{
+    font-weight:600;
 }
 
 .admin-create-section input {
-  width: 100%;
-  padding: 6px;
-  margin-bottom: 0.5rem;
-  border-radius: 4px;
-  border: 1px solid #D1D5DB;
+    width: 100%;
+    padding: 6px;
+    margin-top:0.2rem;
+    margin-bottom: 0.5rem;
+    border-radius: 4px;
+    border: 1px solid #D1D5DB;
+}
+
+.admin-create-section input:focus {
+    outline: 2px solid #34bfee;
 }
 
 .admin-create-section button {
-  padding: 6px 10px;
-  border-radius: 4px;
-  border: none;
-  cursor: pointer;
-  background: #2563EB;
-  color: white;
+    margin-top:3px;
+    width:100%;
+    padding: 6px 10px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    background: #046E8F;
+    color: white;
 }
 
 .admin-create-section button:hover {
-  background: #1D4ED8;
+    background: #38AECC;
 }
 
 /* Existing Admins Section */
 .existing-admins-section h4 {
-  font-weight: 500;
-  margin-bottom: 0.5rem;
+    font-weight: bold;
+    margin-bottom: 1.5rem;
+    font-size:large;
 }
 
 .existing-admins-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
 }
 
 .admin-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px;
-  border: 1px solid #D1D5DB;
-  border-radius: 6px;
+    display: grid;
+    grid-template-columns: 1fr 120px; 
+    align-items: center;
+    padding: 8px;
+    border: 1px solid #D1D5DB;
+    border-radius: 6px;
+    gap: 1rem;
 }
 
 .admin-info {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .admin-name {
-  font-weight: 500;
+    font-weight: 500;
 }
 
 .admin-username {
-  font-size: 0.75rem;
-  color: #6B7280;
+    font-size: 0.75rem;
+    color: #6B7280;
 }
 
 /* Role select */
 .role-select {
-  padding: 4px 6px;
+  padding: 4px 8px;         
   border-radius: 4px;
   border: 1px solid #D1D5DB;
-  font-size: 0.875rem;
+  font-size: 0.8rem;        
   background: #fff;
   color: #111827;
+  width: 120px;              
+  min-width: 120px;
+  text-align: center;
+  margin-left: auto;      
+  
+}
+
+.role-select:hover{
+    outline: 2px solid #34bfee;
+}
+
+.role-select:focus{
+    outline: 2px solid #34bfee;
 }

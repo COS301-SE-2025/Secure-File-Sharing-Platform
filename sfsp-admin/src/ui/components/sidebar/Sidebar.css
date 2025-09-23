@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&family=Source+Code+Pro:ital,wght@0,200..900;1,200..900&display=swap');
+
 .sidebar {
   width: 16rem;
   background: #000000; 
@@ -6,6 +8,7 @@
   flex-direction: column;
   transition: width 0.3s ease;
   border-right: 1px solid #1f2937;
+  font-family: "Roboto", sans-serif;
 }
 
 .sidebar.collapsed {
@@ -49,6 +52,14 @@
 
 .sidebar-section {
   margin-top: 1rem;
+}
+
+.sidebar-section button{
+  background:#2c333d;
+}
+
+.sidebar-section button:hover{
+  background: #3c77f5;
 }
 
 .sidebar-label {

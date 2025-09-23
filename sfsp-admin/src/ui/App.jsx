@@ -130,7 +130,12 @@ https://reactbits.dev/backgrounds/light-rays , 18 September 2025*/}
         {/* Logo and Header */}
         <div className="login-header">
           <div className="login-logo">
-            <Shield size={32} className="logo-icon" />
+            <img
+              src="/src/assets/shield-full-white.png"
+              alt="SecureShare Logo"
+              className="logo-icon"
+            />
+
           </div>
           <h1 className="login-title">SecureShare</h1>
           <p className="login-subtitle">Admin Portal Access</p>
@@ -139,23 +144,26 @@ https://reactbits.dev/backgrounds/light-rays , 18 September 2025*/}
         {/* Card */}
         <div className="card-boxed">
           <div className="card-header">
-            <h2 className="card-title">
-              {step === "otp" && (
-                <button
-                  onClick={handleBackToCredentials}
-                  className="back-btn"
-                  type="button"
-                >
-                  <ArrowLeft size={16} />
-                </button>
-              )}
-              {step === "credentials" ? "" : "PIN"}
-            </h2>
-            <p className="card-description">
-              {step === "credentials"
-                ? "Enter your username and password to continue"
-                : "Enter your 6-digit one-time PIN to complete login"}
-            </p>
+            {step === "otp" && (
+              <button
+                onClick={handleBackToCredentials}
+                className="back-btn"
+                type="button"
+              >
+                <ArrowLeft size={16} />
+              </button>
+            )}
+
+            <div className="card-header-content">
+              <h2 className="card-title">
+                {step === "credentials" ? "" : "PIN"}
+              </h2>
+              <p className="card-description">
+                {step === "credentials"
+                  ? "Enter your username and password to continue"
+                  : "Enter your 6-digit one-time PIN to complete login"}
+              </p>
+            </div>
           </div>
 
           <div className="card-content">

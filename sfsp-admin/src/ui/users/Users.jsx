@@ -200,7 +200,6 @@ const Users = () => {
                     <thead>
                         <tr>
                             <th>User</th>
-                            <th>Username</th>
                             <th>Role</th>
                             <th>Verified</th>
                             <th>Actions</th>
@@ -229,7 +228,6 @@ const Users = () => {
                                     </div>
 
                                 </td>
-                                <td>{user.username}</td>
                                 <td>
                                     <span className={`role-badge ${getRoleColor(user.role)}`}>{user.role}</span>
                                 </td>

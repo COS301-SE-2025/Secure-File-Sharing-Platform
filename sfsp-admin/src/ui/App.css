@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&family=Source+Code+Pro:ital,wght@0,200..900;1,200..900&display=swap');
+
 /* Container */
 html,
 body {
@@ -6,6 +8,7 @@ body {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
+  font-family: "Roboto", sans-serif;
 }
 
 .background-wrapper {
@@ -26,7 +29,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: Arial, sans-serif;
+  font-family: "Roboto", sans-serif;
   overflow: hidden;
 }
 
@@ -54,7 +57,9 @@ body {
 }
 
 .logo-icon {
-  color: white;
+  width: 34px;   
+  height: 34px;
+  object-fit: contain;
 }
 
 .login-title {
@@ -78,12 +83,26 @@ body {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
+.back-btn {
+  top: 50%; 
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #fefeff;
+  cursor: pointer;
+}
+
 .card-header {
   margin-bottom: 16px;
 }
 
+.card-title{
+  color:#ffffff;
+  /* text-align: center; */
+}
+
 .card-description {
-  text-align: center;
+  /* text-align: center; */
   font-size: 14px;
   color: #ffffff;
 }
@@ -123,6 +142,10 @@ body {
 
 .form-group input::placeholder {
   color: #6b7280;
+}
+
+.form-group input:focus {
+  outline: 2px solid #34bfee;
 }
 
 .input-icon-wrapper {

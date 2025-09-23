@@ -3,6 +3,7 @@ import App from "./App.jsx";
 import Dashboard from "./dashboard/Dashboard.jsx";
 import Users from "./users/Users.jsx";
 import Layout from "./Layout.jsx";
+import BlockedUsers from "./blockedUsers/blockedUsers.jsx";
 
 const Router = window.location.protocol === "file:" ? HashRouter : BrowserRouter;
 
@@ -14,6 +15,7 @@ export default function Root() {
         <Route path="/" element={<Layout />}>
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="users" element={<Users />} />
+          <Route path="blocked-users" element={<BlockedUsers />} />
         </Route>
       </Routes>
     </Router>
