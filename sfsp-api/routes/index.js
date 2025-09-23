@@ -4,6 +4,7 @@ const fileRoutes = require('./fileRoutes');
 const contactRoutes = require('./contactRoutes');
 const vaultRoutes = require('./vaultRoutes');
 const notificationRoutes = require('./notificationRoutes');
+const emailNotificationRoutes = require('./emailNotificationRoutes');
 
 const router = express.Router();
 
@@ -12,6 +13,7 @@ router.use('/files', fileRoutes);
 router.use('/contact', contactRoutes);
 router.use('/vault', vaultRoutes);
 router.use('/notifications', notificationRoutes);
+router.use('/email-notifications', emailNotificationRoutes);
 
 router.get('/health', (req, res) => {
     res.status(200).json({
