@@ -5,6 +5,8 @@ import { useEncryptionStore } from "@/app/SecureKeyStorage";
 import { getSodium } from "@/app/lib/sodium";
 import pako from "pako";
 
+
+
 export function PreviewDrawer({
   file,
   content,
@@ -210,8 +212,7 @@ export function PreviewDrawer({
                   return content?.url ? <audio controls src={content.url} className="w-full mt-2" /> : null;
                 case "pdf":
                   return content?.url ? (
-                        <iframe src={content.url} className="w-full h-64 rounded" />
-                      
+                     <iframe src={content.url} className="w-full h-64 rounded" />
                   ) : null;
                 case "md":
                 case "markdown":
