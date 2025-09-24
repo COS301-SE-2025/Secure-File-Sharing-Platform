@@ -211,10 +211,14 @@
 
 .badge {
     font-size: 0.8rem;
-    color: #555;
+    color: #575757;
     border: 1px solid #046E8F;
     padding: 0.2rem 0.6rem;
     border-radius: 12px;
+}
+
+.timestamp-info .badge{
+    color: #575757;
 }
 
 .quick-actions {

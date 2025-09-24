@@ -184,3 +184,59 @@
 .icon-btn:hover {
   color: #fff;
 }
+
+/* profile */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+}
+
+.modal {
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  min-width: 320px;
+  max-width: 90%;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+}
+
+.modal-title {
+  text-align: center;
+  margin-bottom: 16px;
+  color: #183446;
+}
+
+.profile-details {
+  display: flex;
+  flex-direction: column;
+  align-items: center;  /* centers avatar + text horizontally */
+  margin: 16px 0;
+  line-height: 1.6;
+}
+
+.avatar.large {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: #2563eb;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 1.5rem;
+  margin-bottom: 12px;
+}
+
+.profile .btn-info{
+  background-color: #2b2929;
+}
+.profile .btn-info:hover{
+  background-color: #38AECC;
+}

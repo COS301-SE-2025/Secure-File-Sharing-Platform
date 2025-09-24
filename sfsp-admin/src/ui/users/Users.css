@@ -214,14 +214,14 @@
 
 .icon-verified {
     color: #22C55E;
-    width: 1rem;
-    height: 1rem;
+    width: 1.5rem;
+    height: 1.5rem;
 }
 
 .icon-unverified {
     color: #F59E0B;
-    width: 1rem;
-    height: 1rem;
+    width: 1.5rem;
+    height: 1.5rem;
 }
 
 .actions-cell button {
@@ -290,12 +290,22 @@
     padding: 20px;
     border-radius: 8px;
     min-width: 350px;
+    max-width: 90%;
     color: #111827;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
 .btn-close {
-    background: #4b5563;
+  background: #6b7280;
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-close:hover{
+ background-color: #38AECC;
 }
 
 .admin-create {
@@ -443,4 +453,62 @@
 
 .role-select:focus{
     outline: 2px solid #34bfee;
+}
+
+/* message modal */
+
+.message-input {
+  width: 100%;          
+  min-height: 100px;
+  max-height: 200px;
+  resize: vertical;     
+  padding: 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-family: inherit;
+  margin-bottom: 16px;
+  box-sizing: border-box; 
+}
+
+.message-input:hover{
+    outline: 2px solid #34bfee;
+}
+
+.message-input:focus{
+    outline: 2px solid #34bfee;
+}
+
+.btn-send {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.btn-send .btn-info,
+.btn-delete {
+  padding: 8px 14px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.2s ease-in-out;
+}
+
+.btn-send .btn-info {
+  background-color: #2563eb;
+  color: white;
+}
+
+.btn-send .btn-info:hover {
+  background-color: #1e40af;
+}
+
+.btn-send .btn-delete {
+  background-color: #dc2626;
+  color: white;
+}
+
+.btn-send .btn-delete:hover {
+  background-color: #991b1b;
 }

@@ -24,6 +24,8 @@ const navigationItems = [
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+
 
   function getInitials(name) {
     return name
@@ -119,9 +121,13 @@ export default function Sidebar() {
               </div>
             </div>
             <div className="profile-actions">
-              <button className="profile-btn">
+              <button
+                className="profile-btn"
+                onClick={() => setProfileModalOpen(true)}
+              >
                 <User className="nav-icon" /> Profile
               </button>
+
               <button onClick={handleLogout} className="profile-btn">
                 <LogOut className="nav-icon" /> Logout
               </button>
@@ -129,6 +135,30 @@ export default function Sidebar() {
           </div>
         )}
       </div>
+
+      {profileModalOpen && (
+        <div className="modal-backdrop" onClick={() => setProfileModalOpen(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h2 className="modal-title">User Profile</h2>
+            <div className="profile-details">
+              <div className="avatar large">
+                <span>{getInitials("Admin User")}</span>
+              </div>
+              <p>Admin User</p>
+              <p>admin@secureshare.app</p>
+            </div>
+            <div className="profile btn-send">
+              <button
+                className="profile btn-info"
+                onClick={() => setProfileModalOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+
+        </div>
+      )}
 
     </aside>
   );
