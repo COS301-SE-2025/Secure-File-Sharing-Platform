@@ -195,17 +195,24 @@ export function PreviewDrawer({
               switch (file?.type) {
                 case "image":
                   return content?.url ? (
-                    <img src={content.url} alt="Preview" className="w-full max-h-64 object-cover rounded" />
+                    <div className="relative w-full max-h-64">
+                      <img src={content.url} alt="Preview" className="w-full max-h-64 object-cover rounded" />
+                      <canvas className="absolute inset-0 w-full h-full rounded" onContextMenu={(e) => e.preventDefault()}/>
+                    </div>                                    
                   ) : null;
                 case "video":
                   return content?.url ? (
-                    <video src={content.url} controls className="w-full max-h-64 rounded" />
+                    <div className="relative w-full max-h-64">
+                      <video src={content.url} controls className="w-full max-h-64 rounded" />
+                        <canvas className="absolute inset-0 w-full h-full rounded" onContextMenu={(e) => e.preventDefault()}/>
+                      </div>  
                   ) : null;
                 case "audio":
                   return content?.url ? <audio controls src={content.url} className="w-full mt-2" /> : null;
                 case "pdf":
                   return content?.url ? (
-                    <iframe src={content.url} className="w-full h-64 rounded" />
+                        <iframe src={content.url} className="w-full h-64 rounded" />
+                      
                   ) : null;
                 case "md":
                 case "markdown":
