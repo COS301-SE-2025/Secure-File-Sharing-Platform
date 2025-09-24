@@ -36,6 +36,7 @@
     "libsodium-wrappers": "^0.7.15",
     "libsodium-wrappers-sumo": "^0.7.15",
     "multer": "^2.0.1",
+    "node-fetch": "^3.3.2",
     "nodemailer": "^7.0.3",
     "nodemon": "^3.1.10",
     "path-to-regexp": "^8.2.0",
