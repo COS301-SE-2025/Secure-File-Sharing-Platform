@@ -21,19 +21,25 @@
   "license": "ISC",
   "dependencies": {
     "@supabase/supabase-js": "^2.49.8",
+    "argon2": "^0.44.0",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.2",
+    "bip39": "^3.1.0",
     "cors": "^2.8.5",
+    "crypto-js": "^4.2.0",
     "express": "^5.1.0",
     "express-rate-limit": "^7.5.0",
     "form-data": "^4.0.4",
+    "geoip-lite": "^1.4.10",
     "is-promise": "^4.0.0",
     "jsonwebtoken": "^9.0.2",
+    "libsodium-wrappers": "^0.7.15",
     "libsodium-wrappers-sumo": "^0.7.15",
     "multer": "^2.0.1",
     "nodemailer": "^7.0.3",
     "nodemon": "^3.1.10",
-    "path-to-regexp": "^8.2.0"
+    "path-to-regexp": "^8.2.0",
+    "pg": "^8.16.3"
   },
   "devDependencies": {
     "axios": "^1.10.0",

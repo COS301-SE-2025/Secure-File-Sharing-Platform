@@ -1,6 +1,7 @@
 const express = require('express');
 const userController = require('../controllers/userController');
 const authMiddleware = require('../middlewares/authMiddleware');
+const mnemonicRateLimit = require('../middlewares/mnemonicRateLimit');
 
 const router = express.Router();
 
@@ -15,17 +16,20 @@ router.post('/token_refresh', authMiddleware, userController.refreshToken);
 router.put('/profile', authMiddleware, userController.updateProfile);
 router.post('/verify-password', authMiddleware, userController.verifyPassword);
 router.post('/send-reset-pin', authMiddleware, userController.sendResetPIN);
-router.post('/change-password', authMiddleware, userController.changePassword);
-router.get('/public-keys/:userId',authMiddleware, userController.getPublicKeys);
-router.get('/getUserId/:email',authMiddleware, userController.getUserIdFromEmail);
-router.get('/getUserInfo/:userId',authMiddleware, userController.getUserInfoFromID);
-router.get('/getUserById/:userId',authMiddleware, userController.getUserById);
+router.post('/verify-mnemonic', authMiddleware, mnemonicRateLimit, userController.verifyMnemonic);
+router.post('/change-password-with-mnemonic', authMiddleware, userController.changePasswordWithMnemonic);
+router.post('/re-encrypt-vault-keys', authMiddleware, mnemonicRateLimit, userController.reEncryptVaultKeysWithMnemonic);
+
+router.post('/verify-mnemonic-recovery', mnemonicRateLimit, userController.verifyMnemonic);
+router.post('/change-password-with-mnemonic-recovery', userController.changePasswordWithMnemonic);
+router.get('/public-keys/:userId', userController.getPublicKeys);
+router.get('/getUserId/:email', userController.getUserIdFromEmail);
+router.get('/getUserInfo/:userId', userController.getUserInfoFromID);
+router.get('/getUserById/:userId', userController.getUserById);
 router.post('/get-token', userController.getUserToken);
 router.get('/token-info', userController.getUserInfoFromToken);
 router.get('/notifications', authMiddleware, userController.getNotificationSettings);
 router.put('/notifications', authMiddleware, userController.updateNotificationSettings);
 router.post('/avatar-url', authMiddleware, userController.updateAvatarUrl);
-
-router.get('/verify-token',authMiddleware, userController.verifyToken);
 
 module.exports = router;

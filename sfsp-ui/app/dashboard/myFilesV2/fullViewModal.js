@@ -36,22 +36,46 @@ export function FullViewModal({ file, content, onClose }) {
                 switch (file?.type) {
                   case "image":
                     return content?.url ? (
-                      <div className="flex justify-center">
+                      <div className="relative flex justify-center">
                         <img
                           src={content.url}
                           alt="Full view"
-                          className="max-w-full rounded"
+                          className="max-w-full rounded select-none pointer-events-none"
+                        />
+                        <canvas
+                          className="absolute inset-0 w-full h-full rounded"
+                          onContextMenu={(e) => e.preventDefault()}
                         />
                       </div>
                     ) : null;
 
                   case "video":
                     return content?.url ? (
-                      <video
-                        controls
-                        src={content.url}
-                        className="w-full max-h-[80vh] rounded"
-                      ></video>
+                      <div className="relative flex justify-center">
+                        <video
+                          controls
+                          src={content.url}
+                          className="w-full max-h-[80vh] rounded select-none pointer-events-none"
+                        />
+                        <canvas
+                          className="absolute inset-0 w-full h-full rounded"
+                          onContextMenu={(e) => e.preventDefault()}
+                        />
+                      </div>
+                    ) : null;
+
+                  case "pdf":
+                    return content?.url ? (
+                      <div className="relative flex justify-center">
+                        <iframe
+                          src={content.url}
+                          className="w-full h-[80vh] rounded select-none pointer-events-none"
+                        ></iframe>
+                        <canvas
+                          className="absolute inset-0 w-full h-full rounded"
+                          onContextMenu={(e) => e.preventDefault()}
+                        />
+                      </div>
                     ) : null;
 
                   case "audio":
@@ -60,14 +84,6 @@ export function FullViewModal({ file, content, onClose }) {
                         <source src={content.url} />
                         Your browser does not support the audio element.
                       </audio>
-                    ) : null;
-
-                  case "pdf":
-                    return content?.url ? (
-                      <iframe
-                        src={content.url}
-                        className="w-full h-[80vh] rounded"
-                      ></iframe>
                     ) : null;
 
                   case "txt":

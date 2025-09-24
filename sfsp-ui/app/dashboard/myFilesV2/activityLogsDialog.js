@@ -134,7 +134,7 @@ export function ActivityLogsDialog({ open, onOpenChange, file }) {
                         {activity.message || ""}
                       </p>
                       <p className="text-xs text-gray-500">
-                        {new Date(activity.timestamp).toLocaleString()}
+                        {formatDateTime(activity.timestamp)}
                       </p>
                     </div>
                   </div>
