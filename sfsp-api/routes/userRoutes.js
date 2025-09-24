@@ -15,7 +15,6 @@ router.delete('/profile', authMiddleware, userController.deleteProfile);
 router.post('/token_refresh', authMiddleware, userController.refreshToken);
 router.put('/profile', authMiddleware, userController.updateProfile);
 router.post('/verify-password', authMiddleware, userController.verifyPassword);
-router.post('/send-reset-pin', authMiddleware, userController.sendResetPIN);
 router.post('/verify-mnemonic', authMiddleware, mnemonicRateLimit, userController.verifyMnemonic);
 router.post('/change-password-with-mnemonic', authMiddleware, userController.changePasswordWithMnemonic);
 router.post('/re-encrypt-vault-keys', authMiddleware, mnemonicRateLimit, userController.reEncryptVaultKeysWithMnemonic);

@@ -12,6 +12,7 @@ const nextConfig = {
             'lh6.googleusercontent.com'
         ],
     },
+    transpilePackages: ['pdf-lib'],
 };
 
 export default nextConfig;

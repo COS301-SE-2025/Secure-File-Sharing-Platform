@@ -280,11 +280,15 @@ class UserController {
           }
         } catch (sessionError) {
           console.error('SESSION CREATION ERROR:', sessionError);
-          console.error('Session error details:', {
-            message: sessionError.message,
-            stack: sessionError.stack,
-            deviceInfo: deviceInfo
-          });
+          try {
+            console.error('Session error details:', {
+              message: sessionError.message,
+              stack: sessionError.stack,
+              deviceInfo: deviceInfo
+            });
+          } catch (logError) {
+            console.error('Error logging session details:', logError.message);
+          }
         }
       }
 
@@ -501,25 +505,6 @@ class UserController {
       res.status(500).json({
         success: false,
         message: "Internal server error",
-      });
-    }
-  }
-
-  async sendResetPIN(req, res) {
-    try {
-      const userId = req.user.id;
-
-      const result = await userService.sendPasswordResetPIN(userId);
-
-      res.json({
-        success: true,
-        message: result.message,
-      });
-    } catch (error) {
-      console.error("Error sending reset PIN:", error);
-      res.status(500).json({
-        success: false,
-        message: error.message || "Failed to send reset PIN",
       });
     }
   }

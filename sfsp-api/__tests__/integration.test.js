@@ -1,4 +1,11 @@
 /* global describe, it, expect, beforeEach, afterEach, jest */
+
+// Mock VaultController before requiring UserController
+jest.doMock('../controllers/vaultController', () => ({
+    storeKeyBundle: jest.fn(),
+    retrieveKeyBundle: jest.fn(),
+}));
+
 const request = require('supertest');
 const express = require('express');
 const UserController = require('../controllers/userController');
@@ -12,16 +19,20 @@ app.post('/login', UserController.login);
 app.get('/profile', UserController.getProfile);
 app.post('/refresh-token', UserController.refreshToken);
 app.delete('/profile', UserController.deleteProfile);
+app.post('/verify-password', UserController.verifyPassword);
+app.post('/send-reset-pin', UserController.sendResetPIN);
+app.get('/public-keys/:userId', UserController.getPublicKeys);
+app.post('/get-token', UserController.getUserToken);
 
 jest.mock('../services/userService');
 const VaultController = require('../controllers/vaultController');
 
 jest.mock('../config/database', () => {
     const mockSupabase = {
-        from: jest.fn().mockReturnThis(),
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({ data: null, error: null }),
+        from: jest.fn(() => mockSupabase),
+        select: jest.fn(() => mockSupabase),
+        eq: jest.fn(() => mockSupabase),
+        single: jest.fn(() => ({ data: { email: 'test@example.com', password: 'hashed_password' }, error: null })),
     };
     return { supabase: mockSupabase };
 });
@@ -33,10 +44,13 @@ jest.mock('../services/userService', () => ({
     getProfile: jest.fn(),
     refreshToken: jest.fn(),
     deleteProfile: jest.fn(),
+    verifyPassword: jest.fn(),
+    sendPasswordResetPIN: jest.fn(),
+    getPublicKeys: jest.fn(),
+    generateToken: jest.fn(),
 }));
-jest.mock('../controllers/vaultController', () => ({
-    storeKeyBundle: jest.fn(),
-    retrieveKeyBundle: jest.fn(),
+jest.mock('../utils/mnemonicCrypto', () => ({
+    validatePassword: jest.fn(),
 }));
 
 describe('UserController Integration Tests', () => {
@@ -458,6 +472,198 @@ describe('UserController Integration Tests', () => {
                 success: false,
                 message: 'Internal server error.'
             });
+        });
+    });
+
+    describe('POST /verify-password', () => {
+        it('should verify password successfully', async () => {
+            const requestData = { currentPassword: 'correctpassword' };
+
+            userService.verifyToken.mockResolvedValue({ userId: 1 });
+            userService.getProfile.mockResolvedValue({ id: 1, email: 'test@example.com' });
+            const MnemonicCrypto = require('../utils/mnemonicCrypto');
+            MnemonicCrypto.validatePassword.mockResolvedValue(true);
+
+            const response = await request(app)
+                .post('/verify-password')
+                .set('Authorization', 'Bearer valid-token')
+                .send(requestData)
+                .expect(200);
+
+            expect(response.body).toEqual({
+                success: true,
+                message: 'Password verified successfully',
+            });
+
+            expect(userService.verifyToken).toHaveBeenCalledWith('valid-token');
+            expect(MnemonicCrypto.validatePassword).toHaveBeenCalledWith('correctpassword', undefined);
+        });
+
+        it('should return 400 when current password is missing', async () => {
+            userService.verifyToken.mockResolvedValue({ userId: 1 });
+
+            const response = await request(app)
+                .post('/verify-password')
+                .set('Authorization', 'Bearer valid-token')
+                .send({})
+                .expect(400);
+
+            expect(response.body).toEqual({
+                success: false,
+                message: 'Current password is required',
+            });
+        });
+
+        it('should return 400 when password is incorrect', async () => {
+            const requestData = { currentPassword: 'wrongpassword' };
+
+            userService.verifyToken.mockResolvedValue({ userId: 1 });
+            userService.getProfile.mockResolvedValue({ id: 1, email: 'test@example.com' });
+            const MnemonicCrypto = require('../utils/mnemonicCrypto');
+            MnemonicCrypto.validatePassword.mockResolvedValue(false);
+
+            const response = await request(app)
+                .post('/verify-password')
+                .set('Authorization', 'Bearer valid-token')
+                .send(requestData)
+                .expect(400);
+
+            expect(response.body).toEqual({
+                success: false,
+                message: 'Current password is incorrect',
+            });
+        });
+    });
+
+    describe('POST /send-reset-pin', () => {
+        it('should send reset PIN successfully', async () => {
+            const mockResult = { message: 'Reset PIN sent successfully' };
+
+            userService.verifyToken.mockResolvedValue({ userId: 1 });
+            userService.sendPasswordResetPIN.mockResolvedValue(mockResult);
+
+            const response = await request(app)
+                .post('/send-reset-pin')
+                .set('Authorization', 'Bearer valid-token')
+                .expect(200);
+
+            expect(response.body).toEqual({
+                success: true,
+                message: 'Reset PIN sent successfully',
+            });
+
+            expect(userService.verifyToken).toHaveBeenCalledWith('valid-token');
+            expect(userService.sendPasswordResetPIN).toHaveBeenCalledWith(1);
+        });
+
+        it('should return 401 when token is invalid', async () => {
+            userService.verifyToken.mockResolvedValue(null);
+
+            const response = await request(app)
+                .post('/send-reset-pin')
+                .set('Authorization', 'Bearer invalid-token')
+                .expect(401);
+
+            expect(response.body).toEqual({
+                success: false,
+                message: 'Invalid or expired token.',
+            });
+        });
+    });
+
+    describe('GET /public-keys/:userId', () => {
+        it('should get public keys successfully', async () => {
+            const mockKeys = {
+                ik_public: 'ik_public_key',
+                spk_public: 'spk_public_key',
+                opks_public: ['opk1', 'opk2']
+            };
+
+            userService.getPublicKeys.mockResolvedValue(mockKeys);
+
+            const response = await request(app)
+                .get('/public-keys/1')
+                .expect(200);
+
+            expect(response.body).toEqual({
+                success: true,
+                data: mockKeys,
+            });
+
+            expect(userService.getPublicKeys).toHaveBeenCalledWith('1');
+        });
+
+        it('should return 400 when userId is missing', async () => {
+            const response = await request(app)
+                .get('/public-keys/')
+                .expect(404); // Express will return 404 for missing param
+        });
+
+        it('should return 404 when user not found', async () => {
+            userService.getPublicKeys.mockResolvedValue(null);
+
+            const response = await request(app)
+                .get('/public-keys/999')
+                .expect(404);
+
+            expect(response.body).toEqual({
+                success: false,
+                message: 'User not found or missing public keys',
+            });
+        });
+    });
+
+    describe('POST /get-token', () => {
+        it('should generate token successfully', async () => {
+            const requestData = { userId: 1 };
+            const mockToken = 'generated-jwt-token';
+
+            userService.generateToken.mockReturnValue(mockToken);
+
+            const response = await request(app)
+                .post('/get-token')
+                .send(requestData)
+                .expect(200);
+
+            expect(response.body).toEqual({
+                success: true,
+                token: mockToken,
+            });
+
+            expect(userService.generateToken).toHaveBeenCalledWith(1, 'test@example.com');
+        });
+
+        it('should return 400 when userId is missing', async () => {
+            const response = await request(app)
+                .post('/get-token')
+                .send({})
+                .expect(400);
+
+            expect(response.body).toEqual({
+                success: false,
+                message: 'User ID is required.',
+            });
+        });
+
+        it('should return 404 when user not found', async () => {
+            const requestData = { userId: 999 };
+
+            // Temporarily mock supabase to return no user
+            const originalSingle = require('../config/database').supabase.single;
+            require('../config/database').supabase.single.mockResolvedValueOnce({ data: null, error: 'User not found' });
+
+            const response = await request(app)
+                .post('/get-token')
+                .send(requestData)
+                .expect(404);
+
+            expect(response.body).toEqual({
+                success: false,
+                message: 'User not found.',
+            });
+
+            // Restore the mock
+            require('../config/database').supabase.single = originalSingle;
         });
     });
 

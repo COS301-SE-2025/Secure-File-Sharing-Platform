@@ -29,18 +29,30 @@ export function UploadDialog({
       const appKey = process.env.NEXT_PUBLIC_DROPBOX_APP_KEY;
       if (appKey) {
         setDropboxLoading(true);
-        const script = document.createElement('script');
-        script.src = 'https://www.dropbox.com/static/api/2/dropins.js';
-        script.id = 'dropboxjs';
-        script.setAttribute('data-app-key', appKey);
-        script.onload = () => {
+        
+        // Pre-create the script tag with proper attributes
+        const scriptEl = document.createElement('script');
+        
+        // Set the onload and onerror handlers first
+        scriptEl.onload = () => {
           setDropboxLoading(false);
+          console.log('Dropbox script loaded successfully');
         };
-        script.onerror = () => {
+        
+        scriptEl.onerror = () => {
           setDropboxLoading(false);
           console.error('Failed to load Dropbox script');
         };
-        document.head.appendChild(script);
+        
+        // Set the ID and data attribute
+        scriptEl.id = 'dropboxjs';
+        scriptEl.setAttribute('data-app-key', appKey);
+        
+        // Set the src last (important for some browsers)
+        scriptEl.src = 'https://www.dropbox.com/static/api/2/dropins.js';
+        
+        // Append to document
+        document.head.appendChild(scriptEl);
       }
     }
   }, [open]);

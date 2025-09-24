@@ -553,10 +553,20 @@ export default function AuthPage() {
       }
 
       const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+      if (!clientId) {
+        console.error('Missing NEXT_PUBLIC_GOOGLE_CLIENT_ID environment variable');
+        setMessage('Configuration error. Please try again later or contact support.');
+        setIsLoading(false);
+        return;
+      }
+
       const redirectUri = 'http://localhost:3000/auth/google/callback';
       const scope = 'openid email profile';
       
-      const state = crypto.randomUUID();
+      // Generate state parameter for security
+      const stateArray = new Uint32Array(4);
+      crypto.getRandomValues(stateArray);
+      const state = Array.from(stateArray, x => x.toString(16)).join('');
       sessionStorage.setItem('googleOAuthState', state);
       
       const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
@@ -572,7 +582,8 @@ export default function AuthPage() {
       
       localStorage.removeItem('lastUsedGoogleCode');
       
-      window.location.href = authUrl;
+      // Use simple location redirect instead of dynamic script injection
+      window.location.assign(authUrl);
 
     } catch (error) {
       console.error('Google OAuth error:', error);
