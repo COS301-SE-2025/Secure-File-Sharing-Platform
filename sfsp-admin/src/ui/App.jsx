@@ -131,7 +131,7 @@ https://reactbits.dev/backgrounds/light-rays , 18 September 2025*/}
         <div className="login-header">
           <div className="login-logo">
             <img
-              src="/src/assets/shield-full-white.png"
+              src="../src/assets/shield-full-white.png"
               alt="SecureShare Logo"
               className="logo-icon"
             />
