@@ -151,8 +151,7 @@ export function UploadDialog({
             file = new File([blob], file.name, { type: file.type });
           }
 
-          // 1️⃣ Call startUpload to get fileId
-          const startRes = await fetch("http://localhost:5000/api/files/startUpload", {
+          const startRes = await fetch("/api/files/startUpload", {
             method: "POST",
             headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
             body: JSON.stringify({

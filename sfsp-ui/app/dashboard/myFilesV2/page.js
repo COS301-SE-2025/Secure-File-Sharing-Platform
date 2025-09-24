@@ -329,9 +329,9 @@ export default function MyFiles() {
     const tags = ["deleted", `deleted_time:${timestamp}`];
 
     try {
-      const res = await fetch("http://localhost:5000/api/files/addTags", {
+      const res = await fetch("/api/files/addTags", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-csrf":csrf || ""},
         body: JSON.stringify({ fileId: file.id, tags }),
       });
 
@@ -504,7 +504,7 @@ export default function MyFiles() {
       if (!token) return;
 
       try {
-        const res = await fetch('http://localhost:5000/api/users/profile', {
+        const res = await fetch('/api/auth/profile', {
           headers: { Authorization: `Bearer ${token}` },
         });
 

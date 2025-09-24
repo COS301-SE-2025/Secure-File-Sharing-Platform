@@ -208,7 +208,6 @@ export default function AuthPage() {
 
       const { ik_private_key, opks_private, spk_private_key } =
         result.data.keyBundle;
-      const { token } = result.data;
 
       // Always send verification code for login security
       setLoaderMessage("Sending verification code...");
@@ -243,7 +242,6 @@ export default function AuthPage() {
       setTimeout(() => {
         router.push(`/auth/verify-email?email=${encodeURIComponent(loginData.email)}&userId=${id}&type=login`);
       }, 1500);
-      return;
 
       //we don't need to securely store the user ID but I will store it in the Zustand store for easy access
       useEncryptionStore.getState().setUserId(id);
@@ -303,7 +301,7 @@ export default function AuthPage() {
 
       const userKeys = {
         identity_private_key: decryptedIkPrivateKey,
-        signedpk_private_key: decryptedSpkPrivateKey,
+        signedpk_private_key: sodium.from_base64(spk_private_key),
         oneTimepks_private: decryptedOpksPrivate,
         identity_public_key: sodium.from_base64(ik_public),
         signedpk_public_key: sodium.from_base64(spk_public),
@@ -426,7 +424,6 @@ export default function AuthPage() {
         throw new Error(result.message || "Registration failed");
       }
 
-      //const { token, user } = result.data;
       const {user } = result.data;
 
       // Generate derived key and prepare user keys regardless of verification status

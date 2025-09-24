@@ -73,9 +73,6 @@ function getCookie(name) {
 
 const csrf = getCookie("csrf_token");
 
-
-
-
   const formatTimestamp = (timestamp) => {
     const now = new Date();
     const time = new Date(timestamp);
@@ -232,11 +229,9 @@ useEffect(() => {
 
   useEffect(() => {
       const fetchProfile = async () => {
-        const token = localStorage.getItem('token');
-        if (!token) return;
   
         try {
-          const res = await fetch('http://localhost:5000/api/users/profile', {
+          const res = await fetch('/api/auth/profile', {
             headers: { Authorization: `Bearer ${token}` },
           });
   
