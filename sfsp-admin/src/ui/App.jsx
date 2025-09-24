@@ -8,7 +8,7 @@ function App() {
   const navigate = useNavigate();
   const [step, setStep] = useState("credentials");
   const [credentials, setCredentials] = useState({
-    username: "",
+    email: "",
     password: "",
     otp: ["", "", "", "", "", ""],
   });
@@ -27,8 +27,8 @@ function App() {
 
   const handleCredentialsSubmit = (e) => {
     e.preventDefault();
-    if (!credentials.username || !credentials.password) {
-      alert("❌ Please enter both username and password");
+    if (!credentials.email || !credentials.password) {
+      alert("❌ Please enter both email and password");
       return;
     }
 
@@ -160,7 +160,7 @@ https://reactbits.dev/backgrounds/light-rays , 18 September 2025*/}
               </h2>
               <p className="card-description">
                 {step === "credentials"
-                  ? "Enter your username and password to continue"
+                  ? "Enter your email and password to continue"
                   : "Enter your 6-digit one-time PIN to complete login"}
               </p>
             </div>
@@ -171,17 +171,17 @@ https://reactbits.dev/backgrounds/light-rays , 18 September 2025*/}
               <form onSubmit={handleCredentialsSubmit} className="form">
                 {/* Username */}
                 <div className="form-group">
-                  <label htmlFor="username">Username</label>
+                  <label htmlFor="username">Email</label>
                   <input
                     className="username-input"
                     id="username"
                     type="text"
-                    placeholder="Enter your username"
-                    value={credentials.username}
+                    placeholder="Enter your email"
+                    value={credentials.email}
                     onChange={(e) =>
                       setCredentials({
                         ...credentials,
-                        username: e.target.value,
+                        email: e.target.value,
                       })
                     }
                     required
