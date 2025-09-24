@@ -49,6 +49,7 @@ export async function POST(request) {
 
         if (verifyResponse.status === 401) {
           errorMessage = "Token has expired";
+          return res.redirect(302, '/auth');
         } else if (verifyResponse.status === 403) {
           errorMessage = "Token is invalid";
         }

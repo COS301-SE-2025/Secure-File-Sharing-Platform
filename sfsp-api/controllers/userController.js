@@ -255,11 +255,6 @@ class UserController {
         const keyBundle = await VaultController.retrieveKeyBundle(
           result.user.id
         );
-        console.log("DEBUG - Retrieved vault keys for user:", result.user.id);
-        console.log(
-          "DEBUG - Retrieved OPKs:",
-          keyBundle.opks_private?.map((opk) => opk.opk_id)
-        );
         result.keyBundle = keyBundle;
       }
 

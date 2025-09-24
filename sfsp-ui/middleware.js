@@ -7,7 +7,6 @@ const LOGIN_PATH = "/auth";
 export async function middleware(req) {
   const { pathname, origin } = req.nextUrl;
 
-  // Skip API routes and login pages
   if (pathname.startsWith('/api/') || pathname === LOGIN_PATH || pathname.startsWith('/auth/')) {
     return NextResponse.next();
   }
@@ -18,24 +17,21 @@ export async function middleware(req) {
   
   if (!needsAuth) return NextResponse.next();
 
-  // Get both cookies
   const token = req.cookies.get("auth_token")?.value;
   const currentUser = req.cookies.get("current_user")?.value;
   
   console.log('Token exists:', !!token);
   console.log('Current user:', currentUser);
 
-  // If either cookie is missing, redirect to login
   if (!token || !currentUser) {
     console.log('Missing token or user context, redirecting to login');
     const response = NextResponse.redirect(new URL(LOGIN_PATH, origin));
-    // Clear any partial cookies
+
     response.cookies.delete('auth_token');
     response.cookies.delete('current_user');
     return response;
   }
 
-  // Verify token is valid AND belongs to the current user
   try {
     const verifyResponse = await fetch(`${origin}/api/auth/verify-token`, {
       method: 'GET',
@@ -51,8 +47,7 @@ export async function middleware(req) {
 
     const result = await verifyResponse.json();
     console.log('Verification result:', result);
-    
-    // Critical check: Does the token's user match the current_user cookie?
+
     if (!result.valid || !result.user || result.user.id !== currentUser) {
       console.log('User context mismatch! Token user:', result.user?.id, 'Current user:', currentUser);
       return redirectToLoginAndClearCookies(LOGIN_PATH, origin);
@@ -67,11 +62,9 @@ export async function middleware(req) {
   }
 }
 
-// Helper function to clear cookies and redirect
 function redirectToLoginAndClearCookies(loginPath, origin) {
   const response = NextResponse.redirect(new URL(loginPath, origin));
-  
-  // Clear both cookies to prevent session confusion
+
   response.cookies.set('auth_token', '', {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
