@@ -1,8 +1,23 @@
 "use client";
 
-import React from "react";
+
+import React, { useEffect, useState, useRef } from "react";
+import { Document, Page, pdfjs } from "react-pdf";
+
+//import "react-pdf/dist/esm/Page/AnnotationLayer.css";
+//import "react-pdf/dist/esm/Page/TextLayer.css";
+
+// Use pdfjs-dist's worker build
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  "pdfjs-dist/build/pdf.worker.min.mjs",
+  import.meta.url,
+).toString();
+
 
 export function FullViewModal({ file, content, onClose }) {
+	const [numPages, setNumPages] = useState(null);
+
+
   return (
     <>
       {file && (
@@ -64,19 +79,33 @@ export function FullViewModal({ file, content, onClose }) {
                       </div>
                     ) : null;
 
-                  case "pdf":
-                    return content?.url ? (
-                      <div className="relative flex justify-center">
-                        <iframe
-                          src={content.url}
-                          className="w-full h-[80vh] rounded select-none pointer-events-none"
-                        ></iframe>
-                        <canvas
-                          className="absolute inset-0 w-full h-full rounded"
-                          onContextMenu={(e) => e.preventDefault()}
-                        />
-                      </div>
-                    ) : null;
+                 case "pdf":
+  return content?.url ? (
+    <div className="flex justify-center">
+      <div className="max-w-[500px] h-[600px] overflow-y-auto border rounded bg-gray-100 p-2">
+        <Document
+          file={content.url}
+          onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+          onLoadError={(err) => console.error("PDF load error:", err)}
+          loading={
+            <div className="p-4 text-sm text-gray-500">Loading PDF…</div>
+          }
+        >
+          {Array.from(new Array(numPages), (el, index) => (
+            <Page
+              key={`page_${index + 1}`}
+              pageNumber={index + 1}
+              width={460}   // matches ~max-w size
+              renderAnnotationLayer={false}
+              renderTextLayer={false}
+            />
+          ))}
+        </Document>
+      </div>
+    </div>
+  ) : null;
+
+
 
                   case "audio":
                     return content?.url ? (

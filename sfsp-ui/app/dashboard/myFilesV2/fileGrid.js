@@ -21,7 +21,9 @@ import {
   X,
   Eye,
   EyeOff,
+  PenIcon,
 } from "lucide-react";
+
 
 function Toast({ message, type = "info", onClose }) {
   return (
@@ -251,6 +253,27 @@ export function FileGrid({
       setDraggedFile(null);
     }
   };
+
+      /*const handleEsign = (file) => {
+      const canvas = document.getElementById("signature-pad");
+      if (!canvas) return;
+
+      const signaturePad = new SignaturePad(canvas);
+      signaturePad.clear();
+      console.log("Ready to sign for file:", file);
+    };
+
+    const sigPadRef = useRef();
+    
+
+    const handleEsign = (file) => {
+      if (sigPadRef.current) {
+        sigPadRef.current.prepare();  // calls prepare() inside SignaturePad
+      }
+    };
+  */
+
+ 
 
   return (
     <div>
@@ -492,6 +515,7 @@ export function FileGrid({
           >
             <X className="h-4 w-4" /> Delete
           </button>
+
         </div>
       )}
     </div>
