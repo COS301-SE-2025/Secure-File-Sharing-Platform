@@ -18,6 +18,7 @@ import { PreviewDrawer } from "./previewDrawer";
 import { FullViewModal } from "./fullViewModal";
 import { RevokeAccessDialog } from "./revokeAccessDialog";
 import { ChangeShareMethodDialog } from "./changeShareMethodDialog";
+import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 
 function Toast({ message, type = "info", onClose }) {
   return (
@@ -148,7 +149,7 @@ export default function MyFiles() {
       }
 
       console.log("Getting the user's files");
-      const res = await fetch("http://localhost:5000/api/files/metadata", {
+      const res = await fetch(getFileApiUrl("/metadata"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId }),
@@ -234,7 +235,7 @@ export default function MyFiles() {
     const sodium = await getSodium();
 
     try {
-      const res = await fetch("http://localhost:5000/api/files/download", {
+      const res = await fetch(getFileApiUrl("/download"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId, fileId: file.id }),
@@ -301,7 +302,7 @@ export default function MyFiles() {
     const sodium = await getSodium();
 
     try {
-      const res = await fetch("http://localhost:5000/api/files/download", {
+      const res = await fetch(getFileApiUrl("/download"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -414,7 +415,7 @@ export default function MyFiles() {
   const handleUpdateDescription = async (fileId, description) => {
     try {
       const res = await fetch(
-        "http://localhost:5000/api/files/addDescription",
+        getFileApiUrl("/addDescription"),
         {
           method: "POST",
           headers: {
@@ -440,7 +441,7 @@ export default function MyFiles() {
       ? `files/${destinationFolderPath}/${file.name}`
       : `files/${file.name}`; // for root-level
 
-    const res = await fetch("http://localhost:5000/api/files/updateFilePath", {
+    const res = await fetch(getFileApiUrl("/updateFilePath"), {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ fileId: file.id, newPath: fullPath }),
@@ -579,20 +580,6 @@ export default function MyFiles() {
             </button>
           </div>
         </div>
-        {/* Back Button
-        <div className="flex flex-col space-y-2 mb-4">
-          {currentPath && (
-            <button
-              onClick={() =>
-                setCurrentPath(currentPath.split("/").slice(0, -1).join("/"))
-              }
-              className="self-start text-sm text-blue-600 hover:underline"
-            >
-              ← Go Back to &quot;
-              {currentPath.split("/").slice(0, -1).join("/") || "All files"}&quot;
-            </button>
-          )}
-        </div> */}
 
         {renderBreadcrumbs()}
 

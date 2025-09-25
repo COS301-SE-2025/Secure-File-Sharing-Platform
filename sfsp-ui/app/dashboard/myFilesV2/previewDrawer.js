@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useEncryptionStore } from "@/app/SecureKeyStorage";
 import { getSodium } from "@/app/lib/sodium";
 import pako from "pako";
+import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 
 export function PreviewDrawer({
   file,
@@ -34,7 +35,7 @@ export function PreviewDrawer({
       if (!token) return;
 
       // Get current user profile
-      const profileRes = await fetch("http://localhost:5000/api/users/profile", {
+      const profileRes = await fetch(getApiUrl("/users/profile"), {
         headers: { Authorization: `Bearer ${token}` },
       });
       const profileResult = await profileRes.json();
@@ -43,7 +44,7 @@ export function PreviewDrawer({
 
       // Get files shared for view-only access
       const sharedFilesRes = await fetch(
-        "http://localhost:5000/api/files/getViewAccess",
+        getFileApiUrl("/getViewAccess"),
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -60,7 +61,7 @@ export function PreviewDrawer({
           let email = "";
           let avatar = "";
           try {
-            const res = await fetch(`http://localhost:5000/api/users/getUserInfo/${share.recipient_id}`);
+            const res = await fetch(getApiUrl(`/users/getUserInfo/${share.recipient_id}`));
             if (res.ok) {
               const data = await res.json();
               if (data?.data) {
@@ -96,14 +97,14 @@ export function PreviewDrawer({
       const token = localStorage.getItem("token");
       if (!token) return;
 
-      const profileRes = await fetch("http://localhost:5000/api/users/profile", {
+      const profileRes = await fetch(getApiUrl("/users/profile"), {
         headers: { Authorization: `Bearer ${token}` },
       });
       const profileResult = await profileRes.json();
       const userId = profileResult?.data?.id;
       if (!userId) return;
 
-      const revokeRes = await fetch("http://localhost:5000/api/files/revokeViewAccess", {
+      const revokeRes = await fetch(getFileApiUrl("/revokeViewAccess"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

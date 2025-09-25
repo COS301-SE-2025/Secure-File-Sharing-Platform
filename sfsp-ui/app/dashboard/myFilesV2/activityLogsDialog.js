@@ -4,6 +4,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Clock, Download, Share, Edit, Eye, Trash2,Undo2 } from 'lucide-react';
+import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 
 export function ActivityLogsDialog({ open, onOpenChange, file }) {
   const [activities, setActivities] = useState([]);
@@ -27,7 +28,7 @@ export function ActivityLogsDialog({ open, onOpenChange, file }) {
 
         console.log(file.id);
 
-        const res = await fetch('http://localhost:5000/api/files/getAccesslog', {
+        const res = await fetch(getFileApiUrl('/getAccesslog'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ file_id: file.id }),

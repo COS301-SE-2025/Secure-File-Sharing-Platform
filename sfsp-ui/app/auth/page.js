@@ -15,6 +15,7 @@ import {
   storeUserKeysSecurely,
   storeDerivedKeyEncrypted,
 } from "../SecureKeyStorage";
+import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 
 //await sodium.ready;
 //sodium.init && sodium.init();
@@ -138,7 +139,10 @@ export default function AuthPage() {
 
     try {
       const sodium = await getSodium();
-      const res = await fetch("http://localhost:5000/api/users/login", {
+      const loginUrl = getApiUrl('/users/login');
+      console.log('Login URL:', loginUrl); // Debug log
+      
+      const res = await fetch(loginUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -147,9 +151,15 @@ export default function AuthPage() {
         }),
       });
 
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error(`Login failed: ${res.status} - ${errorText}`);
+        throw new Error(`Login failed: ${res.status}`);
+      }
+
       const result = await res.json();
       console.log(result);
-      if (!res.ok || !result.success) {
+      if (!result.success) {
         throw new Error(result.message || "Invalid login credentials");
       }
 
@@ -321,7 +331,10 @@ export default function AuthPage() {
         salt,
       } = await GenerateX3DHKeys(password);
 
-      const res = await fetch("http://localhost:5000/api/users/register", {
+      const registerUrl = getApiUrl('/users/register');
+      console.log('Register URL:', registerUrl); // Debug log
+
+      const res = await fetch(registerUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -340,8 +353,14 @@ export default function AuthPage() {
         }),
       });
 
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error(`Registration failed: ${res.status} - ${errorText}`);
+        throw new Error(`Registration failed: ${res.status}`);
+      }
+
       const result = await res.json();
-      if (!res.ok || !result.success) {
+      if (!result.success) {
         throw new Error(result.message || "Registration failed");
       }
 
@@ -408,7 +427,10 @@ export default function AuthPage() {
         
         // Add user to PostgreSQL database before redirecting to verification
         try {
-          const addUserRes = await fetch("http://localhost:5000/api/files/addUser", {
+          const addUserUrl = getFileApiUrl('/addUser');
+          console.log('Add user URL:', addUserUrl); // Debug log
+          
+          const addUserRes = await fetch(addUserUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -417,7 +439,8 @@ export default function AuthPage() {
           });
 
           if (!addUserRes.ok) {
-            console.error("Failed to add user to PostgreSQL database");
+            const errorText = await addUserRes.text();
+            console.error("Failed to add user to PostgreSQL database:", errorText);
           } else {
             console.log("User successfully added to PostgreSQL database");
           }
@@ -442,7 +465,10 @@ export default function AuthPage() {
 
       // Add user to PostgreSQL database (for verified users)
       try {
-        const addUserRes = await fetch("http://localhost:5000/api/files/addUser", {
+        const addUserUrl = getFileApiUrl('/addUser');
+        console.log('Add user URL (verified):', addUserUrl); // Debug log
+        
+        const addUserRes = await fetch(addUserUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -451,7 +477,8 @@ export default function AuthPage() {
         });
 
         if (!addUserRes.ok) {
-          console.error("Failed to add user to PostgreSQL database");
+          const errorText = await addUserRes.text();
+          console.error("Failed to add user to PostgreSQL database:", errorText);
         } else {
           console.log("User successfully added to PostgreSQL database");
         }

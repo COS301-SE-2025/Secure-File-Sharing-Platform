@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { ChevronLeft } from 'lucide-react';
+import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 
 export default function ContactUs() {
   const router = useRouter();
@@ -23,13 +24,20 @@ export default function ContactUs() {
     console.log('Form submitted:', formData);
 
     try {
-      const response = await fetch('http://localhost:5000/api/contact', {
+      const apiUrl = getApiUrl('/contact');
+      console.log('API URL:', apiUrl); // Debug log
+      
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(formData),
       });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
       const result = await response.json();
 

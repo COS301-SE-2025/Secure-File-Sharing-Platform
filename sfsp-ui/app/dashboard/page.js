@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
+import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 
 import { 
   FileText, 
@@ -91,7 +92,7 @@ const fetchFiles = async () => {
       return [];
     }
 
-    const res = await fetch("http://localhost:5000/api/files/metadata", {
+    const res = await fetch(getFileApiUrl("/metadata"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId }),
@@ -154,7 +155,7 @@ const fetchFiles = async () => {
     const sodium = await getSodium();
 
     try {
-      const res = await fetch("http://localhost:5000/api/files/download", {
+      const res = await fetch(getFileApiUrl("/download"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
        body: JSON.stringify({
@@ -245,7 +246,7 @@ const fetchFiles = async () => {
     if (!token) return;
 
     try {
-      const profileRes = await fetch("http://localhost:5000/api/users/profile", {
+      const profileRes = await fetch(getApiUrl("/users/profile"), {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -253,7 +254,7 @@ const fetchFiles = async () => {
       if (!profileRes.ok) throw new Error(profileResult.message || "Failed to fetch profile");
 
       try {
-        const res = await axios.post('http://localhost:5000/api/notifications/get', {
+        const res = await axios.post(getApiUrl('/notifications/get'), {
           userId: profileResult.data.id,
         });
         if (res.data.success) {
@@ -270,7 +271,7 @@ const fetchFiles = async () => {
 
   const markAsRead = async (id) => {
     try {
-      const res = await axios.post('http://localhost:5000/api/notifications/markAsRead', { id });
+      const res = await axios.post(getApiUrl('/notifications/markAsRead'), { id });
       if (res.data.success) {
         setNotifications((prev) =>
           prev.map((n) => (n.id === id ? { ...n, read: true } : n))
@@ -283,7 +284,7 @@ const fetchFiles = async () => {
 
   const respondToShareRequest = async (id, status) => {
     try {
-      const res = await axios.post('http://localhost:5000/api/notifications/respond', {
+      const res = await axios.post(getApiUrl('/notifications/respond'), {
         id,
         status,
       });
@@ -305,7 +306,7 @@ const fetchFiles = async () => {
 
   const clearNotification = async (id) => {
     try {
-      const res = await axios.post('http://localhost:5000/api/notifications/clear', { id });
+      const res = await axios.post(getApiUrl('/notifications/clear'), { id });
       if (res.data.success) {
         setNotifications((prev) => prev.filter((n) => n.id !== id));
       }
@@ -320,7 +321,7 @@ const fetchRecentAccessLogs = async () => {
     if (!userId) return [];
 
     // Fetch files
-    const res = await fetch("http://localhost:5000/api/files/metadata", {
+    const res = await fetch(getFileApiUrl("/metadata"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId }),
@@ -338,7 +339,7 @@ const fetchRecentAccessLogs = async () => {
 
     for (const file of files) {
       try {
-        const logRes = await fetch("http://localhost:5000/api/files/getAccesslog", {
+        const logRes = await fetch(getFileApiUrl("/getAccesslog"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ file_id: file.fileId }),
@@ -353,7 +354,7 @@ const fetchRecentAccessLogs = async () => {
           let userName = "Unknown User";
           let avatar = "/default-avatar.png";
           try {
-            const userRes = await fetch(`http://localhost:5000/api/users/getUserInfo/${log.user_id}`);
+            const userRes = await fetch(getApiUrl(`/users/getUserInfo/${log.user_id}`));
             if (userRes.ok) {
               const userInfo = await userRes.json();
               if (userInfo?.data?.username) {
@@ -387,7 +388,7 @@ const fetchRecentAccessLogs = async () => {
 
   const fetchFilesMetadata = useCallback(async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/files/metadata', {
+      const res = await fetch(getFileApiUrl('/metadata'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId }),

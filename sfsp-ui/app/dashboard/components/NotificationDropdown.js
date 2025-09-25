@@ -5,6 +5,7 @@
 import React, { useEffect, useState } from 'react';
 import { Bell, Check, X, FileText } from 'lucide-react';
 import axios from 'axios';
+import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 import {
   SendFile,
   ReceiveFile,
@@ -35,7 +36,7 @@ export default function NotificationDropdown() {
     if (!token) return;
 
     try {
-      const profileRes = await fetch("http://localhost:5000/api/users/profile", {
+      const profileRes = await fetch(getApiUrl("/users/profile"), {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -43,7 +44,7 @@ export default function NotificationDropdown() {
       if (!profileRes.ok) throw new Error(profileResult.message || "Failed to fetch profile");
 
       try {
-        const res = await axios.post('http://localhost:5000/api/notifications/get', {
+        const res = await axios.post(getApiUrl('/notifications/get'), {
           userId: profileResult.data.id,
         });
 
@@ -69,7 +70,7 @@ export default function NotificationDropdown() {
 
   const markAsRead = async (id) => {
     try {
-      const res = await axios.post('http://localhost:5000/api/notifications/markAsRead', { id });
+      const res = await axios.post(getApiUrl('/notifications/markAsRead'), { id });
       if (res.data.success) {
         setNotifications((prev) =>
           prev.map((n) => (n.id === id ? { ...n, read: true } : n))
@@ -82,7 +83,7 @@ export default function NotificationDropdown() {
 
   const respondToShareRequest = async (id, status) => {
     try {
-      const res = await axios.post('http://localhost:5000/api/notifications/respond', {
+      const res = await axios.post(getApiUrl('/notifications/respond'), {
         id,
         status,
       });
@@ -109,7 +110,7 @@ export default function NotificationDropdown() {
 
   const clearNotification = async (id) => {
     try {
-      const res = await axios.post('http://localhost:5000/api/notifications/clear', { id });
+      const res = await axios.post(getApiUrl('/notifications/clear'), { id });
       if (res.data.success) {
         setNotifications((prev) => prev.filter((n) => n.id !== id));
       }

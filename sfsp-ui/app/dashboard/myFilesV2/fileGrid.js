@@ -4,6 +4,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { Settings, UserMinus } from "lucide-react";
+import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 import {
   FileIcon,
   Download,
@@ -169,7 +170,7 @@ export function FileGrid({
     const tags = ["deleted", `deleted_time:${timestamp}`];
 
     try {
-      const res = await fetch("http://localhost:5000/api/files/addTags", {
+      const res = await fetch(getFileApiUrl("/addTags"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fileId: file.id, tags }),
@@ -186,7 +187,7 @@ export function FileGrid({
 
       try {
         const profileRes = await fetch(
-          "http://localhost:5000/api/users/profile",
+          getApiUrl("/users/profile"),
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -196,7 +197,7 @@ export function FileGrid({
         if (!profileRes.ok)
           throw new Error(profileResult.message || "Failed to fetch profile");
 
-        await fetch("http://localhost:5000/api/files/addAccesslog", {
+        await fetch(getFileApiUrl("/addAccesslog"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

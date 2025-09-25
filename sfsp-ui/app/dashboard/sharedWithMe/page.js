@@ -15,6 +15,7 @@ import { getSodium } from "@/app/lib/sodium";
 import { PreviewDrawer } from "../myFilesV2/previewDrawer";
 import { FullViewModal } from "../myFilesV2/fullViewModal";
 import pako from "pako";
+import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 
 function Toast({ message, type = "info", onClose }) {
   return (
@@ -110,7 +111,7 @@ export default function MyFiles() {
       const userId = useEncryptionStore.getState().userId;
       if (!userId) return;
 
-      const res = await fetch("http://localhost:5000/api/files/metadata", {
+      const res = await fetch(getFileApiUrl("/metadata"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId }),
@@ -156,7 +157,7 @@ export default function MyFiles() {
   const handleUpdateDescription = async (fileId, description) => {
     try {
       const res = await fetch(
-        "http://localhost:5000/api/files/addDescription",
+        getFileApiUrl("/addDescription"),
         {
           method: "POST",
           headers: {
@@ -193,7 +194,7 @@ export default function MyFiles() {
     const sodium = await getSodium();
 
     try {
-      const res = await fetch("http://localhost:5000/api/files/download", {
+      const res = await fetch(getFileApiUrl("/download"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId, fileId: file.id }),
@@ -254,7 +255,7 @@ export default function MyFiles() {
     const sodium = await getSodium();
 
     try {
-      const res = await fetch("http://localhost:5000/api/files/download", {
+      const res = await fetch(getFileApiUrl("/download"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId, fileId: file.id }),
@@ -351,7 +352,7 @@ export default function MyFiles() {
       const token = localStorage.getItem("token");
       if (!token) return showToast("Please log in to revoke access","info");
 
-      const profileRes = await fetch("http://localhost:5000/api/users/profile", {
+      const profileRes = await fetch(getApiUrl("/users/profile"), {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -360,7 +361,7 @@ export default function MyFiles() {
 
       const userId = profileResult.data.id;
 
-      const sharedFilesRes = await fetch("http://localhost:5000/api/files/getViewAccess", {
+      const sharedFilesRes = await fetch(getFileApiUrl("/getViewAccess"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId }),
@@ -374,7 +375,7 @@ export default function MyFiles() {
       if (fileShares.length === 0) return showToast("No view-only shares found for this file","error");
 
       for (const share of fileShares) {
-        const revokeRes = await fetch("http://localhost:5000/api/files/revokeViewAccess", {
+        const revokeRes = await fetch(getFileApiUrl("/revokeViewAccess"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ fileId: file.id, userId, recipientId: share.recipient_id }),

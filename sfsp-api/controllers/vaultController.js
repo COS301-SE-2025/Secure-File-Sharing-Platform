@@ -1,27 +1,25 @@
 const axios = require('axios');
+require('dotenv').config();
 
 class VaultController {
-    constructor() {
-        this.apiUrl = 'http://localhost:8443';
-        //for linux: http://127.0.0.1:8443
-        //orginal: http://localhost:8443
-
-    }
 
     async healthCheck() {
-        const res = await axios.get(`${this.apiUrl}/health`);
+        const apiUrl = process.env.KEY_SERVICE_URL || 'http://localhost:8443';
+        const res = await axios.get(`${apiUrl}/health`);
         return res.data;
     }
 
     async storeKeyBundle(bundle) {
-        const res = await axios.post(`${this.apiUrl}/store-key`, bundle, {
+        const apiUrl = process.env.KEY_SERVICE_URL || 'http://localhost:8443';
+        const res = await axios.post(`${apiUrl}/store-key`, bundle, {
             headers: { 'Content-Type': 'application/json' }
         });
         return res.data;
     }
 
     async retrieveKeyBundle(encrypted_id) {
-        const res = await axios.get(`${this.apiUrl}/retrieve-key`, {
+        const apiUrl = process.env.KEY_SERVICE_URL || 'http://localhost:8443';
+        const res = await axios.get(`${apiUrl}/retrieve-key`, {
             headers: { 'Content-Type': 'application/json' },
             data: { encrypted_id }
         });
@@ -29,7 +27,8 @@ class VaultController {
     }
 
     async deleteKeyBundle(encrypted_id) {
-        const res = await axios.delete(`${this.apiUrl}/delete-key`, {
+        const apiUrl = process.env.KEY_SERVICE_URL || 'http://localhost:8443';
+        const res = await axios.delete(`${apiUrl}/delete-key`, {
             headers: { 'Content-Type': 'application/json' },
             data: { encrypted_id }
         });

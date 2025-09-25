@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import Image from 'next/image';
 import { UserAvatar } from '@/app/lib/avatarUtils';
+import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 import {
   FileText,
   Grid3X3,
@@ -55,7 +56,7 @@ export default function Sidebar({ expanded, setExpanded, isHovered, setIsHovered
       if (!token) return;
 
       try {
-        const res = await fetch('http://localhost:5000/api/users/profile', {
+        const res = await fetch(getApiUrl('/users/profile'), {
           headers: { Authorization: `Bearer ${token}` },
         });
 

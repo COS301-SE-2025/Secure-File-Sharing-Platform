@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 
 export async function POST(request) {
     try {
@@ -11,7 +12,7 @@ export async function POST(request) {
             );
         }
 
-        const tokenResponse = await fetch('http://localhost:5000/api/users/get-token', {
+        const tokenResponse = await fetch(getApiUrl('/users/get-token'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

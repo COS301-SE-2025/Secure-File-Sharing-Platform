@@ -1,6 +1,7 @@
 "use client";
 
 import { getSodium } from "@/app/lib/sodium";
+import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 
 //The is where we will be creting the shared key encrypting the file and encrypting the AES key
 import { useEncryptionStore, getUserKeysSecurely } from "./SecureKeyStorage";
@@ -52,7 +53,7 @@ export async function SendFile(recipientUserId, fileid, isViewOnly = false) {
 
   console.log("[UI DEBUG] 2️⃣ Download encrypted file as binary");
   // 2️⃣ Download encrypted file as binary
-  const response = await fetch("http://localhost:5000/api/files/download", {
+  const response = await fetch(getFileApiUrl("/download"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ userId, fileId: fileid }),
@@ -73,7 +74,7 @@ export async function SendFile(recipientUserId, fileid, isViewOnly = false) {
   console.log("[UI DEBUG] 3️⃣ Fetch recipient's public keys");
   console.log(recipientUserId);
   const bundleRes = await fetch(
-    `http://localhost:5000/api/users/public-keys/${recipientUserId}`
+    getApiUrl(`/users/public-keys/${recipientUserId}`)
   );
 
   if (!bundleRes.ok) throw new Error("Recipient key bundle not found");
@@ -157,8 +158,8 @@ export async function SendFile(recipientUserId, fileid, isViewOnly = false) {
     formData.append("encryptedFile", new Blob([chunk]), `chunk_${chunkIndex}.bin`);
 
     const endpoint = isViewOnly
-      ? "http://localhost:5000/api/files/sendByView"
-      : "http://localhost:5000/api/files/send";
+      ? getFileApiUrl("/sendByView")
+      : getFileApiUrl("/send");
 
     const res = await fetch(endpoint, {
       method: "POST",
@@ -183,7 +184,7 @@ export async function ChangeShareMethod(recipientUserId, fileid, isViewOnly = fa
   const userKeys = normalizeUserKeys(userKeysRaw, sodium);
 
   console.log("[UI DEBUG]2️⃣ Download encrypted file as binary")
-  const response = await fetch("http://localhost:5000/api/files/download", {
+  const response = await fetch(getFileApiUrl("/download"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ userId, fileId: fileid }),
@@ -206,7 +207,7 @@ export async function ChangeShareMethod(recipientUserId, fileid, isViewOnly = fa
 
   console.log("[UI DEBUG]3️⃣ Get recipient's public keys")
   const bundleRes = await fetch(
-    `http://localhost:5000/api/users/public-keys/${recipientUserId}`
+    getApiUrl(`/users/public-keys/${recipientUserId}`)
   );
   if (!bundleRes.ok) throw new Error("Recipient key bundle not found");
 
@@ -285,7 +286,7 @@ export async function ChangeShareMethod(recipientUserId, fileid, isViewOnly = fa
   );
   formData.append("encryptedFile", new Blob([encryptedFile]));
 
-  const res = await fetch("http://localhost:5000/api/files/changeShareMethod", {
+  const res = await fetch(getFileApiUrl("/changeShareMethod"), {
     method: "POST",
     body: formData,
   });
@@ -323,8 +324,8 @@ export async function ReceiveFile(fileData) {
 
   const path = `/files/${sender_id}/sent/${file_id}`;
   const endpoint = viewOnly
-    ? "http://localhost:5000/api/files/downloadViewFile"
-    : "http://localhost:5000/api/files/downloadSentFile";
+    ? getFileApiUrl("/downloadViewFile")
+    : getFileApiUrl("/downloadSentFile");
 
   // 1️⃣ Stream download
   const response = await fetch(endpoint, {
@@ -422,7 +423,7 @@ export async function ReceiveFile(fileData) {
   const ciphertext = sodium.crypto_secretbox_easy(decryptedFile, nonce, encryptionKey);
 
   // 6️⃣ Start upload session
-  const startRes = await fetch("http://localhost:5000/api/files/startUpload", {
+  const startRes = await fetch(getFileApiUrl("/startUpload"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -464,7 +465,7 @@ export async function ReceiveFile(fileData) {
       formData.append("totalChunks", totalChunks.toString());
       formData.append("encryptedFile", new Blob([chunk]), file_name);
 
-      return fetch("http://localhost:5000/api/files/upload", { method: "POST", body: formData });
+      return fetch(getFileApiUrl("/upload"), { method: "POST", body: formData });
     })
   );
 

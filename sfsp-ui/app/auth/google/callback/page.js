@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { getSodium } from "@/app/lib/sodium";
 import { useEncryptionStore, storeUserKeysSecurely, storeDerivedKeyEncrypted,} from "../../../SecureKeyStorage";
 import Loader from '@/app/dashboard/components/Loader';
+import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 
 export default function GoogleCallbackPage() {
     const router = useRouter();
@@ -57,7 +58,7 @@ export default function GoogleCallbackPage() {
             console.log('Checking if user exists for email:', googleUser.email);
             
             try {
-            const userExistsResponse = await fetch(`http://localhost:5000/api/users/getUserId/${googleUser.email}`);
+            const userExistsResponse = await fetch(getApiUrl(`/users/getUserId/${googleUser.email}`));
             console.log('User existence check response status:', userExistsResponse.status);
             
             if (userExistsResponse.ok) {
@@ -91,7 +92,7 @@ export default function GoogleCallbackPage() {
         try {
         setLoaderMessage("Signing you in...");
 
-        const loginResponse = await fetch("http://localhost:5000/api/users/google-auth", {
+        const loginResponse = await fetch(getApiUrl("/users/google-auth"), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -192,7 +193,7 @@ export default function GoogleCallbackPage() {
 
         // Add user to the PostgreSQL database using the route for addUser in file routes
         try {
-            const addUserRes = await fetch("http://localhost:5000/api/files/addUser", {
+            const addUserRes = await fetch(getFileApiUrl("/addUser"), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -228,7 +229,7 @@ export default function GoogleCallbackPage() {
 
         setLoaderMessage("Registering your account...");
 
-        const registrationResponse = await fetch("http://localhost:5000/api/users/google-auth", {
+        const registrationResponse = await fetch(getApiUrl("/users/google-auth"), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -303,7 +304,7 @@ export default function GoogleCallbackPage() {
             
             // Add user to the PostgreSQL database using the route for addUser in file routes
             try {
-                const addUserRes = await fetch("http://localhost:5000/api/files/addUser", {
+                const addUserRes = await fetch(getFileApiUrl("/addUser"), {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({

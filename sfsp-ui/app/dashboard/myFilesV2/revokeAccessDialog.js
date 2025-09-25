@@ -4,6 +4,7 @@
 
 import React, { useState, useEffect } from "react";
 import { X, User, Trash2, Loader } from "lucide-react";
+import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 
 function Toast({ message, type = "info", onClose }) {
   return (
@@ -46,7 +47,7 @@ export function RevokeAccessDialog({ open, onOpenChange, file }) {
     setLoading(true);
     try {
       const accessRes = await fetch(
-        "http://localhost:5000/api/files/usersWithFileAccess",
+        getFileApiUrl("/usersWithFileAccess"),
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -61,7 +62,7 @@ export function RevokeAccessDialog({ open, onOpenChange, file }) {
 
       if (ownerId) {
         const ownerRes = await fetch(
-          `http://localhost:5000/api/users/getUserById/${ownerId}`
+          getApiUrl(`/users/getUserById/${ownerId}`)
         );
         if (ownerRes.ok) {
           const ownerData = await ownerRes.json();
@@ -75,7 +76,7 @@ export function RevokeAccessDialog({ open, onOpenChange, file }) {
           .map(async (userId) => {
             try {
               const userRes = await fetch(
-                `http://localhost:5000/api/users/getUserById/${userId}`
+                getApiUrl(`/users/getUserById/${userId}`)
               );
               if (userRes.ok) {
                 const userData = await userRes.json();
@@ -108,7 +109,7 @@ export function RevokeAccessDialog({ open, onOpenChange, file }) {
       }
 
       const profileRes = await fetch(
-        "http://localhost:5000/api/users/profile",
+        getApiUrl("/users/profile"),
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -123,7 +124,7 @@ export function RevokeAccessDialog({ open, onOpenChange, file }) {
       const currentUserId = profileResult.data.id;
 
       const revokeRes = await fetch(
-        "http://localhost:5000/api/files/revokeViewAccess",
+        getFileApiUrl("/revokeViewAccess"),
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

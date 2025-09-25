@@ -5,6 +5,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Trash2, Undo2 } from 'lucide-react';
 import { useEncryptionStore } from '@/app/SecureKeyStorage';
+import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 
 function parseTagString(tagString = '') {
   return tagString.replace(/[{}]/g, '').split(',').map(t => t.trim());
@@ -25,7 +26,7 @@ export default function TrashPage() {
 
   const fetchTrashedFiles = useCallback(async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/files/metadata', {
+      const res = await fetch(getFileApiUrl('/metadata'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId }),
@@ -74,7 +75,7 @@ export default function TrashPage() {
   const handleRestore = async (fileId) => {
     try {
 
-      const res = await fetch("http://localhost:5000/api/files/metadata", {
+      const res = await fetch(getFileApiUrl("/metadata"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId }),
@@ -99,7 +100,7 @@ export default function TrashPage() {
         return;
       }
 
-      await fetch("http://localhost:5000/api/files/removeTags", {
+      await fetch(getFileApiUrl("/removeTags"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fileId, tags: tagsToRemove }),
@@ -109,14 +110,14 @@ export default function TrashPage() {
       if (!token) return;
 
       try {
-        const profileRes = await fetch("http://localhost:5000/api/users/profile", {
+        const profileRes = await fetch(getApiUrl("/users/profile"), {
           headers: { Authorization: `Bearer ${token}` },
         });
 
         const profileResult = await profileRes.json();
         if (!profileRes.ok) throw new Error(profileResult.message || "Failed to fetch profile");
 
-        await fetch("http://localhost:5000/api/files/addAccesslog", {
+        await fetch(getFileApiUrl("/addAccesslog"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -143,7 +144,7 @@ export default function TrashPage() {
     if (!confirm) return;
 
     try {
-      const res = await fetch("http://localhost:5000/api/files/deleteFile", {
+      const res = await fetch(getFileApiUrl("/deleteFile"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fileId: fileId, userId: userId }),
@@ -166,7 +167,7 @@ export default function TrashPage() {
 
     try {
       for (const file of trashedFiles) {
-        const res = await fetch("http://localhost:5000/api/files/deleteFile", {
+        const res = await fetch(getFileApiUrl("/deleteFile"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ fileId: file.id, userId }),

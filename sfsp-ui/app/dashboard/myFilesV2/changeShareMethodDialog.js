@@ -5,6 +5,7 @@
 import React, { useState, useEffect } from "react";
 import { X, User, Download, Eye, Loader, Check } from "lucide-react";
 import { ChangeShareMethod } from "@/app/Transfer";
+import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 
 export function ChangeShareMethodDialog({ open, onOpenChange, file }) {
   const [users, setUsers] = useState([]);
@@ -22,7 +23,7 @@ export function ChangeShareMethodDialog({ open, onOpenChange, file }) {
   const fetchUsersWithAccess = async () => {
     setLoading(true);
     try {
-      const accessRes = await fetch("http://localhost:5000/api/files/usersWithFileAccess", {
+      const accessRes = await fetch(getFileApiUrl("/usersWithFileAccess"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fileId: file.id }),
@@ -34,7 +35,7 @@ export function ChangeShareMethodDialog({ open, onOpenChange, file }) {
       const { owner: ownerId, users: userIds } = accessData;
 
       if (ownerId) {
-        const ownerRes = await fetch(`http://localhost:5000/api/users/getUserById/${ownerId}`);
+        const ownerRes = await fetch(getApiUrl(`/users/getUserById/${ownerId}`));
         if (ownerRes.ok) {
           const ownerData = await ownerRes.json();
           setOwner(ownerData.data);
@@ -46,7 +47,7 @@ export function ChangeShareMethodDialog({ open, onOpenChange, file }) {
           .filter(userId => userId !== ownerId)
           .map(async (userId) => {
             try {
-              const userRes = await fetch(`http://localhost:5000/api/users/getUserById/${userId}`);
+              const userRes = await fetch(getApiUrl(`/users/getUserById/${userId}`));
               if (userRes.ok) {
                 const userData = await userRes.json();
                 return userData.data;

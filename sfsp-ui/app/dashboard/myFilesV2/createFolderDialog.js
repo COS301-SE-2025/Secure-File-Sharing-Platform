@@ -5,6 +5,7 @@
 import React, { useState } from "react";
 import { Folder } from "lucide-react";
 import { useEncryptionStore } from "@/app/SecureKeyStorage";
+import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 
 const Dialog = ({ open, children }) => {
   return open ? (
@@ -75,7 +76,7 @@ export function CreateFolderDialog({ open, onOpenChange, currentPath,onFolderCre
 
       const fullPath = currentPath ? `${currentPath}/${folderName}` : folderName;
 
-      const res = await fetch("http://localhost:5000/api/files/createFolder", {
+      const res = await fetch(getFileApiUrl("/createFolder"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

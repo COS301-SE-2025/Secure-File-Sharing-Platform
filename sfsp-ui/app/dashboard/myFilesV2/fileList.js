@@ -3,6 +3,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 import {
   FileIcon,
   Download,
@@ -92,7 +93,7 @@ export function FileList({
     const tags = ["deleted", `deleted_time:${timestamp}`];
 
     try {
-      const res = await fetch("http://localhost:5000/api/files/addTags", {
+      const res = await fetch(getFileApiUrl("/addTags"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fileId: file.id, tags }),
@@ -109,7 +110,7 @@ export function FileList({
 
       try {
         const profileRes = await fetch(
-          "http://localhost:5000/api/users/profile",
+          getApiUrl("/users/profile"),
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -119,7 +120,7 @@ export function FileList({
         if (!profileRes.ok)
           throw new Error(profileResult.message || "Failed to fetch profile");
 
-        await fetch("http://localhost:5000/api/files/addAccesslog", {
+        await fetch(getFileApiUrl("/addAccesslog"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

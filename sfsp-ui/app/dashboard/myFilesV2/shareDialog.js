@@ -4,6 +4,7 @@
 
 import React, { useState } from "react";
 import { X, Copy, Mail, Link, Plus, UserPlus, Globe, Lock, Eye } from "lucide-react";
+import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 import {
   SendFile,
   ReceiveFile,
@@ -80,7 +81,7 @@ export function ShareDialog({ open, onOpenChange, file }) {
       if (!token) return;
 
       // Get sender profile once
-      const profileRes = await fetch("http://localhost:5000/api/users/profile", {
+      const profileRes = await fetch(getApiUrl("/users/profile"), {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -95,7 +96,7 @@ export function ShareDialog({ open, onOpenChange, file }) {
 
         // Fetch recipient user ID by email
         const response = await fetch(
-          `http://localhost:5000/api/users/getUserId/${email}`
+          getApiUrl(`/users/getUserId/${email}`)
         );
         if (!response.ok) {
           console.warn(`User ID not found for email: ${email}`);
@@ -112,7 +113,7 @@ export function ShareDialog({ open, onOpenChange, file }) {
         const receivedFileID = await SendFile(recipientId, file.id, isViewOnly);
         console.log("Received File ID in shared Dialog:", receivedFileID);
         // Log file access
-        await fetch("http://localhost:5000/api/files/addAccesslog", {
+        await fetch(getFileApiUrl("/addAccesslog"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -126,7 +127,7 @@ export function ShareDialog({ open, onOpenChange, file }) {
         // Send the notification
         console.log("Senders email is:", senderEmail);
         console.log("Recipients emails is: ", email);
-        await fetch("http://localhost:5000/api/notifications/add", {
+        await fetch(getApiUrl("/notifications/add"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -203,58 +204,6 @@ export function ShareDialog({ open, onOpenChange, file }) {
             )}
 
             <hr />
-
-            {/* <div>
-              <div className="flex items-center justify-between mb-3">
-                <label className="text-sm font-medium">Share with link</label>
-                <div className="flex items-center gap-2">
-                  {linkAccess === "restricted" ? (
-                    <Lock className="h-4 w-4" />
-                  ) : (
-                    <Globe className="h-4 w-4" />
-                  )}
-                  <select
-                    value={linkAccess}
-                    onChange={(e) => setLinkAccess(e.target.value)}
-                    className="text-sm px-2 py-1 border rounded"
-                  >
-                    <option value="restricted">Restricted</option>
-                    <option value="anyone">Anyone</option>
-                  </select>
-                </div>
-              </div>
-              <button
-                onClick={copyLink}
-                className="w-full text-left text-sm border px-3 py-2 rounded flex items-center gap-2"
-              >
-                <Link className="h-4 w-4" />
-                Copy link
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              <label className="text-sm font-medium">Permissions</label>
-              <div className="flex justify-between">
-                <label htmlFor="comments" className="text-sm">
-                  Allow comments
-                </label>
-                <input
-                  type="checkbox"
-                  checked={allowComments}
-                  onChange={(e) => setAllowComments(e.target.checked)}
-                />
-              </div>
-              <div className="flex justify-between">
-                <label htmlFor="download" className="text-sm">
-                  Allow download
-                </label>
-                <input
-                  type="checkbox"
-                  checked={allowDownload}
-                  onChange={(e) => setAllowDownload(e.target.checked)}
-                />
-              </div>
-            </div> */}
 
             <div className="flex justify-end gap-2 pt-4">
               <button

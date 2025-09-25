@@ -8,6 +8,7 @@ import { useEncryptionStore } from "@/app/SecureKeyStorage";
 import { getSodium } from "@/app/lib/sodium";
 import Image from "next/image";
 import { gzip } from "pako";
+import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 
 export function UploadDialog({
   open,
@@ -80,7 +81,7 @@ export function UploadDialog({
       uploadFiles.map(async (file) => {
         try {
           // 1️⃣ Call startUpload to get fileId
-          const startRes = await fetch("http://localhost:5000/api/files/startUpload", {
+          const startRes = await fetch(getFileApiUrl("/startUpload"), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -138,7 +139,7 @@ export function UploadDialog({
             formData.append("totalChunks", totalChunks.toString());
             formData.append("encryptedFile", new Blob([chunk]), file.name);
 
-            return fetch("http://localhost:5000/api/files/upload", {
+            return fetch(getFileApiUrl("/upload"), {
               method: "POST",
               body: formData,
             })
@@ -158,14 +159,14 @@ export function UploadDialog({
           //add access log
           const token = localStorage.getItem('token');
 
-          const res = await fetch('http://localhost:5000/api/users/profile', {
+          const res = await fetch(getApiUrl('/users/profile'), {
             headers: { Authorization: `Bearer ${token}` },
           });
 
           const result = await res.json();
           if (!res.ok) throw new Error(result.message || 'Failed to fetch profile');
 
-          await fetch("http://localhost:5000/api/files/addAccesslog", {
+          await fetch(getFileApiUrl("/addAccesslog"), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

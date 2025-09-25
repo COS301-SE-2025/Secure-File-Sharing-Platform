@@ -5,9 +5,8 @@ import { PanelLeftClose, PanelLeftOpen, ArrowLeft, User, Shield, Bell, Palette, 
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { UserAvatar } from '@/app/lib/avatarUtils';
+import { getApiUrl } from '@/lib/api-config';
 import axios from 'axios';
-
-const API_BASE_URL = 'http://localhost:5000/api/users';
 
 export default function AccountSettings() {
   const router = useRouter();
@@ -70,7 +69,7 @@ export default function AccountSettings() {
       }
 
       try {
-        const res = await fetch(`${API_BASE_URL}/profile`, {
+        const res = await fetch(`${getApiUrl('')}/users/profile`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const result = await res.json();
@@ -135,7 +134,7 @@ export default function AccountSettings() {
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${API_BASE_URL}/profile`, {
+      const res = await fetch(`${getApiUrl('')}/users/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -224,7 +223,7 @@ export default function AccountSettings() {
     setIsDeleting(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${API_BASE_URL}/profile`, {
+      const res = await fetch(`${getApiUrl('')}/users/profile`, {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -330,7 +329,7 @@ export default function AccountSettings() {
 
       const avatarUrl = response.data.secure_url;
 
-      const updateResponse = await fetch(`${API_BASE_URL}/avatar-url`, {
+      const updateResponse = await fetch(`${getApiUrl('')}/users/avatar-url`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -377,7 +376,7 @@ export default function AccountSettings() {
         return;
       }
 
-      const response = await fetch(`${API_BASE_URL}/avatar-url`, {
+      const response = await fetch(`${getApiUrl('')}/users/avatar-url`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -417,7 +416,7 @@ export default function AccountSettings() {
     setPasswordErrors({});
 
     try {
-      const response = await fetch(`${API_BASE_URL}/verify-password`, {
+      const response = await fetch(`${getApiUrl('')}/users/verify-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -429,7 +428,7 @@ export default function AccountSettings() {
       });
 
       if (response.ok) {
-        const pinResponse = await fetch(`${API_BASE_URL}/send-reset-pin`, {
+        const pinResponse = await fetch(`${getApiUrl('')}/users/send-reset-pin`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -463,7 +462,7 @@ export default function AccountSettings() {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/verify-pin`, {
+      const response = await fetch(`${getApiUrl('')}/users/verify-pin`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -510,7 +509,7 @@ export default function AccountSettings() {
     setIsProcessing(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/change-password`, {
+      const response = await fetch(`${getApiUrl('')}/users/change-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -573,7 +572,7 @@ export default function AccountSettings() {
     const token = localStorage.getItem('token');
 
     try {
-      const response = await fetch(`${API_BASE_URL}/notifications`, {
+      const response = await fetch(`${getApiUrl('')}/users/notifications`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

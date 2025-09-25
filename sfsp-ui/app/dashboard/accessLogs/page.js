@@ -7,6 +7,7 @@ import { useDashboardSearch } from '@/app/dashboard/components/DashboardSearchCo
 import { useEncryptionStore } from '@/app/SecureKeyStorage';
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 
 function Toast({ message, type = "info", onClose }) {
   return (
@@ -18,27 +19,6 @@ function Toast({ message, type = "info", onClose }) {
     </div>
   );
 }
-
-// function Toast({ message, type = "info", onClose }) {
-//   const colors = {
-//     success: "bg-green-100 border-green-500 text-green-900",
-//     error: "bg-red-100 border-red-500 text-red-900",
-//     info: "bg-blue-100 border-blue-500 text-blue-900",
-//     warning: "bg-yellow-100 border-yellow-500 text-yellow-900",
-//   };
-
-//   return (
-//     <div className="fixed bottom-5 right-5 z-50 pointer-events-none">
-//       <div
-//         className={`flex items-center border rounded shadow-lg px-4 py-3 pointer-events-auto ${colors[type]}`}
-//       >
-//         <span>{message}</span>
-//         <button onClick={onClose} className="ml-4 font-bold">×</button>
-//       </div>
-//     </div>
-//   );
-// }
-
 
 export default function AccessLogsPage() {
   const { search } = useDashboardSearch();
@@ -64,7 +44,7 @@ export default function AccessLogsPage() {
         }
 
         // Fetch all files
-        const filesRes = await fetch('http://localhost:5000/api/files/metadata', {
+        const filesRes = await fetch(getFileApiUrl('/metadata'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId }),
@@ -84,7 +64,7 @@ export default function AccessLogsPage() {
 
         for (const file of files) {
           try {
-            const logsRes = await fetch('http://localhost:5000/api/files/getAccesslog', {
+            const logsRes = await fetch(getFileApiUrl('/getAccesslog'), {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ file_id: file.fileId }),
@@ -107,7 +87,7 @@ export default function AccessLogsPage() {
               let avatar = '';
               let email = '';
               try {
-                const response = await fetch(`http://localhost:5000/api/users/getUserInfo/${Id}`);
+                const response = await fetch(getApiUrl(`/users/getUserInfo/${Id}`));
                 if (response.ok) {
                   const userInfo = await response.json();
                   // console.log('userInfo:', userInfo);
