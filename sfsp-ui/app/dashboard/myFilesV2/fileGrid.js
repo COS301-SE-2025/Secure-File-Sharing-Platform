@@ -23,7 +23,7 @@ import {
   EyeOff,
   PenIcon,
 } from "lucide-react";
-import SignaturePad from "./signaturePad"
+
 
 function Toast({ message, type = "info", onClose }) {
   return (
@@ -442,24 +442,6 @@ export function FileGrid({
           >
             <Download className="h-4 w-4" /> Download
           </button>
-         {/* E_SGINAGTURE BUTTON BLOCK RIGHT HERE */}
-          {/*  <button
-            onClick={(e) => handleEsign(menuFile)}
-            className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 dark:hover:bg-blue-200"
-          >
-            <PenIcon className="h-4 w-4" /> E-Signature
-          </button>
-
-        
-          
-        <button onClick={() => handleEsign("contract.pdf")}>
-          Start e-Sign
-        </button>
-
-        <SignaturePad ref={sigPadRef} file="contract.pdf" />
-      
-
-           END */}
 
           {menuFile?.type !== "folder" && <hr className="my-1" />}
 
