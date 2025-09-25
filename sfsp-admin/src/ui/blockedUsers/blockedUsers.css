@@ -1,0 +1,247 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&family=Source+Code+Pro:ital,wght@0,200..900;1,200..900&display=swap');
+
+.blocked-users-page {
+    padding: 24px;
+    font-family: "Roboto", sans-serif;
+    color: #111;
+}
+
+.header .title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.header .header-icon {
+    width: 32px;
+    height: 32px;
+    color: black;
+}
+
+.subtitle {
+    color: #6b7280;
+    margin-top: 4px;
+}
+
+/* Toast */
+.toast {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    background: #2563EB;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 4px;
+    z-index: 100;
+}
+
+/* stats */
+.stats-grid {
+    display: flex;
+    gap: 10px;
+    margin: 15px 0;
+    flex-wrap: wrap;
+}
+
+.stat-card {
+    padding: 12px 16px;
+    border-radius: 8px;
+    flex: 1;
+    min-width: 160px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: white;
+    font-weight: bold;
+}
+
+.stat-content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.stat-card.total {
+    background-color: #183446;
+}
+
+.stat-card.high {
+    background-color: #046E8F;
+}
+
+.stat-card.med {
+    background-color: #0090C1;
+}
+
+.stat-card.low {
+    background-color: #38AECC;
+}
+
+.stat-icon {
+    width: 20px;
+    height: 22px;
+}
+
+
+/* table */
+
+.table-card {
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    padding: 16px;
+    background: #fff;
+}
+
+.table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.search-wrapper {
+    position: relative;
+}
+
+.search-icon {
+    position: absolute;
+    top: 50%;
+    left: 8px;
+    transform: translateY(-50%);
+    color: #6b7280;
+    width: 16px;
+    height: 16px;
+}
+
+.search-input {
+    padding: 4px 8px 4px 28px;
+    border-radius: 4px;
+    border: 1px solid #d1d5db;
+    width: 200px;
+}
+
+.search-input:hover {
+    outline: 2px solid #34bfee;
+}
+
+.search-input:focus {
+    outline: 2px solid #34bfee;
+}
+
+.users-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.users-table th,
+.users-table td {
+    border: 1px solid #d1d5db;
+    padding: 8px;
+    text-align: left;
+}
+
+.users-table th {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+.users-table tbody tr:hover {
+    background: #f9fafb;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+}
+
+.avatar-fallback {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #2a5d7d;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+}
+
+
+.name {
+    font-weight: 500;
+    font-size: medium;
+    color: #111827;
+}
+
+.email {
+    font-size: 0.75rem;
+    color: #9CA3AF;
+}
+
+.reason-cell {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.severity-badge {
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: bold;
+}
+
+.severity-high {
+    background: #dc2626;
+}
+
+.severity-medium {
+    background: #f59e0b;
+}
+
+.severity-low {
+    background: #22c55e;
+}
+
+.actions-cell .btn {
+    margin-right: 4px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    font-size: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.btn.unblock {
+    background: #3b82f6;
+    color: #fff;
+}
+
+.btn.unblock:hover{
+    background: #34bfee;
+}
+
+.btn.details {
+    background: #e5e7eb;
+    color: #111;
+}
+
+.btn-icon {
+    width: 16px;
+    height: 16px;
+}

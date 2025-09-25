@@ -1,0 +1,11 @@
+.app-layout {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  background: var(--admin-bg, #f9f9f9);
+}
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+}
