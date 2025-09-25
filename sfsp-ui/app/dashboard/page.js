@@ -261,7 +261,7 @@ useEffect(() => {
 
       const fontSize = Math.floor(imgBitmap.width / 20);
       ctx.font = `${fontSize}px Arial`;
-      ctx.fillStyle = "rgba(255, 0, 0, 0.4)"; // semi-transparent
+      ctx.fillStyle = "rgb(255, 0, 0, 0.4)"; // semi-transparent
       ctx.textAlign = "center";
       ctx.fillText(username, imgBitmap.width / 2, imgBitmap.height / 2);
 
@@ -272,17 +272,18 @@ useEffect(() => {
       const pdfDoc = await PDFDocument.load(result.decrypted);
       const pages = pdfDoc.getPages();
 
-      pages.forEach((page) => {
-        const { width, height } = page.getSize();
-        page.drawText(username, {
-          x: width / 2 - 50,
-          y: height / 2,
-          size: 36,
-          color: rgba(255, 0, 0, 1), // red text
-          // opacity: 0.4,
-          rotate: { type: "degrees", angle: 45 },
-        });
-      });
+     pages.forEach((page) => {
+	  const { width, height } = page.getSize();
+	  page.drawText(username, {
+	    x: width / 2 - 50,
+	    y: height / 2,
+	    size: 36,
+	    color: rgb(1, 0, 0), // red
+	    opacity: 0.4,        // semi-transparent
+	    rotate: { type: "degrees", angle: 45 },
+	  });
+	});
+
 
       const modifiedPdfBytes = await pdfDoc.save();
       contentUrl = URL.createObjectURL(new Blob([modifiedPdfBytes], { type: "application/pdf" }));
@@ -320,7 +321,7 @@ useEffect(() => {
    
        const fontSize = Math.floor(imgBitmap.width / 20);
        ctx.font = `${fontSize}px Arial`;
-       ctx.fillStyle = "rgba(255, 0, 0, 1)";
+       ctx.fillStyle = "rgb(255, 0, 0, 1)";
        ctx.textAlign = "center";
        ctx.fillText(username, imgBitmap.width / 2, imgBitmap.height / 2);
    
