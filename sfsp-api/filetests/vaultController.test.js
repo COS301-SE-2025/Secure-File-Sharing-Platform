@@ -50,10 +50,9 @@ describe('VaultController', () => {
       const result = await vaultController.retrieveKeyBundle(encrypted_id);
 
       expect(axios.get).toHaveBeenCalledWith(
-        'http://localhost:8443/retrieve-key',
+        'http://localhost:8443/keys/abc123',
         {
           headers: { 'Content-Type': 'application/json' },
-          data: { encrypted_id },
         }
       );
       expect(result).toEqual(mockResponse);
@@ -70,10 +69,9 @@ describe('VaultController', () => {
       const result = await vaultController.deleteKeyBundle(encrypted_id);
 
       expect(axios.delete).toHaveBeenCalledWith(
-        'http://localhost:8443/delete-key',
+        'http://localhost:8443/keys/abc123',
         {
           headers: { 'Content-Type': 'application/json' },
-          data: { encrypted_id },
         }
       );
       expect(result).toEqual(mockResponse);

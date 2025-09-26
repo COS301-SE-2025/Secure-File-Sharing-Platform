@@ -7,19 +7,15 @@ import os
 def create_app():
     app = Flask(__name__)
 
-    # Production configuration
     app.config['DEBUG'] = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-key-change-in-production')
     app.config['ENV'] = os.getenv('FLASK_ENV', 'production')
 
-    # Register blueprints
     app.register_blueprint(key_bp)
 
-    # Register error handlers
     app.register_error_handler(404, not_found)
     app.register_error_handler(405, method_not_allowed)
 
-    # Configure logging for production
     if not app.debug:
         logging.basicConfig(
             level=logging.INFO,
