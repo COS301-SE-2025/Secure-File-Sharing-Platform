@@ -54,8 +54,8 @@ export async function POST(request) {
         maxAge: 60 * 60 * 1000,
       });
 
-      const csrf = makeCsrfToken(user.id);
-      res.cookies.set("csrf_token", csrf, {
+      const csrf = makeCsrfToken(result.data.user.id);
+      response.cookies.set("csrf_token", csrf, {
         httpOnly: false, 
         secure: process.env.NODE_ENV === "production",
         sameSite: "strict",
