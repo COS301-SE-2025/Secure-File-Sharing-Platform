@@ -77,9 +77,6 @@ class UserController {
         } catch (emailError) {
           console.error("Failed to send verification email to new user:", emailError);
         }
-
-        // Mnemonic email is already sent by userService.register
-        // No need to send it again here
       }
       console.log("The is before the 201");
       return res.status(201).json({
@@ -244,7 +241,7 @@ class UserController {
           const browserInfo = userService.parseUserAgent(userAgent, req.headers);
           console.log('Detected browser and OS info:', browserInfo);
 
-          const location = userService.getLocationFromIP(ipAddress);
+          const location = await userService.getLocationFromIP(ipAddress);
           console.log('Detected location:', location);
 
           const deviceInfo = {
