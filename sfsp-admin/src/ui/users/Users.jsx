@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Users as UsersIcon, Search, Trash2, Mail, Info, Shield, Settings, CheckCircle, XCircle } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Users as UsersIcon, Search, Trash2, Mail, Info, Shield, Settings, CheckCircle, XCircle,Slash } from "lucide-react";
 import "./Users.css";
 
 const Users = () => {
@@ -11,25 +11,57 @@ const Users = () => {
     const [infoModalOpen, setInfoModalOpen] = useState(false);
     const [messageModalOpen, setMessageModalOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState(null);
+    const [totalUsers, setTotalUsers] = useState(0);
+    const [totalAdminUsers, setTotalAdminUsers] = useState(0);
+    const [users, setUsers] = useState([]);
 
-    const usersData = [
-        { id: 1, username: "johnsmith", name: "John Smith", email: "john.smith@example.com", avatar: "", role: "admin", verified: true, status: "Active", joinDate: "2024-01-15", lastAccess: "2 hours ago", filesShared: 45 },
-        { id: 2, username: "sarahjohnson", name: "Sarah Johnson", email: "sarah.johnson@example.com", avatar: "", role: "admin", verified: true, status: "Active", joinDate: "2024-02-10", lastAccess: "1 day ago", filesShared: 23 },
-        { id: 3, username: "mikewilson", name: "Mike Wilson", email: "mike.wilson@example.com", avatar: "", role: "admin", verified: false, status: "Inactive", joinDate: "2024-01-20", lastAccess: "1 week ago", filesShared: 67 },
-        { id: 4, username: "emmadavis", name: "Emma Davis", email: "emma.davis@example.com", avatar: "", role: "admin", verified: true, status: "Active", joinDate: "2024-03-05", lastAccess: "30 minutes ago", filesShared: 12 },
-        { id: 5, username: "alexbrown", name: "Alex Brown", email: "alex.brown@example.com", avatar: "", role: "admin", verified: true, status: "Active", joinDate: "2024-02-20", lastAccess: "5 minutes ago", filesShared: 89 }
-    ];
+    useEffect(() => {
+        const fetchUsers = async () => {
+            try {
+                const res = await fetch("http://localhost:5000/api/admin/users");
+                const data = await res.json();
 
-    const [users, setUsers] = useState(usersData);
+                if (data.success) {
+                    const formattedUsers = data.users.map(u => ({
+                        ...u,
+                        avatar: u.avatar_url
+                    }));
+                    setUsers(formattedUsers);
+                }
+            } catch (err) {
+                console.error("Failed to fetch users:", err);
+            }
+        };
+
+        fetchUsers();
+    }, []);
+
+
+
+    useEffect(() => {
+        const fetchCounts = async () => {
+            try {
+                const res = await fetch("http://localhost:5000/api/admin/users/count");
+                const data = await res.json();
+
+                if (data.success) {
+                    setTotalUsers(data.totalUsers);
+                    setTotalAdminUsers(data.adminUsers);
+                }
+            } catch (err) {
+                console.error("Failed to fetch user counts:", err);
+            }
+        };
+
+        fetchCounts();
+    }, []);
+
 
     const filteredUsers = users.filter(user =>
-        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.username.toLowerCase().includes(searchTerm.toLowerCase())
     );
-
-    const totalUsers = users.length;
-    const totalAdminUsers = users.filter(user => user.role === "admin").length;
 
     const handleDeleteUser = (userId, userName) => {
         setUsers(prev => prev.filter(u => u.id !== userId));
@@ -47,31 +79,72 @@ const Users = () => {
         setInfoModalOpen(true);
     };
 
-    const handleCreateAdmin = () => {
+    const handleBlockUser = (user) => {
+    };
+
+    const handleCreateAdmin = async () => {
         if (!newAdminUsername || !newAdminEmail) {
             setToastMessage("Please fill in all fields");
             setTimeout(() => setToastMessage(""), 3000);
             return;
         }
-        setUsers(prev => [
-            { id: Date.now(), username: newAdminUsername, name: newAdminUsername, email: newAdminEmail, avatar: "/placeholder.svg", role: "admin", verified: false, status: "Active", joinDate: new Date().toISOString().split("T")[0], lastAccess: "just now", filesShared: 0 },
-            ...prev
-        ]);
-        setToastMessage(`${newAdminUsername} has been granted admin privileges`);
-        setNewAdminUsername("");
-        setNewAdminEmail("");
-        setIsAdminDialogOpen(false);
-        setTimeout(() => setToastMessage(""), 3000);
+
+        try {
+            const res = await fetch("http://localhost:5000/api/admin/users/create", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    username: newAdminUsername,
+                    email: newAdminEmail,
+                    role: "admin",
+                }),
+            });
+
+            const data = await res.json();
+
+            if (data.success) {
+                setUsers(prev =>
+                    prev.map(u =>
+                        u.id === data.user.id
+                            ? { ...data.user, avatar: data.user.avatar_url || u.avatar }
+                            : u
+                    )
+                );
+                setToastMessage(`${newAdminUsername} has been granted admin privileges`);
+                setNewAdminUsername("");
+                setNewAdminEmail("");
+                setIsAdminDialogOpen(false);
+                setTimeout(() => setToastMessage(""), 3000);
+            } else {
+                setToastMessage(data.message || "Failed to create admin");
+                setTimeout(() => setToastMessage(""), 3000);
+            }
+        } catch (err) {
+            console.error("Failed to create admin:", err);
+            setToastMessage("Failed to create admin");
+            setTimeout(() => setToastMessage(""), 3000);
+        }
     };
 
-    const handleRoleChange = (userId, newRole) => {
-        setUsers((prevUsers) =>
-            prevUsers.map((user) =>
-                user.id === userId ? { ...user, role: newRole } : user
-            )
-        );
-        setToastMessage(`User role updated to ${newRole}`);
-        setTimeout(() => setToastMessage(""), 3000);
+    const handleRoleChange = async (userId, newRole) => {
+        try {
+            const res = await fetch("http://localhost:5000/api/admin/users/role", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ userId, newRole }),
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                setToastMessage(data.message);
+                setUsers(prev =>
+                    prev.map(user => (user.id === userId ? { ...user, role: newRole } : user))
+                );
+                setTimeout(() => setToastMessage(""), 3000);
+            }
+        } catch (err) {
+            console.error("Failed to update role:", err);
+        }
     };
 
     const getRoleColor = (role) => role === "admin" ? "role-admin" : "role-general";
@@ -152,15 +225,15 @@ const Users = () => {
                                                     <img src={admin.avatar} alt="avatar" className="avatar" />
                                                 ) : (
                                                     <div className="avatar-fallback">
-                                                        {admin.name
+                                                        {admin.username
                                                             .split(" ")
                                                             .map((n) => n[0])
                                                             .join("")}
                                                     </div>
                                                 )}
                                                 <div>
-                                                    <p className="admin-name">{admin.name}</p>
-                                                    <p className="admin-username">@{admin.username}</p>
+                                                    <p className="admin-name">{admin.name || admin.username}</p>
+                                                    <p className="admin-username">{admin.email}</p>
                                                 </div>
                                             </div>
 
@@ -179,6 +252,7 @@ const Users = () => {
                     </div>
                 </div>
             )}
+
 
 
             {/* Users Table */}
@@ -214,7 +288,7 @@ const Users = () => {
                                             <img src={user.avatar} alt="avatar" className="avatar" />
                                         ) : (
                                             <div className="avatar-fallback">
-                                                {user.name
+                                                {user.username
                                                     .split(" ")
                                                     .map(n => n[0])
                                                     .join("")
@@ -222,7 +296,7 @@ const Users = () => {
                                             </div>
                                         )}
                                         <div>
-                                            <p className="name">{user.name}</p>
+                                            <p className="name">{user.username}</p>
                                             <p className="email">{user.email}</p>
                                         </div>
                                     </div>
@@ -232,7 +306,7 @@ const Users = () => {
                                     <span className={`role-badge ${getRoleColor(user.role)}`}>{user.role}</span>
                                 </td>
                                 <td>
-                                    {user.verified ? (
+                                    {user.is_verified ? (
                                         <CheckCircle className="icon-verified" />
                                     ) : (
                                         <XCircle className="icon-unverified" />
@@ -248,6 +322,9 @@ const Users = () => {
                                     <button className="btn-delete" onClick={() => handleDeleteUser(user.id, user.name)} title="Delete User">
                                         <Trash2 className="icon-action" />
                                     </button>
+                                    <button className="btn-block" onClick={() => handleBlockUser(user.id, user.name)} title="Block User">
+                                        <Slash className="icon-action" />
+                                    </button>
                                 </td>
                             </tr>
                         ))}
@@ -259,11 +336,14 @@ const Users = () => {
             {infoModalOpen && selectedUser && (
                 <div className="modal-backdrop" onClick={() => setInfoModalOpen(false)}>
                     <div className="modal" onClick={(e) => e.stopPropagation()}>
-                        <h2>{selectedUser.name} Info</h2>
+                        <h2>{selectedUser.username} Info</h2>
                         <p><strong>Username:</strong> @{selectedUser.username}</p>
                         <p><strong>Email:</strong> {selectedUser.email}</p>
+                        <p><strong>Created:</strong> {selectedUser.created_at}</p>
                         <p><strong>Role:</strong> {selectedUser.role}</p>
                         <p><strong>Verified:</strong> {selectedUser.verified ? "Yes" : "No"}</p>
+                        <p><strong>Avatar:</strong> {selectedUser.avatar || "None"}</p>
+                        <p><strong>Active:</strong> {selectedUser.verified ? "Yes" : "No"}</p>
                         <button className="btn-close" onClick={() => setInfoModalOpen(false)}>Close</button>
                     </div>
                 </div>

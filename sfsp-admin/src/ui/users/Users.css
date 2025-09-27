@@ -253,6 +253,11 @@
     color: white;
 }
 
+.btn-block {
+    background: #dd9e29;
+    color: white;
+}
+
 .btn-message:hover {
     background: #059669;
 }
