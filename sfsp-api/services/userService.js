@@ -186,6 +186,36 @@ class UserService {
       salt,
     } = userData;
 
+    // Generate private keys if not provided (for testing purposes)
+    let final_ik_private_key = ik_private_key;
+    let final_spk_private_key = spk_private_key;
+    let final_opks_private = opks_private;
+
+    if (!ik_private_key || !spk_private_key || !opks_private) {
+      const sodium = await this.initializeSodium();
+      
+      // Generate identity keypair
+      const ikKeypair = sodium.crypto_sign_keypair();
+      final_ik_private_key = sodium.to_base64(ikKeypair.privateKey);
+      
+      // Generate signed prekey (using sign keypair for simplicity)
+      const spkKeypair = sodium.crypto_sign_keypair();
+      final_spk_private_key = sodium.to_base64(spkKeypair.privateKey);
+      
+      // Generate one-time prekeys (array of keypairs)
+      const opks = [];
+      for (let i = 0; i < 10; i++) {
+        const opkKeypair = sodium.crypto_sign_keypair();
+        opks.push(sodium.to_base64(opkKeypair.privateKey));
+      }
+      final_opks_private = opks;
+    }
+
+    // Validate required private keys
+    if (!final_ik_private_key || !final_spk_private_key || !final_opks_private) {
+      throw new Error("Private keys (ik_private_key, spk_private_key, opks_private) are required for registration");
+    }
+
     try {
       const { data: existinguser } = await supabase
         .from("users")
@@ -237,10 +267,10 @@ class UserService {
       try {
         const VaultController = require("../controllers/vaultController");
         const vaultResult = await VaultController.storeKeyBundle({
-          userId: newUser.id,
-          ik_private_key,
-          spk_private_key,
-          opks_private,
+          encrypted_id: newUser.id,
+          ik_private_key: final_ik_private_key,
+          spk_private_key: final_spk_private_key,
+          opks_private: final_opks_private,
         });
 
         if (!vaultResult || vaultResult.status !== 'success') {
