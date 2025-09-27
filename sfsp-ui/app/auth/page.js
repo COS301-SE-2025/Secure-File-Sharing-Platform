@@ -163,14 +163,11 @@ export default function AuthPage() {
         throw new Error(result.message || "Invalid login credentials");
       }
 
-      //New E2EE stuff
       const {
         id,
         salt,
         nonce,
         is_verified,
-        //private keys
-        //public keys
         ik_public,
         spk_public,
         signedPrekeySignature,

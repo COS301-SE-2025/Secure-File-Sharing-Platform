@@ -2,7 +2,9 @@ const bcrypt = require("bcrypt");
 const axios = require("axios");
 const { supabase } = require("../config/database");
 const userService = require("../services/userService");
-const VaultController = require("./vaultController");
+const VaultControllerClass = require("./vaultController");
+
+const VaultController = new VaultControllerClass();
 
 class UserController {
   async register(req, res) {
@@ -227,11 +229,14 @@ class UserController {
       const result = await userService.login({ email, password });
 
       if (result && result.user && result.user.id) {
-        const keyBundle = await VaultController.retrieveKeyBundle(
+        const vaultResponse = await VaultController.retrieveKeyBundle(
           result.user.id
         );
+        console.log('DEBUG: Retrieved keyBundle:', vaultResponse);
+        
+        const keyBundle = vaultResponse?.data?.data || vaultResponse?.data || null;
         console.log("🔍 DEBUG - Retrieved vault keys for user:", result.user.id);
-        console.log("🔍 DEBUG - Retrieved OPKs:", keyBundle.opks_private?.map(opk => opk.opk_id));
+        console.log("🔍 DEBUG - Retrieved OPKs:", keyBundle?.opks_private?.map(opk => opk.opk_id));
         result.keyBundle = keyBundle;
       }
 
@@ -812,7 +817,8 @@ class UserController {
         try {
           const vaultResult = await VaultController.retrieveKeyBundle(user.id);
           if (vaultResult && !vaultResult.error) {
-            keyBundle_response = vaultResult;
+            // Extract the actual key data from nested structure
+            keyBundle_response = vaultResult?.data?.data || vaultResult?.data || null;
           }
         } catch (vaultError) {
           console.warn("Failed to retrieve keys for existing Google user:", vaultError.message);
