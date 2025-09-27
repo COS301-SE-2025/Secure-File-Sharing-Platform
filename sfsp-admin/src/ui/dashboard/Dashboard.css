@@ -251,6 +251,12 @@
     color:#ffffff;
 }
 
+.card-header-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+
 .add-btn {
     background: #0090C1;
     color: white;
@@ -267,6 +273,20 @@
 
 .add-btn:hover {
     background: #38AECC;
+}
+
+.manage-btn {
+  background: #0090C1;
+  color: white;
+  border: none;
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.manage-btn:hover {
+  background: #38AECC;
 }
 
 .modal-backdrop {
@@ -307,6 +327,18 @@
     font-size: 0.9rem;
     font-family: Arial, sans-serif;
     color: black;
+}
+
+.modal input:hover,
+.modal select:hover,
+.modal textarea:hover {
+    outline: 2px solid #34bfee;
+}
+
+.modal input:focus,
+.modal select:focus,
+.modal textarea:focus {
+    outline: 2px solid #34bfee;
 }
 
 .modal h3 {

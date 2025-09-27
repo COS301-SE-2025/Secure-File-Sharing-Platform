@@ -1,26 +1,10 @@
 import "./Dashboard.css";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Users, UserX, AlertTriangle, ExternalLink, Activity, Shield } from "lucide-react";
 
 function Dashboard() {
-  const stats = [
-    { title: "Active Users", value: "2,847", icon: Users, className: "stat-success" },
-    { title: "Blocked Users", value: "23", icon: UserX, className: "stat-danger" },
-    { title: "Pending Reports", value: "7", icon: AlertTriangle, className: "stat-warning" },
-  ];
-
-  const [announcements, setAnnouncements] = useState([
-    { action: "User blocked", user: "john.doe@example.com", time: "2 minutes ago", severity: "high", info: "this is " },
-    { action: "Report resolved", user: "jane.smith@example.com", time: "15 minutes ago", severity: "medium", info: "this is " },
-    { action: "New user registered", user: "mike.wilson@example.com", time: "1 hour ago", severity: "low", info: "this is " },
-    { action: "File access granted", user: "sarah.jones@example.com", time: "2 hours ago", severity: "low", info: "this is " },
-    { action: "File access granted", user: "sarah.jones@example.com", time: "2 hours ago", severity: "low", info: "this is " },
-    { action: "User blocked", user: "john.doe@example.com", time: "2 minutes ago", severity: "high", info: "this is " },
-    { action: "Report resolved", user: "jane.smith@example.com", time: "15 minutes ago", severity: "medium", info: "this is " },
-    { action: "New user registered", user: "mike.wilson@example.com", time: "6 hour ago", severity: "low", info: "this is " },
-    { action: "File access granted", user: "sarah.jones@example.com", time: "2 hours ago", severity: "low", info: "this is " },
-  ]);
-
+  const [stats, setStats] = useState([]);
+  const [announcements, setAnnouncements] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [newAnnouncement, setNewAnnouncement] = useState({
     action: "",
@@ -39,20 +23,68 @@ function Dashboard() {
     }
   };
 
-  const handleAddAnnouncement = () => {
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const res = await fetch("http://localhost:5000/api/admin/dashboard/stats");
+        const data = await res.json();
+        if (data.success) {
+          setStats([
+            { title: "Active Users", value: data.stats.totalUsers, icon: Users, className: "stat-success" },
+            { title: "Blocked Users", value: data.stats.blockedUsers, icon: UserX, className: "stat-danger" },
+            { title: "Pending Reports", value: data.stats.pendingReports, icon: AlertTriangle, className: "stat-warning" }
+          ]);
+        }
+      } catch (err) {
+        console.error("Failed to fetch stats:", err);
+      }
+    };
+
+    fetchStats();
+  }, []);
+
+  useEffect(() => {
+    const fetchAnnouncements = async () => {
+      try {
+        const res = await fetch("http://localhost:5000/api/admin/announcements");
+        const data = await res.json();
+        if (data.success) setAnnouncements(data.announcements);
+      } catch (err) {
+        console.error("Failed to fetch announcements:", err);
+      }
+    };
+
+    fetchAnnouncements();
+  }, []);
+
+  const handleAddAnnouncement = async () => {
     if (!newAnnouncement.action || !newAnnouncement.info) return;
 
-    setAnnouncements(prev => [
-      {
-        ...newAnnouncement,
-        user: currentUser,
-        time: new Date().toLocaleTimeString()
-      },
-      ...prev
-    ]);
+    const payload = {
+      ...newAnnouncement,
+      user: currentUser
+    };
 
-    setNewAnnouncement({ action: "", info: "", severity: "success" });
-    setShowModal(false);
+    try {
+      const res = await fetch("http://localhost:5000/api/admin/announcements", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setAnnouncements(prev => [data.announcement, ...prev]);
+        setNewAnnouncement({ action: "", info: "", severity: "success" });
+        setShowModal(false);
+      }
+    } catch (err) {
+      console.error("Failed to add announcement:", err);
+    }
+  };
+
+  const handleManageAnnouncements = () => {
+    
   };
 
   return (
@@ -87,7 +119,10 @@ function Dashboard() {
         <div className="card">
           <div className="card-header">
             <h2><Activity className="icon" /> Announcements</h2>
-            <button className="add-btn" onClick={() => setShowModal(true)}>+</button>
+            <div className="card-header-buttons">
+              <button className="add-btn" onClick={() => setShowModal(true)}>+</button>
+              <button className="manage-btn" onClick={handleManageAnnouncements}>Manage</button>
+            </div>
           </div>
           <p className="muted">Latest actions and events in the system</p>
 
@@ -102,7 +137,7 @@ function Dashboard() {
                   </div>
                 </div>
                 <div className="timestamp-info">
-                  <span className="badge">{a.time}</span>
+                  <span className="badge">{new Date(a.created_at).toLocaleString()}</span>
                   <button
                     className="info-btn"
                     onClick={() => setInfoModal({ show: true, announcement: a })}
@@ -128,7 +163,7 @@ function Dashboard() {
         </div>
       </div>
 
-      {/* Modal */}
+      {/* Add Announcement Modal */}
       {showModal && (
         <div className="modal-backdrop" onClick={() => setShowModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
@@ -138,33 +173,26 @@ function Dashboard() {
               type="text"
               placeholder="Action"
               value={newAnnouncement.action}
-              onChange={e =>
-                setNewAnnouncement({ ...newAnnouncement, action: e.target.value })
-              }
+              onChange={e => setNewAnnouncement({ ...newAnnouncement, action: e.target.value })}
             />
 
             <textarea
               placeholder="Info"
               value={newAnnouncement.info}
-              onChange={e =>
-                setNewAnnouncement({ ...newAnnouncement, info: e.target.value })
-              }
+              onChange={e => setNewAnnouncement({ ...newAnnouncement, info: e.target.value })}
               rows={4}
               style={{ resize: "vertical" }}
             />
 
             <select
               value={newAnnouncement.severity}
-              onChange={e =>
-                setNewAnnouncement({ ...newAnnouncement, severity: e.target.value })
-              }
+              onChange={e => setNewAnnouncement({ ...newAnnouncement, severity: e.target.value })}
             >
               <option value="success">Success</option>
-              <option value="info">Info</option>
-              <option value="danger">Danger</option>
+              <option value="medium">Medium</option>
+              <option value="high">Danger</option>
             </select>
 
-            {/* Action buttons */}
             <div className="modal-actions">
               <button onClick={handleAddAnnouncement}>Add</button>
               <button onClick={() => setShowModal(false)}>Cancel</button>
@@ -173,28 +201,22 @@ function Dashboard() {
         </div>
       )}
 
+      {/* Announcement Info Modal */}
       {infoModal.show && infoModal.announcement && (
-        <div
-          className="modal-backdrop"
-          onClick={() => setInfoModal({ show: false, announcement: null })}
-        >
+        <div className="modal-backdrop" onClick={() => setInfoModal({ show: false, announcement: null })}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <h3>Announcement Details</h3>
             <p><strong>Action:</strong> {infoModal.announcement.action}</p>
             <p><strong>Info:</strong> {infoModal.announcement.info}</p>
             <p><strong>User:</strong> {infoModal.announcement.user}</p>
             <p><strong>Severity:</strong> {infoModal.announcement.severity}</p>
-            <p><strong>Time:</strong> {infoModal.announcement.time}</p>
-
+            <p><strong>Time:</strong> {new Date(infoModal.announcement.created_at).toLocaleString()}</p>
             <div className="modal-actions">
-              <button onClick={() => setInfoModal({ show: false, announcement: null })}>
-                Close
-              </button>
+              <button onClick={() => setInfoModal({ show: false, announcement: null })}>Close</button>
             </div>
           </div>
         </div>
       )}
-
     </div>
   );
 }
