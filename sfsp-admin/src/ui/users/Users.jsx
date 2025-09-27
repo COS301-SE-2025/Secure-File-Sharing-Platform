@@ -167,7 +167,7 @@ const Users = () => {
                 body: JSON.stringify({
                     username: newAdminUsername,
                     email: newAdminEmail,
-                    role: "admin",
+                    role: "Admin",
                 }),
             });
 

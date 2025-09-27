@@ -1,29 +1,77 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import "./blockedUsers.css";
 import { UserX, Search, RotateCcw, Shield, AlertCircle, AlertTriangle, CheckCircle } from "lucide-react";
 
 const BlockedUsers = () => {
     const [searchTerm, setSearchTerm] = useState("");
     const [toastMessage, setToastMessage] = useState("");
+    const [blockedUsers, setBlockedUsers] = useState([]);
+    const [stats, setStats] = useState({
+        total: 0,
+        high: 0,
+        medium: 0,
+        low: 0
+    });
 
-    const blockedUsers = [
-        { id: 1, name: "Alex Thompson", email: "alex.thompson@example.com", reason: "Spam Activity", blockedDate: "2024-03-10", blockedBy: "Admin", severity: "High", reports: 12 },
-        { id: 2, name: "Rachel Green", email: "rachel.green@example.com", reason: "Policy Violation", blockedDate: "2024-03-08", blockedBy: "System", severity: "Medium", reports: 5 },
-        { id: 3, name: "David Brown", email: "david.brown@example.com", reason: "Suspicious Activity", blockedDate: "2024-03-05", blockedBy: "Admin", severity: "High", reports: 8 },
-        { id: 4, name: "Lisa Anderson", email: "lisa.anderson@example.com", reason: "Terms Violation", blockedDate: "2024-03-01", blockedBy: "System", severity: "Low", reports: 3 }
-    ];
+    useEffect(() => {
+        const fetchBlockedUsers = async () => {
+            try {
+                const res = await fetch("http://localhost:5000/api/admin/users/blocked");
+                const data = await res.json();
+                if (data.success) {
+                    setBlockedUsers(data.users);
+                }
+            } catch (err) {
+                console.error("Failed to fetch blocked users:", err);
+            }
+        };
+
+        const fetchStats = async () => {
+            try {
+                const res = await fetch("http://localhost:5000/api/admin/users/blocked/stats");
+                const data = await res.json();
+                if (data.success) {
+                    setStats(data);
+                }
+            } catch (err) {
+                console.error("Failed to fetch blocked stats:", err);
+            }
+        };
+
+        fetchBlockedUsers();
+        fetchStats();
+    }, []);
 
     const filteredUsers = blockedUsers.filter(user =>
-        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.reason.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    const handleUnblockUser = (userName) => {
-        setToastMessage(`${userName} has been restored to active status`);
-        setTimeout(() => {
-            setToastMessage("");
-        }, 2000);
+    const handleUnblockUser = async (userId, userName, userSeverity) => {
+        try {
+            const res = await fetch("http://localhost:5000/api/admin/users/unblock", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ userId }),
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                setBlockedUsers(prev => prev.filter(u => u.id !== userId));
+
+                setStats(prev => ({
+                    ...prev,
+                    total: prev.total - 1,
+                    [userSeverity.toLowerCase()]: prev[userSeverity.toLowerCase()] - 1
+                }));
+
+                setToastMessage(`${userName} has been restored to active status`);
+                setTimeout(() => setToastMessage(""), 3000);
+            }
+        } catch (err) {
+            console.error("Failed to unblock user:", err);
+        }
     };
 
     const getSeverityColor = (severity) => {
@@ -60,28 +108,28 @@ const BlockedUsers = () => {
                         <UserX className="stat-icon high" />
                         <p>Total Blocked</p>
                     </div>
-                    <p>23</p>
+                    <p>{stats.total}</p>
                 </div>
                 <div className="stat-card high">
                     <div className="stat-content">
                         <AlertCircle className="icon high" />
                         <p>High Severity</p>
                     </div>
-                    <p>8</p>
+                    <p>{stats.high}</p>
                 </div>
                 <div className="stat-card med">
                     <div className="stat-content">
                         <AlertTriangle className="icon medium" />
                         <p>Medium Severity</p>
                     </div>
-                    <p>12</p>
+                    <p>{stats.medium}</p>
                 </div>
                 <div className="stat-card low">
                     <div className="stat-content">
                         <CheckCircle className="icon low" />
                         <p>Low Severity</p>
                     </div>
-                    <p>2</p>
+                    <p>{stats.low}</p>
                 </div>
             </div>
 
@@ -124,7 +172,7 @@ const BlockedUsers = () => {
                                             <img src={user.avatar} alt="avatar" className="avatar" />
                                         ) : (
                                             <div className="avatar-fallback">
-                                                {user.name
+                                                {user.username
                                                     .split(" ")
                                                     .map(n => n[0])
                                                     .join("")
@@ -132,7 +180,7 @@ const BlockedUsers = () => {
                                             </div>
                                         )}
                                         <div>
-                                            <p className="name">{user.name}</p>
+                                            <p className="name">{user.username}</p>
                                             <p className="email">{user.email}</p>
                                         </div>
                                     </div>
@@ -140,20 +188,24 @@ const BlockedUsers = () => {
                                 </td>
                                 <td>
                                     <div className="reason-cell">
-                                        {getReasonIcon(user.reason)}
-                                        {user.reason}
+                                        {getReasonIcon(user.blocked_info.reason)}
+                                        {user.blocked_info.reason}
                                     </div>
                                 </td>
                                 <td>
-                                    <span className={`severity-badge ${getSeverityColor(user.severity)}`}>{user.severity}</span>
+                                    <span className={`severity-badge ${getSeverityColor(user.blocked_info.severity)}`}>{user.blocked_info.severity}</span>
                                 </td>
-                                <td>{user.blockedDate}</td>
-                                <td>{user.blockedBy}</td>
+                                <td>{user.blocked_info.blocked_date}</td>
+                                <td>{user.blocked_info.blocked_by}</td>
                                 <td className="actions-cell">
-                                    <button className="btn unblock" onClick={() => handleUnblockUser(user.name)}>
+                                    <button
+                                        className="btn unblock"
+                                        onClick={() => handleUnblockUser(user.id, user.username,user.blocked_info.severity)}
+                                    >
                                         <RotateCcw className="btn-icon" />
                                         Unblock
                                     </button>
+
                                 </td>
                             </tr>
                         ))}
