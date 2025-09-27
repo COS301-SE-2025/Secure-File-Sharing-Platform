@@ -4,9 +4,9 @@ const jwt = require('jsonwebtoken');
 
 jest.mock('jsonwebtoken');
 jest.mock('crypto', () => ({
-  createHash: jest.fn().mockReturnThis(),
-  update: jest.fn().mockReturnThis(),
-  digest: jest.fn().mockReturnValue('mocked-hash'),
+    createHash: jest.fn().mockReturnThis(),
+    update: jest.fn().mockReturnThis(),
+    digest: jest.fn().mockReturnValue('mocked-hash'),
 }));
 
 describe('UserService Unit Tests', () => {
@@ -22,22 +22,6 @@ describe('UserService Unit Tests', () => {
         console.log.mockRestore();
         console.warn.mockRestore();
         console.error.mockRestore();
-    });
-
-    describe('generatePIN', () => {
-        it('should generate a PIN of length 5', () => {
-            const pin = userService.generatePIN();
-            expect(pin).toHaveLength(5);
-        });
-
-        it('should only contain valid characters', () => {
-            const validChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()";
-            const pin = userService.generatePIN();
-
-            for (const char of pin) {
-                expect(validChars).toContain(char);
-            }
-        });
     });
 
     describe('generateToken', () => {

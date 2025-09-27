@@ -4,7 +4,6 @@ const { supabase } = require('../config/database');
 const userService = require('../services/userService');
 const VaultController = require('../controllers/vaultController');
 const bcrypt = require('bcrypt');
-const MnemonicCrypto = require('../utils/mnemonicCrypto');
 const axios = require('axios');
 const geoip = require('geoip-lite');
 
@@ -15,8 +14,6 @@ jest.mock('../services/userService', () => ({
     verifyToken: jest.fn(),
     refreshToken: jest.fn(),
     deleteProfile: jest.fn(),
-    sendPasswordResetPIN: jest.fn(),
-    verifyPINAndChangePassword: jest.fn(),
     updateProfile: jest.fn(),
     getProfile: jest.fn(),
     getPublicKeys: jest.fn(),
@@ -26,9 +23,6 @@ jest.mock('../services/userService', () => ({
     parseUserAgent: jest.fn(),
     getLocationFromIP: jest.fn(),
 }));
-
-jest.mock('../utils/mnemonicCrypto');
-MnemonicCrypto.validatePassword = jest.fn();
 
 jest.mock('axios');
 jest.mock('geoip-lite');
@@ -577,8 +571,8 @@ describe('UserController Unit Tests', () => {
         });
 
         it('should return 500 when userService.refreshToken throws an error', async () => {
-          req.body = {
-        userId: 'test-id' // ✅ use userId, not email
+            req.body = {
+        userId: 'test-id'
     };
 
     userService.refreshToken.mockRejectedValue(new Error('User not found'));
@@ -664,14 +658,14 @@ describe('UserController Unit Tests', () => {
 
             const mockUser = { password: 'hashedPassword' };
             supabase.single.mockResolvedValue({ data: mockUser, error: null });
-            MnemonicCrypto.validatePassword.mockResolvedValue(true);
+            bcrypt.compare = jest.fn().mockResolvedValue(true);
 
             await UserController.verifyPassword(req, res);
 
             expect(supabase.from).toHaveBeenCalledWith('users');
             expect(supabase.select).toHaveBeenCalledWith('password');
             expect(supabase.eq).toHaveBeenCalledWith('id', 1);
-            expect(MnemonicCrypto.validatePassword).toHaveBeenCalledWith('password123', 'hashedPassword');
+            expect(bcrypt.compare).toHaveBeenCalledWith('password123', 'hashedPassword');
             expect(res.status).not.toHaveBeenCalled();
             expect(res.json).toHaveBeenCalledWith({
                 success: true,
@@ -685,7 +679,7 @@ describe('UserController Unit Tests', () => {
             await UserController.verifyPassword(req, res);
 
             expect(supabase.from).not.toHaveBeenCalled();
-            expect(MnemonicCrypto.validatePassword).not.toHaveBeenCalled();
+            expect(bcrypt.compare).not.toHaveBeenCalled();
             expect(res.status).toHaveBeenCalledWith(400);
             expect(res.json).toHaveBeenCalledWith({
                 success: false,
@@ -708,7 +702,7 @@ describe('UserController Unit Tests', () => {
                 success: false,
                 message: 'User not found',
             });
-            expect(MnemonicCrypto.validatePassword).not.toHaveBeenCalled();
+            expect(bcrypt.compare).not.toHaveBeenCalled();
         });
 
         it('should return 400 when password is incorrect', async () => {
@@ -716,11 +710,11 @@ describe('UserController Unit Tests', () => {
 
             const mockUser = { password: 'hashedPassword' };
             supabase.single.mockResolvedValue({ data: mockUser, error: null });
-            MnemonicCrypto.validatePassword.mockResolvedValue(false);
+            bcrypt.compare = jest.fn().mockResolvedValue(false);
 
             await UserController.verifyPassword(req, res);
 
-            expect(MnemonicCrypto.validatePassword).toHaveBeenCalledWith('password123', 'hashedPassword');
+            expect(bcrypt.compare).toHaveBeenCalledWith('password123', 'hashedPassword');
             expect(res.status).toHaveBeenCalledWith(400);
             expect(res.json).toHaveBeenCalledWith({
                 success: false,
@@ -739,107 +733,6 @@ describe('UserController Unit Tests', () => {
             expect(res.json).toHaveBeenCalledWith({
                 success: false,
                 message: 'Internal server error',
-            });
-        });
-    });
-
-    describe('sendResetPIN', () => {
-        it('should send reset PIN successfully', async () => {
-            const mockResult = { message: 'PIN sent successfully' };
-            userService.sendPasswordResetPIN.mockResolvedValue(mockResult);
-
-            await UserController.sendResetPIN(req, res);
-
-            expect(userService.sendPasswordResetPIN).toHaveBeenCalledWith(1);
-            expect(res.status).not.toHaveBeenCalled();
-            expect(res.json).toHaveBeenCalledWith({
-                success: true,
-                message: 'PIN sent successfully',
-            });
-        });
-
-        it('should return 500 when userService.sendPasswordResetPIN throws an error', async () => {
-            userService.sendPasswordResetPIN.mockRejectedValue(new Error('Failed to send PIN'));
-
-            await UserController.sendResetPIN(req, res);
-
-            expect(userService.sendPasswordResetPIN).toHaveBeenCalledWith(1);
-            expect(res.status).toHaveBeenCalledWith(500);
-            expect(res.json).toHaveBeenCalledWith({
-                success: false,
-                message: 'Failed to send PIN',
-            });
-        });
-    });
-
-    describe('changePassword', () => {
-        it('should change password successfully', async () => {
-            req.body = { pin: '123456', newPassword: 'newPassword123' };
-
-            const mockResult = { message: 'Password changed successfully' };
-            userService.verifyPINAndChangePassword.mockResolvedValue(mockResult);
-
-            await UserController.changePassword(req, res);
-
-            expect(userService.verifyPINAndChangePassword).toHaveBeenCalledWith(1, '123456', 'newPassword123');
-            expect(res.status).not.toHaveBeenCalled();
-            expect(res.json).toHaveBeenCalledWith({
-                success: true,
-                message: 'Password changed successfully',
-            });
-        });
-
-        it('should return 400 when pin is missing', async () => {
-            req.body = { newPassword: 'newPassword123' };
-
-            await UserController.changePassword(req, res);
-
-            expect(userService.verifyPINAndChangePassword).not.toHaveBeenCalled();
-            expect(res.status).toHaveBeenCalledWith(400);
-            expect(res.json).toHaveBeenCalledWith({
-                success: false,
-                message: 'PIN and new password are required',
-            });
-        });
-
-        it('should return 400 when newPassword is missing', async () => {
-            req.body = { pin: '123456' };
-
-            await UserController.changePassword(req, res);
-
-            expect(userService.verifyPINAndChangePassword).not.toHaveBeenCalled();
-            expect(res.status).toHaveBeenCalledWith(400);
-            expect(res.json).toHaveBeenCalledWith({
-                success: false,
-                message: 'PIN and new password are required',
-            });
-        });
-
-        it('should return 400 when newPassword is too short', async () => {
-            req.body = { pin: '123456', newPassword: 'short' };
-
-            await UserController.changePassword(req, res);
-
-            expect(userService.verifyPINAndChangePassword).not.toHaveBeenCalled();
-            expect(res.status).toHaveBeenCalledWith(400);
-            expect(res.json).toHaveBeenCalledWith({
-                success: false,
-                message: 'Password must be at least 8 characters long',
-            });
-        });
-
-        it('should return 500 when userService.verifyPINAndChangePassword throws an error', async () => {
-            req.body = { pin: '123456', newPassword: 'newPassword123' };
-
-            userService.verifyPINAndChangePassword.mockRejectedValue(new Error('Invalid PIN'));
-
-            await UserController.changePassword(req, res);
-
-            expect(userService.verifyPINAndChangePassword).toHaveBeenCalledWith(1, '123456', 'newPassword123');
-            expect(res.status).toHaveBeenCalledWith(500);
-            expect(res.json).toHaveBeenCalledWith({
-                success: false,
-                message: 'Invalid PIN',
             });
         });
     });

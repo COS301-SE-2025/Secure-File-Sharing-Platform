@@ -1,40 +1,87 @@
-/* global describe, it, expect, beforeEach, afterEach, jest */
-
-// Mock VaultController before requiring UserController
 jest.doMock('../controllers/vaultController', () => ({
     storeKeyBundle: jest.fn(),
     retrieveKeyBundle: jest.fn(),
+}));
+
+jest.mock('../config/database', () => ({
+    supabase: {
+        from: jest.fn((table) => {
+            if (table === 'users') {
+                return {
+                    select: jest.fn(() => ({
+                        eq: jest.fn(() => ({
+                            single: jest.fn().mockResolvedValue({
+                                data: { password: 'hashedpassword' },
+                                error: null
+                            }),
+                        })),
+                    })),
+                    update: jest.fn(() => ({
+                        eq: jest.fn(() => ({
+                            select: jest.fn(),
+                        })),
+                    })),
+                    delete: jest.fn(() => ({
+                        eq: jest.fn(),
+                    })),
+                    insert: jest.fn(() => ({
+                        select: jest.fn(),
+                    })),
+                };
+            }
+            return {
+                select: jest.fn(() => ({
+                    eq: jest.fn(() => ({
+                        single: jest.fn(),
+                    })),
+                })),
+                update: jest.fn(() => ({
+                    eq: jest.fn(() => ({
+                        select: jest.fn(),
+                    })),
+                })),
+                delete: jest.fn(() => ({
+                    eq: jest.fn(),
+                })),
+                insert: jest.fn(() => ({
+                    select: jest.fn(),
+                })),
+            };
+        }),
+    },
+}));
+
+jest.mock('bcrypt', () => ({
+    compare: jest.fn(),
+    hash: jest.fn(),
 }));
 
 const request = require('supertest');
 const express = require('express');
 const UserController = require('../controllers/userController');
 const userService = require('../services/userService');
+const authMiddleware = require('../middlewares/authMiddleware');
 
 const app = express();
 app.use(express.json());
 
 app.post('/register', UserController.register);
 app.post('/login', UserController.login);
-app.get('/profile', UserController.getProfile);
+app.get('/profile', authMiddleware, UserController.getProfile);
 app.post('/refresh-token', UserController.refreshToken);
-app.delete('/profile', UserController.deleteProfile);
-app.post('/verify-password', UserController.verifyPassword);
-app.post('/send-reset-pin', UserController.sendResetPIN);
+app.delete('/profile', authMiddleware, UserController.deleteProfile);
+app.post('/verify-password', authMiddleware, UserController.verifyPassword);
 app.get('/public-keys/:userId', UserController.getPublicKeys);
 app.post('/get-token', UserController.getUserToken);
 
 jest.mock('../services/userService');
 const VaultController = require('../controllers/vaultController');
 
-jest.mock('../config/database', () => {
-    const mockSupabase = {
-        from: jest.fn(() => mockSupabase),
-        select: jest.fn(() => mockSupabase),
-        eq: jest.fn(() => mockSupabase),
-        single: jest.fn(() => ({ data: { email: 'test@example.com', password: 'hashed_password' }, error: null })),
+jest.mock('../middlewares/authMiddleware', () => {
+    return (req, res, next) => {
+        req.user = { id: 1, email: 'test@example.com' };
+        next();
     };
-    return { supabase: mockSupabase };
 });
 
 jest.mock('../services/userService', () => ({
@@ -45,12 +92,8 @@ jest.mock('../services/userService', () => ({
     refreshToken: jest.fn(),
     deleteProfile: jest.fn(),
     verifyPassword: jest.fn(),
-    sendPasswordResetPIN: jest.fn(),
     getPublicKeys: jest.fn(),
     generateToken: jest.fn(),
-}));
-jest.mock('../utils/mnemonicCrypto', () => ({
-    validatePassword: jest.fn(),
 }));
 
 describe('UserController Integration Tests', () => {
@@ -479,14 +522,11 @@ describe('UserController Integration Tests', () => {
         it('should verify password successfully', async () => {
             const requestData = { currentPassword: 'correctpassword' };
 
-            userService.verifyToken.mockResolvedValue({ userId: 1 });
-            userService.getProfile.mockResolvedValue({ id: 1, email: 'test@example.com' });
-            const MnemonicCrypto = require('../utils/mnemonicCrypto');
-            MnemonicCrypto.validatePassword.mockResolvedValue(true);
+            const bcrypt = require('bcrypt');
+            jest.spyOn(bcrypt, 'compare').mockResolvedValue(true);
 
             const response = await request(app)
                 .post('/verify-password')
-                .set('Authorization', 'Bearer valid-token')
                 .send(requestData)
                 .expect(200);
 
@@ -495,16 +535,12 @@ describe('UserController Integration Tests', () => {
                 message: 'Password verified successfully',
             });
 
-            expect(userService.verifyToken).toHaveBeenCalledWith('valid-token');
-            expect(MnemonicCrypto.validatePassword).toHaveBeenCalledWith('correctpassword', undefined);
+            expect(bcrypt.compare).toHaveBeenCalledWith('correctpassword', 'hashedpassword');
         });
 
         it('should return 400 when current password is missing', async () => {
-            userService.verifyToken.mockResolvedValue({ userId: 1 });
-
             const response = await request(app)
                 .post('/verify-password')
-                .set('Authorization', 'Bearer valid-token')
                 .send({})
                 .expect(400);
 
@@ -517,56 +553,17 @@ describe('UserController Integration Tests', () => {
         it('should return 400 when password is incorrect', async () => {
             const requestData = { currentPassword: 'wrongpassword' };
 
-            userService.verifyToken.mockResolvedValue({ userId: 1 });
-            userService.getProfile.mockResolvedValue({ id: 1, email: 'test@example.com' });
-            const MnemonicCrypto = require('../utils/mnemonicCrypto');
-            MnemonicCrypto.validatePassword.mockResolvedValue(false);
+            const bcrypt = require('bcrypt');
+            jest.spyOn(bcrypt, 'compare').mockResolvedValue(false);
 
             const response = await request(app)
                 .post('/verify-password')
-                .set('Authorization', 'Bearer valid-token')
                 .send(requestData)
                 .expect(400);
 
             expect(response.body).toEqual({
                 success: false,
                 message: 'Current password is incorrect',
-            });
-        });
-    });
-
-    describe('POST /send-reset-pin', () => {
-        it('should send reset PIN successfully', async () => {
-            const mockResult = { message: 'Reset PIN sent successfully' };
-
-            userService.verifyToken.mockResolvedValue({ userId: 1 });
-            userService.sendPasswordResetPIN.mockResolvedValue(mockResult);
-
-            const response = await request(app)
-                .post('/send-reset-pin')
-                .set('Authorization', 'Bearer valid-token')
-                .expect(200);
-
-            expect(response.body).toEqual({
-                success: true,
-                message: 'Reset PIN sent successfully',
-            });
-
-            expect(userService.verifyToken).toHaveBeenCalledWith('valid-token');
-            expect(userService.sendPasswordResetPIN).toHaveBeenCalledWith(1);
-        });
-
-        it('should return 401 when token is invalid', async () => {
-            userService.verifyToken.mockResolvedValue(null);
-
-            const response = await request(app)
-                .post('/send-reset-pin')
-                .set('Authorization', 'Bearer invalid-token')
-                .expect(401);
-
-            expect(response.body).toEqual({
-                success: false,
-                message: 'Invalid or expired token.',
             });
         });
     });
@@ -596,7 +593,7 @@ describe('UserController Integration Tests', () => {
         it('should return 400 when userId is missing', async () => {
             const response = await request(app)
                 .get('/public-keys/')
-                .expect(404); // Express will return 404 for missing param
+                .expect(404);
         });
 
         it('should return 404 when user not found', async () => {
@@ -648,7 +645,6 @@ describe('UserController Integration Tests', () => {
         it('should return 404 when user not found', async () => {
             const requestData = { userId: 999 };
 
-            // Temporarily mock supabase to return no user
             const originalSingle = require('../config/database').supabase.single;
             require('../config/database').supabase.single.mockResolvedValueOnce({ data: null, error: 'User not found' });
 
@@ -662,7 +658,6 @@ describe('UserController Integration Tests', () => {
                 message: 'User not found.',
             });
 
-            // Restore the mock
             require('../config/database').supabase.single = originalSingle;
         });
     });
