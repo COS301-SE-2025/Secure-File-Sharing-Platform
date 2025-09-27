@@ -392,3 +392,48 @@
     background: #F8F9FA;
     font-family: Arial, sans-serif;
 }
+
+.manage-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.manage-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f9f9f9;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+}
+
+.manage-item strong {
+  margin-right: 6px;
+}
+
+.btn-delete {
+  background: #e74c3c;
+  border: none;
+  padding: 4px 6px;
+  border-radius: 6px;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.btn-delete:hover {
+  background: #c0392b;
+}
+
+.manage-item .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}

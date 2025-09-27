@@ -1,11 +1,12 @@
 import "./Dashboard.css";
 import { useState, useEffect } from "react";
-import { Users, UserX, AlertTriangle, ExternalLink, Activity, Shield } from "lucide-react";
+import { Users, UserX, AlertTriangle, ExternalLink, Activity, Shield, Trash2 } from "lucide-react";
 
 function Dashboard() {
   const [stats, setStats] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [manageModal, setManageModal] = useState(false);
   const [newAnnouncement, setNewAnnouncement] = useState({
     action: "",
     info: "",
@@ -39,7 +40,6 @@ function Dashboard() {
         console.error("Failed to fetch stats:", err);
       }
     };
-
     fetchStats();
   }, []);
 
@@ -53,18 +53,13 @@ function Dashboard() {
         console.error("Failed to fetch announcements:", err);
       }
     };
-
     fetchAnnouncements();
   }, []);
 
   const handleAddAnnouncement = async () => {
     if (!newAnnouncement.action || !newAnnouncement.info) return;
 
-    const payload = {
-      ...newAnnouncement,
-      user: currentUser
-    };
-
+    const payload = { ...newAnnouncement, user: currentUser, info: newAnnouncement.info.trim() === "" ? "No details" : newAnnouncement.info };
     try {
       const res = await fetch("http://localhost:5000/api/admin/announcements", {
         method: "POST",
@@ -72,7 +67,6 @@ function Dashboard() {
         body: JSON.stringify(payload),
       });
       const data = await res.json();
-
       if (data.success) {
         setAnnouncements(prev => [data.announcement, ...prev]);
         setNewAnnouncement({ action: "", info: "", severity: "success" });
@@ -84,8 +78,24 @@ function Dashboard() {
   };
 
   const handleManageAnnouncements = () => {
-    
+    setManageModal(true);
   };
+
+  const handleDeleteAnnouncement = async (id) => {
+    try {
+      const res = await fetch(`http://localhost:5000/api/admin/announcements/${id}`, {
+        method: "DELETE"
+      });
+      const data = await res.json();
+      if (data.success) {
+        setAnnouncements(prev => prev.filter(a => a.id !== id));
+      }
+    } catch (err) {
+      console.error("Failed to delete announcement:", err);
+    }
+  };
+
+  const userAnnouncements = announcements.filter(a => a.user === currentUser);
 
   return (
     <div className="dashboard">
@@ -138,12 +148,7 @@ function Dashboard() {
                 </div>
                 <div className="timestamp-info">
                   <span className="badge">{new Date(a.created_at).toLocaleString()}</span>
-                  <button
-                    className="info-btn"
-                    onClick={() => setInfoModal({ show: true, announcement: a })}
-                  >
-                    i
-                  </button>
+                  <button className="info-btn" onClick={() => setInfoModal({ show: true, announcement: a })}>i</button>
                 </div>
               </div>
             ))}
@@ -168,14 +173,12 @@ function Dashboard() {
         <div className="modal-backdrop" onClick={() => setShowModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <h3>Add Announcement</h3>
-
             <input
               type="text"
               placeholder="Action"
               value={newAnnouncement.action}
               onChange={e => setNewAnnouncement({ ...newAnnouncement, action: e.target.value })}
             />
-
             <textarea
               placeholder="Info"
               value={newAnnouncement.info}
@@ -183,7 +186,6 @@ function Dashboard() {
               rows={4}
               style={{ resize: "vertical" }}
             />
-
             <select
               value={newAnnouncement.severity}
               onChange={e => setNewAnnouncement({ ...newAnnouncement, severity: e.target.value })}
@@ -192,7 +194,6 @@ function Dashboard() {
               <option value="medium">Medium</option>
               <option value="high">Danger</option>
             </select>
-
             <div className="modal-actions">
               <button onClick={handleAddAnnouncement}>Add</button>
               <button onClick={() => setShowModal(false)}>Cancel</button>
@@ -213,6 +214,35 @@ function Dashboard() {
             <p><strong>Time:</strong> {new Date(infoModal.announcement.created_at).toLocaleString()}</p>
             <div className="modal-actions">
               <button onClick={() => setInfoModal({ show: false, announcement: null })}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Manage Announcements Modal */}
+      {manageModal && (
+        <div className="modal-backdrop" onClick={() => setManageModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <h3>Manage Your Announcements</h3>
+            {userAnnouncements.length === 0 ? (
+              <p>No announcements posted by you.</p>
+            ) : (
+              <ul className="manage-list">
+                {userAnnouncements.map(a => (
+                  <li key={a.id} className="manage-item">
+                    <div>
+                      <span className={`dot ${getSeverityColor(a.severity)}`} style={{ marginLeft: "8px" }} />
+                      <strong>{a.action} :</strong>{a.info}
+                    </div>
+                    <button className="btn-delete" onClick={() => handleDeleteAnnouncement(a.id)}>
+                      <Trash2 size={16} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="modal-actions">
+              <button onClick={() => setManageModal(false)}>Close</button>
             </div>
           </div>
         </div>

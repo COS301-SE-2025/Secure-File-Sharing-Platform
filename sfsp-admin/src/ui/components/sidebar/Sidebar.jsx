@@ -12,8 +12,6 @@ import {
 } from "lucide-react";
 import "./Sidebar.css";
 
-
-
 const navigationItems = [
   { title: "Dashboard", url: "/dashboard", icon: BarChart3 },
   { title: "Users", url: "/users", icon: Users },
@@ -21,13 +19,13 @@ const navigationItems = [
   { title: "Reports", url: "/reports", icon: AlertTriangle },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ user }) {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
   const [profileModalOpen, setProfileModalOpen] = useState(false);
 
-
   function getInitials(name) {
+    if (!name) return "";
     return name
       .split(" ")
       .map((n) => n[0])
@@ -36,8 +34,13 @@ export default function Sidebar() {
   }
 
   const handleLogout = () => {
+    localStorage.removeItem("user");
+    localStorage.removeItem("token");
     navigate("/");
   };
+
+  const username = user?.username || "Admin User";
+  const email = user?.email || "admin@secureshare.app";
 
   return (
     <aside className={`sidebar ${collapsed ? "collapsed" : ""}`}>
@@ -103,7 +106,7 @@ export default function Sidebar() {
         {collapsed ? (
           <div className="collapsed-profile">
             <div className="avatar small">
-              <span>{getInitials("Admin User")}</span>
+              <span>{getInitials(username)}</span>
             </div>
             <button onClick={handleLogout} className="icon-btn">
               <LogOut className="nav-icon" />
@@ -113,11 +116,11 @@ export default function Sidebar() {
           <div className="profile-expanded">
             <div className="profile-info">
               <div className="avatar">
-                <span>{getInitials("Admin User")}</span>
+                <span>{getInitials(username)}</span>
               </div>
               <div>
-                <p className="profile-name">Admin User</p>
-                <p className="profile-email">admin@secureshare.app</p>
+                <p className="profile-name">{username}</p>
+                <p className="profile-email">{email}</p>
               </div>
             </div>
             <div className="profile-actions">
@@ -142,10 +145,10 @@ export default function Sidebar() {
             <h2 className="modal-title">User Profile</h2>
             <div className="profile-details">
               <div className="avatar large">
-                <span>{getInitials("Admin User")}</span>
+                <span>{getInitials(username)}</span>
               </div>
-              <p>Admin User</p>
-              <p>admin@secureshare.app</p>
+              <p>{username}</p>
+              <p>{email}</p>
             </div>
             <div className="profile btn-send">
               <button
@@ -156,10 +159,8 @@ export default function Sidebar() {
               </button>
             </div>
           </div>
-
         </div>
       )}
-
     </aside>
   );
 }

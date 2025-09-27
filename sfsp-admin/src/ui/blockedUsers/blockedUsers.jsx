@@ -98,8 +98,8 @@ const BlockedUsers = () => {
                     <UserX className="header-icon" />
                     Blocked Users
                 </h1>
-                <p className="subtitle">Manage users who have been blocked from the platform</p>
             </div>
+            <p className="subtitle">Manage users who have been blocked from the platform</p>
 
             {/* Stats */}
             <div className="stats-grid">
@@ -200,7 +200,7 @@ const BlockedUsers = () => {
                                 <td className="actions-cell">
                                     <button
                                         className="btn unblock"
-                                        onClick={() => handleUnblockUser(user.id, user.username,user.blocked_info.severity)}
+                                        onClick={() => handleUnblockUser(user.id, user.username, user.blocked_info.severity)}
                                     >
                                         <RotateCcw className="btn-icon" />
                                         Unblock

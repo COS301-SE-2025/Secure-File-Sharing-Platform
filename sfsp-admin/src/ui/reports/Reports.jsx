@@ -89,8 +89,9 @@ const Reports = () => {
                         <AlertTriangle className="header-icon" />
                         Reports Management
                     </h1>
-                    <p className="subtitle">Review and manage reports</p>
+
                 </div>
+
                 <div className="header-right">
                     <button className="btn-add-report" onClick={() => setAddReportModalOpen(true)}>
                         + Add New Report
@@ -165,7 +166,7 @@ const Reports = () => {
                     </div>
                 </div>
             )}
-
+            <p className="subtitle">Review and manage reports</p>
             {/* Stats Cards */}
             <div className="stats-grid">
                 <div className="stat-card warning">

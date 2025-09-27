@@ -15,48 +15,8 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const inputRefs = useRef([]);
 
-  console.log("window.electron", window.electron);
-
-  useEffect(() => {
-    const unsubscribe = window.electron.subscribeStatistics((stats) => {
-      console.log("Stats:", stats);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  const handleCredentialsSubmit = (e) => {
-    e.preventDefault();
-    if (!credentials.email || !credentials.password) {
-      alert("❌ Please enter both email and password");
-      return;
-    }
-
-    setIsLoading(true);
-    setTimeout(() => {
-      setStep("otp");
-      setIsLoading(false);
-    }, 1000);
-  };
-
-  const handleOTPSubmit = (e) => {
-    e.preventDefault();
-    if (!credentials.otp || credentials.otp.length !== 6) {
-      alert("❌ Please enter a valid 6-digit PIN");
-      return;
-    }
-
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      navigate("/dashboard");
-    }, 1000);
-  };
-
-  const handleBackToCredentials = () => {
-    setStep("credentials");
-    setCredentials({ ...credentials, otp: "" });
-  };
+  // Store token after successful login
+  const [token, setToken] = useState(null);
 
   const focusInput = (index) => {
     const input = inputRefs.current[index];
@@ -75,11 +35,9 @@ function App() {
         otpArr[index] = "";
         setCredentials({ ...credentials, otp: otpArr });
       } else if (index > 0) {
-
         focusInput(index - 1);
-        const prevArr = [...credentials.otp];
-        prevArr[index - 1] = "";
-        setCredentials({ ...credentials, otp: prevArr });
+        otpArr[index - 1] = "";
+        setCredentials({ ...credentials, otp: otpArr });
       }
       e.preventDefault();
     }
@@ -108,11 +66,71 @@ function App() {
     focusInput(Math.min(startIndex + paste.length, 5));
   };
 
+  const handleCredentialsSubmit = async (e) => {
+    e.preventDefault();
+    if (!credentials.email || !credentials.password) {
+      alert("❌ Please enter both email and password");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const res = await fetch("http://localhost:5000/api/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: credentials.email,
+          password: credentials.password,
+        }),
+      });
+      const data = await res.json();
+
+      if (!data.success) {
+        alert(`❌ ${data.message}`);
+        setIsLoading(false);
+        return;
+      }
+
+      setToken(data.data.token);
+      localStorage.setItem("user", JSON.stringify(data.data.user));
+      localStorage.setItem("token", data.data.token);
+
+      setStep("otp");
+    } catch (err) {
+      console.error("Login error:", err);
+      alert("❌ Login failed. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleOTPSubmit = async (e) => {
+    e.preventDefault();
+    const otpCode = credentials.otp.join("");
+
+    if (otpCode.length !== 6) {
+      alert("❌ Please enter a valid 6-digit PIN");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // Optionally verify OTP with backend here
+      // For now, just navigate to dashboard
+      navigate("/dashboard", { state: { token } });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleBackToCredentials = () => {
+    setStep("credentials");
+    setCredentials({ ...credentials, otp: ["", "", "", "", "", ""] });
+  };
+
   return (
     <div className="login-container">
       <div className="background-wrapper">
-        {/* The lightRays Code from: 
-https://reactbits.dev/backgrounds/light-rays , 18 September 2025*/}
         <LightRays
           raysOrigin="top-center"
           raysColor="#00ffff"
@@ -126,38 +144,26 @@ https://reactbits.dev/backgrounds/light-rays , 18 September 2025*/}
           className="custom-rays"
         />
       </div>
+
       <div className="login-box">
-        {/* Logo and Header */}
         <div className="login-header">
           <div className="login-logo">
-            <img
-              src="../src/assets/shield-full-white.png"
-              alt="SecureShare Logo"
-              className="logo-icon"
-            />
-
+            <img src="../src/assets/shield-full-white.png" alt="SecureShare Logo" className="logo-icon" />
           </div>
           <h1 className="login-title">SecureShare</h1>
           <p className="login-subtitle">Admin Portal Access</p>
         </div>
 
-        {/* Card */}
         <div className="card-boxed">
           <div className="card-header">
             {step === "otp" && (
-              <button
-                onClick={handleBackToCredentials}
-                className="back-btn"
-                type="button"
-              >
+              <button onClick={handleBackToCredentials} className="back-btn" type="button">
                 <ArrowLeft size={16} />
               </button>
             )}
 
             <div className="card-header-content">
-              <h2 className="card-title">
-                {step === "credentials" ? "" : "PIN"}
-              </h2>
+              <h2 className="card-title">{step === "credentials" ? "" : "PIN"}</h2>
               <p className="card-description">
                 {step === "credentials"
                   ? "Enter your email and password to continue"
@@ -169,7 +175,6 @@ https://reactbits.dev/backgrounds/light-rays , 18 September 2025*/}
           <div className="card-content">
             {step === "credentials" ? (
               <form onSubmit={handleCredentialsSubmit} className="form">
-                {/* Username */}
                 <div className="form-group">
                   <label htmlFor="username">Email</label>
                   <input
@@ -178,17 +183,11 @@ https://reactbits.dev/backgrounds/light-rays , 18 September 2025*/}
                     type="text"
                     placeholder="Enter your email"
                     value={credentials.email}
-                    onChange={(e) =>
-                      setCredentials({
-                        ...credentials,
-                        email: e.target.value,
-                      })
-                    }
+                    onChange={(e) => setCredentials({ ...credentials, email: e.target.value })}
                     required
                   />
                 </div>
 
-                {/* Password */}
                 <div className="form-group">
                   <label htmlFor="password">Password</label>
                   <div className="input-icon-wrapper">
@@ -198,12 +197,7 @@ https://reactbits.dev/backgrounds/light-rays , 18 September 2025*/}
                       type="password"
                       placeholder="Enter your password"
                       value={credentials.password}
-                      onChange={(e) =>
-                        setCredentials({
-                          ...credentials,
-                          password: e.target.value,
-                        })
-                      }
+                      onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
                       required
                     />
                   </div>
@@ -217,10 +211,7 @@ https://reactbits.dev/backgrounds/light-rays , 18 September 2025*/}
               <form onSubmit={handleOTPSubmit} className="form">
                 <div className="otp-section">
                   <Key size={48} className="otp-icon" />
-                  <p className="otp-text">
-                    Please enter the 6-digit code from your email
-                  </p>
-
+                  <p className="otp-text">Please enter the 6-digit code from your email</p>
                   <div className="otp-inputs">
                     {[...Array(6)].map((_, i) => (
                       <input
@@ -236,20 +227,12 @@ https://reactbits.dev/backgrounds/light-rays , 18 September 2025*/}
                           const otpArr = [...credentials.otp];
                           otpArr[i] = val;
                           setCredentials({ ...credentials, otp: otpArr });
-
                           if (val && i < 5) focusInput(i + 1);
                         }}
                         onKeyDown={(e) => {
-                          if (
-                            !/[0-9]/.test(e.key) &&
-                            e.key !== "Backspace" &&
-                            e.key !== "ArrowLeft" &&
-                            e.key !== "ArrowRight" &&
-                            e.key !== "Tab"
-                          ) {
+                          if (!/[0-9]/.test(e.key) && !["Backspace", "ArrowLeft", "ArrowRight", "Tab"].includes(e.key)) {
                             e.preventDefault();
                           }
-
                           handleOTPKeyDown(e, i);
                         }}
                         onPaste={(e) => handleOTPPaste(e, i)}
@@ -258,11 +241,7 @@ https://reactbits.dev/backgrounds/light-rays , 18 September 2025*/}
                   </div>
                 </div>
 
-                <button
-                  type="submit"
-                  className="btn"
-                  disabled={isLoading || credentials.otp.length !== 6}
-                >
+                <button type="submit" className="btn" disabled={isLoading || credentials.otp.join("").length !== 6}>
                   {isLoading ? "Authenticating..." : "Verify & Login"}
                 </button>
               </form>

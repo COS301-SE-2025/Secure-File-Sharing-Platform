@@ -68,7 +68,7 @@ const Users = () => {
         user.username.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    const handleDeleteUser = async (userId, userName,role) => {
+    const handleDeleteUser = async (userId, userName, role) => {
         try {
             const res = await fetch("http://localhost:5000/api/admin/users/delete", {
                 method: "POST",
@@ -227,8 +227,9 @@ const Users = () => {
             {/* Header */}
             <div className="header">
                 <h1><UsersIcon className="icon" /> User Management</h1>
-                <p>Manage and monitor all platform users</p>
+
             </div>
+            <p>Manage and monitor all platform users</p>
 
             {/* Stats */}
             <div className="stats-grid">
@@ -390,7 +391,7 @@ const Users = () => {
                                     <button className="btn-message" onClick={() => handleSendMessage(user)} title="Send Message">
                                         <Mail className="icon-action" />
                                     </button>
-                                    <button className="btn-delete" onClick={() => handleDeleteUser(user.id, user.username,user.role)} title="Delete User">
+                                    <button className="btn-delete" onClick={() => handleDeleteUser(user.id, user.username, user.role)} title="Delete User">
                                         <Trash2 className="icon-action" />
                                     </button>
                                     <button className="btn-block" onClick={() => handleBlockUser(user.id, user.username)} title="Block User">
