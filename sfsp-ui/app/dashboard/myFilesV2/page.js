@@ -378,7 +378,7 @@ export default function MyFiles() {
       }
 
       console.log("Csrf token is metadata is: ", csrf);
-      const res = await fetch("/api/files/metadata", {
+      const res = await fetch("/proxy/files/metadata", {
         method: "POST",
         headers: { "x-csrf": csrf || "" },
         body: JSON.stringify({ userId }),
@@ -542,7 +542,7 @@ export default function MyFiles() {
     const tags = ["deleted", `deleted_time:${timestamp}`];
 
     try {
-      const res = await fetch("/api/files/addTags", {
+      const res = await fetch("/proxy/files/addTags", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-csrf":csrf || ""},
         body: JSON.stringify({ fileId: file.id, tags }),
@@ -574,7 +574,7 @@ export default function MyFiles() {
     const sodium = await getSodium();
 
     try {
-      const res = await fetch("/api/files/download", {
+      const res = await fetch("/proxy/files/download", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-csrf": csrf || "" },
         body: JSON.stringify({ userId, fileId: file.id }),
@@ -648,7 +648,7 @@ export default function MyFiles() {
     const sodium = await getSodium();
 
     try {
-      const res = await fetch("/api/files/download", {
+      const res = await fetch("/proxy/files/download", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-csrf": csrf || "" },
         body: JSON.stringify({
@@ -713,12 +713,8 @@ export default function MyFiles() {
 
   useEffect(() => {
     const fetchProfile = async () => {
-      const token = localStorage.getItem('token');
-      if (!token) return;
-
       try {
-        const res = await fetch('/api/auth/profile', {
-          headers: { Authorization: `Bearer ${token}` },
+        const res = await fetch('/proxy/auth/profile', {
         });
 
         const result = await res.json();
@@ -874,7 +870,7 @@ const handlePreview = async (rawFile) => {
 
   const handleUpdateDescription = async (fileId, description) => {
     try {
-      const res = await fetch("/api/files/addDescription", {
+      const res = await fetch("/proxy/files/addDescription", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -899,7 +895,7 @@ const handlePreview = async (rawFile) => {
       ? `files/${destinationFolderPath}/${file.name}`
       : `files/${file.name}`; // for root-level
 
-    const res = await fetch("/api/files/updateFilePath", {
+    const res = await fetch("/proxy/files/updateFilePath", {
       method: "PATCH",
       headers: {"x-csrf":csrf||""},
       body: JSON.stringify({ fileId: file.id, newPath: fullPath }),

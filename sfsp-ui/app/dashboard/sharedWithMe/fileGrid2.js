@@ -299,19 +299,19 @@ export function FileGrid({
 
     console.log("X-csrf is: ", csrf)
     try {
-      const res = await fetch("/api/files/addTags", {
+      const res = await fetch("/proxy/files/addTags", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-csrf": csrf||"" },
         body: JSON.stringify({ fileId: file.id, tags }),
       });
 
       if (!res.ok) throw new Error("Failed to tag file as deleted");
-        const profileRes = await fetch("/api/auth/profile");
+        const profileRes = await fetch("/proxy/auth/profile");
 
         const profileResult = await profileRes.json();
         if (!profileRes.ok) throw new Error(profileResult.message || "Failed to fetch profile");
 
-        await fetch("/api/files/addAccesslog", {
+        await fetch("/proxy/files/addAccesslog", {
           method: "POST",
           headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
           body: JSON.stringify({

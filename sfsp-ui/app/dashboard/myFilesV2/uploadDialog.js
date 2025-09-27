@@ -151,7 +151,7 @@ export function UploadDialog({
             file = new File([blob], file.name, { type: file.type });
           }
 
-          const startRes = await fetch("/api/files/startUpload", {
+          const startRes = await fetch("/proxy/files/startUpload", {
             method: "POST",
             headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
             body: JSON.stringify({
@@ -202,7 +202,7 @@ export function UploadDialog({
             formData.append("totalChunks", totalChunks.toString());
             formData.append("encryptedFile", new Blob([chunk]), file.name);
 
-            return fetch("/api/files/upload", {
+            return fetch("/proxy/files/upload", {
               method: "POST",
               headers: {"x-csrf":csrf||""},
               body: formData,
@@ -220,12 +220,12 @@ export function UploadDialog({
           await Promise.all(chunkUploadPromises);
           console.log(`${file.name} uploaded successfully`);
 
-          const res = await fetch('/api/auth/profile');
+          const res = await fetch('/proxy/auth/profile');
 
           const result = await res.json();
           if (!res.ok) throw new Error(result.message || 'Failed to fetch profile');
 
-          await fetch("/api/files/addAccesslog", {
+          await fetch("/proxy/files/addAccesslog", {
             method: "POST",
             headers: {"x-csrf":csrf||""},
             body: JSON.stringify({

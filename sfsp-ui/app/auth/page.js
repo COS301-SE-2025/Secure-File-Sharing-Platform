@@ -183,7 +183,7 @@ export default function AuthPage() {
 
     try {
       const sodium = await getSodium();
-      const res = await fetch("/api/auth/login", {
+      const res = await fetch("/proxy/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -227,7 +227,7 @@ export default function AuthPage() {
       
       // Send verification code before redirecting
       try {
-        const sendCodeResponse = await fetch("http://localhost:3000/api/auth/send-verification", {
+        const sendCodeResponse = await fetch("http://localhost:3000/proxy/auth/send-verification", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -406,7 +406,7 @@ export default function AuthPage() {
         salt,
       } = await GenerateX3DHKeys(password);
 
-      const res = await fetch("/api/auth/register", {
+      const res = await fetch("/proxy/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -500,7 +500,7 @@ export default function AuthPage() {
         // Add user to PostgreSQL database before redirecting to verification
         try {
           const addUserRes = await fetch(
-            "/api/user/addUser",
+            "/proxy/user/addUser",
             {
               method: "POST",
               headers: { "Content-Type": "application/json"},
@@ -532,7 +532,7 @@ export default function AuthPage() {
       // Add user to PostgreSQL database (for verified users)
       try {
         const addUserRes = await fetch(
-          "/api/user/addUser",
+          "/proxy/user/addUser",
           {
             method: "POST",
             headers: { "Content-Type": "application/json"},

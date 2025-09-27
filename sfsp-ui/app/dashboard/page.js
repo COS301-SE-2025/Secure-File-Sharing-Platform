@@ -326,7 +326,7 @@ export default function DashboardHomePage() {
         return [];
       }
 
-      const res = await fetch("/api/files/metadata", {
+      const res = await fetch("/proxy/files/metadata", {
         method: "POST",
         headers:{"x-csrf":csrf||""},
         body: JSON.stringify({ userId }),
@@ -398,7 +398,7 @@ useEffect(() => {
     const sodium = await getSodium();
 
     try {
-      const res = await fetch("/api/files/download", {
+      const res = await fetch("/proxy/files/download", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
         body: JSON.stringify({
@@ -444,7 +444,7 @@ useEffect(() => {
       const fetchProfile = async () => {
   
         try {
-          const res = await fetch('/api/auth/profile', {
+          const res = await fetch('/proxy/auth/profile', {
             headers: { Authorization: `Bearer ${token}` },
           });
   
@@ -589,14 +589,14 @@ useEffect(() => {
 
   const fetchNotifications = async () => {
     try {
-      const profileRes = await fetch("/api/auth/profile");
+      const profileRes = await fetch("/proxy/auth/profile");
 
       const profileResult = await profileRes.json();
       if (!profileRes.ok)
         throw new Error(profileResult.message || "Failed to fetch profile");
 
       try {
-        const res = await axios.post("/api/notifications/getNotifications", {
+        const res = await axios.post("/proxy/notifications/getNotifications", {
           userId: profileResult.data.id,
         },{headers:{"x-csrf":csrf||""}});
         if (res.data.success) {
@@ -612,7 +612,7 @@ useEffect(() => {
 
   const markAsRead = async (id) => {
     try {
-      const res = await axios.post("/api/notifications/markAsRead", {id },{headers:{"x-csrf":csrf||""}});
+      const res = await axios.post("/proxy/notifications/markAsRead", {id },{headers:{"x-csrf":csrf||""}});
       if (res.data.success) {
         setNotifications((prev) =>
           prev.map((n) => (n.id === id ? { ...n, read: true } : n))
@@ -625,7 +625,7 @@ useEffect(() => {
 
   const respondToShareRequest = async (id, status) => {
     try {
-      const res = await axios.post("/api/notifications/respond", {
+      const res = await axios.post("/proxy/notifications/respond", {
         id,
         status,
       },{headers:{"x-csrf":csrf||""}});
@@ -648,7 +648,7 @@ useEffect(() => {
   const clearNotification = async (id) => {
     try {
       const res = await axios.post(
-        "/api/notifications/clear",
+        "/proxy/notifications/clear",
         {id },{headers:{"x-csrf":csrf||""}}
       );
       if (res.data.success) {
@@ -665,7 +665,7 @@ useEffect(() => {
       if (!userId) return [];
 
       // Fetch files
-      const res = await fetch("/api/files/metadata", {
+      const res = await fetch("/proxy/files/metadata", {
         method: "POST",
         headers: {
           "Content-Type": "application/json","x-csrf":csrf||""
@@ -689,7 +689,7 @@ useEffect(() => {
       for (const file of files) {
         try {
           const logRes = await fetch(
-            "/api/files/getAccessLog",
+            "/proxy/files/getAccessLog",
             {
               method: "POST",
               headers: {
@@ -708,7 +708,7 @@ useEffect(() => {
           let userName = "Unknown User";
           let avatar = null; // Let UserAvatar component handle the fallback
           try {
-            const userRes = await fetch(`/api/user/getUserInfo/${log.user_id}`);
+            const userRes = await fetch(`/proxy/user/getUserInfo/${log.user_id}`);
             if (userRes.ok) {
               const userInfo = await userRes.json();
               if (userInfo?.data?.username) {
@@ -742,7 +742,7 @@ useEffect(() => {
 
   const fetchFilesMetadata = useCallback(async () => {
     try {
-      const res = await fetch("/api/files/metadata", {
+      const res = await fetch("/proxy/files/metadata", {
         method: "POST",
         headers: {
           "Content-Type": "application/json","x-csrf":csrf||""

@@ -33,7 +33,7 @@ export async function middleware(req) {
   }
 
   try {
-    const verifyResponse = await fetch(`${origin}/api/auth/verify-token`, {
+    const verifyResponse = await fetch(`${origin}/proxy/auth/verify-token`, {
       method: 'GET',
       headers: {
         'Cookie': req.headers.get('cookie') || '',

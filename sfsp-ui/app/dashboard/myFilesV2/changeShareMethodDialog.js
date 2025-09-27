@@ -22,7 +22,7 @@ export function ChangeShareMethodDialog({ open, onOpenChange, file }) {
   const fetchUsersWithAccess = async () => {
     setLoading(true);
     try {
-      const accessRes = await fetch("/api/files/userWithFileAccess", {
+      const accessRes = await fetch("/proxy/files/userWithFileAccess", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-csrf": csrf || "" },
         body: JSON.stringify({ fileId: file.id }),
@@ -34,7 +34,7 @@ export function ChangeShareMethodDialog({ open, onOpenChange, file }) {
       const { owner: ownerId, users: userIds } = accessData;
 
       if (ownerId) {
-        const ownerRes = await fetch(`/api/user/getUserById/${ownerId}`);
+        const ownerRes = await fetch(`/proxy/user/getUserById/${ownerId}`);
         if (ownerRes.ok) {
           const ownerData = await ownerRes.json();
           setOwner(ownerData.data);
@@ -55,7 +55,7 @@ export function ChangeShareMethodDialog({ open, onOpenChange, file }) {
           .filter((userId) => userId !== ownerId)
           .map(async (userId) => {
             try {
-              const userRes = await fetch(`/api/user/getUserById/${userId}`);
+              const userRes = await fetch(`/proxy/user/getUserById/${userId}`);
               if (userRes.ok) {
                 const userData = await userRes.json();
                 return userData.data;

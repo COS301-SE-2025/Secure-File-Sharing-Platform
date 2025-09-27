@@ -35,7 +35,7 @@ export function ActivityLogsDialog({ open, onOpenChange, file }) {
       try {
         console.log(file.id);
 
-        const res = await fetch("/api/file/getAccessLog", {
+        const res = await fetch("/proxy/file/getAccessLog", {
           method: "POST",
           headers: { "Content-Type": "application/json", "x-csrf": csrf || "" },
           body: JSON.stringify({ file_id: file.id }),

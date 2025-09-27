@@ -44,7 +44,7 @@ export default function GoogleCallbackPage() {
 
             sessionStorage.removeItem("googleOAuthState");
 
-            const response = await fetch(`/api/auth/google?code=${code}`);
+            const response = await fetch(`/proxy/auth/google?code=${code}`);
             const data = await response.json();
 
             if (!response.ok) {
@@ -57,7 +57,7 @@ export default function GoogleCallbackPage() {
             console.log('Checking if user exists for email:', googleUser.email);
             
             try {
-            const userExistsResponse = await fetch(`/api/user/getUserId${googleUser.email}`);
+            const userExistsResponse = await fetch(`/proxy/user/getUserId${googleUser.email}`);
             console.log('User existence check response status:', userExistsResponse.status);
             
             if (userExistsResponse.ok) {
@@ -136,7 +136,7 @@ export default function GoogleCallbackPage() {
         
         // Send verification code before redirecting
         try {
-            const sendCodeResponse = await fetch("http://localhost:3000/api/auth/send-verification", {
+            const sendCodeResponse = await fetch("http://localhost:3000/proxy/auth/send-verification", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -233,7 +233,7 @@ export default function GoogleCallbackPage() {
 
         // Add user to the PostgreSQL database using the route for addUser in file routes
         try {
-            const addUserRes = await fetch("/api/user/addUser", {
+            const addUserRes = await fetch("/proxy/user/addUser", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -344,7 +344,7 @@ export default function GoogleCallbackPage() {
             
             // Add user to the PostgreSQL database using the route for addUser in file routes
             try {
-                const addUserRes = await fetch("/api/user/addUser", {
+                const addUserRes = await fetch("/proxy/user/addUser", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({

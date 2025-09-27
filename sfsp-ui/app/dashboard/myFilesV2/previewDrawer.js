@@ -56,14 +56,14 @@ export function PreviewDrawer({
       if (!token) return;
 
       // Get current user profile
-      const profileRes = await fetch("/api/auth/profile");
+      const profileRes = await fetch("/proxy/auth/profile");
       const profileResult = await profileRes.json();
       const userId = profileResult?.data?.id;
       if (!userId) return;
 
       // Get files shared for view-only access
       const sharedFilesRes = await fetch(
-        "/api/files/getViewAccess",
+        "/proxy/files/getViewAccess",
         {
           method: "POST",
           headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
@@ -81,7 +81,7 @@ export function PreviewDrawer({
           let email = "";
           let avatar = "";
           try {
-            const res = await fetch(`/api/user/getUserInfo/${share.recipient_id}`);
+            const res = await fetch(`/proxy/user/getUserInfo/${share.recipient_id}`);
             if (res.ok) {
               const data = await res.json();
               if (data?.data) {
@@ -120,12 +120,12 @@ export function PreviewDrawer({
       const token = localStorage.getItem("token");
       if (!token) return;
 
-      const profileRes = await fetch("/api/auth/profile");
+      const profileRes = await fetch("/proxy/auth/profile");
       const profileResult = await profileRes.json();
       const userId = profileResult?.data?.id;
       if (!userId) return;
 
-      const revokeRes = await fetch("/api/files/revokeViewAccess", {
+      const revokeRes = await fetch("/proxy/files/revokeViewAccess", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
         body: JSON.stringify({

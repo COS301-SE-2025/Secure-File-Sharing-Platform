@@ -51,7 +51,7 @@ export default function Sidebar({ expanded, setExpanded, isHovered, setIsHovered
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const res = await fetch('/api/auth/profile');
+        const res = await fetch('/proxy/auth/profile');
         console.log("Res", res);
         const result = await res.json();
         if (!res.ok) throw new Error(result.message || 'Failed to fetch profile');

@@ -42,14 +42,14 @@ export default function NotificationDropdown() {
   const fetchNotifications = async () => {
 
     try {
-      const profileRes = await fetch("/api/auth/profile", {
+      const profileRes = await fetch("/proxy/auth/profile", {
       });
 
       const profileResult = await profileRes.json();
       if (!profileRes.ok) throw new Error(profileResult.message || "Failed to fetch profile");
 
       try {
-        const res = await axios.post('/api/notifications/getNotifications', {
+        const res = await axios.post('/proxy/notifications/getNotifications', {
           userId: profileResult.data.id,
         },{
           headers : {"x-csrf":csrf || ""}
@@ -74,7 +74,7 @@ export default function NotificationDropdown() {
 
   const markAsRead = async (id) => {
     try {
-      const res = await axios.post('/api/notifications/markAsRead', {id },{headers : {"x-csrf":csrf || ""}});
+      const res = await axios.post('/proxy/notifications/markAsRead', {id },{headers : {"x-csrf":csrf || ""}});
       if (res.data.success) {
         setNotifications((prev) =>
           prev.map((n) => (n.id === id ? { ...n, read: true } : n))
@@ -87,7 +87,7 @@ export default function NotificationDropdown() {
 
   const respondToShareRequest = async (id, status) => {
     try {
-      const res = await axios.post('/api/notifications/respond', {
+      const res = await axios.post('/proxy/notifications/respond', {
         id,
         status,
       },{
@@ -116,7 +116,7 @@ export default function NotificationDropdown() {
 
   const clearNotification = async (id) => {
     try {
-      const res = await axios.post('/api/notifications/clear', { id },{headers : {"x-csrf":csrf || ""}});
+      const res = await axios.post('/proxy/notifications/clear', { id },{headers : {"x-csrf":csrf || ""}});
       if (res.data.success) {
         setNotifications((prev) => prev.filter((n) => n.id !== id));
       }

@@ -52,7 +52,7 @@ export function RevokeAccessDialog({ open, onOpenChange, file }) {
     setLoading(true);
     try {
       const accessRes = await fetch(
-        "/api/files/userWithFileAccess",
+        "/proxy/files/userWithFileAccess",
         {
           method: "POST",
           headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
@@ -67,7 +67,7 @@ export function RevokeAccessDialog({ open, onOpenChange, file }) {
 
       if (ownerId) {
         const ownerRes = await fetch(
-          `/api/user/getUserById/${ownerId}`
+          `/proxy/user/getUserById/${ownerId}`
         );
         if (ownerRes.ok) {
           const ownerData = await ownerRes.json();
@@ -81,7 +81,7 @@ export function RevokeAccessDialog({ open, onOpenChange, file }) {
           .map(async (userId) => {
             try {
               const userRes = await fetch(
-                `/api/user/getUserById/${userId}`
+                `/proxy/user/getUserById/${userId}`
               );
               if (userRes.ok) {
                 const userData = await userRes.json();
@@ -113,7 +113,7 @@ export function RevokeAccessDialog({ open, onOpenChange, file }) {
         return;
       }
 
-      const profileRes = await fetch("/api/auth/profile");
+      const profileRes = await fetch("/proxy/auth/profile");
 
       const profileResult = await profileRes.json();
       if (!profileRes.ok) {
@@ -124,7 +124,7 @@ export function RevokeAccessDialog({ open, onOpenChange, file }) {
       const currentUserId = profileResult.data.id;
 
       const revokeRes = await fetch(
-        "/api/file/revokeViewAccess",
+        "/proxy/file/revokeViewAccess",
         {
           method: "POST",
           headers: {"x-csrf":csrf||""},

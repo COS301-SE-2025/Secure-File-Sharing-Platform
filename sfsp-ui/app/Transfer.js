@@ -60,7 +60,7 @@ export async function SendFile(recipientUserId, fileid, isViewOnly = false) {
 
   console.log("[UI DEBUG] 2 Download encrypted file as binary");
 
-  const response = await fetch("/api/files/download", {
+  const response = await fetch("/proxy/files/download", {
     method: "POST",
     headers: { "Content-Type": "application/json","x-csrf":csrf||"" },
     body: JSON.stringify({ userId, fileId: fileid }),
@@ -81,7 +81,7 @@ export async function SendFile(recipientUserId, fileid, isViewOnly = false) {
   console.log("[UI DEBUG] 3 Fetch recipient's public keys");
   console.log(recipientUserId);
   const bundleRes = await fetch(
-    `/api/user/public-keys/${recipientUserId}`
+    `/proxy/user/public-keys/${recipientUserId}`
   );
   console.log("got the recipient users keys");
 
@@ -161,8 +161,8 @@ export async function SendFile(recipientUserId, fileid, isViewOnly = false) {
 
     console.log("Sending the file now");
     const endpoint = isViewOnly
-      ? "/api/files/sendByView"
-      : "/api/files/send";
+      ? "/proxy/files/sendByView"
+      : "/proxy/files/send";
 
     const res = await fetch(endpoint, {
       method: "POST",
@@ -188,7 +188,7 @@ export async function ChangeShareMethod(recipientUserId, fileid, isViewOnly = fa
   const userKeys = normalizeUserKeys(userKeysRaw, sodium);
 
   console.log("[UI DEBUG] 2 Download encrypted file as binary")
-  const response = await fetch("/api/files/download", {
+  const response = await fetch("/proxy/files/download", {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
     body: JSON.stringify({ userId, fileId: fileid }),
@@ -211,7 +211,7 @@ export async function ChangeShareMethod(recipientUserId, fileid, isViewOnly = fa
 
   console.log("[UI DEBUG] 3 Get recipient's public keys")
   const bundleRes = await fetch(
-    `/api/user/public-keys/${recipientUserId}`
+    `/proxy/user/public-keys/${recipientUserId}`
   );
   if (!bundleRes.ok) throw new Error("Recipient key bundle not found");
 
@@ -292,7 +292,7 @@ export async function ChangeShareMethod(recipientUserId, fileid, isViewOnly = fa
   formData.append("encryptedFile", new Blob([encryptedFile]));
 
   console.log("Going to the changeShareMethod proxy");
-  const res = await fetch("/api/files/changeShareMethod", {
+  const res = await fetch("/proxy/files/changeShareMethod", {
     method: "POST",
     headers: {"x-csrf":csrf||""},
     body: formData,
@@ -332,8 +332,8 @@ export async function ReceiveFile(fileData) {
 
   const path = `/files/${sender_id}/sent/${file_id}`;
   const endpoint = viewOnly
-    ? "/api/files/downloadViewFile"
-    : "/api/files/downloadSentFile";
+    ? "/proxy/files/downloadViewFile"
+    : "/proxy/files/downloadSentFile";
 
   const response = await fetch(endpoint, {
     method: "POST",
@@ -424,7 +424,7 @@ export async function ReceiveFile(fileData) {
   const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
   const ciphertext = sodium.crypto_secretbox_easy(decryptedFile, nonce, encryptionKey);
 
-  const startRes = await fetch("/api/files/startUpload", {
+  const startRes = await fetch("/proxy/files/startUpload", {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
     body: JSON.stringify({
@@ -465,7 +465,7 @@ export async function ReceiveFile(fileData) {
       formData.append("totalChunks", totalChunks.toString());
       formData.append("encryptedFile", new Blob([chunk]), file_name);
 
-      return fetch("/api/files/upload", { method: "POST",headers:{"x-csrf":csrf||""}, body: formData });
+      return fetch("/proxy/files/upload", { method: "POST",headers:{"x-csrf":csrf||""}, body: formData });
     })
   );
 

@@ -32,7 +32,7 @@ export default function TrashPage() {
 
   const fetchTrashedFiles = useCallback(async () => {
     try {
-      const res = await fetch('/api/files/metadata', {
+      const res = await fetch('/proxy/files/metadata', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json',"x-csrf":csrf||""},
         body: JSON.stringify({ userId }),
@@ -76,7 +76,7 @@ export default function TrashPage() {
   const handleRestore = async (fileId) => {
     try {
 
-      const res = await fetch("/api/files/metadata", {
+      const res = await fetch("/proxy/files/metadata", {
         method: "POST",
         headers: { "Content-Type": "application/json","x-csrf":csrf||"" },
         body: JSON.stringify({ userId }),
@@ -101,7 +101,7 @@ export default function TrashPage() {
         return;
       }
 
-      await fetch("/api/files/removeTags", {
+      await fetch("/proxy/files/removeTags", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-csrf":csrf},
         body: JSON.stringify({ fileId, tags: tagsToRemove }),
@@ -111,12 +111,12 @@ export default function TrashPage() {
       if (!token) return;
 
       try {
-        const profileRes = await fetch("/api/auth/profile");
+        const profileRes = await fetch("/proxy/auth/profile");
 
         const profileResult = await profileRes.json();
         if (!profileRes.ok) throw new Error(profileResult.message || "Failed to fetch profile");
 
-        await fetch("/api/files/addAccesslogs", {
+        await fetch("/proxy/files/addAccesslogs", {
           method: "POST",
           headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
           body: JSON.stringify({
@@ -143,7 +143,7 @@ export default function TrashPage() {
     if (!confirm) return;
 
     try {
-      const res = await fetch("/api/files/deleteFile", {
+      const res = await fetch("/proxy/files/deleteFile", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
         body: JSON.stringify({ fileId: fileId, userId: userId }),
@@ -166,7 +166,7 @@ export default function TrashPage() {
 
     try {
       for (const file of trashedFiles) {
-        const res = await fetch("/api/files/deleteFile", {
+        const res = await fetch("/proxy/files/deleteFile", {
           method: "POST",
           headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
           body: JSON.stringify({ fileId: file.id, userId }),

@@ -83,7 +83,7 @@ export function ShareDialog({ open, onOpenChange, file }) {
 
     try {
 
-      const profileRes = await fetch("/api/auth/profile");
+      const profileRes = await fetch("/proxy/auth/profile");
 
       const profileResult = await profileRes.json();
       if (!profileRes.ok) throw new Error(profileResult.message || "Failed to fetch profile");
@@ -95,7 +95,7 @@ export function ShareDialog({ open, onOpenChange, file }) {
         const email = recipient.email;
 
         const response = await fetch(
-          `/api/user/getUserId/${email}`
+          `/proxy/user/getUserId/${email}`
         );
         if (!response.ok) {
           console.warn(`User ID not found for email: ${email}`);
@@ -112,7 +112,7 @@ export function ShareDialog({ open, onOpenChange, file }) {
         console.log("Going into sendfile function");
         const receivedFileID = await SendFile(recipientId, file.id, isViewOnly);
         console.log("Received File ID in shared Dialog:", receivedFileID);
-        await fetch("/api/files/addAccesslog", {
+        await fetch("/proxy/files/addAccesslog", {
           method: "POST",
           headers: {"x-csrf":csrf||""},
           body: JSON.stringify({
@@ -126,7 +126,7 @@ export function ShareDialog({ open, onOpenChange, file }) {
         // Send the notification
         console.log("Senders email is:", senderEmail);
         console.log("Recipients emails is: ", email);
-        await fetch("/api/notifications/add", {
+        await fetch("/proxy/notifications/add", {
           method: "POST",
           headers:{"x-csrf":csrf||""},
           body: JSON.stringify({

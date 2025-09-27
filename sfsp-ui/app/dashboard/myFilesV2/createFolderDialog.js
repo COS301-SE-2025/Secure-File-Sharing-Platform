@@ -91,7 +91,7 @@ export function CreateFolderDialog({
 
       const csrf = getCookie("csrf_token");
 
-      const res = await fetch("/api/files/createFolder", {
+      const res = await fetch("/proxy/files/createFolder", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-csrf": csrf || "" },
         body: JSON.stringify({

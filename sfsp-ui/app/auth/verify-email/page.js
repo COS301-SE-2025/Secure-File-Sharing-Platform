@@ -107,7 +107,7 @@ function VerifyEmailInner() {
         setMessage("");
 
         try {
-            const response = await fetch("/api/auth/verify-code", {
+            const response = await fetch("/proxy/auth/verify-code", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -225,7 +225,7 @@ function VerifyEmailInner() {
                     setCurrentPassword(password);
 
                     // Call login API to get user data and keyBundle
-                    const loginResponse = await fetch("/api/auth/login", {
+                    const loginResponse = await fetch("/proxy/auth/login", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
@@ -364,7 +364,7 @@ function VerifyEmailInner() {
                 }
             } else {
                 // Handle signup verification (existing logic)
-                const jwtResponse = await fetch("/api/auth/generate-jwt", {
+                const jwtResponse = await fetch("/proxy/auth/generate-jwt", {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
@@ -402,7 +402,7 @@ function VerifyEmailInner() {
         setMessage("");
 
         try {
-            const response = await fetch("/api/auth/send-verification", {
+            const response = await fetch("/proxy/auth/send-verification", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

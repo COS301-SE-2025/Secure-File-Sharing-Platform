@@ -87,7 +87,7 @@ export default function AccessLogsPage() {
           return;
         }
 
-        const filesRes = await fetch("/api/files/metadata", {
+        const filesRes = await fetch("/proxy/files/metadata", {
           method: "POST",
           headers: { "Content-Type": "application/json", "x-csrf":csrf || "" },
           body: JSON.stringify({ userId }),
@@ -111,7 +111,7 @@ export default function AccessLogsPage() {
         for (const file of files) {
           try {
             const logsRes = await fetch(
-              "/api/files/getAccessLog",
+              "/proxy/files/getAccessLog",
               {
                 method: "POST",
                 headers: {
@@ -140,7 +140,7 @@ export default function AccessLogsPage() {
               let email = "";
               try {
                 const response = await fetch(
-                  `/api/user/getUserInfo${Id}`
+                  `/proxy/user/getUserInfo${Id}`
                 );
                 if (response.ok) {
                   const userInfo = await response.json();
