@@ -81,21 +81,62 @@ function getFileType(mimeType, fileName = '') {
         return "html";
       case 'txt':
         return "txt";
-      case 'js':
-      case 'ts':
+        //programming languages
       case 'py':
+        return "py";
       case 'java':
+        return "java";
       case 'cpp':
+        return "cpp";
       case 'c':
+        return "c";
+      case 'h':
+        return "h";
+      case 'cs':
+        return "cs";
       case 'php':
+        return "php";
       case 'rb':
-        return "code";
+        return "rb";
+      case 'go':
+        return "go";
+      case 'rs':
+        return "rs";
+      case 'swift':
+        return "swift";
+      case 'kt':
+        return "kt";
+      case 'scala':
+        return "scala";
+      case 'r':
+        return "r";
+      case 'matlab':
+        return "matlab";
+      case 'pl':
+        return "pl";
+      case 'lua':
+        return "lua";
+      case 'css':
+        return "css";
+      case 'scss':
+        return "scss";
+      case 'sass':
+        return "sass";
+      case 'less':
+        return "less"
       case 'jpg':
       case 'jpeg':
       case 'png':
       case 'gif':
       case 'svg':
       case 'webp':
+      case 'image':
+      case 'bmp':
+      case 'tiff':
+      case 'tif':
+      case 'ico':
+      case 'heic':
+      case 'raw':
         return "image";
       case 'mp4':
       case 'avi':
@@ -119,6 +160,105 @@ function getFileType(mimeType, fileName = '') {
       case 'docx':
       case 'doc':
         return "word";
+        //database files
+      case 'sql':
+        return "sql";
+      case 'db':
+        return "db";
+      case 'sqlite':
+        return "sqlite";
+      case 'mdb':
+        return "mdb"
+      case 'ods':
+        return "ods";
+      case 'odp':
+        return "odp";
+      case 'log':
+        return "log";
+      case 'readme':
+        return "readme";
+      case 'yaml':
+        return "yaml";
+      case 'yml':
+        return "yml";
+      case 'toml':
+        return "toml";
+      case 'ini':
+        return "ini";
+      case 'cfg':
+        return "cfg";
+      case 'conf':
+        return "conf";
+        //Archive files
+        case 'archive':
+          return "archive";
+        case 'zip':
+          return "zip";
+        case 'rar':
+          return "rar";
+        case '7z':
+          return "7z";
+        case 'tar':
+          return "tar";
+        case 'gz':
+          return "gz";
+        case 'bz2':
+          return "bz2";
+        case 'xz':
+          return "xz";
+          //system files
+        case 'exe':
+          return "exe";
+        case 'msi':
+          return "msi";
+        case 'deb':
+          return 'deb';
+        case 'rpm':
+          return "rpm";
+        case 'dmg':
+          return "dmg";
+        case 'iso':
+          return "iso";
+        case 'img':
+          return "img";
+          //security files
+        case 'key':
+          return "key";
+        case 'pem':
+          return "pem";
+        case 'crt':
+          return 'crt';
+        case 'cert':
+          return "cert";
+          //email files
+        case 'eml':
+          return "eml";
+        case 'msg':
+          return "msg";
+        //calender
+        case 'ics':
+          return "ics";
+        //Adobe files
+        case 'psd':
+          return "psd";
+        case 'ai':
+          return "ai";
+        case 'eps':
+          return "eps";
+        case 'indd':
+          return "indd";
+        //cad files
+        case 'dwg':
+          return "dwg";
+        case 'dxf':
+          return "dxf";
+        //3D Model Files
+        case 'obj':
+          return "obj";
+        case 'fbx':
+          return "fbx";
+        case 'blend':
+          return "blend";
     }
   }
   
