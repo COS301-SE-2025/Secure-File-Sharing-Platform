@@ -28,7 +28,43 @@ const adminController = {
     }
   },
 
+  async sendVerification(req, res) {
+    try {
+      const { userId, email, username } = req.body;
+      const result = await adminService.sendVerificationCode(userId, email, username);
+      res.json({ success: true, ...result });
+    } catch (error) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  },
+
+  async verifyOtp(req, res) {
+    try {
+      const { userId, code } = req.body;
+      const result = await adminService.verifyCode(userId, code);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  },
+
   // ============================= USERS PAGE =============================
+
+  async sendMessage(req, res) {
+    try {
+      const { userId, email, username, subject, message } = req.body;
+
+      if (!userId || !email || !username || !subject || !message) {
+        return res.status(400).json({ success: false, message: "All fields are required." });
+      }
+
+      const result = await adminService.sendMessage(userId, email, username, subject, message);
+      res.json({ success: true, ...result });
+    } catch (error) {
+      console.error("Error sending message:", error);
+      res.status(500).json({ success: false, message: error.message });
+    }
+  },
 
   async getUserCount(req, res) {
     try {

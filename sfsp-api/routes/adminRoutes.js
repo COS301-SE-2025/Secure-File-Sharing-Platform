@@ -6,6 +6,8 @@ const adminController = require("../controllers/adminController");
 // ============================= AUTH PAGE =============================
 
 router.post("/login", adminController.login);
+router.post("/send-verification",  adminController.sendVerification);
+router.post("/verify-code",  adminController.verifyOtp);
 
 
 // ============================= USERS PAGE =============================
@@ -16,6 +18,7 @@ router.post("/users/role", adminController.updateUserRole);
 router.post("/users/create", adminController.createAdmin);
 router.post("/users/block", adminController.blockUser);
 router.post("/users/delete", adminController.deleteUser);
+router.post("/send-message", adminController.sendMessage);
 
 // ============================= BLOCKED USERS PAGE =============================
 

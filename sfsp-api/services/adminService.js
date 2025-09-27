@@ -2,6 +2,7 @@
 const { supabase } = require("../config/database");
 const MnemonicCrypto = require("../utils/mnemonicCrypto");
 const jwt = require("jsonwebtoken");
+const nodemailer = require("nodemailer");
 
 const adminService = {
   async login({ email, password }) {
@@ -35,7 +36,7 @@ const adminService = {
       return {
         user: {
           id: user.id,
-          avatar : user.avatar_url,
+          avatar: user.avatar_url,
           username: user.username,
           email: user.email,
           role: user.role,
@@ -44,6 +45,188 @@ const adminService = {
       };
     } catch (err) {
       throw new Error("Admin login failed: " + err.message);
+    }
+  },
+
+  async sendVerificationCode(userId, email, username) {
+    try {
+      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+      const expiryTime = new Date(Date.now() + 15 * 60 * 1000);
+
+      const { error: insertError } = await supabase
+        .from("verification_codes")
+        .insert({
+          user_id: userId,
+          code: verificationCode,
+          type: 'email_verification',
+          expires_at: expiryTime.toISOString(),
+          used: false,
+        });
+
+      if (insertError) {
+        throw new Error("Failed to store verification code: " + insertError.message);
+      }
+
+      const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: process.env.SMTP_PORT || 587,
+        secure: false,
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+      });
+
+      const htmlContent = `
+              <!DOCTYPE html>
+              <html>
+              <head>
+                  <meta charset="utf-8">
+                  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                  <title>Email Verification</title>
+              </head>
+              <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+                  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+                      <h1 style="color: white; margin: 0; font-size: 28px;">Welcome to SecureShare!</h1>
+                  </div>
+                  
+                  <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px; border: 1px solid #dee2e6;">
+                      <p style="font-size: 18px; margin-bottom: 20px;">Hi <strong>${username}</strong>,</p>
+                      
+                      <p style="margin-bottom: 25px;">Thank you for signing up! Please verify your email address by entering the code below:</p>
+                      
+                      <div style="background: white; border: 2px dashed #667eea; border-radius: 8px; padding: 20px; text-align: center; margin: 25px 0;">
+                          <p style="margin: 0; font-size: 14px; color: #666; margin-bottom: 10px;">Your Verification Code:</p>
+                          <p style="font-size: 32px; font-weight: bold; color: #667eea; letter-spacing: 4px; margin: 0; font-family: 'Courier New', monospace;">${verificationCode}</p>
+                      </div>
+                      
+                      <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px; padding: 15px; margin: 20px 0;">
+                          <p style="margin: 0; color: #856404; font-size: 14px;">
+                              ⚠️ <strong>Important:</strong> This code will expire in <strong>15 minutes</strong> for security reasons.
+                          </p>
+                      </div>
+                      
+                      <p style="margin-bottom: 20px;">Enter this code on the verification page to complete your account setup and start using SecureShare.</p>
+                      
+                      <hr style="border: none; border-top: 1px solid #dee2e6; margin: 30px 0;">
+                      
+                      <p style="font-size: 12px; color: #666; text-align: center; margin: 0;">
+                          This is an automated message, please do not reply to this email.
+                      </p>
+                  </div>
+              </body>
+              </html>
+              `;
+
+      const textContent = `
+              Hi ${username},
+  
+              Thank you for signing up for SecureShare! Please verify your email address by entering the code below:
+  
+              Verification Code: ${verificationCode}
+  
+              This code will expire in 15 minutes.
+  
+              Enter this code on the verification page to complete your account setup.
+  
+              ---
+              This is an automated message, please do not reply to this email.
+                      `;
+
+      const mailOptions = {
+        from: {
+          name: process.env.FROM_NAME || "SecureShare",
+          address: process.env.FROM_EMAIL || process.env.SMTP_USER,
+        },
+        to: email,
+        subject: "Verify Your Email - SecureShare",
+        text: textContent,
+        html: htmlContent,
+      };
+
+      const info = await transporter.sendMail(mailOptions);
+
+      console.log("Verification email sent:", info.messageId);
+      return { success: true, messageId: info.messageId };
+    } catch (error) {
+      console.error("Error sending verification email:", error);
+      throw new Error("Failed to send verification email: " + error.message);
+    }
+  },
+
+  async verifyCode(userId, code) {
+    try {
+      const { data: record, error } = await supabase
+        .from("verification_codes")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("code", code)
+        .eq("used", false)
+        .single();
+
+      if (error || !record) {
+        return { success: false, message: "Invalid or expired code." };
+      }
+
+      if (new Date(record.expires_at) < new Date()) {
+        return { success: false, message: "Code has expired." };
+      }
+
+      // mark code as used
+      await supabase
+        .from("verification_codes")
+        .update({ used: true })
+        .eq("id", record.id);
+
+      return { success: true, message: "Code verified successfully." };
+    } catch (err) {
+      return { success: false, message: err.message };
+    }
+  },
+
+  async sendMessage(userId, email, username, subject, message) {
+    try {
+      const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: process.env.SMTP_PORT || 587,
+        secure: false,
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+      });
+
+      const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head><meta charset="utf-8"></head>
+      <body>
+        <p>Hi <strong>${username}</strong>,</p>
+        <p>${message}</p>
+        <hr>
+        <p style="font-size:12px;color:#666;">Kind Regards, Team CacheME</p>
+      </body>
+      </html>
+    `;
+
+      const textContent = `Hi ${username},\n\n${message}\n\nKind Regards, Team CacheME`;
+
+      const mailOptions = {
+        from: { name: process.env.FROM_NAME || "SecureShare", address: process.env.FROM_EMAIL || process.env.SMTP_USER },
+        to: email,
+        subject,
+        text: textContent,
+        html: htmlContent,
+      };
+
+      const info = await transporter.sendMail(mailOptions);
+      console.log("Email sent:", info.messageId);
+
+      return { success: true, messageId: info.messageId };
+    } catch (error) {
+      console.error("Error sending email:", error);
+      throw new Error("Failed to send email: " + error.message);
     }
   },
 
@@ -280,7 +463,7 @@ const adminService = {
     const { data, error } = await supabase
       .from("announcements")
       .select("*")
-      .order("created_at", { ascending: false }); 
+      .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return data;
   },
@@ -318,7 +501,7 @@ const adminService = {
     if (error) throw new Error(error.message);
     return data;
   },
- 
+
   async getDashboardStats() {
     const { count: totalUsersCount, error: usersError } = await supabase
       .from("users")
