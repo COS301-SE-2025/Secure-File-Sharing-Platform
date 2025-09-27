@@ -1,9 +1,9 @@
 const jwt = require("jsonwebtoken");
 const axios = require("axios");
+const bcrypt = require("bcrypt");
 const { supabase } = require("../config/database");
 const userService = require("../services/userService");
 const VaultController = require("./vaultController");
-const MnemonicCrypto = require("../utils/mnemonicCrypto");
 
 class UserController {
   async register(req, res) {
@@ -484,7 +484,7 @@ class UserController {
         });
       }
 
-      const isValid = await MnemonicCrypto.validatePassword(currentPassword, user.password);
+      const isValid = await bcrypt.compare(currentPassword, user.password);
 
       if (!isValid) {
         return res.status(400).json({
@@ -539,7 +539,7 @@ class UserController {
       console.error("Error changing password:", error);
       res.status(500).json({
         success: false,
-        message: error.message || "Failed to change password",
+        message: "Internal server error"
       });
     }
   }

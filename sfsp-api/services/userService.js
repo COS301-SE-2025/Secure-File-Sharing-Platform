@@ -245,16 +245,7 @@ class UserService {
         throw new Error("User already exists with this email.");
       }
 
-      const MnemonicCrypto = require("../utils/mnemonicCrypto");
-      const mnemonicWords = MnemonicCrypto.generateMnemonic();
-
-      const encryptionKey = MnemonicCrypto.deriveKeyFromMnemonic(mnemonicWords);
-
-      const encryptedPassword = MnemonicCrypto.encrypt(password, encryptionKey);
-
-      const hashedPassword = await MnemonicCrypto.hashPassword(password);
-
-      const resetPasswordPIN = this.generatePIN();
+      const hashedPassword = await bcrypt.hash(password, 12);
 
       const { data: newUser, error } = await supabase
         .from("users")
@@ -263,8 +254,6 @@ class UserService {
             username,
             email,
             password: hashedPassword,
-            passwordB: encryptedPassword,
-            resetPasswordPIN,
             ik_public,
             spk_public,
             opks_public,
@@ -304,15 +293,6 @@ class UserService {
 
       const token = this.generateToken(newUser.id);
 
-      // Send email with mnemonic words
-      try {
-        await this.sendMnemonicEmail(newUser.email, newUser.username, mnemonicWords);
-        console.log(`Recovery email sent to ${newUser.email} for new user ${newUser.id}`);
-      } catch (emailError) {
-        console.error(`Failed to send recovery email to ${newUser.email}:`, emailError.message);
-        // Don't fail registration if email fails, but log it
-      }
-
       return {
         user: {
           id: newUser.id,
@@ -321,7 +301,6 @@ class UserService {
           is_verified: newUser.is_verified,
         },
         token,
-        mnemonicWords,
       };
     } catch (error) {
       throw new Error("Registration failed: " + error.message);
@@ -453,8 +432,7 @@ class UserService {
         throw new Error("User not found with this email.");
       }
 
-      const MnemonicCrypto = require("../utils/mnemonicCrypto");
-      const isPasswordValid = await MnemonicCrypto.validatePassword(password, user.password);
+      const isPasswordValid = await bcrypt.compare(password, user.password);
       if (!isPasswordValid) {
         throw new Error("Invalid password.");
       }
@@ -574,18 +552,6 @@ class UserService {
     };
   }
 
-  generatePIN() {
-    const characters =
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()";
-    let resetPIN = "";
-    for (let i = 0; i < 5; i++) {
-      resetPIN += characters.charAt(
-        Math.floor(Math.random() * characters.length)
-      );
-    }
-    return resetPIN;
-  }
-
   generateToken(userId, email) {
     return jwt.sign({ userId, email }, process.env.JWT_SECRET, {
       expiresIn: "1h",
@@ -597,77 +563,6 @@ class UserService {
       return jwt.verify(token, process.env.JWT_SECRET);
     } catch (error) {
       throw new Error("Invalid token", error.message);
-    }
-  }
-
-  async verifyPINAndChangePassword(userId, pin, newPassword) {
-    try {
-      const { data: user, error: fetchError } = await supabase
-        .from("users")
-        .select("resetPasswordPIN, resetPINExpiry, passwordB")
-        .eq("id", userId)
-        .single();
-
-      if (fetchError || !user) {
-        throw new Error("User not found");
-      }
-
-      if (!user.resetPasswordPIN) {
-        throw new Error("No reset PIN found. Please request a new one.");
-      }
-
-      const now = new Date();
-      const expiryTime = new Date(user.resetPINExpiry);
-
-      if (now > expiryTime) {
-        await supabase
-          .from("users")
-          .update({
-            resetPasswordPIN: null,
-            resetPINExpiry: null,
-          })
-          .eq("id", userId);
-
-        throw new Error("Reset PIN has expired. Please request a new one.");
-      }
-
-      if (String(user.resetPasswordPIN) !== String(pin)) {
-        throw new Error("Invalid PIN. Please check your email and try again.");
-      }
-
-      // Use Argon2id for password hashing (consistent with registration)
-      const MnemonicCrypto = require("../utils/mnemonicCrypto");
-      const hashedPassword = await MnemonicCrypto.hashPassword(newPassword);
-
-      // Check if user has passwordB (encrypted password for mnemonic recovery)
-      let needsKeyReEncryption = false;
-      if (user.passwordB) {
-        // If user has passwordB, they have vault keys that need re-encryption
-        needsKeyReEncryption = true;
-      }
-
-      const { error: updateError } = await supabase
-        .from("users")
-        .update({
-          password: hashedPassword,
-          resetPasswordPIN: null,
-          resetPINExpiry: null,
-          // Add flag for key re-encryption if needed
-          ...(needsKeyReEncryption && { needs_key_reencryption: true }),
-        })
-        .eq("id", userId);
-
-      if (updateError) {
-        throw new Error("Failed to update password");
-      }
-
-      return { 
-        success: true, 
-        message: "Password updated successfully",
-        needsKeyReEncryption 
-      };
-    } catch (error) {
-      throw new Error("Failed to change password: " + error.message);
     }
   }
 
@@ -778,116 +673,6 @@ class UserService {
     }
   }
 
-  /**
-   * Send mnemonic words to user via email for password recovery
-   * @param {string} email 
-   * @param {string} username
-   * @param {string[]} mnemonicWords
-   */
-  async sendMnemonicEmail(email, username, mnemonicWords) {
-    try {
-      const transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: process.env.SMTP_PORT || 587,
-        secure: false,
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS,
-        },
-      });
-
-      const numberedWords = mnemonicWords.map((word, index) =>
-        `${index + 1}. ${word}`
-      ).join('\n');
-
-      const htmlContent = `
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="utf-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Your Recovery Mnemonic</title>
-            </head>
-            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-                    <h1 style="color: white; margin: 0; font-size: 28px;">Your Recovery Mnemonic</h1>
-                </div>
-
-                <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px; border: 1px solid #dee2e6;">
-                    <p style="font-size: 18px; margin-bottom: 20px;">Hi <strong>${username}</strong>,</p>
-
-                    <p style="margin-bottom: 25px;">Your SecureShare account has been created successfully! Here are your recovery words:</p>
-
-                    <div style="background: white; border: 2px solid #667eea; border-radius: 8px; padding: 20px; text-align: center; margin: 25px 0;">
-                        <p style="margin: 0; font-size: 14px; color: #666; margin-bottom: 15px;">Your Recovery Mnemonic (Save These Words):</p>
-                        <pre style="font-size: 16px; font-weight: bold; color: #333; margin: 0; font-family: 'Courier New', monospace; white-space: pre-line; text-align: left;">${numberedWords}</pre>
-                    </div>
-
-                    <div style="background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 5px; padding: 15px; margin: 20px 0;">
-                        <p style="margin: 0; color: #721c24; font-size: 14px;">
-                            🔐 <strong>CRITICAL SECURITY WARNING:</strong>
-                        </p>
-                        <ul style="margin: 10px 0; padding-left: 20px; color: #721c24;">
-                            <li>Store these words in a safe, secure location</li>
-                            <li>Never share them with anyone</li>
-                            <li>Write them down on paper or save in an encrypted password manager</li>
-                            <li><strong>We cannot recover or resend these words if you lose them</strong></li>
-                        </ul>
-                    </div>
-
-                    <p style="margin-bottom: 20px;">These words allow you to recover your account if you forget your password. Keep them secure!</p>
-
-                    <hr style="border: none; border-top: 1px solid #dee2e6; margin: 30px 0;">
-
-                    <p style="font-size: 12px; color: #666; text-align: center; margin: 0;">
-                        This is an automated message from SecureShare. Please do not reply to this email.
-                    </p>
-                </div>
-            </body>
-            </html>
-            `;
-
-      const textContent = `
-            Hi ${username},
-
-            Your SecureShare account has been created successfully!
-
-            YOUR RECOVERY MNEMONIC (SAVE THESE WORDS):
-
-            ${numberedWords}
-
-            CRITICAL SECURITY WARNING:
-            - Store these words in a safe, secure location
-            - Never share them with anyone
-            - Write them down on paper or save in an encrypted password manager
-            - WE CANNOT RECOVER OR RESEND THESE WORDS IF YOU LOSE THEM
-
-            These words allow you to recover your account if you forget your password.
-
-            ---
-            This is an automated message from SecureShare. Please do not reply to this email.
-                    `;
-
-      const mailOptions = {
-        from: {
-          name: process.env.FROM_NAME || "SecureShare",
-          address: process.env.FROM_EMAIL || process.env.SMTP_USER,
-        },
-        to: email,
-        subject: "Your Recovery Mnemonic (Save These Words)",
-        text: textContent,
-        html: htmlContent,
-      };
-
-      const info = await transporter.sendMail(mailOptions);
-
-      console.log("Mnemonic email sent:", info.messageId);
-      return { success: true, messageId: info.messageId };
-    } catch (error) {
-      console.error("Error sending mnemonic email:", error);
-      throw new Error("Failed to send mnemonic email: " + error.message);
-    }
-  }
 
   getDecodedToken(token) {
     try {
@@ -2270,175 +2055,7 @@ class UserService {
     }
   }
 
-  /**
-   * Verify mnemonic words and validate password recovery
-   * @param {string} userId
-   * @param {string[]} mnemonicWords
-   * @returns {Promise<{success: boolean, message?: string}>}
-   */
-  async verifyMnemonic(userId, mnemonicWords, req = null) {
-    try {
-      const { data: user, error: fetchError } = await supabase
-        .from("users")
-        .select("password, passwordB")
-        .eq("id", userId)
-        .single();
 
-      if (fetchError || !user) {
-        throw new Error("User not found");
-      }
-
-      if (!user.passwordB) {
-        throw new Error("No mnemonic recovery data found. Please contact support.");
-      }
-
-      const MnemonicCrypto = require("../utils/mnemonicCrypto");
-
-      const encryptionKey = MnemonicCrypto.deriveKeyFromMnemonic(mnemonicWords);
-
-      const decryptedPassword = MnemonicCrypto.decrypt(user.passwordB, encryptionKey);
-
-      const isValid = await MnemonicCrypto.validatePassword(decryptedPassword, user.password);
-
-      if (!isValid) {
-        console.warn(`Invalid mnemonic attempt for user ${userId} from IP ${req?.ip || 'unknown'}`);
-        throw new Error("Invalid mnemonic words");
-      }
-
-      return { success: true, message: "Mnemonic verified successfully" };
-
-    } catch (error) {
-      console.error(`Mnemonic verification failed for user ${userId}:`, error.message);
-      throw new Error("Invalid mnemonic words");
-    }
-  }
-
-  /**
-   * Change password using mnemonic verification
-   * @param {string} userId
-   * @param {string[]} mnemonicWords
-   * @param {string} newPassword
-   * @returns {Promise<{success: boolean, newMnemonicWords?: string[], message?: string}>}
-   */
-  async changePasswordWithMnemonic(userId, mnemonicWords, newPassword) {
-    try {
-      await this.verifyMnemonic(userId, mnemonicWords);
-
-      const { data: user, error: fetchError } = await supabase
-        .from("users")
-        .select("password, passwordB, email, username")
-        .eq("id", userId)
-        .single();
-
-      if (fetchError || !user) {
-        throw new Error("User not found");
-      }
-
-      const MnemonicCrypto = require("../utils/mnemonicCrypto");
-
-      const oldEncryptionKey = MnemonicCrypto.deriveKeyFromMnemonic(mnemonicWords);
-
-      const originalPassword = MnemonicCrypto.decrypt(user.passwordB, oldEncryptionKey);
-
-      try {
-        const reEncryptResult = await this.reEncryptVaultKeys(userId, originalPassword, newPassword);
-        if (reEncryptResult === true) {
-          console.log(`Successfully re-encrypted vault keys for user ${userId} during password change`);
-        } else if (reEncryptResult === 'skipped') {
-          console.log(`Vault key re-encryption was skipped for user ${userId} (likely due to sodium issues)`);
-        } else {
-          console.log(`Vault key re-encryption completed with result: ${reEncryptResult}`);
-        }
-      } catch (keyError) {
-        console.error(`Failed to re-encrypt vault keys for user ${userId}:`, keyError.message);
-        if (!keyError.message.includes('skipped')) {
-          throw new Error("Failed to update vault keys. Please try again.");
-        }
-      }
-
-      const hashedNewPassword = await MnemonicCrypto.hashPassword(newPassword);
-
-      const newMnemonicWords = MnemonicCrypto.generateMnemonic();
-
-      const newEncryptionKey = MnemonicCrypto.deriveKeyFromMnemonic(newMnemonicWords);
-
-      const newPasswordB = MnemonicCrypto.encrypt(newPassword, newEncryptionKey);
-
-      if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-        console.warn(`SUPABASE_SERVICE_ROLE_KEY not found, using ANON_KEY for user ${userId} update`);
-        console.warn('This may cause permission issues with user updates');
-      }
-
-      const { data: verifyUser, error: verifyError } = await supabase
-        .from("users")
-        .select("id")
-        .eq("id", userId)
-        .single();
-
-      if (verifyError || !verifyUser) {
-        console.error(`User verification failed for ${userId}:`, verifyError);
-        throw new Error("User not found during password update");
-      }
-
-      if (!hashedNewPassword || hashedNewPassword.length < 10) {
-        throw new Error("Invalid hashed password generated");
-      }
-      if (!newPasswordB || newPasswordB.length === 0) {
-        throw new Error("Invalid encrypted password generated");
-      }
-
-      console.log(`Data validation passed for user ${userId}`);
-
-      console.log(`Updating user ${userId} password in database...`);
-      const updateData = {
-        password: hashedNewPassword,
-        passwordB: newPasswordB,
-        needs_key_reencryption: false,
-        resetPasswordPIN: null,
-        resetPINExpiry: null,
-      };
-
-      console.log(`Update data for user ${userId}:`, {
-        hasPassword: !!hashedNewPassword,
-        hasPasswordB: !!newPasswordB,
-        passwordBLength: newPasswordB?.length,
-        needs_key_reencryption: false
-      });
-
-      const { error: updateError } = await supabase
-        .from("users")
-        .update(updateData)
-        .eq("id", userId);
-
-      if (updateError) {
-        console.error(`Database update error for user ${userId}:`, updateError);
-        throw new Error(`Failed to update password: ${updateError.message}`);
-      }
-
-      console.log(`Successfully updated password for user ${userId}`);
-
-      // Send email with new mnemonic words
-      try {
-        await this.sendMnemonicEmail(user.email, user.username || 'User', newMnemonicWords);
-        console.log(`Recovery email sent to ${user.email} for user ${userId}`);
-      } catch (emailError) {
-        console.error(`Failed to send recovery email to ${user.email}:`, emailError.message);
-        // Don't fail the password change if email fails, but log it
-      }
-
-      console.log(`Password successfully changed for user ${userId} using mnemonic recovery`);
-
-      return {
-        success: true,
-        newMnemonicWords,
-        message: "Password changed successfully"
-      };
-
-    } catch (error) {
-      console.error(`Password change with mnemonic failed for user ${userId}:`, error.message);
-      throw new Error("Failed to change password: " + error.message);
-    }
-  }
 
   /**
    * Re-encrypt vault keys with a new password-derived key
@@ -2615,51 +2232,6 @@ class UserService {
     }
   }
 
-  /**
-   * Re-encrypt vault keys using mnemonic recovery
-   * @param {string} userId
-   * @param {string[]} mnemonicWords
-   * @param {string} newPassword 
-   * @returns {Promise<boolean>}
-   */
-  async reEncryptVaultKeysWithMnemonic(userId, mnemonicWords, newPassword) {
-    try {
-      await this.verifyMnemonic(userId, mnemonicWords);
 
-      const { data: user, error } = await supabase
-        .from("users")
-        .select("passwordB, salt")
-        .eq("id", userId)
-        .single();
-
-      if (error || !user) {
-        throw new Error("User not found");
-      }
-
-      if (!user.passwordB) {
-        console.log(`No passwordB found for user ${userId}, skipping re-encryption`);
-        return true;
-      }
-
-      const MnemonicCrypto = require("../utils/mnemonicCrypto");
-
-      const mnemonicKey = MnemonicCrypto.deriveKeyFromMnemonic(mnemonicWords);
-
-      const oldPassword = MnemonicCrypto.decrypt(user.passwordB, mnemonicKey);
-
-      await this.reEncryptVaultKeys(userId, oldPassword, newPassword);
-
-      await supabase
-        .from("users")
-        .update({ needs_key_reencryption: false })
-        .eq("id", userId);
-
-      return true;
-    } catch (error) {
-      console.error(`Failed to re-encrypt vault keys with mnemonic for user ${userId}:`, error.message);
-      throw new Error("Failed to re-encrypt vault keys: " + error.message);
-    }
-  }
 }
-
 module.exports = new UserService();

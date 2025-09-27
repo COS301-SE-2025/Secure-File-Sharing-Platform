@@ -53,7 +53,6 @@ export async function POST(request) {
             );
         }
 
-        // Mark the user as verified
         const { error: userUpdateError } = await supabase
         .from('users')
         .update({ is_verified: true })
@@ -61,7 +60,6 @@ export async function POST(request) {
 
         if (userUpdateError) {
             console.error('Failed to mark user as verified:', userUpdateError);
-            // Continue anyway as the code was valid
         }
 
         return NextResponse.json({
