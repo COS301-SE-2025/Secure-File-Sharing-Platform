@@ -1,0 +1,353 @@
+// services/adminService.js
+const { supabase } = require("../config/database");
+const MnemonicCrypto = require("../utils/mnemonicCrypto");
+const jwt = require("jsonwebtoken");
+
+const adminService = {
+  async login({ email, password }) {
+    try {
+      const { data: user, error } = await supabase
+        .from("users")
+        .select("*")
+        .eq("email", email)
+        .eq("role", "admin")
+        .single();
+
+      if (error || !user) {
+        throw new Error("Admin not found or unauthorized.");
+      }
+
+      const isPasswordValid = await MnemonicCrypto.validatePassword(
+        password,
+        user.password
+      );
+
+      if (!isPasswordValid) {
+        throw new Error("Invalid password.");
+      }
+
+      const token = jwt.sign(
+        { id: user.id, email: user.email, role: "admin" },
+        process.env.JWT_SECRET,
+        { expiresIn: "7d" }
+      );
+
+      return {
+        user: {
+          id: user.id,
+          avatar : user.avatar_url,
+          username: user.username,
+          email: user.email,
+          role: user.role,
+        },
+        token,
+      };
+    } catch (err) {
+      throw new Error("Admin login failed: " + err.message);
+    }
+  },
+
+  // ============================= USERS PAGE =============================
+
+  async getUserCount() {
+    try {
+      const { count: totalUsers, error: totalError } = await supabase
+        .from("users")
+        .select("*", { count: "exact", head: true });
+
+      if (totalError) {
+        throw new Error("Failed to fetch total user count: " + totalError.message);
+      }
+
+      const { count: adminUsers, error: adminError } = await supabase
+        .from("users")
+        .select("*", { count: "exact", head: true })
+        .eq("role", "admin");
+
+      if (adminError) {
+        throw new Error("Failed to fetch admin user count: " + adminError.message);
+      }
+
+      return { totalUsers, adminUsers };
+    } catch (err) {
+      throw new Error(err.message);
+    }
+  },
+
+  async getAllUsers() {
+    try {
+      const { data: users, error } = await supabase
+        .from("users")
+        .select("id, username, username, email, role, is_verified, created_at,avatar_url,active,blocked_info");
+
+      if (error) throw new Error(error.message);
+
+      return users;
+    } catch (err) {
+      throw new Error("Failed to fetch users: " + err.message);
+    }
+  },
+
+  async updateUserRole(userId, newRole) {
+    const { data, error } = await supabase
+      .from("users")
+      .update({ role: newRole })
+      .eq("id", userId)
+      .select()
+      .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  async createAdmin({ username, email }) {
+    try {
+
+      const { data: user, error } = await supabase
+        .from("users")
+        .select("*")
+        .eq("username", username)
+        .eq("email", email)
+        .single();
+
+      if (error || !user) {
+        throw new Error("User not found with provided username and email.");
+      }
+
+      const { data: updatedUser, error: updateError } = await supabase
+        .from("users")
+        .update({ role: "admin" })
+        .eq("id", user.id)
+        .select("*")
+        .single();
+
+      if (updateError) throw new Error(updateError.message);
+
+      return updatedUser;
+    } catch (err) {
+      throw new Error("Failed to create admin: " + err.message);
+    }
+  },
+
+  async blockUser(userId, blockedInfo) {
+    const { data, error } = await supabase
+      .from("users")
+      .update({
+        active: false,
+        blocked_info: blockedInfo,
+      })
+      .eq("id", userId)
+      .select()
+      .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  async deleteUser(userId) {
+    const { data, error } = await supabase
+      .from("users")
+      .delete()
+      .eq("id", userId)
+      .select()
+      .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  // ============================= BLOCKED USERS PAGE =============================
+
+  async getBlockedUsers() {
+    const { data, error } = await supabase
+      .from("users")
+      .select("id, username, email, blocked_info, active, avatar_url")
+      .neq("blocked_info", null); // only users with blocked_info set
+
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  async unblockUser(userId) {
+    const { data, error } = await supabase
+      .from("users")
+      .update({
+        active: true,
+        blocked_info: null,
+      })
+      .eq("id", userId)
+      .select()
+      .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  async getBlockedStats() {
+    const { data, error } = await supabase
+      .from("users")
+      .select("blocked_info")
+      .neq("blocked_info", null);
+
+    if (error) throw new Error(error.message);
+
+    const total = data.length;
+    const high = data.filter((u) => u.blocked_info?.severity === "High").length;
+    const medium = data.filter((u) => u.blocked_info?.severity === "Medium").length;
+    const low = data.filter((u) => u.blocked_info?.severity === "Low").length;
+
+    return { total, high, medium, low };
+  },
+
+  // ============================= REPORTS PAGE =============================
+
+  async getReports() {
+    const { data, error } = await supabase
+      .from("reports")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  async createReport(reportData) {
+    const { data, error } = await supabase
+      .from("reports")
+      .insert([reportData])
+      .select()
+      .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  async updateReport(reportId, updates) {
+    const { data, error } = await supabase
+      .from("reports")
+      .update(updates)
+      .eq("id", reportId)
+      .select()
+      .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+
+  async deleteReport(reportId) {
+    const { error } = await supabase
+      .from("reports")
+      .delete()
+      .eq("id", reportId);
+
+    if (error) throw new Error(error.message);
+    return { success: true };
+  },
+
+  async getReportStats() {
+    const { data, error } = await supabase.from("reports").select("*");
+    if (error) throw new Error(error.message);
+
+    return {
+      pending: data.filter(r => r.status === "Pending").length,
+      underReview: data.filter(r => r.status === "Under Review").length,
+      resolved: data.filter(r => r.status === "Resolved").length,
+      critical: data.filter(r => r.priority === "Critical").length,
+      thisWeek: data.filter(r => {
+        const created = new Date(r.created_at);
+        const now = new Date();
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(now.getDate() - 7);
+        return created >= oneWeekAgo;
+      }).length
+    };
+  },
+
+  async getAdminUsers() {
+    const { data, error } = await supabase
+      .from("users")
+      .select("id, username, email")
+      .eq("role", "admin");
+
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  // ============================= DASHBOARD PAGE =============================
+
+  async getAnnouncements() {
+    const { data, error } = await supabase
+      .from("announcements")
+      .select("*")
+      .order("created_at", { ascending: false }); 
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  async addAnnouncement({ action, info, user, severity }) {
+    const { data, error } = await supabase
+      .from("announcements")
+      .insert([
+        { action, info, user, severity }
+      ])
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  async updateAnnouncement(id, { action, info, severity }) {
+    const { data, error } = await supabase
+      .from("announcements")
+      .update({ action, info, severity })
+      .eq("id", id)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  async deleteAnnouncement(id) {
+    const { data, error } = await supabase
+      .from("announcements")
+      .delete()
+      .eq("id", id)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
+  },
+ 
+  async getDashboardStats() {
+    const { count: totalUsersCount, error: usersError } = await supabase
+      .from("users")
+      .select("id", { count: "exact", head: true })
+      .eq("active", true);
+
+    if (usersError) throw new Error(usersError.message);
+
+    const { count: blockedUsersCount, error: blockedError } = await supabase
+      .from("users")
+      .select("id", { count: "exact", head: true })
+      .eq("active", false);
+
+    if (blockedError) throw new Error(blockedError.message);
+
+    const { count: pendingReportsCount, error: reportsError } = await supabase
+      .from("reports")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "Pending");
+
+    if (reportsError) throw new Error(reportsError.message);
+
+    return {
+      totalUsers: totalUsersCount,
+      blockedUsers: blockedUsersCount,
+      pendingReports: pendingReportsCount
+    };
+  },
+
+};
+
+module.exports = adminService;
