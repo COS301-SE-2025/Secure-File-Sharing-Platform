@@ -23,33 +23,106 @@ import { useEncryptionStore } from "@/app/SecureKeyStorage";
 import { UserAvatar } from '@/app/lib/avatarUtils';
 
 
-function getFileType(mimeType) {
-  if (!mimeType) return "unknown";
-  if (mimeType.includes("pdf")) return "pdf";
-  if (mimeType.includes("image")) return "image";
-  if (mimeType.includes("video")) return "video";
-  if (mimeType.includes("audio")) return "audio";
-  if (mimeType.includes("application")) return "application";
-  if (mimeType.includes("zip") || mimeType.includes("rar")) return "archive";
-  if (
-    mimeType.includes("spreadsheet") ||
-    mimeType.includes("excel") ||
-    mimeType.includes("sheet")
-  )
-    return "excel";
-  if (mimeType.includes("presentation")) return "ppt";
-  if (mimeType.includes("word") || mimeType.includes("document")) return "word";
-  if (mimeType.includes("text")) return "txt";
-  if (mimeType.includes("json")) return "json";
-  if (mimeType.includes("csv")) return "csv";
-  if (mimeType.includes("html")) return "html";
+function getFileType(mimeType, fileName = '') {
   if (mimeType.includes("folder")) return "folder";
-  if (mimeType.includes("podcast")) return "podcast";
-  if (mimeType.includes("markdown")) return "markdown";
-  if (mimeType.includes("x-markdown")) return "markdown";
-  if (mimeType.includes("md")) return "markdown";
-  if (mimeType.includes("code") || mimeType.includes("script")) return "code";
-  return "file";
+  const normalizedMimeType = mimeType ? mimeType.toLowerCase() : '';
+  const normalizedFileName = fileName ? fileName.toLowerCase() : '';
+
+  const fileExtension = normalizedFileName.includes('.') 
+    ? normalizedFileName.split('.').pop() 
+    : '';
+
+  if (normalizedMimeType) {
+    if (normalizedMimeType.includes("pdf")) return "pdf";
+
+    if (normalizedMimeType.includes("markdown") || normalizedMimeType.includes("x-markdown")) {
+      return "markdown";
+    }
+
+    if (normalizedMimeType.includes("json")) return "json";
+    if (normalizedMimeType.includes("csv")) return "csv";
+    if (normalizedMimeType.includes("html")) return "html";
+
+    if (normalizedMimeType.includes("image")) return "image";
+    if (normalizedMimeType.includes("video")) return "video";
+    if (normalizedMimeType.includes("audio")) return "audio";
+    if (normalizedMimeType.includes("podcast")) return "podcast";
+
+    if (normalizedMimeType.includes("zip") || normalizedMimeType.includes("rar")) return "archive";
+
+    if (normalizedMimeType.includes("spreadsheet") || 
+        normalizedMimeType.includes("excel") || 
+        normalizedMimeType.includes("sheet")) return "excel";
+    if (normalizedMimeType.includes("presentation")) return "ppt";
+    if (normalizedMimeType.includes("word") || normalizedMimeType.includes("document")) return "word";
+
+    if (normalizedMimeType.includes("code") || normalizedMimeType.includes("script")) return "code";
+
+    if (normalizedMimeType.includes("text")) {
+      if (fileExtension === 'md' || fileExtension === 'markdown') return "markdown";
+      return "txt";
+    }
+    if (normalizedMimeType.includes("application")) return "application";
+  }
+  
+  if (fileExtension) {
+    switch (fileExtension) {
+      case 'md':
+      case 'markdown':
+        return "markdown";
+      case 'pdf':
+        return "pdf";
+      case 'json':
+        return "json";
+      case 'csv':
+        return "csv";
+      case 'html':
+      case 'htm':
+        return "html";
+      case 'txt':
+        return "txt";
+      case 'js':
+      case 'ts':
+      case 'py':
+      case 'java':
+      case 'cpp':
+      case 'c':
+      case 'php':
+      case 'rb':
+        return "code";
+      case 'jpg':
+      case 'jpeg':
+      case 'png':
+      case 'gif':
+      case 'svg':
+      case 'webp':
+        return "image";
+      case 'mp4':
+      case 'avi':
+      case 'mov':
+      case 'webm':
+        return "video";
+      case 'mp3':
+      case 'wav':
+      case 'flac':
+        return "audio";
+      case 'zip':
+      case 'rar':
+      case '7z':
+        return "archive";
+      case 'xlsx':
+      case 'xls':
+        return "excel";
+      case 'pptx':
+      case 'ppt':
+        return "ppt";
+      case 'docx':
+      case 'doc':
+        return "word";
+    }
+  }
+  
+  return normalizedMimeType ? "file" : "unknown";
 }
 
 function formatFileSize(size) {
@@ -147,7 +220,7 @@ export default function DashboardHomePage() {
           id: f.fileId || "",
           name: f.fileName || "Unnamed file",
           size: formatFileSize(f.fileSize || 0),
-          type: getFileType(f.fileType || ""),
+          type: getFileType(f.fileType || "", f.fileName),
           modified: f.createdAt ? new Date(f.createdAt).toLocaleDateString() : "",
           shared: false,
           starred: false,
@@ -251,7 +324,7 @@ useEffect(() => {
     const username = user?.username;
     const file = {
       ...rawFile,
-      type: getFileType(rawFile.fileType || rawFile.type || ""),
+      type: getFileType(rawFile.fileType || rawFile.type || "", rawFile.fileName),
       name: rawFile.fileName || rawFile.name,
       size: formatFileSize(rawFile.fileSize || rawFile.size || 0),
     };

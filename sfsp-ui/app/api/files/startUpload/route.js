@@ -87,11 +87,11 @@ export async function POST(request) {
       } catch (parseError) {
         console.warn("Failed to parse backend error response:", parseError);
       }
-
       return respond(filesRes.status, errorData);
     }
 
     const result = await withTimeout(filesRes.json(), 5000);
+    console.log("Result is: ",result);
 
     return respond(200, result);
   } catch (error) {

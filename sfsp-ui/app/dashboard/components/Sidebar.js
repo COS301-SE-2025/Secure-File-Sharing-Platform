@@ -92,6 +92,8 @@ export default function Sidebar({ expanded, setExpanded, isHovered, setIsHovered
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('encryption-store');
+    document.cookie = "auth_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/";
+    document.cookie = "csrf_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/";
     router.push('/');
   };
 

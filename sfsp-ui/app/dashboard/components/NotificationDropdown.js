@@ -45,7 +45,6 @@ export default function NotificationDropdown() {
       const profileResult = await profileRes.json();
       if (!profileRes.ok) throw new Error(profileResult.message || "Failed to fetch profile");
 
-      console.log("CSRF token to send:", csrf);
       try {
         const res = await axios.post('/api/notifications/getNotifications', {
           userId: profileResult.data.id,

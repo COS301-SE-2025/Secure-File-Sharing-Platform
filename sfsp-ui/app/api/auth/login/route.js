@@ -55,8 +55,7 @@ export async function POST(request) {
         path: "/",
         maxAge: 60 * 60 * 1000,
       });
-
-      console.log("UserId is :", )
+      
       const csrf = makeCsrfToken(result.data.user.id);
       response.cookies.set("csrf_token", csrf, {
         httpOnly: false, 

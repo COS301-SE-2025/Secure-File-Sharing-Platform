@@ -16,6 +16,12 @@ import {
   storeDerivedKeyEncrypted,
 } from "../SecureKeyStorage";
 
+function getCookie(name) {
+  return document.cookie.split("; ").find(c => c.startsWith(name + "="))?.split("=")[1];
+}
+
+const csrf = getCookie("csrf_token");
+
 //await sodium.ready;
 //sodium.init && sodium.init();
 
@@ -497,7 +503,7 @@ export default function AuthPage() {
             "/api/user/addUser",
             {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: { "Content-Type": "application/json"},
               body: JSON.stringify({
                 userId: user.id,
               }),
@@ -526,10 +532,10 @@ export default function AuthPage() {
       // Add user to PostgreSQL database (for verified users)
       try {
         const addUserRes = await fetch(
-          "/api/files/addUser",
+          "/api/user/addUser",
           {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json"},
             body: JSON.stringify({
               userId: user.id,
             }),
