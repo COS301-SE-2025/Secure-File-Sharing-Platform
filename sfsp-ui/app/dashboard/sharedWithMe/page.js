@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Grid, List } from "lucide-react";
+import { Grid, List, ChevronDown } from "lucide-react";
 import { ShareDialog } from "../myFilesV2/shareDialog";
 import { FileDetailsDialog } from "../myFilesV2/fileDetailsDialog";
 import { ActivityLogsDialog } from "../myFilesV2/activityLogsDialog";
@@ -16,6 +16,8 @@ import { PreviewDrawer } from "../myFilesV2/previewDrawer";
 import { FullViewModal } from "../myFilesV2/fullViewModal";
 import pako from "pako";
 import { formatDate } from "../../../lib/dateUtils";
+import { sizeInBytes } from "pdf-lib";
+//import { sortBy } from "cypress/types/lodash";
 
 function Toast({ message, type = "info", onClose }) {
   return (
@@ -80,6 +82,9 @@ export default function MyFiles() {
   const [previewFile, setPreviewFile] = useState(null);
   const [viewerFile, setViewerFile] = useState(null);
   const [viewerContent, setViewerContent] = useState(null);
+  const [showSortOptions, setShowSortOptions] = useState(false);
+
+
 
   const [toast, setToast] = useState(null);
 
@@ -87,25 +92,7 @@ export default function MyFiles() {
     setToast({ message, type });
     setTimeout(() => setToast(null), duration);
   };
-
-  // Filtered files based on search keyword
-  const filteredVisibleFiles = files.filter((file) => {
-    const name = file?.name?.toLowerCase() || "";
-    const keyword = (search || "").toLowerCase();
-    return name.includes(keyword);
-  });
-
-  // Check if file is view-only
-  const isViewOnly = (file) => {
-    let tags = [];
-    if (file.tags) {
-      if (Array.isArray(file.tags)) tags = file.tags;
-      else if (typeof file.tags === "string") tags = file.tags.replace(/[{}]/g, "").split(",");
-    }
-    return tags.includes("view-only") || file.viewOnly;
-  };
-
-  // Fetch shared/view-only files
+    // Fetch shared/view-only files
   const fetchFiles = async () => {
     try {
       const userId = useEncryptionStore.getState().userId;
@@ -132,10 +119,12 @@ export default function MyFiles() {
           return {
             id: f.fileId || "",
             name: f.fileName || "Unnamed file",
+            sizeBytes: f.fileSize || 0,
             size: formatFileSize(f.fileSize || 0),
             type: getFileType(f.fileType || ""),
             description: f.description || "",
             path: f.cid || "",
+            modifiedRaw: f.createdAt || "", 
             modified: f.createdAt ? formatDate(f.createdAt) : "",
             starred: false,
             viewOnly: tags.includes("view-only"),
@@ -144,11 +133,53 @@ export default function MyFiles() {
           };
         });
 
-      setFiles(formatted);
-    } catch (err) {
-      console.error("Failed to fetch files:", err);
-    }
+        setFiles(formatted);
+      } catch (err) {
+        console.error("Failed to fetch files:", err);
+      }
   };
+  
+  // Filtered files based on search keyword
+  const filteredVisibleFiles = files.filter((file) => {
+    const name = file?.name?.toLowerCase() || "";
+    const keyword = (search || "").toLowerCase();
+    return name.includes(keyword);
+  });
+
+  // Check if file is view-only
+  const isViewOnly = (file) => {
+    let tags = [];
+    if (file.tags) {
+      if (Array.isArray(file.tags)) tags = file.tags;
+      else if (typeof file.tags === "string") tags = file.tags.replace(/[{}]/g, "").split(",");
+    }
+    return tags.includes("view-only") || file.viewOnly;
+  };
+
+    const sortFilesBasedOnDate = () => {
+      setFiles([...files].sort((a, b) => new Date(b.modifiedRaw) - new Date(a.modifiedRaw)));
+    };
+  
+
+  const sortFilesBasedOnName = () => {
+    setFiles([...files].sort((a, b) => a.name.localeCompare(b.name)));
+  };
+
+  const sortFilesBasedOnSize = () => {
+    setFiles([...files].sort((a, b) => a.sizeBytes - b.sizeBytes));
+  }
+
+  const handleAscendingSort = () => {
+    setFiles([...files].reverse());
+  };
+
+  const handleDescendingSort = () => {
+    setFiles([...files].reverse());
+  };
+
+
+
+
 
   useEffect(() => {
     fetchFiles();
@@ -391,127 +422,176 @@ export default function MyFiles() {
       showToast("Failed to revoke view access","error");
     }
   };
+return (
+  <div className="bg-gray-50 p-6 dark:bg-gray-900">
+    <div>
+      {/* Header */}
+      <header className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="text-2xl font-semibold text-blue-500">Shared with me</h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            Files that have been shared with you
+          </p>
+        </div>
 
-  return (
-    <div className="bg-gray-50 p-6 dark:bg-gray-900">
-      <div>
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-2xl font-semibold text-blue-500">Shared with me</h1>
-            <p className="text-gray-600 dark:text-gray-400">
-              Files that have been shared with you
-            </p>
-          </div>
-
-          <div className="flex items-center gap-4">
-            {/* View Toggle */}
-            <div className="flex items-center bg-white rounded-lg border p-1 dark:bg-gray-200">
-              <button
-                className={`px-3 py-1 rounded ${viewMode === "grid"
+        {/* View + Sort Toggle */}
+        <div className="flex items-center gap-4 relative">
+          <div className="flex items-center bg-white rounded-lg border p-1 dark:bg-gray-200 relative z-50">
+            {/* Grid Button */}
+            <button
+              className={`px-3 py-1 rounded ${
+                viewMode === "grid"
                   ? "bg-blue-500 text-white"
                   : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
-                  }`}
-                onClick={() => setViewMode("grid")}
-              >
-                <Grid className="h-4 w-4" />
-              </button>
-              <button
-                className={`px-3 py-1 rounded ${viewMode === "list"
+              }`}
+              onClick={() => setViewMode("grid")}
+            >
+              <Grid className="h-4 w-4" />
+            </button>
+
+            {/* List Button */}
+            <button
+              className={`px-3 py-1 rounded ${
+                viewMode === "list"
                   ? "bg-blue-500 text-white"
                   : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
-                  }`}
-                onClick={() => setViewMode("list")}
+              }`}
+              onClick={() => setViewMode("list")}
+            >
+              <List className="h-4 w-4" />
+            </button>
+
+            {/* Sort Button with Dropdown */}
+            <div className="relative">
+              <button
+                className="px-3 py-1 rounded flex items-center gap-1 text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
+                onClick={() => setShowSortOptions((prev) => !prev)}
               >
-                <List className="h-4 w-4" />
+                Sort
+                <ChevronDown className="h-3 w-3" />
               </button>
+
+              {showSortOptions && (
+                <div className="absolute right-0 top-full mt-2 w-48 bg-white border rounded-lg shadow-lg z-50 dark:bg-gray-100">
+                  <button
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700 dark:text-black"
+                    onClick={() => { sortFilesBasedOnDate(); setShowSortOptions(false); }}
+                  >
+                    Sort by Date
+                  </button>
+                  <button
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700 dark:text-black"
+                    onClick={() => { sortFilesBasedOnName(); setShowSortOptions(false); }}
+                  >
+                    Sort by Name
+                  </button>
+                  <button
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700 dark:text-black"
+                    onClick={() => { sortFilesBasedOnSize(); setShowSortOptions(false); }}
+                  >
+                    Sort by Size
+                  </button>
+                  <hr className="border-gray-200 dark:border-gray-400" />
+                  <button
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700 dark:text-black"
+                    onClick={() => { handleAscendingSort(); setShowSortOptions(false); }}
+                  >
+                    Ascending
+                  </button>
+                  <button
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700 dark:text-black"
+                    onClick={() => { handleDescendingSort(); setShowSortOptions(false); }}
+                  >
+                    Descending
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
+      </header>
 
-        {/* File List */}
-        {filteredVisibleFiles.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-96 text-center text-gray-700 dark:text-gray-400 rounded-lg p-10">
-            <svg
-              className="w-16 h-16 mb-4 text-gray-500 dark:text-gray-300"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={1.5}
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M3 7l1.664-1.664A2 2 0 016.586 5H17.41a2 2 0 011.414.586L21 7m-18 0v10a2 2 0 002 2h14a2 2 0 002-2V7m-18 0h18"
-              />
-            </svg>
-            <h2 className="text-lg font-semibold">No files found</h2>
-            <p className="text-sm text-gray-400">Get sharing ...</p>
-          </div>
-        ) : viewMode === "grid" ? (
-          <FileGrid
-            files={filteredVisibleFiles}
-            onShare={openShareDialog}
-            onViewDetails={openDetailsDialog}
-            onViewActivity={openActivityDialog}
-            onDownload={handleDownload}
-            onDelete={fetchFiles}
-            onRevokeViewAccess={handleRevokeViewAccess}
-            onClick={handlePreview}
-            onDoubleClick={handleOpenFullView}
-          />
-        ) : (
-          <FileList
-            files={filteredVisibleFiles}
-            onShare={openShareDialog}
-            onViewDetails={openDetailsDialog}
-            onViewActivity={openActivityDialog}
-            onDownload={handleDownload}
-            onDelete={fetchFiles}
-            onRevokeViewAccess={handleRevokeViewAccess}
-            onClick={handlePreview}
-            onDoubleClick={handleOpenFullView}
-          />
-        )}
+      {/* File List */}
+      {filteredVisibleFiles.length === 0 ? (
+        <div className="flex flex-col items-center justify-center h-96 text-center text-gray-700 dark:text-gray-400 rounded-lg p-10">
+          <svg
+            className="w-16 h-16 mb-4 text-gray-500 dark:text-gray-300"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.5}
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M3 7l1.664-1.664A2 2 0 016.586 5H17.41a2 2 0 011.414.586L21 7m-18 0v10a2 2 0 002 2h14a2 2 0 002-2V7m-18 0h18"
+            />
+          </svg>
+          <h2 className="text-lg font-semibold">No files found</h2>
+          <p className="text-sm text-gray-400">Get sharing ...</p>
+        </div>
+      ) : viewMode === "grid" ? (
+        <FileGrid
+          files={filteredVisibleFiles}
+          onShare={openShareDialog}
+          onViewDetails={openDetailsDialog}
+          onViewActivity={openActivityDialog}
+          onDownload={handleDownload}
+          onDelete={fetchFiles}
+          onRevokeViewAccess={handleRevokeViewAccess}
+          onClick={handlePreview}
+          onDoubleClick={handleOpenFullView}
+        />
+      ) : (
+        <FileList
+          files={filteredVisibleFiles}
+          onShare={openShareDialog}
+          onViewDetails={openDetailsDialog}
+          onViewActivity={openActivityDialog}
+          onDownload={handleDownload}
+          onDelete={fetchFiles}
+          onRevokeViewAccess={handleRevokeViewAccess}
+          onClick={handlePreview}
+          onDoubleClick={handleOpenFullView}
+        />
+      )}
 
-        {/* Dialogs */}
-        <ShareDialog
-          open={isShareOpen}
-          onOpenChange={setIsShareOpen}
-          file={selectedFile}
-        />
-        <FileDetailsDialog
-          open={isDetailsOpen}
-          onOpenChange={setIsDetailsOpen}
-          file={selectedFile}
-        />
-        <ActivityLogsDialog
-          open={isActivityOpen}
-          onOpenChange={setIsActivityOpen}
-          file={selectedFile}
-        />
-        <PreviewDrawer
-          file={previewFile}
-          content={previewContent}
-          onClose={setPreviewFile}
-          onOpenFullView={handleOpenFullView}
-          onSaveDescription={handleUpdateDescription}
-        />
-        <FullViewModal
-          file={viewerFile}
-          content={viewerContent}
-          onClose={setViewerFile}
-        />
+      {/* Dialogs */}
+      <ShareDialog
+        open={isShareOpen}
+        onOpenChange={setIsShareOpen}
+        file={selectedFile}
+      />
+      <FileDetailsDialog
+        open={isDetailsOpen}
+        onOpenChange={setIsDetailsOpen}
+        file={selectedFile}
+      />
+      <ActivityLogsDialog
+        open={isActivityOpen}
+        onOpenChange={setIsActivityOpen}
+        file={selectedFile}
+      />
+      <PreviewDrawer
+        file={previewFile}
+        content={previewContent}
+        onClose={setPreviewFile}
+        onOpenFullView={handleOpenFullView}
+        onSaveDescription={handleUpdateDescription}
+      />
+      <FullViewModal
+        file={viewerFile}
+        content={viewerContent}
+        onClose={setViewerFile}
+      />
 
-        {toast && (
-          <Toast
-            message={toast.message}
-            type={toast.type}
-            onClose={() => setToast(null)}
-          />
-        )}
-      </div>
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
     </div>
-  );
-
-}
+  </div>
+)};

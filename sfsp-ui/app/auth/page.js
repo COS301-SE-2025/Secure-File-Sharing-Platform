@@ -16,6 +16,8 @@ import {
   storeDerivedKeyEncrypted,
 } from "../SecureKeyStorage";
 
+import { VerifyEmailInList } from "./verify-email/emailValidator";
+//import { error } from "cypress/types/jquery";
 //await sodium.ready;
 //sodium.init && sodium.init();
 
@@ -355,6 +357,10 @@ export default function AuthPage() {
       errors.email = "Email is required.";
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       errors.email = "Please enter a valid email address.";
+    }
+    
+    if (!VerifyEmailInList(email)){
+      errors.email = "Email domain or IP is blacklisted"
     }
 
     if (!allPasswordRequirementsMet) {

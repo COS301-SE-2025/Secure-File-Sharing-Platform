@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Loader from "@/app/dashboard/components/Loader";
 import { getSodium } from "@/app/lib/sodium";
 import { storeDerivedKeyEncrypted, storeUserKeysSecurely, useEncryptionStore } from "../../SecureKeyStorage";
+import { VerifaliaRestClient } from 'verifalia';
+
 
 function VerifyEmailInner() {
     const router = useRouter();
@@ -19,6 +21,9 @@ function VerifyEmailInner() {
     const [showMnemonicRecovery, setShowMnemonicRecovery] = useState(false);
     const [currentPassword, setCurrentPassword] = useState("");
     const [mnemonicWords, setMnemonicWords] = useState(Array(10).fill(""));
+
+
+
 
     useEffect(() => {
         setMounted(true);

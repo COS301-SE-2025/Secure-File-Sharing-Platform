@@ -57,6 +57,7 @@
     "react-signature-canvas": "^1.1.0-alpha.2",
     "react-toastify": "^11.0.5",
     "uuid": "^11.1.0",
+    "verifalia": "^5.0.0",
     "zustand": "^5.0.5"
   },
   "devDependencies": {
