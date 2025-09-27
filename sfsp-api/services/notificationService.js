@@ -50,12 +50,13 @@ class NotificationService {
     async sendNewBrowserSignInAlert(userId, browserInfo, location, ipAddress) {
         try {
         const user = await userService.getUserById(userId);
+        const resolvedLocation = location instanceof Promise ? await location : location;
         await userService.sendNewBrowserSignInEmail(
             userId,
             user.email,
             user.username,
             browserInfo,
-            location,
+            resolvedLocation,
             ipAddress
         );
         } catch (error) {

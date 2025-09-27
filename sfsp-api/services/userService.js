@@ -120,6 +120,24 @@ class UserService {
         return 'South Africa (IP-based)';
       }
 
+      try {
+        const response = await fetch(`https://ipapi.co/${cleanIp}/json/`);
+        const data = await response.json();
+        
+        if (data && !data.error && data.city && (data.region || data.country_name)) {
+          const location = data.region 
+            ? `${data.city}, ${data.region}, ${data.country_name}`
+            : `${data.city}, ${data.country_name}`;
+          console.log('Retrieved location from ipapi:', location);
+          return location;
+        } else {
+          console.log('ipapi returned error or no data:', data);
+        }
+      } catch (err) {
+        console.log('Failed to get location from ipapi:', err.message);
+      }
+
+      // Fallback to geoip if ipapi fails
       const geo = geoip.lookup(cleanIp);
       console.log('Geolocation result:', geo);
       
@@ -1140,7 +1158,6 @@ class UserService {
             <ul style="margin: 10px 0 0 20px;">
               <li>Browser: ${browserInfo || 'Unknown'}</li>
               <li>Location: ${location || 'Unknown'}</li>
-              <li>IP Address: ${ipAddress || 'Unknown'}</li>
               <li>Time: ${new Date().toLocaleString()}</li>
             </ul>
           </div>
@@ -1937,6 +1954,27 @@ class UserService {
       }
     }
     
+    // Additional Windows version detection from ua if not set from headers
+    if (osName === 'Windows' && osVersion === 'Unknown' && ua.includes('windows nt')) {
+      const ntMatch = ua.match(/windows nt ([\d.]+)/);
+      const ntVersion = ntMatch ? ntMatch[1] : null;
+      if (ntVersion === '10.0') {
+        osVersion = '10';
+      } else if (ntVersion === '6.3') {
+        osVersion = '8.1';
+      } else if (ntVersion === '6.2') {
+        osVersion = '8';
+      } else if (ntVersion === '6.1') {
+        osVersion = '7';
+      } else if (ntVersion === '6.0') {
+        osVersion = 'Vista';
+      } else if (ntVersion === '5.1' || ntVersion === '5.2') {
+        osVersion = 'XP';
+      } else {
+        osVersion = ntVersion;
+      }
+    }
+    
     if (osName === 'Unknown') {
       if (ua.includes('windows')) {
         // Windows version detection
@@ -2043,12 +2081,7 @@ class UserService {
       isDesktop
     };
     
-    if (result.browserVersion && 
-        (result.browserVersion === '140.0.0.0' || 
-          result.browserVersion.match(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/))) {
-      console.log('⚠️ Detected IP-like pattern in browserVersion, setting to "Unknown"');
-      result.browserVersion = 'Unknown';
-    }
+    // Removed IP-like pattern check to allow version numbers like 140.0.0.0
     
     
     if (result.browserName === 'Chrome' && this.detectBraveBrowser(headers)) {
@@ -2120,12 +2153,8 @@ class UserService {
                 <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb;">${browserInfo.deviceType}</td>
               </tr>
               <tr>
-                <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb; font-weight: bold;">Location:</td>
-                <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb;">${location || 'Unknown'}</td>
-              </tr>
-              <tr>
-                <td style="padding: 8px 0; font-weight: bold;">IP Address:</td>
-                <td style="padding: 8px 0;">${ipAddress || 'Unknown'}</td>
+                <td style="padding: 8px 0; font-weight: bold;">Location:</td>
+                <td style="padding: 8px 0;">${location || 'Unknown'}</td>
               </tr>
             </table>
           </div>
