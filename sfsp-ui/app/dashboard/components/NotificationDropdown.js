@@ -11,6 +11,9 @@ import {
 } from "@/app/Transfer";
 
 function getCookie(name) {
+  if (typeof document === 'undefined') {
+    return null; 
+  }
   return document.cookie.split("; ").find(c => c.startsWith(name + "="))?.split("=")[1];
 }
 

@@ -129,6 +129,8 @@ function getFileType(mimeType, fileName = '') {
       case 'docx':
       case 'doc':
         return "word";
+      case 'sql':
+        return "sql";
     }
   }
   
