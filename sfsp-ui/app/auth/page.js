@@ -17,8 +17,6 @@ import {
 } from "../SecureKeyStorage";
 import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 
-//await sodium.ready;
-//sodium.init && sodium.init();
 
 export default function AuthPage() {
   const router = useRouter();
@@ -425,7 +423,7 @@ export default function AuthPage() {
         // Add user to PostgreSQL database before redirecting to verification
         try {
           const addUserUrl = getFileApiUrl('/addUser');
-          console.log('Add user URL:', addUserUrl); // Debug log
+          console.log('Add user URL:', addUserUrl); 
           
           const addUserRes = await fetch(addUserUrl, {
             method: "POST",
@@ -507,7 +505,7 @@ export default function AuthPage() {
       }
 
       const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-      const redirectUri = 'http://localhost:3000/auth/google/callback';
+      const redirectUri = `${window.location.origin}/auth/google/callback`;
       const scope = 'openid email profile';
       
       const state = crypto.randomUUID();

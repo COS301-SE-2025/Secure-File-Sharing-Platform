@@ -3,7 +3,6 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Loader from "@/app/dashboard/components/Loader";
-import {getApiUrl} from "@/lib/api-config";
 
 function VerifyEmailInner() {
     const router = useRouter();
@@ -41,7 +40,7 @@ function VerifyEmailInner() {
         setMessage("");
 
         try {
-            const response = await fetch(getApiUrl("/auth/verify-code"), {
+            const response = await fetch("/api/auth/verify-code", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -67,7 +66,7 @@ function VerifyEmailInner() {
 
     const setupUserAuthentication = async () => {
         try {
-            const jwtResponse = await fetch(getApiUrl("/auth/generate-jwt"), {
+            const jwtResponse = await fetch("/api/auth/generate-jwt", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -104,7 +103,7 @@ function VerifyEmailInner() {
         setMessage("");
 
         try {
-            const response = await fetch(getApiUrl("/auth/send-verification"), {
+            const response = await fetch("/api/auth/send-verification", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
