@@ -19,6 +19,8 @@ const Users = () => {
     const [blockSeverity, setBlockSeverity] = useState("Low");
     const [blockUserId, setBlockUserId] = useState(null);
     const [blockUserName, setBlockUserName] = useState("");
+    const [messageSubject, setMessageSubject] = useState("");
+    const [messageBody, setMessageBody] = useState("");
 
     useEffect(() => {
         const fetchUsers = async () => {
@@ -151,8 +153,6 @@ const Users = () => {
         }
     };
 
-
-
     const handleCreateAdmin = async () => {
         if (!newAdminUsername || !newAdminEmail) {
             setToastMessage("Please fill in all fields");
@@ -185,6 +185,7 @@ const Users = () => {
                 setNewAdminUsername("");
                 setNewAdminEmail("");
                 setIsAdminDialogOpen(false);
+                setTotalAdminUsers(prev => prev + 1);
                 setTimeout(() => setToastMessage(""), 3000);
             } else {
                 setToastMessage(data.message || "Failed to create admin");
@@ -212,6 +213,7 @@ const Users = () => {
                     prev.map(user => (user.id === userId ? { ...user, role: newRole } : user))
                 );
                 setTimeout(() => setToastMessage(""), 3000);
+                setTotalAdminUsers(prev => prev - 1);
             }
         } catch (err) {
             console.error("Failed to update role:", err);
@@ -435,23 +437,61 @@ const Users = () => {
                 <div className="modal-backdrop" onClick={() => setMessageModalOpen(false)}>
                     <div className="modal" onClick={(e) => e.stopPropagation()}>
                         <h2>Send Message to {selectedUser.name}</h2>
-                        <textarea placeholder="Type your message here..." className="message-input" />
+                        <input
+                            type="text"
+                            placeholder="Subject"
+                            className="subject-input"
+                            value={messageSubject}
+                            onChange={(e) => setMessageSubject(e.target.value)}
+                        />
+                        <textarea
+                            placeholder="Type your message here..."
+                            className="message-input"
+                            value={messageBody}
+                            onChange={(e) => setMessageBody(e.target.value)}
+                        />
                         <div className="btn-send">
                             <button
                                 className="btn-info"
-                                onClick={() => {
-                                    setToastMessage(`Message sent to ${selectedUser.name}`);
-                                    setTimeout(() => setToastMessage(""), 3000);
-                                    setMessageModalOpen(false);
+                                onClick={async () => {
+                                    try {
+                                        const res = await fetch("http://localhost:5000/api/admin/send-message", {
+                                            method: "POST",
+                                            headers: { "Content-Type": "application/json" },
+                                            body: JSON.stringify({
+                                                userId: selectedUser.id,
+                                                email:selectedUser.email,
+                                                username:selectedUser.username,
+                                                subject: messageSubject,
+                                                message: messageBody,
+                                            }),
+                                        });
+                                        const data = await res.json();
+                                        if (data.success) {
+                                            setToastMessage(`Message sent to ${selectedUser.username}`);
+                                            setTimeout(() => setToastMessage(""), 3000);
+                                            setMessageModalOpen(false);
+                                            setMessageSubject("");
+                                            setMessageBody("");
+                                        } else {
+                                            alert(`⚠️ ${data.message}`);
+                                        }
+                                    } catch (err) {
+                                        console.error(err);
+                                        alert("⚠️ Failed to send message.");
+                                    }
                                 }}
                             >
                                 Send
                             </button>
-                            <button className="btn-delete" onClick={() => setMessageModalOpen(false)}>Cancel</button>
+                            <button className="btn-delete" onClick={() => setMessageModalOpen(false)}>
+                                Cancel
+                            </button>
                         </div>
                     </div>
                 </div>
             )}
+
 
             {blockModalOpen && (
                 <div className="modal-backdrop" onClick={() => setBlockModalOpen(false)}>

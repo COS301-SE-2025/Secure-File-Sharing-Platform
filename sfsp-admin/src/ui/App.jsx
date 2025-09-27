@@ -3,6 +3,7 @@ import { Shield, Lock, Key, ArrowLeft } from "lucide-react";
 import "./App.css";
 import { useNavigate } from "react-router-dom";
 import LightRays from "./components/designs/appBack.jsx";
+import shieldLogo from '../assets/shield-full-white.png';
 
 function App() {
   const navigate = useNavigate();
@@ -15,7 +16,6 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const inputRefs = useRef([]);
 
-  // Store token after successful login
   const [token, setToken] = useState(null);
 
   const focusInput = (index) => {
@@ -25,6 +25,11 @@ function App() {
       const length = input.value.length;
       input.setSelectionRange(length, length);
     }
+  };
+
+  const handleBackToCredentials = () => {
+    setStep("credentials");
+    setCredentials({ ...credentials, otp: "" });
   };
 
   const handleOTPKeyDown = (e, index) => {
@@ -83,6 +88,7 @@ function App() {
           password: credentials.password,
         }),
       });
+
       const data = await res.json();
 
       if (!data.success) {
@@ -94,6 +100,22 @@ function App() {
       setToken(data.data.token);
       localStorage.setItem("user", JSON.stringify(data.data.user));
       localStorage.setItem("token", data.data.token);
+
+      const otpRes = await fetch("http://localhost:5000/api/admin/send-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: data.data.user.id,
+          email: data.data.user.email,
+          username: data.data.user.username
+        }),
+      });
+
+      const otpData = await otpRes.json();
+      if (!otpData.success) {
+        alert(`⚠️ Could not send OTP: ${otpData.message}`);
+        return;
+      }
 
       setStep("otp");
     } catch (err) {
@@ -115,18 +137,34 @@ function App() {
 
     setIsLoading(true);
     try {
-      // Optionally verify OTP with backend here
-      // For now, just navigate to dashboard
+      const token = localStorage.getItem("token");
+      const user = JSON.parse(localStorage.getItem("user"));
+
+      const res = await fetch("http://localhost:5000/api/admin/verify-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.id,
+          code: otpCode,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!data.success) {
+        alert(`❌ Verification failed: ${data.message}`);
+        return;
+      }
+
       navigate("/dashboard", { state: { token } });
+    } catch (err) {
+      console.error("OTP verification failed:", err);
+      alert("❌ An error occurred while verifying OTP");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleBackToCredentials = () => {
-    setStep("credentials");
-    setCredentials({ ...credentials, otp: ["", "", "", "", "", ""] });
-  };
 
   return (
     <div className="login-container">
@@ -148,7 +186,7 @@ function App() {
       <div className="login-box">
         <div className="login-header">
           <div className="login-logo">
-            <img src="../src/assets/shield-full-white.png" alt="SecureShare Logo" className="logo-icon" />
+            <img src={shieldLogo} alt="SecureShare Logo" className="logo-icon" />
           </div>
           <h1 className="login-title">SecureShare</h1>
           <p className="login-subtitle">Admin Portal Access</p>
