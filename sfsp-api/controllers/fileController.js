@@ -3,8 +3,6 @@ const axios = require("axios");
 require("dotenv").config();
 const multer = require("multer");
 const FormData = require("form-data");
-const path = require("path");
-const fs = require("fs");
 
 const upload = multer({ storage: multer.memoryStorage() });
 

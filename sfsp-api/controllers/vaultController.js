@@ -2,9 +2,11 @@ require('dotenv').config();
 const axios = require('axios');
 
 class VaultController {
-
     constructor(baseURL = process.env.KEY_SERVICE_URL || 'http://localhost:8443', timeout = 30000) {
+        // This is correct - internal service-to-service communication should use localhost
+        // The nginx /api/vault/ route is for external client requests, not internal API calls
         this.baseURL = baseURL;
+        
         this.apiClient = axios.create({
             baseURL: `${baseURL}/api/vault`,
             timeout: timeout,

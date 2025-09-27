@@ -45,7 +45,7 @@ export default function GoogleCallbackPage() {
 
             sessionStorage.removeItem("googleOAuthState");
 
-            const response = await fetch(`/api/auth/google?code=${code}`);
+            const response = await fetch(getApiUrl(`/auth/google?code=${code}`));
             const data = await response.json();
 
             if (!response.ok) {

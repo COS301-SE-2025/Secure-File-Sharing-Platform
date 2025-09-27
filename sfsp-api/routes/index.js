@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const userRoutes = require('./userRoutes');
 const fileRoutes = require('./fileRoutes');
@@ -13,10 +14,39 @@ router.use('/contact', contactRoutes);
 router.use('/vault', vaultRoutes);
 router.use('/notifications', notificationRoutes);
 
-router.get('/health', (req, res) => {
+router.get('/health', async (_req, res) => {
+    const services = {};
+
+    try {
+        const keyServiceResponse = await fetch(process.env.KEY_SERVICE_URL || 'http://localhost:5000/api/vault/health');
+        if (keyServiceResponse.ok) {
+            services.keyservice = 'connected';
+        } else {
+            services.keyservice = 'disconnected';
+        }
+    } catch (error) {
+        services.keyservice = 'disconnected';
+    }
+
+    try {
+        const fileServiceResponse = await fetch(process.env.FILE_SERVICE_URL || 'http://localhost:8081/health');
+        if (fileServiceResponse.ok) {
+            services.fileservice = 'connected';
+        } else {
+            services.fileservice = 'disconnected';
+        }
+    } catch (error) {
+        services.fileservice = 'disconnected';
+    }
+
+    const allConnected = Object.values(services).every(status => status === 'connected');
+    const status = allConnected ? 'healthy' : 'degraded';
+
     res.status(200).json({
         success: true,
-        message: 'API is running'
+        status: status,
+        message: 'Main API health check',
+        services: services
     });
 });
 
