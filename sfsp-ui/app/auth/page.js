@@ -46,7 +46,6 @@ export default function AuthPage() {
     agreeToTerms: false,
   });
 
-  // Handle Google OAuth errors from URL parameters
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const error = urlParams.get('error');
@@ -403,7 +402,6 @@ export default function AuthPage() {
         nonce: sodium.from_base64(nonce),
       };
 
-      // Store encryption keys regardless of verification status
       await storeDerivedKeyEncrypted(derivedKey);
       sessionStorage.setItem("unlockToken", "session-unlock");
       await storeUserKeysSecurely(userKeys, derivedKey);
@@ -416,11 +414,10 @@ export default function AuthPage() {
 
       console.log("User keys stored successfully:", userKeys);
 
-      // Check if user needs email verification
       if (!user.is_verified) {
         setLoaderMessage("Account created! Please check your email for verification...");
         
-        // Add user to PostgreSQL database before redirecting to verification
+      
         try {
           const addUserUrl = getFileApiUrl('/addUser');
           console.log('Add user URL:', addUserUrl); 
@@ -443,7 +440,7 @@ export default function AuthPage() {
           console.error("Error adding user to PostgreSQL database:", error);
         }
 
-        // Store token for unverified users too
+      
         const rawToken = token.replace(/^Bearer\s/, "");
         localStorage.setItem("token", rawToken);
 
@@ -453,15 +450,15 @@ export default function AuthPage() {
         return;
       }
 
-      // For verified users, proceed with normal flow
+    
       const rawToken = token.replace(/^Bearer\s/, "");
       localStorage.setItem("token", rawToken);
       setMessage("User successfully registered!");
 
-      // Add user to PostgreSQL database (for verified users)
+    
       try {
         const addUserUrl = getFileApiUrl('/addUser');
-        console.log('Add user URL (verified):', addUserUrl); // Debug log
+        console.log('Add user URL (verified):', addUserUrl);
         
         const addUserRes = await fetch(addUserUrl, {
           method: "POST",
