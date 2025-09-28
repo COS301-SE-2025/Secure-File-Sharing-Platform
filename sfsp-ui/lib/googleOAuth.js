@@ -9,8 +9,10 @@ class GoogleOAuth {
       ? process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID 
       : process.env.GOOGLE_CLIENT_ID;
     
-    // Always use localhost:3000 for consistency
-    const baseUrl = 'http://localhost:3000';
+    // Use the appropriate base URL based on environment
+    const baseUrl = typeof window !== 'undefined'
+      ? window.location.origin
+      : process.env.NEXTAUTH_URL || 'http://localhost:3000';
       
     this.redirectUri = `${baseUrl}/auth/google/callback`;
     this.scope = 'openid email profile';

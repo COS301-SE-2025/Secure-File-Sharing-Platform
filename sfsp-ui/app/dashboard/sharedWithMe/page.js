@@ -13,8 +13,15 @@ import { useDashboardSearch } from "../components/DashboardSearchContext";
 import { useEncryptionStore } from "@/app/SecureKeyStorage";
 import { getSodium } from "@/app/lib/sodium";
 import { PreviewDrawer } from "../myFilesV2/previewDrawer";
-import { FullViewModal } from "../myFilesV2/fullViewModal";
+import dynamic from "next/dynamic";
+
+const FullViewModal = dynamic(() => import("../myFilesV2/fullViewModal").then(mod => ({ default: mod.FullViewModal })), {
+  ssr: false,
+  loading: () => <div>Loading...</div>
+});
 import pako from "pako";
+import { formatDate } from "../../../lib/dateUtils";
+import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 
 function Toast({ message, type = "info", onClose }) {
   return (
@@ -27,33 +34,246 @@ function Toast({ message, type = "info", onClose }) {
   );
 }
 
-function getFileType(mimeType) {
-  if (!mimeType) return "unknown";
-  if (mimeType.includes("pdf")) return "pdf";
-  if (mimeType.includes("image")) return "image";
-  if (mimeType.includes("video")) return "video";
-  if (mimeType.includes("audio")) return "audio";
-  if (mimeType.includes("application")) return "application";
-  if (mimeType.includes("zip") || mimeType.includes("rar")) return "archive";
-  if (
-    mimeType.includes("spreadsheet") ||
-    mimeType.includes("excel") ||
-    mimeType.includes("sheet")
-  )
-    return "excel";
-  if (mimeType.includes("presentation")) return "ppt";
-  if (mimeType.includes("word") || mimeType.includes("document")) return "word";
-  if (mimeType.includes("text")) return "txt";
-  if (mimeType.includes("json")) return "json";
-  if (mimeType.includes("csv")) return "csv";
-  if (mimeType.includes("html")) return "html";
-  if (mimeType.includes("folder")) return "folder"; // Custom type for folders
-  if (mimeType.includes("podcast")) return "podcast"; // Custom type for podcasts
-  if (mimeType.includes("markdown")) return "markdown"; // Custom type for markdown files
-  if (mimeType.includes("x-markdown")) return "markdown"; // Another common type for markdown
-  if (mimeType.includes("md")) return "markdown";
-  if (mimeType.includes("code") || mimeType.includes("script")) return "code"; // Custom type for code files
-  return "file";
+function getFileType(mimeType, fileName = '') {
+  if (mimeType.includes("folder")) return "folder";
+  const normalizedMimeType = mimeType ? mimeType.toLowerCase() : '';
+  const normalizedFileName = fileName ? fileName.toLowerCase() : '';
+
+  const fileExtension = normalizedFileName.includes('.') 
+    ? normalizedFileName.split('.').pop() 
+    : '';
+
+  if (normalizedMimeType) {
+    if (normalizedMimeType.includes("pdf")) return "pdf";
+
+    if (normalizedMimeType.includes("markdown") || normalizedMimeType.includes("x-markdown")) {
+      return "markdown";
+    }
+
+    if (normalizedMimeType.includes("json")) return "json";
+    if (normalizedMimeType.includes("csv")) return "csv";
+    if (normalizedMimeType.includes("html")) return "html";
+
+    if (normalizedMimeType.includes("image")) return "image";
+    if (normalizedMimeType.includes("video")) return "video";
+    if (normalizedMimeType.includes("audio")) return "audio";
+    if (normalizedMimeType.includes("podcast")) return "podcast";
+
+    if (normalizedMimeType.includes("zip") || normalizedMimeType.includes("rar")) return "archive";
+
+    if (normalizedMimeType.includes("spreadsheet") || 
+        normalizedMimeType.includes("excel") || 
+        normalizedMimeType.includes("sheet")) return "excel";
+    if (normalizedMimeType.includes("presentation")) return "ppt";
+    if (normalizedMimeType.includes("word") || normalizedMimeType.includes("document")) return "word";
+
+    if (normalizedMimeType.includes("code") || normalizedMimeType.includes("script")) return "code";
+
+    if (normalizedMimeType.includes("text")) {
+      if (fileExtension === 'md' || fileExtension === 'markdown') return "markdown";
+      return "txt";
+    }
+    if (normalizedMimeType.includes("application")) return "application";
+  }
+  
+  if (fileExtension) {
+    switch (fileExtension) {
+      case 'md':
+      case 'markdown':
+        return "markdown";
+      case 'pdf':
+        return "pdf";
+      case 'json':
+        return "json";
+      case 'csv':
+        return "csv";
+      case 'html':
+      case 'htm':
+        return "html";
+      case 'txt':
+        return "txt";
+        //programming languages
+      case 'py':
+        return "py";
+      case 'java':
+        return "java";
+      case 'cpp':
+        return "cpp";
+      case 'c':
+        return "c";
+      case 'h':
+        return "h";
+      case 'cs':
+        return "cs";
+      case 'php':
+        return "php";
+      case 'rb':
+        return "rb";
+      case 'go':
+        return "go";
+      case 'rs':
+        return "rs";
+      case 'swift':
+        return "swift";
+      case 'kt':
+        return "kt";
+      case 'scala':
+        return "scala";
+      case 'r':
+        return "r";
+      case 'matlab':
+        return "matlab";
+      case 'pl':
+        return "pl";
+      case 'lua':
+        return "lua";
+      case 'css':
+        return "css";
+      case 'scss':
+        return "scss";
+      case 'sass':
+        return "sass";
+      case 'less':
+        return "less"
+      case 'jpg':
+      case 'jpeg':
+      case 'png':
+      case 'gif':
+      case 'svg':
+      case 'webp':
+      case 'image':
+      case 'bmp':
+      case 'tiff':
+      case 'tif':
+      case 'ico':
+      case 'heic':
+      case 'raw':
+        return "image";
+      case 'mp4':
+      case 'avi':
+      case 'mov':
+      case 'webm':
+        return "video";
+      case 'mp3':
+      case 'wav':
+      case 'flac':
+        return "audio";
+      case 'zip':
+      case 'rar':
+      case '7z':
+        return "archive";
+      case 'xlsx':
+      case 'xls':
+        return "excel";
+      case 'pptx':
+      case 'ppt':
+        return "ppt";
+      case 'docx':
+      case 'doc':
+        return "word";
+        //database files
+      case 'sql':
+        return "sql";
+      case 'db':
+        return "db";
+      case 'sqlite':
+        return "sqlite";
+      case 'mdb':
+        return "mdb"
+      case 'ods':
+        return "ods";
+      case 'odp':
+        return "odp";
+      case 'log':
+        return "log";
+      case 'readme':
+        return "readme";
+      case 'yaml':
+        return "yaml";
+      case 'yml':
+        return "yml";
+      case 'toml':
+        return "toml";
+      case 'ini':
+        return "ini";
+      case 'cfg':
+        return "cfg";
+      case 'conf':
+        return "conf";
+        //Archive files
+        case 'archive':
+          return "archive";
+        case 'zip':
+          return "zip";
+        case 'rar':
+          return "rar";
+        case '7z':
+          return "7z";
+        case 'tar':
+          return "tar";
+        case 'gz':
+          return "gz";
+        case 'bz2':
+          return "bz2";
+        case 'xz':
+          return "xz";
+          //system files
+        case 'exe':
+          return "exe";
+        case 'msi':
+          return "msi";
+        case 'deb':
+          return 'deb';
+        case 'rpm':
+          return "rpm";
+        case 'dmg':
+          return "dmg";
+        case 'iso':
+          return "iso";
+        case 'img':
+          return "img";
+          //security files
+        case 'key':
+          return "key";
+        case 'pem':
+          return "pem";
+        case 'crt':
+          return 'crt';
+        case 'cert':
+          return "cert";
+          //email files
+        case 'eml':
+          return "eml";
+        case 'msg':
+          return "msg";
+        //calender
+        case 'ics':
+          return "ics";
+        //Adobe files
+        case 'psd':
+          return "psd";
+        case 'ai':
+          return "ai";
+        case 'eps':
+          return "eps";
+        case 'indd':
+          return "indd";
+        //cad files
+        case 'dwg':
+          return "dwg";
+        case 'dxf':
+          return "dxf";
+        //3D Model Files
+        case 'obj':
+          return "obj";
+        case 'fbx':
+          return "fbx";
+        case 'blend':
+          return "blend";
+    }
+  }
+  
+  return normalizedMimeType ? "file" : "unknown";
 }
 
 function formatFileSize(size) {
@@ -63,6 +283,13 @@ function formatFileSize(size) {
     return `${(size / (1024 * 1024)).toFixed(2)} MB`;
   else return `${(size / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
+
+function getCookie(name) {
+  if (typeof window === 'undefined') return '';
+  return document.cookie.split("; ").find(c => c.startsWith(name + "="))?.split("=")[1];
+}
+
+const csrf = typeof window !== 'undefined' ? getCookie("csrf_token") : "";
 
 export default function MyFiles() {
   const [files, setFiles] = useState([]);
@@ -87,14 +314,12 @@ export default function MyFiles() {
     setTimeout(() => setToast(null), duration);
   };
 
-  // Filtered files based on search keyword
   const filteredVisibleFiles = files.filter((file) => {
     const name = file?.name?.toLowerCase() || "";
     const keyword = (search || "").toLowerCase();
     return name.includes(keyword);
   });
 
-  // Check if file is view-only
   const isViewOnly = (file) => {
     let tags = [];
     if (file.tags) {
@@ -104,15 +329,14 @@ export default function MyFiles() {
     return tags.includes("view-only") || file.viewOnly;
   };
 
-  // Fetch shared/view-only files
   const fetchFiles = async () => {
     try {
       const userId = useEncryptionStore.getState().userId;
       if (!userId) return;
 
-      const res = await fetch("http://localhost:5000/api/files/metadata", {
+      const res = await fetch("/proxy/files/metadata", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
         body: JSON.stringify({ userId }),
       });
 
@@ -132,10 +356,10 @@ export default function MyFiles() {
             id: f.fileId || "",
             name: f.fileName || "Unnamed file",
             size: formatFileSize(f.fileSize || 0),
-            type: getFileType(f.fileType || ""),
+            type: getFileType(f.fileType || "",f.fileName),
             description: f.description || "",
             path: f.cid || "",
-            modified: f.createdAt ? new Date(f.createdAt).toLocaleDateString() : "",
+            modified: f.createdAt ? formatDate(f.createdAt) : "",
             starred: false,
             viewOnly: tags.includes("view-only"),
             tags,
@@ -156,16 +380,16 @@ export default function MyFiles() {
   const handleUpdateDescription = async (fileId, description) => {
     try {
       const res = await fetch(
-        "http://localhost:5000/api/files/addDescription",
+        "/proxy/files/addDescription",
         {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
+            "Content-Type": "application/json", "x-csrf":csrf||"",
           },
           body: JSON.stringify({ fileId, description }),
         }
       );
-      fetchFiles(); // Refresh files after update
+      fetchFiles();
       if (res.status === 200) {
         console.log("Description updated successfully");
       }
@@ -177,7 +401,6 @@ export default function MyFiles() {
     }
   };
 
-  // Download file
   const handleDownload = async (file) => {
     if (isViewOnly(file)) {
       showToast("This file is view-only and cannot be downloaded.","error");
@@ -193,9 +416,9 @@ export default function MyFiles() {
     const sodium = await getSodium();
 
     try {
-      const res = await fetch("http://localhost:5000/api/files/download", {
+      const res = await fetch("/proxy/files/download", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
         body: JSON.stringify({ userId, fileId: file.id }),
       });
 
@@ -228,6 +451,8 @@ export default function MyFiles() {
       const decrypted = sodium.crypto_secretbox_open_easy(encryptedFile, nonce, encryptionKey);
       if (!decrypted) throw new Error("Decryption failed");
 
+      if (typeof window === 'undefined') return;
+
       const blob = new Blob([decrypted]);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -243,7 +468,6 @@ export default function MyFiles() {
     }
   };
 
-  // Load file (for preview/full view)
   const handleLoadFile = async (file) => {
     const { encryptionKey, userId } = useEncryptionStore.getState();
     if (!encryptionKey) {
@@ -254,9 +478,9 @@ export default function MyFiles() {
     const sodium = await getSodium();
 
     try {
-      const res = await fetch("http://localhost:5000/api/files/download", {
+      const res = await fetch("/proxy/files/download", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
         body: JSON.stringify({ userId, fileId: file.id }),
       });
 
@@ -348,21 +572,17 @@ export default function MyFiles() {
   // Revoke view access
   const handleRevokeViewAccess = async (file) => {
     try {
-      const token = localStorage.getItem("token");
-      if (!token) return showToast("Please log in to revoke access","info");
 
-      const profileRes = await fetch("http://localhost:5000/api/users/profile", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const profileRes = await fetch("/proxy/auth/profile");
 
       const profileResult = await profileRes.json();
       if (!profileRes.ok) return showToast("Failed to get user profile","error");
 
       const userId = profileResult.data.id;
 
-      const sharedFilesRes = await fetch("http://localhost:5000/api/files/getViewAccess", {
+      const sharedFilesRes = await fetch("/proxy/files/getViewAccess", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json","x-csrf":csrf },
         body: JSON.stringify({ userId }),
       });
 
@@ -374,9 +594,9 @@ export default function MyFiles() {
       if (fileShares.length === 0) return showToast("No view-only shares found for this file","error");
 
       for (const share of fileShares) {
-        const revokeRes = await fetch("http://localhost:5000/api/files/revokeViewAccess", {
+        const revokeRes = await fetch("/proxy/files/revokeViewAccess", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
           body: JSON.stringify({ fileId: file.id, userId, recipientId: share.recipient_id }),
         });
 

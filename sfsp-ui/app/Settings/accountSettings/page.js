@@ -1,20 +1,29 @@
 // AccountSettings.jsx
 'use client';
 import { useEffect, useState } from 'react';
-import { PanelLeftClose, PanelLeftOpen, ArrowLeft, User, Shield, Bell, Palette, Camera, Trash2, Sun, Moon, ChevronUp, ChevronDown } from 'lucide-react';
+import { PanelLeftClose, PanelLeftOpen, ArrowLeft, User, Shield, Bell, Palette, Camera, Trash2, Sun, Moon, ChevronUp, ChevronDown, Monitor, Smartphone, Laptop, X, RefreshCw, CheckCircle, AlertCircle, AlertTriangle, Lock, Info, Copy, Eye, EyeOff } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { UserAvatar } from '@/app/lib/avatarUtils';
+import { getApiUrl } from '@/lib/api-config';
 import axios from 'axios';
+import { format, formatDistance } from 'date-fns';
 
-const API_BASE_URL = 'http://localhost:5000/api/users';
+function getCookie(name) {
+  if (typeof document === 'undefined') {
+    return null; 
+  }
+  return document.cookie.split("; ").find(c => c.startsWith(name + "="))?.split("=")[1];
+}
+
+const csrf = typeof window !== 'undefined' ? getCookie("csrf_token") : "";
 
 export default function AccountSettings() {
   const router = useRouter();
   const { setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [dateFormat, setDateFormat] = useState('MM/DD/YYYY');
-  const tabs = ['MY ACCOUNT', 'CHANGE PASSWORD', 'NOTIFICATIONS'];
+  const tabs = ['MY ACCOUNT', 'SECURE PASSWORD RESET', 'NOTIFICATIONS', 'DEVICES'];
   const [activeTab, setActiveTab] = useState(tabs[0]);
   const [user, setUser] = useState(null);
   const [formData, setFormData] = useState({ username: '', email: '' });
@@ -51,15 +60,38 @@ export default function AccountSettings() {
     resetPIN: '',
   });
   const [passwordErrors, setPasswordErrors] = useState({});
-  const [passwordStep, setPasswordStep] = useState('verify');
+  const [passwordStep, setPasswordStep] = useState('mnemonic');
   const [isProcessing, setIsProcessing] = useState(false);
   const [passwordMessage, setPasswordMessage] = useState('');
+  const [mnemonicWords, setMnemonicWords] = useState(Array(10).fill(''));
+  const [mnemonicErrors, setMnemonicErrors] = useState(Array(10).fill(''));
+  const [copiedMnemonic, setCopiedMnemonic] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deleteFormData, setDeleteFormData] = useState({ email: '', password: '' });
   const [deleteErrors, setDeleteErrors] = useState({});
   const [deleteMessage, setDeleteMessage] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showSessionRevokeModal, setShowSessionRevokeModal] = useState(false);
+  const [sessionToRevoke, setSessionToRevoke] = useState(null);
+  
+  // Password requirements and visibility state
+  const [passwordRequirements, setPasswordRequirements] = useState({
+    hasMinLength: false,
+    hasUppercase: false,
+    hasLowercase: false,
+    hasNumber: false,
+    hasSpecialChar: false,
+  });
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+  
+  // Session management state
+  const [sessions, setSessions] = useState([]);
+  const [isLoadingSessions, setIsLoadingSessions] = useState(false);
+  const [sessionError, setSessionError] = useState('');
+  const [isRevokingSession, setIsRevokingSession] = useState(false);
 
   useEffect(() => {
     async function fetchProfile() {
@@ -70,7 +102,7 @@ export default function AccountSettings() {
       }
 
       try {
-        const res = await fetch(`${API_BASE_URL}/profile`, {
+        const res = await fetch(`${getApiUrl('/users/profile')}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const result = await res.json();
@@ -89,6 +121,38 @@ export default function AccountSettings() {
 
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  // ------------------------------ Load Notification Settings ----------------------------------------
+  useEffect(() => {
+    async function fetchNotificationSettings() {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      try {
+        const res = await fetch(`${getApiUrl('/users/notifications')}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const result = await res.json();
+        if (res.ok && result.data?.notificationSettings) {
+          setNotificationSettings(result.data.notificationSettings);
+          localStorage.setItem('notificationSettings', JSON.stringify(result.data.notificationSettings));
+        } else {
+          const savedSettings = localStorage.getItem('notificationSettings');
+          if (savedSettings) {
+            setNotificationSettings(JSON.parse(savedSettings));
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch notification settings:', error.message);
+        const savedSettings = localStorage.getItem('notificationSettings');
+        if (savedSettings) {
+          setNotificationSettings(JSON.parse(savedSettings));
+        }
+      }
+    }
+
+    fetchNotificationSettings();
   }, []);
 
   const toggleTheme = () => {
@@ -135,7 +199,7 @@ export default function AccountSettings() {
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${API_BASE_URL}/profile`, {
+      const res = await fetch(`${getApiUrl('/users/profile')}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -170,6 +234,14 @@ export default function AccountSettings() {
     }
   }, []);
 
+  // ------------------------------ Date Format Logic ----------------------------------------
+  useEffect(() => {
+    const savedDateFormat = localStorage.getItem('dateFormat');
+    if (savedDateFormat) {
+      setDateFormat(savedDateFormat);
+    }
+  }, []);
+
   const toggleSidebar = () => {
     const newState = !isCollapsed;
     setIsCollapsed(newState);
@@ -180,8 +252,9 @@ export default function AccountSettings() {
 
   const tabsWithIcons = [
     { name: 'MY ACCOUNT', icon: User },
-    { name: 'CHANGE PASSWORD', icon: Shield },
+    { name: 'SECURE PASSWORD RESET', icon: Shield },
     { name: 'NOTIFICATIONS', icon: Bell },
+    { name: 'DEVICES', icon: Laptop },
   ];
 
   // ------------------------------------Sidebar Toggle Logic------------------------------------
@@ -224,7 +297,7 @@ export default function AccountSettings() {
     setIsDeleting(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${API_BASE_URL}/profile`, {
+      const res = await fetch(`${getApiUrl('/users/profile')}`, {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -330,7 +403,7 @@ export default function AccountSettings() {
 
       const avatarUrl = response.data.secure_url;
 
-      const updateResponse = await fetch(`${API_BASE_URL}/avatar-url`, {
+      const updateResponse = await fetch(`${getApiUrl('/users/avatar-url')}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -377,7 +450,7 @@ export default function AccountSettings() {
         return;
       }
 
-      const response = await fetch(`${API_BASE_URL}/avatar-url`, {
+      const response = await fetch(`${getApiUrl('/users/avatar-url')}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -410,6 +483,17 @@ export default function AccountSettings() {
     if (passwordErrors[field]) {
       setPasswordErrors((prev) => ({ ...prev, [field]: '' }));
     }
+    
+    if (field === 'newPassword') {
+      const requirements = {
+        hasMinLength: value.length >= 8,
+        hasUppercase: /[A-Z]/.test(value),
+        hasLowercase: /[a-z]/.test(value),
+        hasNumber: /\d/.test(value),
+        hasSpecialChar: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(value),
+      };
+      setPasswordRequirements(requirements);
+    }
   };
 
   const validateCurrentPassword = async () => {
@@ -417,7 +501,7 @@ export default function AccountSettings() {
     setPasswordErrors({});
 
     try {
-      const response = await fetch(`${API_BASE_URL}/verify-password`, {
+      const response = await fetch(`${getApiUrl('/users/verify-password')}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -429,7 +513,7 @@ export default function AccountSettings() {
       });
 
       if (response.ok) {
-        const pinResponse = await fetch(`${API_BASE_URL}/send-reset-pin`, {
+        const pinResponse = await fetch(`${getApiUrl('/users/send-reset-pin')}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -463,7 +547,7 @@ export default function AccountSettings() {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/verify-pin`, {
+      const response = await fetch(`${getApiUrl('/users/verify-pin')}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -510,29 +594,35 @@ export default function AccountSettings() {
     setIsProcessing(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/change-password`, {
+      const response = await fetch(`${getApiUrl('/users/change-password')}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${localStorage.getItem('token')}`,
         },
         body: JSON.stringify({
-          pin: passwordData.resetPIN,
+          mnemonicWords: mnemonicWords,
           newPassword: passwordData.newPassword,
         }),
       });
 
       if (response.ok) {
-        setPasswordMessage('Password changed successfully!');
+        const data = await response.json();
+
+        setPasswordMessage(`Password changed successfully! Your new recovery mnemonic is: ${data.newMnemonicWords.join(' ')}`);
+
         setPasswordData({
           currentPassword: '',
           newPassword: '',
           confirmPassword: '',
           resetPIN: '',
         });
-        setPasswordStep('verify');
+        setMnemonicWords(Array(10).fill(''));
+        setMnemonicErrors(Array(10).fill(''));
+        setPasswordStep('mnemonic');
         setPasswordErrors({});
-        setTimeout(() => setPasswordMessage(''), 3000);
+
+        setTimeout(() => setPasswordMessage(''), 10000);
       } else {
         const error = await response.json();
         setPasswordErrors({ general: error.message || 'Failed to change password' });
@@ -544,8 +634,87 @@ export default function AccountSettings() {
     setIsProcessing(false);
   };
 
+  const handleMnemonicWordChange = (index, value) => {
+    const newWords = [...mnemonicWords];
+    newWords[index] = value;
+    setMnemonicWords(newWords);
+
+    if (mnemonicErrors[index]) {
+      const newErrors = [...mnemonicErrors];
+      newErrors[index] = '';
+      setMnemonicErrors(newErrors);
+    }
+  };
+
+  const validateMnemonic = async () => {
+    setIsProcessing(true);
+    setPasswordMessage('');
+    setMnemonicErrors(Array(10).fill(''));
+
+    const emptyIndices = mnemonicWords
+      .map((word, index) => (!word.trim() ? index : -1))
+      .filter(index => index !== -1);
+
+    if (emptyIndices.length > 0) {
+      const newErrors = [...mnemonicErrors];
+      emptyIndices.forEach(index => {
+        newErrors[index] = 'Required';
+      });
+      setMnemonicErrors(newErrors);
+      setIsProcessing(false);
+      return;
+    }
+
+    try {
+      const response = await fetch(`${getApiUrl('/users/verify-mnemonic')}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({
+          mnemonicWords: mnemonicWords,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setPasswordMessage('Mnemonic verified successfully! You can now set your new password.');
+        setPasswordStep('newPassword');
+      } else {
+        const error = await response.json();
+        if (error.invalidWords && Array.isArray(error.invalidWords)) {
+          const newErrors = [...mnemonicErrors];
+          error.invalidWords.forEach(index => {
+            newErrors[index] = 'Invalid word';
+          });
+          setMnemonicErrors(newErrors);
+          setPasswordMessage('Some mnemonic words are incorrect. Please check and try again.');
+        } else {
+          setPasswordMessage(error.message || 'Invalid mnemonic phrase. Please check your words and try again.');
+        }
+      }
+    } catch (error) {
+      setPasswordMessage('Network error. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleCopyMnemonic = async (mnemonicText) => {
+    try {
+      await navigator.clipboard.writeText(mnemonicText);
+      setCopiedMnemonic(true);
+      setTimeout(() => setCopiedMnemonic(false), 2000);
+    } catch (error) {
+      console.error('Failed to copy mnemonic:', error);
+    }
+  };
+
   const resetPasswordFlow = () => {
-    setPasswordStep('verify');
+    setPasswordStep('mnemonic');
+    setMnemonicWords(Array(10).fill(''));
+    setMnemonicErrors(Array(10).fill(''));
     setPasswordData({
       currentPassword: '',
       newPassword: '',
@@ -557,13 +726,17 @@ export default function AccountSettings() {
   };
 
   const handleNotificationChange = (category, setting, value) => {
-    setNotificationSettings((prev) => ({
-      ...prev,
-      [category]: {
-        ...prev[category],
-        [setting]: value,
-      },
-    }));
+    setNotificationSettings((prev) => {
+      const updatedSettings = {
+        ...prev,
+        [category]: {
+          ...prev[category],
+          [setting]: value,
+        },
+      };
+      localStorage.setItem('notificationSettings', JSON.stringify(updatedSettings));
+      return updatedSettings;
+    });
   };
 
   const handleSaveNotifications = async () => {
@@ -573,7 +746,7 @@ export default function AccountSettings() {
     const token = localStorage.getItem('token');
 
     try {
-      const response = await fetch(`${API_BASE_URL}/notifications`, {
+      const response = await fetch(`${getApiUrl('/users/notifications')}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -583,6 +756,7 @@ export default function AccountSettings() {
       });
 
       if (response.ok) {
+        localStorage.setItem('notificationSettings', JSON.stringify(notificationSettings));
         setNotificationMessage('Notification settings updated successfully!');
         setTimeout(() => setNotificationMessage(''), 3000);
       } else {
@@ -595,6 +769,177 @@ export default function AccountSettings() {
       setIsUpdatingNotifications(false);
     }
   };
+
+  // ------------------------------ Session Management Logic ----------------------------------------
+  const fetchSessions = async () => {
+    setIsLoadingSessions(true);
+    setSessionError('');
+
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        router.push('/auth/login');
+        return;
+      }
+      
+      console.log('Fetching sessions...');
+
+      const response = await axios.get(`${getApiUrl('/users/sessions')}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.data.success) {
+        console.log('Sessions received:', response.data.data);
+        
+        let userLocation = null;
+        try {
+          const geoResponse = await fetch('https://ipapi.co/json/');
+          const geoData = await geoResponse.json();
+          if (geoData && geoData.city && geoData.country_name) {
+            userLocation = geoData.region 
+              ? `${geoData.city}, ${geoData.region}, ${geoData.country_name}`
+              : `${geoData.city}, ${geoData.country_name}`;
+            console.log('Retrieved user location from client:', userLocation);
+          }
+        } catch (err) {
+          console.error('Failed to get location from client-side:', err);
+        }
+        
+        const updatedSessions = response.data.data.map(session => {
+          // Determine if current session based only on recency
+          const isCurrentSession = 
+            session.last_login_at && 
+            (Date.now() - new Date(session.last_login_at).getTime()) < (1000 * 60 * 5);
+            
+          if (isCurrentSession && userLocation && 
+              (session.location === 'Local Network' || !session.location || session.location === 'Unknown Location')) {
+            return { 
+              ...session, 
+              location: userLocation,
+              ip_address: session.ip_address === "140.0.0.0" ? "" : session.ip_address,
+              browser_version: session.browser_version === "140.0.0.0" ? "" : session.browser_version 
+            };
+          }
+          return { 
+            ...session, 
+            ip_address: session.ip_address === "140.0.0.0" ? "" : session.ip_address,
+            browser_version: session.browser_version === "140.0.0.0" ? "" : session.browser_version 
+          };
+        });
+        
+        setSessions(updatedSessions);
+        
+        console.log('Sessions state updated with client-side enhancement');
+      } else {
+        console.error('Failed to load session data:', response.data);
+        setSessionError('Failed to load session data');
+      }
+    } catch (error) {
+      console.error('Error fetching sessions:', error);
+      setSessionError(
+        error.response?.data?.message || 'Failed to load session data'
+      );
+    } finally {
+      setIsLoadingSessions(false);
+    }
+  };
+
+  const confirmSessionRevoke = (sessionId, isCurrentDevice) => {
+    setSessionToRevoke({
+      id: sessionId,
+      isCurrentDevice
+    });
+    setShowSessionRevokeModal(true);
+  };
+
+  const handleConfirmSessionRevoke = () => {
+    if (sessionToRevoke) {
+      handleRevokeSession(sessionToRevoke.id, sessionToRevoke.isCurrentDevice);
+      setShowSessionRevokeModal(false);
+    }
+  };
+
+  const handleCancelSessionRevoke = () => {
+    setShowSessionRevokeModal(false);
+    setSessionToRevoke(null);
+  };
+
+  const handleRevokeSession = async (sessionId, isCurrentDevice) => {
+    setIsRevokingSession(true);
+    
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        router.push('/auth/login');
+        return;
+      }
+      
+      console.log('Revoking session:', sessionId, 'Is current device:', isCurrentDevice);
+      
+      const response = await axios.delete(`${getApiUrl('/users/sessions')}/${sessionId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.data.success) {
+        if (isCurrentDevice) {
+          console.log('Current device session revoked, logging out...');
+          localStorage.removeItem('token');
+          sessionStorage.clear();
+          
+          setSessionError('Your current session has been revoked. Redirecting to login...');
+          
+          setTimeout(() => {
+            console.log('Redirecting to login page...');
+            window.location.href = '/auth/login';
+          }, 1500);
+        } else {
+          setSessions(sessions.filter(session => session.id !== sessionId));
+        }
+      } else {
+        setSessionError('Failed to revoke session');
+      }
+    } catch (error) {
+      console.error('Error revoking session:', error);
+      setSessionError(
+        error.response?.data?.message || 'Failed to revoke session'
+      );
+    } finally {
+      setIsRevokingSession(false);
+      setShowSessionRevokeModal(false);
+      setSessionToRevoke(null);
+    }
+  };
+
+  const checkToken = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        return false;
+      }
+
+      const response = await axios.get(`${getApiUrl('/users/profile')}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      return response.data.success;
+    } catch (error) {
+      console.error('Token validation error:', error);
+      return false;
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'DEVICES' && mounted && typeof window !== 'undefined') {
+      checkToken().then(isValid => {
+        if (isValid) {
+          console.log('Loading sessions for DEVICES tab');
+          fetchSessions();
+        } else {
+          setSessionError('Your session has expired. Please log in again.');
+        }
+      });
+    }
+  }, [activeTab, mounted]);
 
   return (
     <div className="flex min-h-screen">
@@ -949,157 +1294,302 @@ export default function AccountSettings() {
             </div>
             )}
 
-          {activeTab === 'CHANGE PASSWORD' && (
-            <div className="max-w-2xl">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Change Password</h3>
-                {passwordStep !== 'verify' && (
+          {activeTab === 'SECURE PASSWORD RESET' && (
+            <div className="max-w-4xl">
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Secure Password Reset</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Verify your identity using your recovery mnemonic phrase
+                  </p>
+                </div>
+                {!user?.is_google_user && passwordStep !== 'mnemonic' && (
                   <button
                     type="button"
                     onClick={resetPasswordFlow}
-                    className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300"
+                    className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 font-medium"
                   >
-                    Start Over
+                    ← Back to Mnemonic
                   </button>
                 )}
               </div>
+              
+              {user?.is_google_user && (
+                <div className="mb-6 p-6 rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-900/30 dark:border-blue-700">
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0 mt-0.5">
+                      <Info className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div className="ml-3">
+                      <h3 className="text-base font-medium text-blue-800 dark:text-blue-300">Google Account Authentication</h3>
+                      <div className="mt-2 text-sm text-blue-700 dark:text-blue-400">
+                        <p>You signed in using your Google account. Password management is handled through Google.</p>
+                        <p className="mt-2">To change your password, please visit your Google account settings at <a href="https://myaccount.google.com/security" target="_blank" rel="noopener noreferrer" className="font-medium underline">Google Security Settings</a>.</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
-              {passwordMessage && (
+              {!user?.is_google_user && passwordMessage && (
                 <div
-                  className={`mb-4 p-3 rounded-md ${
+                  className={`mb-6 p-4 rounded-lg border ${
                     passwordMessage.includes('successfully')
-                      ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
-                      : 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+                      ? 'bg-green-50 border-green-200 text-green-800 dark:bg-green-900/30 dark:border-green-700 dark:text-green-300'
+                      : passwordMessage.includes('verified')
+                      ? 'bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-900/30 dark:border-blue-700 dark:text-blue-300'
+                      : 'bg-red-50 border-red-200 text-red-800 dark:bg-red-900/30 dark:border-red-700 dark:text-red-300'
                   }`}
                 >
-                  {passwordMessage}
+                  <div className="flex items-start space-x-2">
+                    {passwordMessage.includes('successfully') && <CheckCircle size={20} className="mt-0.5" />}
+                    {passwordMessage.includes('verified') && <Shield size={20} className="mt-0.5" />}
+                    {!passwordMessage.includes('successfully') && !passwordMessage.includes('verified') && <AlertCircle size={20} className="mt-0.5" />}
+                    <div className="flex-1">
+                      <p className="font-medium mb-2">{passwordMessage.split('!')[0]}!</p>
+                      {passwordMessage.includes('recovery mnemonic') && (
+                        <div className="bg-white dark:bg-gray-800 p-3 rounded-md border border-gray-200 dark:border-gray-600">
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Your New Recovery Mnemonic:</p>
+                            <button
+                              onClick={() => handleCopyMnemonic(passwordMessage.split('mnemonic is: ')[1])}
+                              className="flex items-center space-x-1 text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+                              title="Copy to clipboard"
+                            >
+                              <Copy size={14} />
+                              <span className="text-xs">{copiedMnemonic ? 'Copied!' : 'Copy'}</span>
+                            </button>
+                          </div>
+                          <p className="text-sm font-mono bg-gray-100 dark:bg-gray-700 p-2 rounded border text-center break-words">
+                            {passwordMessage.split('mnemonic is: ')[1]}
+                          </p>
+                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
+                            ⚠️ Save these words securely. They are required to recover your account if you forget your password.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
 
-              {passwordErrors.general && (
-                <div className="mb-4 p-3 rounded-md bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300">
-                  {passwordErrors.general}
+              {!user?.is_google_user && passwordStep === 'mnemonic' && (
+                <div className="space-y-6">
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-6 rounded-xl border border-blue-200 dark:border-blue-800">
+                    <div className="flex items-center space-x-3 mb-4">
+                      <div className="p-2 bg-blue-100 dark:bg-blue-800 rounded-lg">
+                        <Shield size={24} className="text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <div>
+                        <h4 className="text-lg font-semibold text-gray-900 dark:text-white">Mnemonic Verification</h4>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">Enter your 10-word recovery phrase in order</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+                      {mnemonicWords.map((word, index) => (
+                        <div key={index} className="space-y-2">
+                          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 text-center">
+                            Word {index + 1}
+                          </label>
+                          <input
+                            type="text"
+                            value={word}
+                            onChange={(e) => handleMnemonicWordChange(index, e.target.value)}
+                            className={`w-full px-3 py-2 text-center border rounded-lg shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all ${
+                              mnemonicErrors[index] ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600'
+                            }`}
+                            placeholder={`Word ${index + 1}`}
+                          />
+                          {mnemonicErrors[index] && (
+                            <p className="text-xs text-red-500 text-center">{mnemonicErrors[index]}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        <span className="font-medium">Security Tip:</span> Your mnemonic phrase is your master key to account recovery
+                      </div>
+                      <button
+                        type="button"
+                        onClick={validateMnemonic}
+                        disabled={isProcessing || mnemonicWords.some(word => !word.trim())}
+                        className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                      >
+                        {isProcessing ? (
+                          <>
+                            <RefreshCw size={18} className="animate-spin" />
+                            <span>Verifying...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Shield size={18} />
+                            <span>Verify Mnemonic</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-900/30 rounded-lg border border-amber-200 dark:border-amber-800">
+                      <div className="flex items-start space-x-2">
+                        <Info size={16} className="text-amber-600 dark:text-amber-400 mt-0.5" />
+                        <div className="text-sm text-amber-800 dark:text-amber-200">
+                          <span className="font-medium">Can't find your mnemonic?</span>
+                          <p className="mt-1">Check your email from registration, password recovery emails, or secure storage where you saved them during account setup.</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-yellow-50 dark:bg-yellow-900/30 p-4 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                    <div className="flex items-start space-x-3">
+                      <AlertTriangle size={20} className="text-yellow-600 dark:text-yellow-400 mt-0.5" />
+                      <div>
+                        <h5 className="text-sm font-medium text-yellow-800 dark:text-yellow-300 mb-1">Important Security Information</h5>
+                        <ul className="text-xs text-yellow-700 dark:text-yellow-200 space-y-1">
+                          <li>• Never share your mnemonic phrase with anyone</li>
+                          <li>• Store it securely offline in multiple locations</li>
+                          <li>• This phrase gives full access to your account</li>
+                          <li>• If lost, account recovery may be impossible</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
 
-              {passwordStep === 'verify' && (
-                <div className="space-y-4">
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                    First, please verify your current password to proceed.
-                  </p>
-                  <div>
-                    <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
-                      Current Password <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      id="currentPassword"
-                      type="password"
-                      value={passwordData.currentPassword}
-                      onChange={(e) => handlePasswordInputChange('currentPassword', e.target.value)}
-                      className={`mt-1 block w-full px-4 py-2 border rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        passwordErrors.currentPassword ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                      }`}
-                      placeholder="Enter your current password"
-                    />
-                    {passwordErrors.currentPassword && (
-                      <p className="text-sm text-red-500 mt-1">{passwordErrors.currentPassword}</p>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={validateCurrentPassword}
-                    disabled={isProcessing || !passwordData.currentPassword}
-                    className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
-                  >
-                    {isProcessing ? 'Verifying...' : 'Verify & Send PIN'}
-                  </button>
-                </div>
-              )}
+              {!user?.is_google_user && passwordStep === 'newPassword' && (
+                <div className="space-y-6">
+                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 p-6 rounded-xl border border-green-200 dark:border-green-800">
+                    <div className="flex items-center space-x-3 mb-6">
+                      <div className="p-2 bg-green-100 dark:bg-green-800 rounded-lg">
+                        <Lock size={24} className="text-green-600 dark:text-green-400" />
+                      </div>
+                      <div>
+                        <h4 className="text-lg font-semibold text-gray-900 dark:text-white">Set New Password</h4>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">Create a strong, secure password for your account</p>
+                      </div>
+                    </div>
 
-              {passwordStep === 'pin' && (
-                <div className="space-y-4">
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                    A 5-character PIN has been sent to your email address. Please enter it below.
-                  </p>
-                  <div>
-                    <label htmlFor="resetPIN" className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
-                      5-Character PIN <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      id="resetPIN"
-                      type="text"
-                      maxLength="5"
-                      value={passwordData.resetPIN}
-                      onChange={(e) => handlePasswordInputChange('resetPIN', e.target.value)}
-                      className={`mt-1 block w-full px-4 py-2 border rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        passwordErrors.resetPIN ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                      }`}
-                      placeholder="Enter 5-character PIN"
-                    />
-                    {passwordErrors.resetPIN && (
-                      <p className="text-sm text-red-500 mt-1">{passwordErrors.resetPIN}</p>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={validatePIN}
-                    disabled={!passwordData.resetPIN || passwordData.resetPIN.length !== 5}
-                    className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
-                  >
-                    Verify PIN
-                  </button>
-                </div>
-              )}
+                    <div className="space-y-4">
+                      <div>
+                        <label htmlFor="newPassword" className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
+                          New Password <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <input
+                            id="newPassword"
+                            type={showNewPassword ? "text" : "password"}
+                            value={passwordData.newPassword}
+                            onChange={(e) => handlePasswordInputChange('newPassword', e.target.value)}
+                            className={`w-full px-4 py-3 pr-12 border rounded-lg shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 transition-all ${
+                              passwordErrors.newPassword ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600'
+                            }`}
+                            placeholder="Enter your new password (min 8 characters)"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowNewPassword(!showNewPassword)}
+                            className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                          >
+                            {showNewPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                          </button>
+                        </div>
+                        {passwordErrors.newPassword && (
+                          <p className="text-sm text-red-500 mt-1">{passwordErrors.newPassword}</p>
+                        )}
+                      </div>
 
-              {passwordStep === 'newPassword' && (
-                <div className="space-y-4">
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                    Now enter your new password. Make sure it&apos;s strong and secure.
-                  </p>
-                  <div>
-                    <label htmlFor="newPassword" className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
-                      New Password <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      id="newPassword"
-                      type="password"
-                      value={passwordData.newPassword}
-                      onChange={(e) => handlePasswordInputChange('newPassword', e.target.value)}
-                      className={`mt-1 block w-full px-4 py-2 border rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        passwordErrors.newPassword ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                      }`}
-                      placeholder="Enter new password (min 8 characters)"
-                    />
-                    {passwordErrors.newPassword && (
-                      <p className="text-sm text-red-500 mt-1">{passwordErrors.newPassword}</p>
-                    )}
+                      <div>
+                        <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
+                          Confirm New Password <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <input
+                            id="confirmPassword"
+                            type={showConfirmPassword ? "text" : "password"}
+                            value={passwordData.confirmPassword}
+                            onChange={(e) => handlePasswordInputChange('confirmPassword', e.target.value)}
+                            className={`w-full px-4 py-3 pr-12 border rounded-lg shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 transition-all ${
+                              passwordErrors.confirmPassword ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600'
+                            }`}
+                            placeholder="Confirm your new password"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                          >
+                            {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                          </button>
+                        </div>
+                        {passwordErrors.confirmPassword && (
+                          <p className="text-sm text-red-500 mt-1">{passwordErrors.confirmPassword}</p>
+                        )}
+                      </div>
+
+                      <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                        <div className="flex items-start space-x-2">
+                          <Info size={16} className="text-blue-600 dark:text-blue-400 mt-0.5" />
+                          <div className="text-sm text-blue-800 dark:text-blue-200">
+                            <span className="font-medium">Password Requirements:</span>
+                            <ul className="mt-2 space-y-1">
+                              <li className={`flex items-center space-x-2 ${passwordRequirements.hasMinLength ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                                <CheckCircle size={14} className={passwordRequirements.hasMinLength ? 'text-green-600 dark:text-green-400' : 'text-gray-400'} />
+                                <span>At least 8 characters long</span>
+                              </li>
+                              <li className={`flex items-center space-x-2 ${passwordRequirements.hasUppercase ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                                <CheckCircle size={14} className={passwordRequirements.hasUppercase ? 'text-green-600 dark:text-green-400' : 'text-gray-400'} />
+                                <span>Include uppercase letter</span>
+                              </li>
+                              <li className={`flex items-center space-x-2 ${passwordRequirements.hasLowercase ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                                <CheckCircle size={14} className={passwordRequirements.hasLowercase ? 'text-green-600 dark:text-green-400' : 'text-gray-400'} />
+                                <span>Include lowercase letter</span>
+                              </li>
+                              <li className={`flex items-center space-x-2 ${passwordRequirements.hasNumber ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                                <CheckCircle size={14} className={passwordRequirements.hasNumber ? 'text-green-600 dark:text-green-400' : 'text-gray-400'} />
+                                <span>Include at least one number</span>
+                              </li>
+                              <li className={`flex items-center space-x-2 ${passwordRequirements.hasSpecialChar ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                                <CheckCircle size={14} className={passwordRequirements.hasSpecialChar ? 'text-green-600 dark:text-green-400' : 'text-gray-400'} />
+                                <span>Include special character</span>
+                              </li>
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end space-x-3">
+                        <button
+                          type="button"
+                          onClick={() => setPasswordStep('mnemonic')}
+                          className="px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                        >
+                          Back
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleChangePassword}
+                          disabled={isProcessing || !passwordData.newPassword || !passwordData.confirmPassword}
+                          className="px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                        >
+                          {isProcessing ? (
+                            <>
+                              <RefreshCw size={18} className="animate-spin" />
+                              <span>Updating...</span>
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle size={18} />
+                              <span>Update Password</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
-                      Confirm New Password <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      id="confirmPassword"
-                      type="password"
-                      value={passwordData.confirmPassword}
-                      onChange={(e) => handlePasswordInputChange('confirmPassword', e.target.value)}
-                      className={`mt-1 block w-full px-4 py-2 border rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        passwordErrors.confirmPassword ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                      }`}
-                      placeholder="Confirm your new password"
-                    />
-                    {passwordErrors.confirmPassword && (
-                      <p className="text-sm text-red-500 mt-1">{passwordErrors.confirmPassword}</p>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleChangePassword}
-                    disabled={isProcessing || !passwordData.newPassword || !passwordData.confirmPassword}
-                    className="px-6 py-2 bg-green-600 hover:bg-green-500 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
-                  >
-                    {isProcessing ? 'Changing Password...' : 'Change Password'}
-                  </button>
                 </div>
               )}
             </div>
@@ -1286,6 +1776,183 @@ export default function AccountSettings() {
               </div>
             </div>
           )}
+
+          {/* Devices & Sessions Tab */}
+          {activeTab === 'DEVICES' && (
+            <div className="max-w-2xl relative">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Devices & Sessions</h3>
+                <button
+                  onClick={fetchSessions}
+                  disabled={isLoadingSessions}
+                  className="flex items-center space-x-1 text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+                >
+                  <RefreshCw size={16} className={isLoadingSessions ? 'animate-spin' : ''} />
+                  <span>Refresh</span>
+                </button>
+              </div>
+
+              {sessionError && (
+                <div className="mb-6 p-3 rounded-md bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300">
+                  {sessionError}
+                </div>
+              )}
+
+              {isLoadingSessions ? (
+                <div className="text-center py-10">
+                  <div className="animate-spin h-10 w-10 mx-auto mb-4 text-blue-600">
+                    <RefreshCw size={40} />
+                  </div>
+                  <p className="text-gray-600 dark:text-gray-300">Loading your devices...</p>
+                </div>
+              ) : sessions.length === 0 ? (
+                <div className="text-center py-10 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <p className="text-gray-600 dark:text-gray-300">No active sessions found</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-md">
+                    <h4 className="font-medium text-blue-800 dark:text-blue-300 mb-2 flex items-center">
+                      <span className="w-3 h-3 bg-blue-500 rounded-full mr-2 animate-pulse"></span>
+                      Session Management
+                    </h4>
+                    <p className="text-sm text-blue-700 dark:text-blue-200">
+                      Your current session is highlighted in green. Other sessions are listed by most recent activity.
+                    </p>
+                  </div>
+                  
+                  {sessions
+                    .sort((a, b) => {
+                      // Use the same current session detection logic
+                      const currentUA = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+                      
+                      const getIsCurrent = (session) => {
+                        // Use recency-based detection instead of browser-specific
+                        return session.last_login_at && 
+                          (Date.now() - new Date(session.last_login_at).getTime()) < (1000 * 60 * 5);
+                      };
+                      const aIsCurrent = getIsCurrent(a);
+                      const bIsCurrent = getIsCurrent(b);
+                      
+                      if (aIsCurrent && !bIsCurrent) return -1;
+                      if (!aIsCurrent && bIsCurrent) return 1;
+                      return new Date(b.last_login_at || 0) - new Date(a.last_login_at || 0);
+                    })
+                    .map((session) => {
+                    // Determine device icon
+                    let DeviceIcon = Laptop;
+                    if (session.is_mobile) DeviceIcon = Smartphone;
+                    else if (session.is_tablet) DeviceIcon = Monitor;
+                    
+                    // Format the last login date
+                    const lastLogin = session.last_login_at ? new Date(session.last_login_at) : new Date();
+                    const formattedDate = format(lastLogin, 'MMM d, yyyy h:mm a');
+                    const timeAgo = formatDistance(lastLogin, new Date(), { addSuffix: true });
+                    
+                    // Is this the current device?
+                    // Use recency-based detection instead of browser-specific
+                    const finalIsCurrentDevice = 
+                      session.last_login_at &&
+                      (Date.now() - new Date(session.last_login_at).getTime()) < (1000 * 60 * 5); // Within 5 minutes
+
+                    return (
+                      <div
+                        key={session.id}
+                        className={`p-4 border-2 rounded-lg ${
+                          finalIsCurrentDevice 
+                            ? 'border-green-500 bg-green-50 dark:bg-green-900/20 shadow-lg ring-2 ring-green-200 dark:ring-green-800' 
+                            : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-start space-x-3">
+                            <div className={`p-2 rounded-full ${
+                              finalIsCurrentDevice 
+                                ? 'bg-green-100 dark:bg-green-800' 
+                                : 'bg-blue-100 dark:bg-blue-900'
+                            }`}>
+                              <DeviceIcon className={`h-6 w-6 ${
+                                finalIsCurrentDevice 
+                                  ? 'text-green-600 dark:text-green-400' 
+                                  : 'text-blue-600 dark:text-blue-400'
+                              }`} />
+                            </div>
+                            <div className="flex-1">
+                              <h4 className="font-medium text-gray-900 dark:text-white flex items-center">
+                                {session.browser_name || 'Unknown browser'} on {session.os_name || 'Unknown OS'}
+                                {finalIsCurrentDevice && (
+                                  <span className="ml-3 px-4 py-2 text-sm font-bold bg-gradient-to-r from-green-500 to-green-600 text-white rounded-full flex items-center shadow-lg">
+                                    <span className="w-3 h-3 bg-white rounded-full mr-2 animate-pulse"></span>
+                                    Current
+                                  </span>
+                                )}
+                              </h4>
+                              <p className="text-sm text-gray-600 dark:text-gray-400">
+                                {session.device_type || 'Unknown device'} 
+                                {session.browser_version && session.browser_version !== "140.0.0.0" ? ` • ${session.browser_version}` : ""} 
+                                {session.os_version ? ` • ${session.os_version}` : ""}
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                                Last active {timeAgo} ({formattedDate})
+                              </p>
+                              <div className="flex items-center mt-1">
+                                <p className="text-xs text-gray-500 dark:text-gray-500">
+                                  <span className="font-medium">IP:</span> {
+                                    (session.ip_address === "::1" || session.ip_address === "127.0.0.1" || 
+                                     session.ip_address === "140.0.0.0" || session.ip_address?.startsWith("140.")) ? 
+                                      "Private Network Address" : 
+                                      session.ip_address || 'Unknown'
+                                  } • 
+                                  <span className="font-medium">Location:</span> {session.location || 'Unknown'}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => confirmSessionRevoke(session.id, finalIsCurrentDevice)}
+                            disabled={isRevokingSession || finalIsCurrentDevice}
+                            className={`text-red-600 hover:text-red-500 focus:outline-none transition-colors ${
+                              finalIsCurrentDevice ? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-700 px-3 py-2 rounded-md' : ''
+                            }`}
+                            title={finalIsCurrentDevice ? "Cannot revoke your current session" : "Revoke access"}
+                          >
+                            {finalIsCurrentDevice ? (
+                              <span className="text-gray-500 dark:text-gray-400 text-sm font-medium">Active</span>
+                            ) : (
+                              <X size={20} />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+                <div className="bg-yellow-50 dark:bg-yellow-900/30 p-4 rounded-md text-sm">
+                  <h4 className="font-medium text-yellow-800 dark:text-yellow-300 mb-1">Security Tip</h4>
+                  <p className="text-yellow-700 dark:text-yellow-200">
+                    If you notice any devices or locations you don't recognize, revoke access immediately and change your password.
+                  </p>
+                </div>
+                
+                <div className="bg-green-50 dark:bg-green-900/30 p-4 rounded-md text-sm mt-4">
+                  <h4 className="font-medium text-green-800 dark:text-green-300 mb-1">Current Session</h4>
+                  <p className="text-green-700 dark:text-green-200">
+                    Your current session is always listed first and highlighted in green. For privacy and security, your actual location is displayed for your current session.
+                  </p>
+                </div>
+                
+                <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-md text-sm mt-4">
+                  <h4 className="font-medium text-blue-800 dark:text-blue-300 mb-1">Privacy & Security Information</h4>
+                  <p className="text-blue-700 dark:text-blue-200">
+                    For security reasons, your actual IP address is not displayed. Your location is determined based on your network connection and may be used to identify suspicious login attempts.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -1313,6 +1980,45 @@ export default function AccountSettings() {
                 className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
               >
                 Yes, Delete Account
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Session Revoke Confirmation Modal */}
+      {showSessionRevokeModal && sessionToRevoke && activeTab === 'DEVICES' && (
+        <div className="absolute inset-0 flex items-center justify-center z-20 backdrop-blur-sm bg-white/30 dark:bg-gray-900/30">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full shadow-xl border border-gray-200 dark:border-gray-700">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              {sessionToRevoke.isCurrentDevice 
+                ? "Sign out from current device?" 
+                : "Revoke device access?"}
+            </h3>
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
+              {sessionToRevoke.isCurrentDevice 
+                ? "You are about to sign out from your current device. You will be logged out immediately and redirected to the login page." 
+                : "This will revoke access for this device. The user will need to log in again to access their account."}
+            </p>
+            {sessionToRevoke.isCurrentDevice && (
+              <div className="p-3 bg-yellow-50 dark:bg-yellow-900/30 rounded-md mb-6">
+                <p className="text-sm text-yellow-800 dark:text-yellow-200 font-medium">
+                  Warning: You will be logged out immediately after confirming.
+                </p>
+              </div>
+            )}
+            <div className="flex space-x-3 justify-end">
+              <button
+                onClick={handleCancelSessionRevoke}
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmSessionRevoke}
+                className="px-4 py-2 rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none"
+              >
+                {sessionToRevoke.isCurrentDevice ? "Sign Out" : "Revoke Access"}
               </button>
             </div>
           </div>

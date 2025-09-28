@@ -1,20 +1,52 @@
 package main
 
 import (
-	//"context"
+	"encoding/json"
 	"log"
 	"net/http"
-
-	//"time"
-
 	"os"
-
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/database"
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler"
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/metadata"
 	"github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
 	"github.com/joho/godotenv"
 )
+
+type HealthResponse struct {
+	Status   string            `json:"status"`
+	Services map[string]string `json:"services"`
+	Message  string            `json:"message"`
+}
+
+func healthHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	services := make(map[string]string)
+
+	db, err := database.InitPostgre()
+	if err != nil || db == nil {
+		services["postgresql"] = "disconnected"
+	} else {
+		services["postgresql"] = "connected"
+	}
+
+	status := "healthy"
+	for _, serviceStatus := range services {
+		if serviceStatus == "disconnected" {
+			status = "degraded"
+			break
+		}
+	}
+
+	response := HealthResponse{
+		Status:   status,
+		Services: services,
+		Message:  "File service health check",
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+}
 
 func main() {
 
@@ -49,7 +81,7 @@ func main() {
 	http.HandleFunc("/startUpload", fileHandler.StartUploadHandler)
 	http.HandleFunc("/upload", fileHandler.UploadHandler)
 	http.HandleFunc("/download", fileHandler.DownloadHandler)
-	
+
 	// access log endpoints
 	http.HandleFunc("/addAccesslog", fileHandler.AddAccesslogHandler)
 	http.HandleFunc("/getAccesslog", fileHandler.GetAccesslogHandler)
@@ -91,5 +123,9 @@ func main() {
 	//changeMethod
 	http.HandleFunc("/changeMethod", fileHandler.ChangeShareMethodHandler)
 	http.HandleFunc("/usersWithFileAccess", fileHandler.GetUsersWithFileAccessHandler)
+	http.HandleFunc("/health", healthHandler)
+
+	// Start the HTTP server
+	log.Println("File Service is running on port 8081")
 	log.Fatal(http.ListenAndServe(":8081", nil))
 }

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { getSodium } from "@/app/lib/sodium";
 import { useEncryptionStore, storeUserKeysSecurely, storeDerivedKeyEncrypted,} from "../../../SecureKeyStorage";
 import Loader from '@/app/dashboard/components/Loader';
+import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 
 export default function GoogleCallbackPage() {
     const router = useRouter();
@@ -44,7 +45,7 @@ export default function GoogleCallbackPage() {
 
             sessionStorage.removeItem("googleOAuthState");
 
-            const response = await fetch(`/api/auth/google?code=${code}`);
+            const response = await fetch(`/proxy/auth/google?code=${code}`);
             const data = await response.json();
 
             if (!response.ok) {
@@ -57,7 +58,7 @@ export default function GoogleCallbackPage() {
             console.log('Checking if user exists for email:', googleUser.email);
             
             try {
-            const userExistsResponse = await fetch(`http://localhost:5000/api/users/getUserId/${googleUser.email}`);
+            const userExistsResponse = await fetch(`/proxy/user/getUserId${googleUser.email}`);
             console.log('User existence check response status:', userExistsResponse.status);
             
             if (userExistsResponse.ok) {
@@ -91,7 +92,7 @@ export default function GoogleCallbackPage() {
         try {
         setLoaderMessage("Signing you in...");
 
-        const loginResponse = await fetch("http://localhost:5000/api/users/google-auth", {
+        const loginResponse = await fetch(getApiUrl("/users/google-auth"), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -108,15 +109,56 @@ export default function GoogleCallbackPage() {
             throw new Error(loginResult.message || "Login failed");
         }
 
-        const { user, keyBundle, token } = loginResult.data;
+        const { user, keyBundle, token, isNewUser } = loginResult.data;
         
-        if (!user.is_verified) {
-            setLoaderMessage("Please verify your email first...");
+        // For new users, verification email is already sent by backend
+        // For existing users, we need to send it from the frontend
+        if (isNewUser) {
+            setLoaderMessage("Account created! Please check your email for verification...");
+            
+            // For new users, just redirect to verification page without sending another email
+            // (Backend already sent the verification code)
             setTimeout(() => {
-            router.push(`/auth/verify-email?email=${encodeURIComponent(googleUser.email)}&userId=${user.id}`);
+                router.push(`/auth/verify-email?email=${encodeURIComponent(googleUser.email)}&userId=${user.id}`);
             }, 1500);
             return;
         }
+        
+        // For existing users, send verification code
+        setLoaderMessage("Sending verification code...");
+        
+        // Store Google login data temporarily for verification
+        sessionStorage.setItem("pendingGoogleLogin", JSON.stringify({
+            googleUser,
+            user,
+            keyBundle,
+            token
+        }));
+        
+        // Send verification code before redirecting
+        try {
+            const sendCodeResponse = await fetch("http://localhost:3000/proxy/auth/send-verification", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    email: googleUser.email,
+                    userId: user.id,
+                    userName: googleUser.name || "User",
+                    type: "google_login"
+                }),
+            });
+            
+            if (!sendCodeResponse.ok) {
+                console.error("Failed to send verification code");
+            }
+        } catch (error) {
+            console.error("Error sending verification code:", error);
+        }
+        
+        setTimeout(() => {
+            router.push(`/auth/verify-email?email=${encodeURIComponent(googleUser.email)}&userId=${user.id}&type=login`);
+        }, 1500);
+        return;
 
         if (!token) {
             throw new Error("No authentication token received");
@@ -192,7 +234,7 @@ export default function GoogleCallbackPage() {
 
         // Add user to the PostgreSQL database using the route for addUser in file routes
         try {
-            const addUserRes = await fetch("http://localhost:5000/api/files/addUser", {
+            const addUserRes = await fetch("/proxy/user/addUser", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -228,7 +270,7 @@ export default function GoogleCallbackPage() {
 
         setLoaderMessage("Registering your account...");
 
-        const registrationResponse = await fetch("http://localhost:5000/api/users/google-auth", {
+        const registrationResponse = await fetch(getApiUrl("/users/google-auth"), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -303,7 +345,7 @@ export default function GoogleCallbackPage() {
             
             // Add user to the PostgreSQL database using the route for addUser in file routes
             try {
-                const addUserRes = await fetch("http://localhost:5000/api/files/addUser", {
+                const addUserRes = await fetch("/proxy/user/addUser", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
@@ -319,6 +361,9 @@ export default function GoogleCallbackPage() {
             } catch (error) {
                 console.error("Error adding new Google user to PostgreSQL database:", error);
             }
+            
+            // Note: Verification code is already sent by the backend during registration
+            // No need to send it again from the frontend
             
             setTimeout(() => {
             router.push(`/auth/verify-email?email=${encodeURIComponent(googleUser.email)}&userId=${user.id}`);

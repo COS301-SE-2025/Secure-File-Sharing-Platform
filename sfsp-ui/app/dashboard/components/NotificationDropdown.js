@@ -5,10 +5,20 @@
 import React, { useEffect, useState } from 'react';
 import { Bell, Check, X, FileText } from 'lucide-react';
 import axios from 'axios';
+import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 import {
   SendFile,
   ReceiveFile,
 } from "@/app/Transfer";
+
+function getCookie(name) {
+  if (typeof document === 'undefined') {
+    return null; 
+  }
+  return document.cookie.split("; ").find(c => c.startsWith(name + "="))?.split("=")[1];
+}
+
+const csrf = getCookie("csrf_token");
 
 export default function NotificationDropdown() {
   const [notifications, setNotifications] = useState([]);
@@ -31,25 +41,21 @@ export default function NotificationDropdown() {
   }, [dropdownOpen]);
 
   const fetchNotifications = async () => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
 
     try {
-      const profileRes = await fetch("http://localhost:5000/api/users/profile", {
-        headers: { Authorization: `Bearer ${token}` },
+      const profileRes = await fetch("/proxy/auth/profile", {
       });
 
       const profileResult = await profileRes.json();
       if (!profileRes.ok) throw new Error(profileResult.message || "Failed to fetch profile");
 
       try {
-        const res = await axios.post('http://localhost:5000/api/notifications/get', {
+        const res = await axios.post('/proxy/notifications/getNotifications', {
           userId: profileResult.data.id,
-        });
-
-        // if (res.data.success) {
-        //   setNotifications(res.data.notifications);
-        // }
+        },{
+          headers : {"x-csrf":csrf || ""}
+        }
+      );
 
         if (res.data.success) {
           const sorted = res.data.notifications.sort(
@@ -69,7 +75,7 @@ export default function NotificationDropdown() {
 
   const markAsRead = async (id) => {
     try {
-      const res = await axios.post('http://localhost:5000/api/notifications/markAsRead', { id });
+      const res = await axios.post('/proxy/notifications/markAsRead', {id },{headers : {"x-csrf":csrf || ""}});
       if (res.data.success) {
         setNotifications((prev) =>
           prev.map((n) => (n.id === id ? { ...n, read: true } : n))
@@ -82,9 +88,11 @@ export default function NotificationDropdown() {
 
   const respondToShareRequest = async (id, status) => {
     try {
-      const res = await axios.post('http://localhost:5000/api/notifications/respond', {
+      const res = await axios.post('/proxy/notifications/respond', {
         id,
         status,
+      },{
+        headers : {"x-csrf":csrf || ""},
       });
 
     if (res.data.success) {
@@ -109,7 +117,7 @@ export default function NotificationDropdown() {
 
   const clearNotification = async (id) => {
     try {
-      const res = await axios.post('http://localhost:5000/api/notifications/clear', { id });
+      const res = await axios.post('/proxy/notifications/clear', { id },{headers : {"x-csrf":csrf || ""}});
       if (res.data.success) {
         setNotifications((prev) => prev.filter((n) => n.id !== id));
       }

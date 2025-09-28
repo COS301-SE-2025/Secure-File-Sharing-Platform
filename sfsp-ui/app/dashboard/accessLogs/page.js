@@ -1,23 +1,50 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import Image from 'next/image';
-import { Eye, Download, Share2, Edit, Clock, Trash2, Undo2, Ban } from 'lucide-react';
-import { useDashboardSearch } from '@/app/dashboard/components/DashboardSearchContext';
-import { useEncryptionStore } from '@/app/SecureKeyStorage';
+import { useState, useEffect } from "react";
+import Image from "next/image";
+import {
+  Eye,
+  Download,
+  Share2,
+  Edit,
+  Clock,
+  Trash2,
+  Undo2,
+  Ban,
+} from "lucide-react";
+import { useDashboardSearch } from "@/app/dashboard/components/DashboardSearchContext";
+import { useEncryptionStore } from "@/app/SecureKeyStorage";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { formatDateTime } from '../../../lib/dateUtils';
+import { UserAvatar } from '@/app/lib/avatarUtils';
+import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 
 function Toast({ message, type = "info", onClose }) {
   return (
-    <div className={`fixed inset-0 flex items-center justify-center z-50 pointer-events-none`}>
-      <div className={`bg-red-300 border ${type === "error" ? "border-red-300" : "border-blue-500"} text-gray-900 rounded shadow-lg px-6 py-3 pointer-events-auto`}>
+    <div
+      className={`fixed inset-0 flex items-center justify-center z-50 pointer-events-none`}
+    >
+      <div
+        className={`bg-red-300 border ${
+          type === "error" ? "border-red-300" : "border-blue-500"
+        } text-gray-900 rounded shadow-lg px-6 py-3 pointer-events-auto`}
+      >
         <span>{message}</span>
-        <button onClick={onClose} className="ml-4 font-bold">×</button>
+        <button onClick={onClose} className="ml-4 font-bold">
+          ×
+        </button>
       </div>
     </div>
   );
 }
+
+function getCookie(name) {
+  if (typeof window === 'undefined') return '';
+  return document.cookie.split("; ").find(c => c.startsWith(name + "="))?.split("=")[1];
+}
+
+const csrf = getCookie("csrf_token");
 
 // function Toast({ message, type = "info", onClose }) {
 //   const colors = {
@@ -39,12 +66,11 @@ function Toast({ message, type = "info", onClose }) {
 //   );
 // }
 
-
 export default function AccessLogsPage() {
   const { search } = useDashboardSearch();
   const [logs, setLogs] = useState([]);
-  const [dateFilter, setDateFilter] = useState('Last 7 days');
-  const [actionFilter, setActionFilter] = useState('All actions');
+  const [dateFilter, setDateFilter] = useState("Last 7 days");
+  const [actionFilter, setActionFilter] = useState("All actions");
   const [loading, setLoading] = useState(true);
 
   const [toast, setToast] = useState(null);
@@ -59,14 +85,13 @@ export default function AccessLogsPage() {
       try {
         const userId = useEncryptionStore.getState().userId;
         if (!userId) {
-          console.error('Cannot fetch files: Missing userId in store.');
+          console.error("Cannot fetch files: Missing userId in store.");
           return;
         }
 
-        // Fetch all files
-        const filesRes = await fetch('http://localhost:5000/api/files/metadata', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        const filesRes = await fetch("/proxy/files/metadata", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-csrf":csrf || "" },
           body: JSON.stringify({ userId }),
         });
 
@@ -74,9 +99,12 @@ export default function AccessLogsPage() {
         if (!Array.isArray(filesData)) filesData = [];
 
         // Filter out deleted files
-        const files = filesData.filter(f => {
-          const tags = f.tags ? f.tags.replace(/[{}]/g, '').split(',') : [];
-          return !tags.includes('deleted') && !tags.some(tag => tag.trim().startsWith('deleted_time:'));
+        const files = filesData.filter((f) => {
+          const tags = f.tags ? f.tags.replace(/[{}]/g, "").split(",") : [];
+          return (
+            !tags.includes("deleted") &&
+            !tags.some((tag) => tag.trim().startsWith("deleted_time:"))
+          );
         });
 
         // Fetch logs for each file
@@ -84,11 +112,17 @@ export default function AccessLogsPage() {
 
         for (const file of files) {
           try {
-            const logsRes = await fetch('http://localhost:5000/api/files/getAccesslog', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ file_id: file.fileId }),
-            });
+            const logsRes = await fetch(
+              "/proxy/files/getAccessLog",
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "x-csrf":csrf || "",
+                },
+                body: JSON.stringify({ file_id: file.fileId }),
+              }
+            );
 
             if (!logsRes.ok) continue;
             const fileLogs = await logsRes.json();
@@ -103,11 +137,13 @@ export default function AccessLogsPage() {
               const Id = log.user_id;
 
               // Fetch user info from email
-              let userName = 'Unknown User';
-              let avatar = '';
-              let email = '';
+              let userName = "Unknown User";
+              let avatar = "";
+              let email = "";
               try {
-                const response = await fetch(`http://localhost:5000/api/users/getUserInfo/${Id}`);
+                const response = await fetch(
+                  `/proxy/user/getUserInfo${Id}`
+                );
                 if (response.ok) {
                   const userInfo = await response.json();
                   // console.log('userInfo:', userInfo);
@@ -123,12 +159,13 @@ export default function AccessLogsPage() {
 
               allLogs.push({
                 user: userName,
-                email, avatar,
-                action: log.action?.toLowerCase() || '',
-                file: file.fileName || 'Unnamed file',
+                email,
+                avatar,
+                action: log.action?.toLowerCase() || "",
+                file: file.fileName || "Unnamed file",
                 // date: new Date(log.timestamp).toLocaleString(),
                 timestamp: log.timestamp,
-                dateFormatted: new Date(log.timestamp).toLocaleString(),
+                dateFormatted: formatDateTime(log.timestamp),
               });
             }
           } catch (err) {
@@ -139,7 +176,7 @@ export default function AccessLogsPage() {
         allLogs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
         setLogs(allLogs);
       } catch (err) {
-        console.error('Failed to fetch all logs:', err);
+        console.error("Failed to fetch all logs:", err);
       } finally {
         setLoading(false);
       }
@@ -157,7 +194,7 @@ export default function AccessLogsPage() {
     // header
     const headers = ["User", "Email", "Action", "File", "Date"];
 
-    const rows = filteredLogs.map(log => [
+    const rows = filteredLogs.map((log) => [
       `"${log.user}"`,
       `"${log.email}"`,
       `"${log.action}"`,
@@ -167,7 +204,7 @@ export default function AccessLogsPage() {
 
     // CSV string
     const csvContent =
-      headers.join(",") + "\n" + rows.map(row => row.join(",")).join("\n");
+      headers.join(",") + "\n" + rows.map((row) => row.join(",")).join("\n");
 
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -199,16 +236,18 @@ export default function AccessLogsPage() {
 
       // Title
       doc.setFontSize(16);
-      doc.text("Secure Share: Access Logs", pageWidth / 2, y + imgHeight + 10, { align: "center" });
+      doc.text("Secure Share: Access Logs", pageWidth / 2, y + imgHeight + 10, {
+        align: "center",
+      });
 
       // headers
       const headers = [["User", "Email", "Action", "File", "Date"]];
-      const rows = filteredLogs.map(log => [
+      const rows = filteredLogs.map((log) => [
         log.user,
         log.email,
         log.action,
         log.file,
-        log.dateFormatted
+        log.dateFormatted,
       ]);
 
       autoTable(doc, {
@@ -220,8 +259,8 @@ export default function AccessLogsPage() {
         styles: {
           fontSize: 10,
           cellPadding: 3,
-          overflow: 'linebreak',
-          valign: 'middle',
+          overflow: "linebreak",
+          valign: "middle",
         },
         columnStyles: {
           0: { minCellWidth: 30 }, // User
@@ -230,7 +269,7 @@ export default function AccessLogsPage() {
           3: { minCellWidth: 40 }, // File
           4: { minCellWidth: 25 }, // Date
         },
-        tableWidth: 'auto',
+        tableWidth: "auto",
       });
 
       doc.save("SecureShare_access_logs.pdf");
@@ -271,10 +310,15 @@ export default function AccessLogsPage() {
       );
     });
 
-
   return (
     <div>
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
       <div className="p-6">
         <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow">
           <h1 className="text-2xl font-bold mb-2 text-blue-500">Access Logs</h1>
@@ -349,36 +393,22 @@ export default function AccessLogsPage() {
                 </thead>
                 <tbody>
                   {filteredLogs.map((log, idx) => (
-                    <tr key={idx} className="border-b border-gray-200 dark:border-gray-700">
+                    <tr
+                      key={idx}
+                      className="border-b border-gray-200 dark:border-gray-700"
+                    >
                       <td className="py-4 flex items-center gap-3">
-                        {log.avatar ? (
-                          <Image
-                            src={log.avatar}
-                            alt={log.user}
-                            width={32}
-                            height={32}
-                            className="rounded-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-bold">
-                            {(() => {
-                              if (!log.user) return '??';
-                              const parts = log.user.split(/[_\-\s\.]+/).filter(part => 
-                                part.length > 0 && !/^\d+$/.test(part)
-                              );
-                              if (parts.length >= 2) {
-                                return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
-                              } else if (parts.length === 1) {
-                                return parts[0].slice(0, 2).toUpperCase();
-                              } else {
-                                return log.user.slice(0, 2).toUpperCase();
-                              }
-                            })()}
-                          </div>
-                        )}
+                        <UserAvatar
+                          avatarUrl={log.avatar}
+                          username={log.user}
+                          size="w-8 h-8"
+                          alt={log.user}
+                        />
                         <div>
                           <div className="font-medium">{log.user}</div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">{log.email}</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            {log.email}
+                          </div>
                         </div>
                       </td>
                       <td className="py-4">
@@ -392,19 +422,65 @@ export default function AccessLogsPage() {
                             created: Clock,
                             restored:Undo2,
                           }; */}
-                          {log.action === 'downloaded' && <><Download size={16} className="text-blue-500" /> Downloaded</>}
-                          {log.action === 'shared' && <><Share2 size={16} className="text-green-500" /> Shared</>}
-                          {log.action === 'edited' && <><Edit size={16} className="text-green-500" /> Edit</>}
-                          {log.action === 'deleted' && <><Trash2 size={16} className="text-green-500" /> Trash</>}
-                          {log.action === 'created' && <><Clock size={16} className="text-yellow-500" /> Created</>}
-                          {log.action === 'restored' && <><Undo2 size={16} className="text-green-500" /> Restored</>}
-                          {log.action === 'shared_view' && <><Share2 size={16} className="text-green-500" /> Shared_View</>}
-                          {log.action === 'viewed' && <><Eye size={16} className="text-green-500" /> Viewed</>}
-                          {log.action === 'revoked_view' && <><Ban size={16} className="text-blue-500" /> Revoked</>}
+                          {log.action === "downloaded" && (
+                            <>
+                              <Download size={16} className="text-blue-500" />{" "}
+                              Downloaded
+                            </>
+                          )}
+                          {log.action === "shared" && (
+                            <>
+                              <Share2 size={16} className="text-green-500" />{" "}
+                              Shared
+                            </>
+                          )}
+                          {log.action === "edited" && (
+                            <>
+                              <Edit size={16} className="text-green-500" /> Edit
+                            </>
+                          )}
+                          {log.action === "deleted" && (
+                            <>
+                              <Trash2 size={16} className="text-green-500" />{" "}
+                              Trash
+                            </>
+                          )}
+                          {log.action === "created" && (
+                            <>
+                              <Clock size={16} className="text-yellow-500" />{" "}
+                              Created
+                            </>
+                          )}
+                          {log.action === "restored" && (
+                            <>
+                              <Undo2 size={16} className="text-green-500" />{" "}
+                              Restored
+                            </>
+                          )}
+                          {log.action === "shared_view" && (
+                            <>
+                              <Share2 size={16} className="text-green-500" />{" "}
+                              Shared_View
+                            </>
+                          )}
+                          {log.action === "viewed" && (
+                            <>
+                              <Eye size={16} className="text-green-500" />{" "}
+                              Viewed
+                            </>
+                          )}
+                          {log.action === "revoked_view" && (
+                            <>
+                              <Ban size={16} className="text-blue-500" />{" "}
+                              Revoked
+                            </>
+                          )}
                         </div>
                       </td>
                       <td className="py-4">{log.file}</td>
-                      <td className="py-4 text-gray-500 dark:text-gray-400">{log.dateFormatted}</td>
+                      <td className="py-4 text-gray-500 dark:text-gray-400">
+                        {log.dateFormatted}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

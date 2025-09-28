@@ -4,6 +4,7 @@
 
 import React, { useState, useEffect } from "react";
 import { X, User, Trash2, Loader } from "lucide-react";
+import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 
 function Toast({ message, type = "info", onClose }) {
   return (
@@ -23,6 +24,13 @@ function Toast({ message, type = "info", onClose }) {
     </div>
   );
 }
+
+function getCookie(name) {
+  if (typeof window === 'undefined') return '';
+  return document.cookie.split("; ").find(c => c.startsWith(name + "="))?.split("=")[1];
+}
+
+const csrf = typeof window !== 'undefined' ? getCookie("csrf_token") : "";
 
 export function RevokeAccessDialog({ open, onOpenChange, file }) {
   const [users, setUsers] = useState([]);
@@ -46,10 +54,10 @@ export function RevokeAccessDialog({ open, onOpenChange, file }) {
     setLoading(true);
     try {
       const accessRes = await fetch(
-        "http://localhost:5000/api/files/usersWithFileAccess",
+        "/proxy/files/userWithFileAccess",
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
           body: JSON.stringify({ fileId: file.id }),
         }
       );
@@ -61,7 +69,7 @@ export function RevokeAccessDialog({ open, onOpenChange, file }) {
 
       if (ownerId) {
         const ownerRes = await fetch(
-          `http://localhost:5000/api/users/getUserById/${ownerId}`
+          `/proxy/user/getUserById/${ownerId}`
         );
         if (ownerRes.ok) {
           const ownerData = await ownerRes.json();
@@ -75,7 +83,7 @@ export function RevokeAccessDialog({ open, onOpenChange, file }) {
           .map(async (userId) => {
             try {
               const userRes = await fetch(
-                `http://localhost:5000/api/users/getUserById/${userId}`
+                `/proxy/user/getUserById/${userId}`
               );
               if (userRes.ok) {
                 const userData = await userRes.json();
@@ -107,12 +115,8 @@ export function RevokeAccessDialog({ open, onOpenChange, file }) {
         return;
       }
 
-      const profileRes = await fetch(
-        "http://localhost:5000/api/users/profile",
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      console.log("We are getting the profile to find current user ID");
+      const profileRes = await fetch("/proxy/auth/profile");
 
       const profileResult = await profileRes.json();
       if (!profileRes.ok) {
@@ -122,11 +126,12 @@ export function RevokeAccessDialog({ open, onOpenChange, file }) {
 
       const currentUserId = profileResult.data.id;
 
+      console.log("Revoking access for user:", userId, "by user:", currentUserId);
       const revokeRes = await fetch(
-        "http://localhost:5000/api/files/revokeViewAccess",
+        "/proxy/file/revokeViewAccess",
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {"x-csrf":csrf||""},
           body: JSON.stringify({
             fileId: file.id,
             userId: currentUserId,
@@ -134,13 +139,14 @@ export function RevokeAccessDialog({ open, onOpenChange, file }) {
           }),
         }
       );
-
+      console.log("Revoke response status:", revokeRes.status);
       if (!revokeRes.ok) {
         throw new Error("Failed to revoke access");
       }
 
       showToast("Access revoked successfully", 'info');
-      fetchUsersWithAccess(); // Refresh the list
+      console.log("Access revoked, refreshing user list");
+      fetchUsersWithAccess(); 
     } catch (error) {
       console.error("Error revoking access:", error);
       showToast("Failed to revoke access: " + error.message, "error");

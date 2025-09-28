@@ -1,0 +1,270 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&family=Source+Code+Pro:ital,wght@0,200..900;1,200..900&display=swap');
+
+/* Container */
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  font-family: "Roboto", sans-serif;
+}
+
+.background-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.login-container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  background: #183446;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Roboto", sans-serif;
+  overflow: hidden;
+  z-index:10;
+}
+
+
+/* Box */
+.login-box {
+  width: 100%;
+  z-index: 20;
+  max-width: 400px;
+}
+
+/* Header */
+.login-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.login-logo {
+  display: inline-flex;
+  padding: 12px;
+  background: linear-gradient(135deg, #217a98, #11586f);
+  border-radius: 50%;
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.6);
+  margin-bottom: 12px;
+}
+
+.logo-icon {
+  width: 34px;   
+  height: 34px;
+  object-fit: contain;
+}
+
+.login-title {
+  font-size: 28px;
+  font-weight: bold;
+  color: #f9fafb;
+  margin-bottom: 4px;
+}
+
+.login-subtitle {
+  font-size: 14px;
+  color: #9ca3af;
+}
+
+/* Card */
+.card-boxed {
+  background: #046E8F;
+  border: 1px solid #30363d;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.back-btn {
+  top: 50%; 
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #fefeff;
+  cursor: pointer;
+}
+
+.card-header {
+  margin-bottom: 16px;
+}
+
+.card-title{
+  color:#ffffff;
+  /* text-align: center; */
+}
+
+.card-description {
+  /* text-align: center; */
+  font-size: 14px;
+  color: #ffffff;
+}
+
+/* Form */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 6px;
+  color: #f9fafb;
+  font-size: 14px;
+}
+
+.form-group .username-input {
+  width: 90%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #30363d;
+  background: #ffffff;
+  color: #000000;
+}
+
+
+.form-group input {
+  width: 85%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #30363d;
+  background: #ffffff;
+  color: #000000;
+}
+
+.form-group input::placeholder {
+  color: #6b7280;
+}
+
+.form-group input:focus {
+  outline: 2px solid #34bfee;
+}
+
+.input-icon-wrapper {
+  position: relative;
+}
+
+.input-icon {
+  position: absolute;
+  top: 50%;
+  left: 10px;
+  transform: translateY(-50%);
+  color: #6b7280;
+}
+
+.input-icon-wrapper input {
+  padding-left: 32px;
+}
+
+/* Button */
+.btn {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  background: #38AECC;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn:hover {
+  background: #34bfee;
+}
+
+.btn:disabled {
+  background: #6b7280;
+  cursor: not-allowed;
+}
+
+/* Back button in header */
+.back-btn {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  margin-right: 8px;
+}
+
+.back-btn:hover {
+  color: #f9fafb;
+}
+
+/* OTP */
+.otp-section {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.otp-icon {
+  color: #34bfee;
+  margin: 0 auto 12px;
+}
+
+.otp-text {
+  font-size: 14px;
+  color: #9ca3af;
+  margin-bottom: 16px;
+}
+
+.otp-inputs {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.otp-inputs input {
+  width: 40px;
+  height: 48px;
+  font-size: 20px;
+  text-align: center;
+  border-radius: 8px;
+  border: 1px solid #30363d;
+  background: #ffff;
+  color: #000000;
+}
+
+.otp-inputs input:focus {
+  outline: 2px solid #34bfee;
+}
+
+/* toast */
+.toast-center {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #fff9e6; 
+  color: #000000;
+  padding: 16px 24px;
+  border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.2);
+  z-index: 9999;
+  text-align: center;
+  font-weight: 500;
+  animation: fadein 0.3s, fadeout 0.3s 2.7s;
+}
+
+.toast-center.success {
+  background: #52c41a;
+}
+
+@keyframes fadein {
+  from { opacity: 0; transform: translate(-50%, -55%); }
+  to { opacity: 1; transform: translate(-50%, -50%); }
+}
+
+@keyframes fadeout {
+  from { opacity: 1; transform: translate(-50%, -50%); }
+  to { opacity: 0; transform: translate(-50%, -55%); }
+}

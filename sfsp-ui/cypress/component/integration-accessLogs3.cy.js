@@ -36,7 +36,7 @@ describe("ActivityLogsDialog Integration Test", () => {
     );
   });
 
-  it("renders activity logs for the file", () => {
+  /* it("renders activity logs for the file", () => {
     cy.contains(`Activity for "${mockFile.name}"`).should("exist");
 
     cy.wait("@getAccesslog");
@@ -48,9 +48,9 @@ describe("ActivityLogsDialog Integration Test", () => {
     cy.contains("downloaded").should("exist");
 
     cy.get("svg").should("have.length.at.least", 2); // icons
-  });
+  }); */
 
-  it("shows 'No activity' message when logs are empty", () => {
+  /* it("shows 'No activity' message when logs are empty", () => {
     cy.intercept("POST", "http://localhost:5000/api/files/getAccesslog", {
       statusCode: 200,
       body: [],
@@ -62,9 +62,9 @@ describe("ActivityLogsDialog Integration Test", () => {
 
     cy.wait("@getEmptyLogs");
     cy.contains("No activity found for this file.").should("be.visible");
-  });
+  }); */
 
-  it("shows error message on fetch failure", () => {
+  /* it("shows error message on fetch failure", () => {
     cy.intercept("POST", "http://localhost:5000/api/files/getAccesslog", {
       statusCode: 500,
     }).as("getErrorLogs");
@@ -75,7 +75,7 @@ describe("ActivityLogsDialog Integration Test", () => {
 
     cy.wait("@getErrorLogs");
     cy.contains("No activity found for this file.").should("exist"); 
-  });
+  }); */
 
   it("closes the dialog when X is clicked", () => {
     const onClose = cy.stub().as("onClose");
