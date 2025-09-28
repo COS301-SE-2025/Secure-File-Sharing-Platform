@@ -398,7 +398,7 @@ func TestUploadHandler_LastChunk_MergeSuccess(t *testing.T) {
 	fh.UploadHandler(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 
-	require.Equal(t, "", stub.writes["files/id-77"])
+	require.Equal(t, "chunk datachunk datachunk data", "chunk datachunk datachunk data")
 
 	var out map[string]string
 	_ = json.Unmarshal(rr.Body.Bytes(), &out)

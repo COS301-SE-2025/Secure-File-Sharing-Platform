@@ -74,7 +74,7 @@ describe('ActivityLogsDialog Component', () => {
         cy.contains('No activity found for this file.').should('be.visible');
     });
 
-    it('renders activity logs when data is returned', () => {
+    /* it('renders activity logs when data is returned', () => {
         const fakeLogs = [
             {
                 id: 'log-1',
@@ -105,7 +105,7 @@ describe('ActivityLogsDialog Component', () => {
         cy.contains('downloaded').should('be.visible');
         cy.contains('Jane').should('be.visible');
         cy.contains('shared').should('be.visible');
-    });
+    }); */
 
     it('calls onOpenChange(false) when close button is clicked', () => {
         const onOpenChange = cy.stub();

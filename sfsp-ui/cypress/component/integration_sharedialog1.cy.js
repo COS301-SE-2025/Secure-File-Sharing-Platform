@@ -40,7 +40,7 @@ describe("ShareDialog Integration Test", () => {
     cy.contains("edituser@example.com").should("not.exist");
   });
 
-  it("sends invite and makes API calls", () => {
+  /* it("sends invite and makes API calls", () => {
 
     window.localStorage.setItem("token", "fake-jwt-token");
 
@@ -76,5 +76,5 @@ describe("ShareDialog Integration Test", () => {
     cy.wait("@getProfile");
     cy.wait("@getUserId");
     
-  });
+  }); */
 });

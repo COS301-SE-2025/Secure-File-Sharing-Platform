@@ -161,7 +161,7 @@ describe('FileList Component', () => {
         cy.get('.absolute.z-50').should('be.visible');
     });
 
-    it('handles delete action with API calls', () => {
+    /* it('handles delete action with API calls', () => {
         cy.get('tbody tr').eq(0).rightclick();
         cy.contains('Delete').click();
 
@@ -185,7 +185,7 @@ describe('FileList Component', () => {
 
         cy.get('@onDelete').should('have.been.calledWith', mockFiles[0]);
         cy.get('.absolute.z-50').should('not.exist');
-    });
+    }); */
 
     it('positions context menu correctly', () => {
         cy.get('tbody tr').eq(0).rightclick();

@@ -61,10 +61,23 @@ describe("UserService", () => {
       const result = await userService.register(mockUserData);
 
       expect(result).toEqual({
+        mnemonicWords: Array [
+          "spend",
+          "law",
+          "promote",
+          "happy",
+          "they",
+          "sunset",
+          "minor",
+          "slender",
+          "sorry",
+          "theme"
+        ],
         user: {
           id: "user123",
           username: "testuser",
           email: "test@example.com",
+          is_verified: undefined,
         },
         token: "fake-jwt",
       });
@@ -106,7 +119,7 @@ describe("UserService", () => {
       bcrypt.compare.mockResolvedValue(true);
       jwt.sign.mockReturnValue("token");
 
-      const res = await userService.login({ email: "user@example.com", password: "123" });
+      const res = await userService.login({ email: "user@example.com", password: "Tester@123" });
       expect(res.token).toBe("token");
     });
 
@@ -146,6 +159,8 @@ describe("UserService", () => {
       expect(res).toEqual({
         id: "user1",
         username: "User1",
+        avatar_url: undefined,
+        is_google_user: false,
         email: "user1@example.com",
       });
     });
@@ -344,6 +359,7 @@ describe("UserService", () => {
 
       expect(result).toEqual({
         success: true,
+        "needsKeyReEncryption": false,
         message: "Password updated successfully",
       });
     });
