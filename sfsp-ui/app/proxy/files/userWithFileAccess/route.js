@@ -6,6 +6,7 @@ import {
   withTimeout,
   CONFIG,
 } from "../../_utils/proxy";
+import { getFileApiUrl } from "@/lib/api-config";
 
 export async function POST(request) {
   const securityCheck = enforceSecurity(request, {
@@ -64,7 +65,7 @@ export async function POST(request) {
     }
 
     const filesRes = await withTimeout(fetch(
-      "http://localhost:5000/api/files/usersWithFileAccess",
+      getFileApiUrl("/files/usersWithFileAccess"),
       {
         method: "POST",
         headers: {
@@ -72,7 +73,7 @@ export async function POST(request) {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(body),
-      }),15000
+      }), 15000
     );
 
     if (!filesRes.ok) {

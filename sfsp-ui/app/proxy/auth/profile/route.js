@@ -1,5 +1,6 @@
 import {NextResponse} from 'next/server';
 import { enforceCsrf } from '../../_utils/csrf';
+import {getApiUrl} from '@/lib/api-config';
 
 export async function GET(request) {
 	try{
@@ -13,7 +14,7 @@ export async function GET(request) {
 			);
 		}
 
-		const verifyResponse = await fetch('http://localhost:5000/api/users/verify-token', {
+		const verifyResponse = await fetch(getApiUrl('/users/verify-token'), {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -30,7 +31,7 @@ export async function GET(request) {
             );
         }
 
-		const backendRes = await fetch('http://localhost:5000/api/users/profile', {
+		const backendRes = await fetch(getApiUrl('/users/profile'), {
 			method: 'GET',
 			headers: {'Authorization': `Bearer ${token}` }
 		});

@@ -115,6 +115,7 @@ export function RevokeAccessDialog({ open, onOpenChange, file }) {
         return;
       }
 
+      console.log("We are getting the profile to find current user ID");
       const profileRes = await fetch("/proxy/auth/profile");
 
       const profileResult = await profileRes.json();
@@ -125,6 +126,7 @@ export function RevokeAccessDialog({ open, onOpenChange, file }) {
 
       const currentUserId = profileResult.data.id;
 
+      console.log("Revoking access for user:", userId, "by user:", currentUserId);
       const revokeRes = await fetch(
         "/proxy/file/revokeViewAccess",
         {
@@ -137,12 +139,13 @@ export function RevokeAccessDialog({ open, onOpenChange, file }) {
           }),
         }
       );
-
+      console.log("Revoke response status:", revokeRes.status);
       if (!revokeRes.ok) {
         throw new Error("Failed to revoke access");
       }
 
       showToast("Access revoked successfully", 'info');
+      console.log("Access revoked, refreshing user list");
       fetchUsersWithAccess(); 
     } catch (error) {
       console.error("Error revoking access:", error);
