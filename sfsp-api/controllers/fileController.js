@@ -8,8 +8,14 @@ const fs = require("fs");
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-
 exports.downloadFile = async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({
+      success: false,
+      message: "Authorization token missing or invalid.",
+    });
+  }
   const { userId, fileId } = req.body;
 
   if (!userId || !fileId) {
@@ -17,7 +23,6 @@ exports.downloadFile = async (req, res) => {
   }
 
   try {
-    // 🔹 Request Go service with streaming
     const response = await axios({
       method: "post",
       url: `${
@@ -25,18 +30,20 @@ exports.downloadFile = async (req, res) => {
       }/download`,
       data: { userId, fileId },
       headers: { "Content-Type": "application/json" },
-      responseType: "stream", // ✅ Stream instead of arraybuffer
+      responseType: "stream",
     });
 
     const fileName = response.headers["x-file-name"];
     const nonce = response.headers["x-nonce"];
 
-	  console.log("fileName is: ", fileName);
-	  console.log("Nounce is: ", nonce);
+    console.log("fileName is: ", fileName);
+    console.log("Nounce is: ", nonce);
 
     if (!fileName || !nonce) {
-      console.error("❌ Missing x-file-name or x-nonce headers from Go service");
-      return res.status(500).send("Missing required file metadata from service");
+      console.error("Missing x-file-name or x-nonce headers from Go service");
+      return res
+        .status(500)
+        .send("Missing required file metadata from service");
     }
 
     console.log(
@@ -45,7 +52,6 @@ exports.downloadFile = async (req, res) => {
       "size unknown until complete"
     );
 
-    // 🔹 Pass headers to browser for filename + metadata
     res.set({
       "Access-Control-Expose-Headers": "X-File-Name, X-Nonce",
       "Content-Type": "application/octet-stream",
@@ -53,27 +59,30 @@ exports.downloadFile = async (req, res) => {
       "X-Nonce": nonce,
     });
 
-    // 🔹 Pipe stream from Go directly to client
     response.data.pipe(res);
 
-    // Optional: handle stream errors
     response.data.on("error", (err) => {
       console.error("Stream error from Go service:", err);
-      res.end(); // close client connection
+      res.end();
     });
 
-    // Optional: log when finished
     response.data.on("end", () => {
-      console.log("✅ File streamed to client successfully:", fileName);
+      console.log("File streamed to client successfully:", fileName);
     });
-
   } catch (err) {
-    console.error("❌ Download error:", err.message);
+    console.error("Download error:", err.message);
     return res.status(500).send("Download failed");
   }
 };
 
 exports.getMetaData = async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({
+      success: false,
+      message: "Authorization token missing or invalid.",
+    });
+  }
   const userId = req.body.userId;
   console.log("📦 Received metadata request:", req.body);
 
@@ -102,6 +111,13 @@ exports.getMetaData = async (req, res) => {
 };
 
 exports.startUpload = async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({
+      success: false,
+      message: "Authorization token missing or invalid.",
+    });
+  }
   try {
     const {
       fileName,
@@ -132,7 +148,7 @@ exports.startUpload = async (req, res) => {
         fileName,
         fileType: fileType || "",
         userId,
-	nonce,
+        nonce,
         fileDescription: fileDescription || "",
         fileTags: tagsArray,
         path: folderPath || "files",
@@ -148,6 +164,13 @@ exports.startUpload = async (req, res) => {
 };
 
 exports.uploadChunk = async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({
+      success: false,
+      message: "Authorization token missing or invalid.",
+    });
+  }
   try {
     const {
       fileName,
@@ -159,7 +182,7 @@ exports.uploadChunk = async (req, res) => {
       fileTags,
       chunkIndex,
       totalChunks,
-      fileId,          // ✅ New
+      fileId, // ✅ New
       path: folderPath,
     } = req.body;
 
@@ -186,7 +209,7 @@ exports.uploadChunk = async (req, res) => {
     }
 
     const formData = new FormData();
-    formData.append("fileId", fileId);                     // ✅ Include fileId
+    formData.append("fileId", fileId);
     formData.append("fileName", fileName);
     formData.append("fileType", fileType || "application/octet-stream");
     formData.append("userId", userId);
@@ -241,6 +264,13 @@ exports.getNumberOfFiles = async (req, res) => {
 };
 
 exports.deleteFile = async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({
+      success: false,
+      message: "Authorization token missing or invalid.",
+    });
+  }
   const { fileId, userId } = req.body;
 
   if (!fileId) {
@@ -269,10 +299,16 @@ exports.deleteFile = async (req, res) => {
   }
 };
 
-
 exports.sendFile = [
   upload.single("encryptedFile"),
   async (req, res) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({
+        success: false,
+        message: "Authorization token missing or invalid.",
+      });
+    }
     try {
       const {
         fileid,
@@ -284,16 +320,21 @@ exports.sendFile = [
       } = req.body;
       const encryptedFile = req.file?.buffer;
 
-      if (!fileid || !userId || !recipientUserId || !metadata || !encryptedFile) {
+      if (
+        !fileid ||
+        !userId ||
+        !recipientUserId ||
+        !metadata ||
+        !encryptedFile
+      ) {
         return res.status(400).send("Missing required fields or file chunk");
       }
 
-      // 🔹 Build FormData for Go backend
       const formData = new FormData();
       formData.append("fileid", fileid);
       formData.append("userId", userId);
       formData.append("recipientUserId", recipientUserId);
-      formData.append("metadata", metadata); // JSON string
+      formData.append("metadata", metadata);
       formData.append("chunkIndex", chunkIndex);
       formData.append("totalChunks", totalChunks);
       formData.append("encryptedFile", encryptedFile, {
@@ -301,17 +342,15 @@ exports.sendFile = [
         contentType: "application/octet-stream",
       });
 
-      // 🔹 Send to Go backend
       const goResponse = await axios.post(
         `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/sendFile`,
         formData,
         {
           headers: formData.getHeaders(),
-          maxBodyLength: Infinity, // allow big chunks
+          maxBodyLength: Infinity,
         }
       );
 
-      // 🔹 Proxy response back to frontend
       res.status(goResponse.status).json(goResponse.data);
     } catch (err) {
       console.error("Error sending file:", err.message);
@@ -321,6 +360,13 @@ exports.sendFile = [
 ];
 
 exports.addAccesslog = async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({
+      success: false,
+      message: "Authorization token missing or invalid.",
+    });
+  }
   const { file_id, user_id, action, message } = req.body;
   if (!file_id || !user_id || !action || !message) {
     return res
@@ -341,6 +387,13 @@ exports.addAccesslog = async (req, res) => {
 };
 
 exports.getAccesslog = async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({
+      success: false,
+      message: "Authorization token missing or invalid.",
+    });
+  }
   const { file_id } = req.body;
   try {
     const response = await axios.post(
@@ -356,6 +409,13 @@ exports.getAccesslog = async (req, res) => {
 };
 
 exports.addTags = async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({
+      success: false,
+      message: "Authorization token missing or invalid.",
+    });
+  }
   const { fileId, tags } = req.body;
   if (!fileId || !tags) {
     return res.status(400).send("Missing required fields: fileId or tags");
@@ -374,6 +434,13 @@ exports.addTags = async (req, res) => {
 };
 
 exports.addUserToTable = async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({
+      success: false,
+      message: "Authorization token missing or invalid.",
+    });
+  }
   const { userId } = req.body;
 
   if (!userId) {
@@ -433,6 +500,13 @@ exports.restoreFile = async (req, res) => {
 };
 
 exports.removeFileTags = async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({
+      success: false,
+      message: "Authorization token missing or invalid.",
+    });
+  }
   const { fileId, tags } = req.body;
   if (!fileId || !tags) {
     return res.status(400).send("Missing required fields: fileId or tags");
@@ -450,9 +524,14 @@ exports.removeFileTags = async (req, res) => {
   }
 };
 
-
-
 exports.downloadSentFile = async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({
+      success: false,
+      message: "Authorization token missing or invalid.",
+    });
+  }
   const { filepath } = req.body;
 
   if (!filepath) {
@@ -460,46 +539,52 @@ exports.downloadSentFile = async (req, res) => {
   }
 
   try {
-    // 🔹 1. Request Go service with streaming
     const response = await axios({
       method: "post",
-      url: `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/downloadSentFile`,
+      url: `${
+        process.env.FILE_SERVICE_URL || "http://localhost:8081"
+      }/downloadSentFile`,
       data: { filePath: filepath },
       headers: { "Content-Type": "application/json" },
-      responseType: "stream", // ⭐ Stream instead of buffering
+      responseType: "stream",
     });
 
-    // 🔹 2. Forward headers
     res.set({
       "Content-Type": "application/octet-stream",
       "Access-Control-Expose-Headers": "Content-Disposition",
-      "Content-Disposition": `attachment; filename="${filepath.split("/").pop()}"`,
+      "Content-Disposition": `attachment; filename="${filepath
+        .split("/")
+        .pop()}"`,
     });
 
-    // 🔹 3. Pipe Go backend stream → frontend
     response.data.pipe(res);
 
-    // Optional logging
     response.data.on("end", () => {
-      console.log(`✅ Finished streaming sent file: ${filepath}`);
+      console.log(`Finished streaming sent file: ${filepath}`);
     });
 
     response.data.on("error", (err) => {
-      console.error("❌ Stream error from Go service:", err.message);
-      res.end(); // Close client connection
+      console.error("Stream error from Go service:", err.message);
+      res.end();
     });
-
   } catch (err) {
     console.error("❌ Error retrieving sent file:", err.message);
     if (!res.headersSent) {
       res.status(500).send("Error retrieving the sent file");
     } else {
-      res.end(); // Ensure connection closes
+      res.end();
     }
   }
 };
 
 exports.addDescription = async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({
+      success: false,
+      message: "Authorization token missing or invalid.",
+    });
+  }
   const { fileId, description } = req.body;
 
   if (!fileId || !description) {
@@ -522,6 +607,13 @@ exports.addDescription = async (req, res) => {
 };
 
 exports.createFolder = async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({
+      success: false,
+      message: "Authorization token missing or invalid.",
+    });
+  }
   const { userId, folderName, parentPath, description } = req.body;
 
   if (!userId || !folderName) {
@@ -542,6 +634,13 @@ exports.createFolder = async (req, res) => {
 };
 
 exports.updateFilePath = async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({
+      success: false,
+      message: "Authorization token missing or invalid.",
+    });
+  }
   const { fileId, newPath } = req.body;
 
   if (!fileId || !newPath) {
@@ -566,6 +665,13 @@ exports.updateFilePath = async (req, res) => {
 exports.sendByView = [
   upload.single("encryptedFile"),
   async (req, res) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({
+        success: false,
+        message: "Authorization token missing or invalid.",
+      });
+    }
     try {
       const {
         fileid,
@@ -589,7 +695,6 @@ exports.sendByView = [
           .send("Missing file id, user ids, metadata, or encrypted file chunk");
       }
 
-      // 🔹 Build FormData to forward to Go
       const formData = new FormData();
       formData.append("fileid", fileid);
       formData.append("userId", userId);
@@ -602,13 +707,12 @@ exports.sendByView = [
         contentType: "application/octet-stream",
       });
 
-      // 🔹 Forward to Go service
       const response = await axios.post(
         `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/sendByView`,
         formData,
         {
           headers: formData.getHeaders(),
-          maxBodyLength: Infinity, // allow large chunks
+          maxBodyLength: Infinity, 
         }
       );
 
@@ -616,7 +720,6 @@ exports.sendByView = [
         return res.status(response.status).send("Error from Go service");
       }
 
-      // Forward the shareId from the Go service response
       const { shareId, message } = response.data;
 
       res.status(200).json({
@@ -631,6 +734,13 @@ exports.sendByView = [
 ];
 
 exports.getSharedViewFiles = async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({
+      success: false,
+      message: "Authorization token missing or invalid.",
+    });
+  }
   const { userId } = req.body;
 
   if (!userId) {
@@ -688,6 +798,13 @@ exports.getViewFileAccessLogs = async (req, res) => {
 };
 
 exports.revokeViewAccess = async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({
+      success: false,
+      message: "Authorization token missing or invalid.",
+    });
+  }
   const { fileId, userId, recipientId } = req.body;
 
   if (!fileId || !userId || !recipientId) {
@@ -713,8 +830,14 @@ exports.revokeViewAccess = async (req, res) => {
   }
 };
 
-
 exports.downloadViewFile = async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({
+      success: false,
+      message: "Authorization token missing or invalid.",
+    });
+  }
   const { userId, fileId } = req.body;
 
   if (!userId || !fileId) {
@@ -724,7 +847,9 @@ exports.downloadViewFile = async (req, res) => {
   try {
     const response = await axios({
       method: "post",
-      url: `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/downloadViewFile`,
+      url: `${
+        process.env.FILE_SERVICE_URL || "http://localhost:8081"
+      }/downloadViewFile`,
       data: { userId, fileId },
       headers: { "Content-Type": "application/json" },
       responseType: "stream",
@@ -749,14 +874,15 @@ exports.downloadViewFile = async (req, res) => {
     response.data.pipe(res);
 
     response.data.on("end", () => {
-      console.log(`Finished streaming view-only (You should watch fight club) file: ${fileIdHeader}`);
+      console.log(
+        `Finished streaming view-only (You should watch fight club) file: ${fileIdHeader}`
+      );
     });
 
     response.data.on("error", (err) => {
       console.error("Stream error from Go service:", err.message);
-      res.end(); 
+      res.end();
     });
-
   } catch (err) {
     console.error("Download view file error:", err.message);
 
@@ -769,13 +895,32 @@ exports.downloadViewFile = async (req, res) => {
 
 exports.changeShareMethod = [
   upload.single("encryptedFile"),
-  async (req, res) =>{
+  async (req, res) => {
+    const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({
+      success: false,
+      message: "Authorization token missing or invalid.",
+    });
+  }
     try {
-      const { fileid, userId, recipientId, newShareMethod, metadata } = req.body;
+      console.log("Inside the change share method in the api");
+      const { fileid, userId, recipientId, newShareMethod, metadata } =
+        req.body;
       const encryptedFile = req.file?.buffer;
 
-      if(!fileid || !userId || !recipientId || !newShareMethod || !encryptedFile) {
-        return res.status(400).send("Missing file id, user ids, new share method or encrypted file");
+      if (
+        !fileid ||
+        !userId ||
+        !recipientId ||
+        !newShareMethod ||
+        !encryptedFile
+      ) {
+        return res
+          .status(400)
+          .send(
+            "Missing file id, user ids, new share method or encrypted file"
+          );
       }
 
       const formData = new FormData();
@@ -786,11 +931,13 @@ exports.changeShareMethod = [
       formData.append("metadata", JSON.stringify(metadata));
       formData.append("encryptedFile", encryptedFile, {
         filename: "encrypted.bin",
-        contentType: "application/octet-stream"
+        contentType: "application/octet-stream",
       });
 
       const response = await axios.post(
-        `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/changeShareMethod`,
+        `${
+          process.env.FILE_SERVICE_URL || "http://localhost:8081"
+        }/changeShareMethod`,
         formData,
         { headers: formData.getHeaders() }
       );
@@ -803,16 +950,23 @@ exports.changeShareMethod = [
 
       res.status(200).json({
         message: message || "File share method changed successfully",
-        shareId
+        shareId,
       });
     } catch (error) {
       console.error("Error changing share method:", error.message);
       res.status(500).send("Error changing share method");
     }
-  }
+  },
 ];
 
 exports.getUsersWithFileAccess = async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({
+      success: false,
+      message: "Authorization token missing or invalid.",
+    });
+  }
   const { fileId } = req.body;
 
   if (!fileId) {
@@ -821,13 +975,17 @@ exports.getUsersWithFileAccess = async (req, res) => {
 
   try {
     const response = await axios.get(
-      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/usersWithFileAccess`,
+      `${
+        process.env.FILE_SERVICE_URL || "http://localhost:8081"
+      }/usersWithFileAccess`,
       { params: { fileId } },
       { headers: { "Content-Type": "application/json" } }
     );
 
     if (response.status !== 200) {
-      return res.status(response.status).send("Error getting users with file access");
+      return res
+        .status(response.status)
+        .send("Error getting users with file access");
     }
     res.json(response.data);
   } catch (err) {

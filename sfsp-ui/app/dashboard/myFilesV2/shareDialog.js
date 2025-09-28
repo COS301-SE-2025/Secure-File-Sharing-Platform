@@ -9,6 +9,12 @@ import {
   ReceiveFile,
 } from "@/app/Transfer";
 
+function getCookie(name) {
+  return document.cookie.split("; ").find(c => c.startsWith(name + "="))?.split("=")[1];
+}
+
+const csrf = getCookie("csrf_token");
+
 export function ShareDialog({ open, onOpenChange, file }) {
   const [shareWith, setShareWith] = useState([]);
   const [newEmail, setNewEmail] = useState("");
@@ -73,16 +79,11 @@ export function ShareDialog({ open, onOpenChange, file }) {
       return;
     }
 
-    onOpenChange(false); //close dialogue first
+    onOpenChange(false);
 
     try {
-      const token = localStorage.getItem("token");
-      if (!token) return;
 
-      // Get sender profile once
-      const profileRes = await fetch("http://localhost:5000/api/users/profile", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const profileRes = await fetch("/proxy/auth/profile");
 
       const profileResult = await profileRes.json();
       if (!profileRes.ok) throw new Error(profileResult.message || "Failed to fetch profile");
@@ -93,9 +94,8 @@ export function ShareDialog({ open, onOpenChange, file }) {
       for (const recipient of shareWith) {
         const email = recipient.email;
 
-        // Fetch recipient user ID by email
         const response = await fetch(
-          `http://localhost:5000/api/users/getUserId/${email}`
+          `/proxy/user/getUserId/${email}`
         );
         if (!response.ok) {
           console.warn(`User ID not found for email: ${email}`);
@@ -109,12 +109,12 @@ export function ShareDialog({ open, onOpenChange, file }) {
 
         const isViewOnly = recipient.permission === "view";
 
+        console.log("Going into sendfile function");
         const receivedFileID = await SendFile(recipientId, file.id, isViewOnly);
         console.log("Received File ID in shared Dialog:", receivedFileID);
-        // Log file access
-        await fetch("http://localhost:5000/api/files/addAccesslog", {
+        await fetch("/proxy/files/addAccesslog", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {"x-csrf":csrf||""},
           body: JSON.stringify({
             file_id: file.id,
             user_id: senderId,
@@ -126,9 +126,9 @@ export function ShareDialog({ open, onOpenChange, file }) {
         // Send the notification
         console.log("Senders email is:", senderEmail);
         console.log("Recipients emails is: ", email);
-        await fetch("http://localhost:5000/api/notifications/add", {
+        await fetch("/proxy/notifications/add", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers:{"x-csrf":csrf||""},
           body: JSON.stringify({
             type: "file_share_request",
             fromEmail: senderEmail,

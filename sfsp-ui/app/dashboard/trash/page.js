@@ -11,6 +11,12 @@ function parseTagString(tagString = '') {
   return tagString.replace(/[{}]/g, '').split(',').map(t => t.trim());
 }
 
+function getCookie(name) {
+  return document.cookie.split("; ").find(c => c.startsWith(name + "="))?.split("=")[1];
+}
+
+const csrf = getCookie("csrf_token");
+
 export default function TrashPage() {
   const [trashedFiles, setTrashedFiles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -26,19 +32,14 @@ export default function TrashPage() {
 
   const fetchTrashedFiles = useCallback(async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/files/metadata', {
+      const res = await fetch('/proxy/files/metadata', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json',"x-csrf":csrf||""},
         body: JSON.stringify({ userId }),
       });
 
       const data = await res.json();
       console.log(data);
-
-      // const deletedFiles = data.filter(file => {
-      //   const tags = parseTagString(file.tags);
-      //   return tags.includes('deleted') && tags.some(tag => tag.startsWith('deleted_time:'));
-      // });
 
       const deletedFiles = Array.isArray(data)
         ? data.filter(file => {
@@ -75,9 +76,9 @@ export default function TrashPage() {
   const handleRestore = async (fileId) => {
     try {
 
-      const res = await fetch("http://localhost:5000/api/files/metadata", {
+      const res = await fetch("/proxy/files/metadata", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json","x-csrf":csrf||"" },
         body: JSON.stringify({ userId }),
       });
 
@@ -100,9 +101,9 @@ export default function TrashPage() {
         return;
       }
 
-      await fetch("http://localhost:5000/api/files/removeTags", {
+      await fetch("/proxy/files/removeTags", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-csrf":csrf},
         body: JSON.stringify({ fileId, tags: tagsToRemove }),
       });
 
@@ -110,16 +111,14 @@ export default function TrashPage() {
       if (!token) return;
 
       try {
-        const profileRes = await fetch("http://localhost:5000/api/users/profile", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const profileRes = await fetch("/proxy/auth/profile");
 
         const profileResult = await profileRes.json();
         if (!profileRes.ok) throw new Error(profileResult.message || "Failed to fetch profile");
 
-        await fetch("http://localhost:5000/api/files/addAccesslog", {
+        await fetch("/proxy/files/addAccesslogs", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
           body: JSON.stringify({
             file_id: fileId,
             user_id: profileResult.data.id,
@@ -144,9 +143,9 @@ export default function TrashPage() {
     if (!confirm) return;
 
     try {
-      const res = await fetch("http://localhost:5000/api/files/deleteFile", {
+      const res = await fetch("/proxy/files/deleteFile", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
         body: JSON.stringify({ fileId: fileId, userId: userId }),
       });
 
@@ -167,9 +166,9 @@ export default function TrashPage() {
 
     try {
       for (const file of trashedFiles) {
-        const res = await fetch("http://localhost:5000/api/files/deleteFile", {
+        const res = await fetch("/proxy/files/deleteFile", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
           body: JSON.stringify({ fileId: file.id, userId }),
         });
 
