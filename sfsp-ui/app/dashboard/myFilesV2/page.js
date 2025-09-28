@@ -323,7 +323,7 @@ export default function MyFiles() {
     const tags = ["deleted", `deleted_time:${timestamp}`];
 
     try {
-      const res = await fetch("http://localhost:5000/api/files/addTags", {
+      const res = await fetch(getFileApiUrl('/addTags'), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fileId: file.id, tags }),
@@ -484,7 +484,7 @@ export default function MyFiles() {
       if (!token) return;
 
       try {
-        const res = await fetch('http://localhost:5000/api/users/profile', {
+        const res = await fetch(getApiUrl('/users/profile'), {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -501,6 +501,9 @@ export default function MyFiles() {
   }, []); 
   
 const handlePreview = async (rawFile) => {
+  // Ensure this only runs on the client side
+  if (typeof window === 'undefined') return;
+
   const username = user?.username;
   const file = {
     ...rawFile,
@@ -569,8 +572,10 @@ const handlePreview = async (rawFile) => {
 
 
   const handleOpenFullView = async (file) => {
-      const username = user?.username;
+    // Ensure this only runs on the client side
+    if (typeof window === 'undefined') return;
 
+    const username = user?.username;
 
     if (file.type === "folder") {
       setPreviewContent({ url: null, text: "This is a folder. Double-click to open." });
