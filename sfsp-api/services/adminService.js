@@ -285,7 +285,6 @@ const adminService = {
 
   async createAdmin({ username, email }) {
     try {
-
       const { data: user, error } = await supabase
         .from("users")
         .select("*")
@@ -295,6 +294,10 @@ const adminService = {
 
       if (error || !user) {
         throw new Error("User not found with provided username and email.");
+      }
+
+      if (!user.password || user.password === "") {
+        throw new Error("Cannot make this user an admin: user has no password (likely a Google account).");
       }
 
       const { data: updatedUser, error: updateError } = await supabase

@@ -1,6 +1,6 @@
 //main.js
 
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow, ipcMain, globalShortcut } from "electron";
 import { isDev, validateEventFrame } from "./util.js";
 import { getStaticData, pollResources } from "./resourceManager.js";
 import { getPreloadPath, getUIPath } from "./pathResolver.js";
@@ -35,6 +35,17 @@ app.on("ready", () => {
     newTray(mainWindow);
     handleClose(mainWindow);
     newMenu(mainWindow);
+
+    mainWindow.webContents.on("devtools-opened", () => {
+        mainWindow.webContents.closeDevTools();
+    });
+
+    globalShortcut.register("CommandOrControl+Shift+I", () => {
+        console.log("Blocked attempt to open DevTools");
+    });
+    globalShortcut.register("F12", () => {
+        console.log("Blocked attempt to open DevTools");
+    });
 
 });
 

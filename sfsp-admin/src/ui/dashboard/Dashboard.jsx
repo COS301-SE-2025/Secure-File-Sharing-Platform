@@ -1,6 +1,14 @@
 import "./Dashboard.css";
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Users, UserX, AlertTriangle, ExternalLink, Activity, Shield, Trash2 } from "lucide-react";
+
+// const navigationItems = [
+//   { title: "Dashboard", url: "/dashboard" },
+//   { title: "Users", url: "/users" },
+//   { title: "Blocked Users", url: "/blocked-users" },
+//   { title: "Reports", url: "/reports" },
+// ];
 
 function Dashboard() {
   const [stats, setStats] = useState([]);
@@ -9,12 +17,16 @@ function Dashboard() {
   const [manageModal, setManageModal] = useState(false);
   const [newAnnouncement, setNewAnnouncement] = useState({
     action: "",
-    info: "",
+    info: " ",
     severity: "success",
   });
   const [infoModal, setInfoModal] = useState({ show: false, announcement: null });
+  const navigate = useNavigate();
 
-  const currentUser = "admin@example.com";
+
+
+  const user = JSON.parse(localStorage.getItem("user"));
+  const currentUser = user.email;
 
   const getSeverityColor = (severity) => {
     switch (severity) {
@@ -57,7 +69,7 @@ function Dashboard() {
   }, []);
 
   const handleAddAnnouncement = async () => {
-    if (!newAnnouncement.action || !newAnnouncement.info) return;
+    if (!newAnnouncement.action) return;
 
     const payload = { ...newAnnouncement, user: currentUser, info: newAnnouncement.info.trim() === "" ? "No details" : newAnnouncement.info };
     try {
@@ -160,10 +172,9 @@ function Dashboard() {
           <h2>Quick Actions</h2>
           <p className="muted">Common administrative tasks</p>
           <div className="quick-actions">
-            <button className="btn-outline"><Users className="icon" /> View All Users</button>
-            <button className="btn-outline"><UserX className="icon" /> Manage Blocked Users</button>
-            <button className="btn-outline"><AlertTriangle className="icon" /> Review Reports</button>
-            <button className="btn-outline"><Shield className="icon" /> Security Settings</button>
+            <button className="btn-outline" onClick={() => navigate("/users")}><Users className="icon" /> View All Users</button>
+            <button className="btn-outline" onClick={() => navigate("/blocked-users")}><UserX className="icon" /> Manage Blocked Users</button>
+            <button className="btn-outline" onClick={() => navigate("/reports")} ><AlertTriangle className="icon" /> Review Reports</button>
           </div>
         </div>
       </div>

@@ -19,15 +19,15 @@ export function newMenu(mainWindow) {
         },
       ],
     },
-    {
-      label: "View",
-      submenu: [
-        {
-          label: "To be decided",
-          enabled: false,
-        },
-      ],
-    },
+    // {
+    //   label: "View",
+    //   submenu: [
+    //     {
+    //       label: "To be decided",
+    //       enabled: false,
+    //     },
+    //   ],
+    // },
   ];
 
   const menu = Menu.buildFromTemplate(template);

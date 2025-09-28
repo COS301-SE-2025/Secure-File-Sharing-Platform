@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import { Shield, Lock, Key, ArrowLeft } from "lucide-react";
 import "./App.css";
 import { useNavigate } from "react-router-dom";
@@ -15,6 +15,10 @@ function App() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const inputRefs = useRef([]);
+  const emailRef = useRef(null);
+  const passwordRef = useRef(null);
+  const [toast, setToast] = useState({ message: "", type: "" });
+
 
   const [token, setToken] = useState(null);
 
@@ -27,10 +31,16 @@ function App() {
     }
   };
 
+  const showToast = (message, type = "error", duration = 3000) => {
+    setToast({ message, type });
+    setTimeout(() => setToast({ message: "", type: "" }), duration);
+  };
+
   const handleBackToCredentials = () => {
     setStep("credentials");
-    setCredentials({ ...credentials, otp: "" });
+    setCredentials({ ...credentials, otp: ["", "", "", "", "", ""] });
   };
+
 
   const handleOTPKeyDown = (e, index) => {
     const otpArr = [...credentials.otp];
@@ -74,7 +84,7 @@ function App() {
   const handleCredentialsSubmit = async (e) => {
     e.preventDefault();
     if (!credentials.email || !credentials.password) {
-      alert("❌ Please enter both email and password");
+      showToast("❌ Please enter both email and password");
       return;
     }
 
@@ -92,8 +102,16 @@ function App() {
       const data = await res.json();
 
       if (!data.success) {
-        alert(`❌ ${data.message}`);
+        showToast(`❌ ${data.message}`);
+        setCredentials({
+          email: "",
+          password: "",
+          otp: ["", "", "", "", "", ""],
+        });
+
         setIsLoading(false);
+        // navigate("/", { replace: true });
+        // window.location.href = "/";
         return;
       }
 
@@ -113,14 +131,14 @@ function App() {
 
       const otpData = await otpRes.json();
       if (!otpData.success) {
-        alert(`⚠️ Could not send OTP: ${otpData.message}`);
+        showToast(`⚠️ Could not send OTP: ${otpData.message}`);
         return;
       }
 
       setStep("otp");
     } catch (err) {
       console.error("Login error:", err);
-      alert("❌ Login failed. Please try again.");
+      showToast("❌ Login failed. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -131,7 +149,7 @@ function App() {
     const otpCode = credentials.otp.join("");
 
     if (otpCode.length !== 6) {
-      alert("❌ Please enter a valid 6-digit PIN");
+      showToast("❌ Please enter a valid 6-digit PIN");
       return;
     }
 
@@ -152,14 +170,14 @@ function App() {
       const data = await res.json();
 
       if (!data.success) {
-        alert(`❌ Verification failed: ${data.message}`);
+        showToast(`❌ Verification failed: ${data.message}`);
         return;
       }
 
       navigate("/dashboard", { state: { token } });
     } catch (err) {
       console.error("OTP verification failed:", err);
-      alert("❌ An error occurred while verifying OTP");
+      showToast("❌ An error occurred while verifying OTP");
     } finally {
       setIsLoading(false);
     }
@@ -168,6 +186,13 @@ function App() {
 
   return (
     <div className="login-container">
+
+      {toast.message && (
+        <div className={`toast-center ${toast.type}`}>
+          {toast.message}
+        </div>
+      )}
+
       <div className="background-wrapper">
         <LightRays
           raysOrigin="top-center"
@@ -216,6 +241,7 @@ function App() {
                 <div className="form-group">
                   <label htmlFor="username">Email</label>
                   <input
+                    ref={emailRef}
                     className="username-input"
                     id="username"
                     type="text"
@@ -231,6 +257,7 @@ function App() {
                   <div className="input-icon-wrapper">
                     <Lock className="input-icon" size={16} />
                     <input
+                      ref={passwordRef}
                       id="password"
                       type="password"
                       placeholder="Enter your password"
