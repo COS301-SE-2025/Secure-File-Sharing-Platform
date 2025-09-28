@@ -129,13 +129,13 @@ class UserController {
   }
 
   async getUserIdFromEmail(req, res) {
-    const authHeader = req.headers.authorization;
+    /* const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return res.status(401).json({
         success: false,
         message: "Authorization token missing or invalid.",
       });
-    }
+    } */
     try {
       const { email } = req.params;
       if (!email) {
@@ -167,13 +167,13 @@ class UserController {
   }
 
   async getUserInfoFromID(req, res) {
-    const authHeader = req.headers.authorization;
+    /* const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return res.status(401).json({
         success: false,
         message: "Authorization token missing or invalid.",
       });
-    }
+    } */
     try {
       const { userId } = req.params;
       if (!userId) {

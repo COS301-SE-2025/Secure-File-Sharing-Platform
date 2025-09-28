@@ -43,6 +43,7 @@ export function ChangeShareMethodDialog({ open, onOpenChange, file }) {
       }
 
       function getCookie(name) {
+        if (typeof window === 'undefined') return '';
         return document.cookie
           .split("; ")
           .find((c) => c.startsWith(name + "="))

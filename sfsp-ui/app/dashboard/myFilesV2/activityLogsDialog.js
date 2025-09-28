@@ -6,6 +6,7 @@ import React, { useEffect, useState } from "react";
 import { Clock, Download, Share, Edit, Eye, Trash2, Undo2 } from "lucide-react";
 
 function getCookie(name) {
+  if (typeof window === 'undefined') return '';
   return document.cookie
     .split("; ")
     .find((c) => c.startsWith(name + "="))

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useCallback } from 'react';
-import { PDFDocument, rgb } from "pdf-lib";
 import axios from 'axios';
 import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 
@@ -15,7 +14,12 @@ import {
 } from "lucide-react";
 
 import { UploadDialog } from "./myFilesV2/uploadDialog";
-import { FullViewModal } from "./myFilesV2/fullViewModal";
+import dynamic from "next/dynamic";
+
+const FullViewModal = dynamic(() => import("./myFilesV2/fullViewModal").then(mod => ({ default: mod.FullViewModal })), {
+  ssr: false,
+  loading: () => <div>Loading...</div>
+});
 import { PreviewDrawer } from "./myFilesV2/previewDrawer";
 import { useDashboardSearch } from "./components/DashboardSearchContext";
 
@@ -282,6 +286,7 @@ function parseTagString(tagString = "") {
 }
 
 function getCookie(name) {
+  if (typeof window === 'undefined') return '';
   return document.cookie.split("; ").find(c => c.startsWith(name + "="))?.split("=")[1];
 }
 
@@ -478,6 +483,7 @@ useEffect(() => {
     let textFull = null;
 
     if (file.type === "image") {
+      if (typeof window === 'undefined') return;
 
       const imgBlob = new Blob([result.decrypted], { type: file.type });
       const imgBitmap = await createImageBitmap(imgBlob);
@@ -495,27 +501,12 @@ useEffect(() => {
       ctx.fillText(username, imgBitmap.width / 2, imgBitmap.height / 2);
 
       contentUrl = canvas.toDataURL(file.type);
-    } 
-    
+    }
+
     else if (file.type === "pdf") {
-      const pdfDoc = await PDFDocument.load(result.decrypted);
-      const pages = pdfDoc.getPages();
-
-     pages.forEach((page) => {
-	  const { width, height } = page.getSize();
-	  page.drawText(username, {
-	    x: width / 2 - 50,
-	    y: height / 2,
-	    size: 36,
-	    color: rgb(1, 0, 0), // red
-	    opacity: 0.4,        // semi-transparent
-	    rotate: { type: "degrees", angle: 45 },
-	  });
-	});
-
-
-      const modifiedPdfBytes = await pdfDoc.save();
-      contentUrl = URL.createObjectURL(new Blob([modifiedPdfBytes], { type: "application/pdf" }));
+      // PDF watermarking temporarily disabled - pdf-lib removed for SSR compatibility
+      // Consider using server-side PDF processing or alternative approach
+      contentUrl = URL.createObjectURL(new Blob([result.decrypted], { type: "application/pdf" }));
     } 
     
       
@@ -539,9 +530,11 @@ useEffect(() => {
      let textFull = null;
    
      if (file.type === "image") {
+       if (typeof window === 'undefined') return;
+
        const imgBlob = new Blob([result.decrypted], { type: file.type });
        const imgBitmap = await createImageBitmap(imgBlob);
-   
+
        const canvas = document.createElement("canvas");
        canvas.width = imgBitmap.width;
        canvas.height = imgBitmap.height;
@@ -555,27 +548,13 @@ useEffect(() => {
        ctx.fillText(username, imgBitmap.width / 2, imgBitmap.height / 2);
    
        contentUrl = canvas.toDataURL(file.type);
-     } 
-     
-    
+     }
+
+
      else if (file.type === "pdf") {
-       const pdfDoc = await PDFDocument.load(result.decrypted);
-       const pages = pdfDoc.getPages();
-   
-       pages.forEach((page) => {
-         const { width, height } = page.getSize();
-         page.drawText(username, {
-           x: width / 2 - 50,
-           y: height / 2,
-           size: 36,
-           color: rgb(1, 0, 0), //keep ths rgb or errors
-           opacity: 0.4,
-           rotate: { type: "degrees", angle: 45 },
-         });
-       });
-   
-       const modifiedPdfBytes = await pdfDoc.save();
-       contentUrl = URL.createObjectURL(new Blob([modifiedPdfBytes], { type: "application/pdf" }));
+       // PDF watermarking temporarily disabled - pdf-lib removed for SSR compatibility
+       // Consider using server-side PDF processing or alternative approach
+       contentUrl = URL.createObjectURL(new Blob([result.decrypted], { type: "application/pdf" }));
      } 
       else if (file.type === "video" || file.type === "audio") {
        contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
@@ -1058,3 +1037,4 @@ useEffect(() => {
     </div>
   );
 }
+

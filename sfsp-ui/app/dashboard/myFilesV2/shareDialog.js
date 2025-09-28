@@ -11,10 +11,11 @@ import {
 } from "@/app/Transfer";
 
 function getCookie(name) {
+  if (typeof window === 'undefined') return '';
   return document.cookie.split("; ").find(c => c.startsWith(name + "="))?.split("=")[1];
 }
 
-const csrf = getCookie("csrf_token");
+const csrf = typeof window !== 'undefined' ? getCookie("csrf_token") : "";
 
 export function ShareDialog({ open, onOpenChange, file }) {
   const [shareWith, setShareWith] = useState([]);

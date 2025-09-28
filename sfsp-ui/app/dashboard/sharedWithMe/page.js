@@ -13,7 +13,12 @@ import { useDashboardSearch } from "../components/DashboardSearchContext";
 import { useEncryptionStore } from "@/app/SecureKeyStorage";
 import { getSodium } from "@/app/lib/sodium";
 import { PreviewDrawer } from "../myFilesV2/previewDrawer";
-import { FullViewModal } from "../myFilesV2/fullViewModal";
+import dynamic from "next/dynamic";
+
+const FullViewModal = dynamic(() => import("../myFilesV2/fullViewModal").then(mod => ({ default: mod.FullViewModal })), {
+  ssr: false,
+  loading: () => <div>Loading...</div>
+});
 import pako from "pako";
 import { formatDate } from "../../../lib/dateUtils";
 import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
@@ -280,10 +285,11 @@ function formatFileSize(size) {
 }
 
 function getCookie(name) {
+  if (typeof window === 'undefined') return '';
   return document.cookie.split("; ").find(c => c.startsWith(name + "="))?.split("=")[1];
 }
 
-const csrf = getCookie("csrf_token");
+const csrf = typeof window !== 'undefined' ? getCookie("csrf_token") : "";
 
 export default function MyFiles() {
   const [files, setFiles] = useState([]);
@@ -444,6 +450,8 @@ export default function MyFiles() {
 
       const decrypted = sodium.crypto_secretbox_open_easy(encryptedFile, nonce, encryptionKey);
       if (!decrypted) throw new Error("Decryption failed");
+
+      if (typeof window === 'undefined') return;
 
       const blob = new Blob([decrypted]);
       const url = window.URL.createObjectURL(blob);

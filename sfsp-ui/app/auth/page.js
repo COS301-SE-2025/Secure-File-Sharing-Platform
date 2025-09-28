@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
@@ -17,13 +17,14 @@ import {
 } from "../SecureKeyStorage";
 
 function getCookie(name) {
+  if (typeof window === 'undefined') return '';
   return document.cookie.split("; ").find(c => c.startsWith(name + "="))?.split("=")[1];
 }
 
 const csrf = getCookie("csrf_token");
 
 
-export default function AuthPage() {
+function AuthContent() {
   const router = useRouter();
   const [tab, setTab] = useState("login");
   const [isLoading, setIsLoading] = useState(false);
@@ -1670,5 +1671,13 @@ function Feature({ icon, title, desc }) {
         <p className="text-blue-100 text-sm">{desc}</p>
       </div>
     </div>
+  );
+}
+
+export default function AuthPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <AuthContent />
+    </Suspense>
   );
 }

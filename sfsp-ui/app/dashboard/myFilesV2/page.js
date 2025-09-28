@@ -15,10 +15,14 @@ import { useDashboardSearch } from "../components/DashboardSearchContext";
 import { useEncryptionStore } from "@/app/SecureKeyStorage";
 import { getSodium } from "@/app/lib/sodium";
 import { PreviewDrawer } from "./previewDrawer";
-import { FullViewModal } from "./fullViewModal";
+import dynamic from "next/dynamic";
+
+const FullViewModal = dynamic(() => import("./fullViewModal").then(mod => ({ default: mod.FullViewModal })), {
+  ssr: false,
+  loading: () => <div>Loading...</div>
+});
 import { RevokeAccessDialog } from "./revokeAccessDialog";
 import { ChangeShareMethodDialog } from "./changeShareMethodDialog";
-import { PDFDocument, rgb } from "pdf-lib";
 //import Prism from 'prismjs';
 
 //import fetchProfile from "../components/Sidebar"
@@ -287,13 +291,14 @@ function formatFileSize(size) {
 }
 
 function getCookie(name) {
+  if (typeof window === 'undefined') return '';
   return document.cookie
     .split("; ")
     .find((c) => c.startsWith(name + "="))
     ?.split("=")[1];
 }
 
-const csrf = getCookie("csrf_token");
+const csrf = typeof window !== 'undefined' ? getCookie("csrf_token") : "";
 
 export default function MyFiles() {
   const [files, setFiles] = useState([]);
@@ -751,6 +756,8 @@ const handlePreview = async (rawFile) => {
   let textFull = null;
 
   if (file.type === "image") {
+    if (typeof window === 'undefined') return;
+
     const imgBlob = new Blob([result.decrypted], { type: file.type });
     const imgBitmap = await createImageBitmap(imgBlob);
 
@@ -767,26 +774,12 @@ const handlePreview = async (rawFile) => {
     ctx.fillText(username, imgBitmap.width / 2, imgBitmap.height / 2);
 
     contentUrl = canvas.toDataURL(file.type);
-  } 
+  }
 
   else if (file.type === "pdf") {
-    const pdfDoc = await PDFDocument.load(result.decrypted);
-    const pages = pdfDoc.getPages();
-
-    pages.forEach((page) => {
-      const { width, height } = page.getSize();
-      page.drawText(username, {
-        x: width / 2 - 50,
-        y: height / 2,
-        size: 36,
-        color: rgb(1, 0, 0),
-        opacity: 0.4,
-        rotate: { type: "degrees", angle: 45 },
-      });
-    });
-
-    const modifiedPdfBytes = await pdfDoc.save();
-    contentUrl = URL.createObjectURL(new Blob([modifiedPdfBytes], { type: "application/pdf" }));
+    // PDF watermarking temporarily disabled - pdf-lib removed for SSR compatibility
+    // Consider using server-side PDF processing or alternative approach
+    contentUrl = URL.createObjectURL(new Blob([result.decrypted], { type: "application/pdf" }));
   } 
 
   else if (file.type === "video" || file.type === "audio") {
@@ -868,6 +861,8 @@ const handleOpenFullView = async (file) => {
   let textFull = null;
 
   if (file.type === "image") {
+    if (typeof window === 'undefined') return;
+
     const imgBlob = new Blob([result.decrypted], { type: file.type });
     const imgBitmap = await createImageBitmap(imgBlob);
 
@@ -884,26 +879,12 @@ const handleOpenFullView = async (file) => {
     ctx.fillText(username, imgBitmap.width / 2, imgBitmap.height / 2);
 
     contentUrl = canvas.toDataURL(file.type);
-  } 
-  
+  }
+
   else if (file.type === "pdf") {
-    const pdfDoc = await PDFDocument.load(result.decrypted);
-    const pages = pdfDoc.getPages();
-
-    pages.forEach((page) => {
-      const { width, height } = page.getSize();
-      page.drawText(username, {
-        x: width / 2 - 50,
-        y: height / 2,
-        size: 36,
-        color: rgb(1, 0, 0),
-        opacity: 0.4,
-        rotate: { type: "degrees", angle: 45 },
-      });
-    });
-
-    const modifiedPdfBytes = await pdfDoc.save();
-    contentUrl = URL.createObjectURL(new Blob([modifiedPdfBytes], { type: "application/pdf" }));
+    // PDF watermarking temporarily disabled - pdf-lib removed for SSR compatibility
+    // Consider using server-side PDF processing or alternative approach
+    contentUrl = URL.createObjectURL(new Blob([result.decrypted], { type: "application/pdf" }));
   } 
   
   else if (file.type === "video" || file.type === "audio") {
@@ -1260,3 +1241,4 @@ const handleOpenFullView = async (file) => {
     </div>
   );
 }
+

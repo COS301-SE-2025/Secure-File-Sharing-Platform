@@ -5,6 +5,10 @@ const nodemailer = require("nodemailer");
 const { supabase } = require("../config/database");
 const geoip = require('geoip-lite');
 
+// Create VaultController instance
+const VaultControllerClass = require("../controllers/vaultController");
+const VaultController = new VaultControllerClass();
+
 class UserService {
   /**
    * Initialize libsodium-wrappers-sumo with robust error handling and fallbacks
@@ -235,9 +239,8 @@ class UserService {
 
       // Store private keys in vault immediately after user creation
       try {
-        const VaultController = require("../controllers/vaultController");
         const vaultResult = await VaultController.storeKeyBundle({
-          userId: newUser.id,
+          encrypted_id: newUser.id,
           ik_private_key,
           spk_private_key,
           opks_private,
@@ -2317,7 +2320,7 @@ class UserService {
             </p>
             <a href="${process.env.FRONTEND_URL}/settings/security" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Manage Devices</a>
           </div>
-
+          
           <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
           <p style="color: #6b7280; font-size: 14px;">
             This email was sent from SecureShare. You can manage your notification preferences in your account settings.
@@ -2513,8 +2516,7 @@ class UserService {
    */
   async reEncryptVaultKeys(userId, oldPassword, newPassword) {
     try {
-      const VaultController = require("../controllers/vaultController");
-
+      // Remove the require statement since VaultController is now available at class level
       const sodium = await this.initializeSodium();
 
       console.log(`Starting vault key re-encryption for user ${userId}`);

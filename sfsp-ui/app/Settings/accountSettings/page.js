@@ -16,7 +16,7 @@ function getCookie(name) {
   return document.cookie.split("; ").find(c => c.startsWith(name + "="))?.split("=")[1];
 }
 
-const csrf = getCookie("csrf_token");
+const csrf = typeof window !== 'undefined' ? getCookie("csrf_token") : "";
 
 export default function AccountSettings() {
   const router = useRouter();

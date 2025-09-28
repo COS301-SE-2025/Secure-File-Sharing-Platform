@@ -42,7 +42,7 @@ export async function POST(request) {
 
     if (!verifyResponse.ok) {
       let errorMessage = "Invalid or expired token";
-
+      console.warn("Token verification failed:", verifyResponse.status);
       try {
         const verifyError = await withTimeout(verifyResponse.text(), 3000);
         console.warn("Token verification failed:", verifyError);
@@ -62,9 +62,11 @@ export async function POST(request) {
         message: errorMessage,
       });
     }
+    console.log("Token verified successfully");
 
     const body = await withTimeout(request.json(), 5000);
 
+    console.log('Sending notification for the send');
     const filesRes = await withTimeout(
       fetch("http://localhost:5000/api/notifications/add", {
         method: "POST",

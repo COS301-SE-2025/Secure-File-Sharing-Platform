@@ -13,10 +13,11 @@ function parseTagString(tagString = '') {
 }
 
 function getCookie(name) {
+  if (typeof window === 'undefined') return '';
   return document.cookie.split("; ").find(c => c.startsWith(name + "="))?.split("=")[1];
 }
 
-const csrf = getCookie("csrf_token");
+const csrf = typeof window !== 'undefined' ? getCookie("csrf_token") : "";
 
 export default function TrashPage() {
   const [trashedFiles, setTrashedFiles] = useState([]);

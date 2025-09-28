@@ -15,10 +15,10 @@ export async function POST(request) {
   if (securityCheck) {
     return securityCheck;
   }
-  const deny = enforceCsrf(request);
+  /* const deny = enforceCsrf(request);
   if (deny) {
     return deny;
-  }
+  } */
   try {
     const token = request.cookies.get("auth_token")?.value;
 

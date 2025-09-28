@@ -157,7 +157,9 @@ exports.clearNotification = async (req, res) => {
 
 exports.addNotification = async (req, res) => {
   const authHeader = req.headers.authorization;
+  console.log("Auth Header:", authHeader)
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    console.log("Missing or invalid auth header");
     return res.status(401).json({
       success: false,
       message: "Authorization token missing or invalid.",
@@ -188,7 +190,7 @@ exports.addNotification = async (req, res) => {
   const extractId = (
     resp //nah f this
   ) => resp?.data?.data?.id ?? resp?.data?.data?.userId ?? null;
-
+  console.log("Miracles motherfuckers, miracles");
   try {
     let senderResponse;
     try {

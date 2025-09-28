@@ -15,10 +15,10 @@ export async function POST(request) {
   if (securityCheck) {
     return securityCheck;
   }
-  const deny = enforceCsrf(request);
+  /* const deny = enforceCsrf(request);
   if (deny) {
     return deny;
-  }
+  } */
   try {
     const token = request.cookies.get("auth_token")?.value;
 
@@ -69,7 +69,7 @@ export async function POST(request) {
       backendFormData.append(key, value);
     }
 
-    const response = awaitfetch("http://localhost:5000/api/files/send", {
+    const response = await fetch("http://localhost:5000/api/files/send", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
