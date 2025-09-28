@@ -190,11 +190,17 @@ const Users = () => {
             } else {
                 setToastMessage(data.message || "Failed to create admin");
                 setTimeout(() => setToastMessage(""), 3000);
+                setIsAdminDialogOpen(false);
+                setNewAdminUsername("");
+                setNewAdminEmail("");
             }
         } catch (err) {
             console.error("Failed to create admin:", err);
             setToastMessage("Failed to create admin");
             setTimeout(() => setToastMessage(""), 3000);
+            setIsAdminDialogOpen(false);
+            setNewAdminUsername("");
+            setNewAdminEmail("");
         }
     };
 
@@ -460,8 +466,8 @@ const Users = () => {
                                             headers: { "Content-Type": "application/json" },
                                             body: JSON.stringify({
                                                 userId: selectedUser.id,
-                                                email:selectedUser.email,
-                                                username:selectedUser.username,
+                                                email: selectedUser.email,
+                                                username: selectedUser.username,
                                                 subject: messageSubject,
                                                 message: messageBody,
                                             }),
@@ -474,11 +480,11 @@ const Users = () => {
                                             setMessageSubject("");
                                             setMessageBody("");
                                         } else {
-                                            alert(`⚠️ ${data.message}`);
+                                            setToastMessage(`⚠️ ${data.message}`);
                                         }
                                     } catch (err) {
                                         console.error(err);
-                                        alert("⚠️ Failed to send message.");
+                                        setToastMessage("⚠️ Failed to send message.");
                                     }
                                 }}
                             >

@@ -31,13 +31,14 @@ body {
   justify-content: center;
   font-family: "Roboto", sans-serif;
   overflow: hidden;
+  z-index:10;
 }
 
 
 /* Box */
 .login-box {
   width: 100%;
-  z-index: 1;
+  z-index: 20;
   max-width: 400px;
 }
 
@@ -235,4 +236,35 @@ body {
 
 .otp-inputs input:focus {
   outline: 2px solid #34bfee;
+}
+
+/* toast */
+.toast-center {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #fff9e6; 
+  color: #000000;
+  padding: 16px 24px;
+  border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.2);
+  z-index: 9999;
+  text-align: center;
+  font-weight: 500;
+  animation: fadein 0.3s, fadeout 0.3s 2.7s;
+}
+
+.toast-center.success {
+  background: #52c41a;
+}
+
+@keyframes fadein {
+  from { opacity: 0; transform: translate(-50%, -55%); }
+  to { opacity: 1; transform: translate(-50%, -50%); }
+}
+
+@keyframes fadeout {
+  from { opacity: 1; transform: translate(-50%, -50%); }
+  to { opacity: 0; transform: translate(-50%, -55%); }
 }
