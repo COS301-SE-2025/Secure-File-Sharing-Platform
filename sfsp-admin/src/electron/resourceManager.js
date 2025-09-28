@@ -8,7 +8,6 @@ const POLLING_INTERVAL = 500;
 let intervalId = null;
 
 export function pollResources(mainWindow) {
-  // Clear any old interval if exists
   if (intervalId) clearInterval(intervalId);
 
   intervalId = setInterval(async () => {
@@ -59,7 +58,6 @@ function getRamUsage() {
 }
 
 function getStorageData() {
-  // requires node 18
   const stats = fs.statfsSync(process.platform === 'win32' ? 'C://' : '/');
   const total = stats.bsize * stats.blocks;
   const free = stats.bsize * stats.bfree;

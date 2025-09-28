@@ -52,7 +52,6 @@ app.on("ready", () => {
 function handleClose(mainWindow) {
     let isQuitting = false;
 
-    // Only block close when not quitting
     mainWindow.on("close", (e) => {
         if (!isQuitting) {
             e.preventDefault();
@@ -63,31 +62,7 @@ function handleClose(mainWindow) {
         }
     });
 
-    // Mark as quitting before app.quit()
     app.on("before-quit", () => {
         isQuitting = true;
     });
 }
-
-// function handleClose(mainWindow) {
-//     let boolClose = false;
-
-//     mainWindow.on("close", (e) => {
-//         if(boolClose){
-//             return;
-//         }
-//         e.preventDefault();
-//         mainWindow.hide();
-//         if(app.dock){
-//             app.dock.hide();
-//         }
-//     });
-
-//     app.on("before quit", () => {
-//         boolClose = true;
-//     });
-
-//     mainWindow.on("show", () => {
-//         boolClose = false;
-//     });
-// }
