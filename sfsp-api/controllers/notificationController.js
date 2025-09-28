@@ -3,163 +3,241 @@ const axios = require("axios");
 require("dotenv").config();
 
 exports.getNotifications = async (req, res) => {
-    const { userId } = req.body;
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({
+      success: false,
+      message: "Authorization token missing or invalid.",
+    });
+  }
+  const { userId } = req.body;
 
-    if (!userId) {
-        return res.status(400).json({
-            success: false,
-            error: "User ID is required"
-        });
-    }
+  if (!userId) {
+    return res.status(400).json({
+      success: false,
+      error: "User ID is required",
+    });
+  }
 
-    try {
-        const response = await axios.get(
-            `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/notifications`,
-            {
-                params: { id: userId },
-                headers: { "Content-Type": "application/json" }
-            }
-        );
+  try {
+    const response = await axios.get(
+      `${
+        process.env.FILE_SERVICE_URL || "http://localhost:8081"
+      }/notifications`,
+      {
+        params: { id: userId },
+        headers: { "Content-Type": "application/json" },
+      }
+    );
 
-        res.status(200).json(response.data);
-    } catch (err) {
-        console.error("Get notifications error:", err.message);
-        res.status(500).json({
-            success: false,
-            error: "Failed to fetch notifications"
-        });
-    }
+    res.status(200).json(response.data);
+  } catch (err) {
+    console.error("Get notifications error:", err.message);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch notifications",
+    });
+  }
 };
 
 exports.markAsRead = async (req, res) => {
-    const { id } = req.body;
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({
+      success: false,
+      message: "Authorization token missing or invalid.",
+    });
+  }
+  const { id } = req.body;
 
-    if (!id) {
-        return res.status(400).json({
-            success: false,
-            error: "Notification ID is required"
-        });
-    }
+  if (!id) {
+    return res.status(400).json({
+      success: false,
+      error: "Notification ID is required",
+    });
+  }
 
-    try {
-        const response = await axios.post(
-            `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/notifications/markAsRead`,
-            { id },
-            { headers: { "Content-Type": "application/json" } }
-        );
+  try {
+    const response = await axios.post(
+      `${
+        process.env.FILE_SERVICE_URL || "http://localhost:8081"
+      }/notifications/markAsRead`,
+      { id },
+      { headers: { "Content-Type": "application/json" } }
+    );
 
-        res.status(200).json(response.data);
-    } catch (err) {
-        console.error("Mark as read error:", err.message);
-        res.status(500).json({
-            success: false,
-            error: "Failed to mark notification as read"
-        });
-    }
+    res.status(200).json(response.data);
+  } catch (err) {
+    console.error("Mark as read error:", err.message);
+    res.status(500).json({
+      success: false,
+      error: "Failed to mark notification as read",
+    });
+  }
 };
 
 exports.respondToShareRequest = async (req, res) => {
-    const { id, status } = req.body;
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({
+      success: false,
+      message: "Authorization token missing or invalid.",
+    });
+  }
+  const { id, status } = req.body;
 
-    if (!id || !status) {
-        return res.status(400).json({
-            success: false,
-            error: "Notification ID and status are required"
-        });
-    }
+  if (!id || !status) {
+    return res.status(400).json({
+      success: false,
+      error: "Notification ID and status are required",
+    });
+  }
 
-    if (status !== "accepted" && status !== "declined") {
-        return res.status(400).json({
-            success: false,
-            error: "Status must be 'accepted' or 'declined'"
-        });
-    }
+  if (status !== "accepted" && status !== "declined") {
+    return res.status(400).json({
+      success: false,
+      error: "Status must be 'accepted' or 'declined'",
+    });
+  }
 
-    try {
-        const response = await axios.post(
-            `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/notifications/respond`,
-            { id, status },
-            { headers: { "Content-Type": "application/json" } }
-        );
+  try {
+    const response = await axios.post(
+      `${
+        process.env.FILE_SERVICE_URL || "http://localhost:8081"
+      }/notifications/respond`,
+      { id, status },
+      { headers: { "Content-Type": "application/json" } }
+    );
 
-        res.status(200).json(response.data);
-    } catch (err) {
-        console.error("Respond to share request error:", err.message);
-        res.status(500).json({
-            success: false,
-            error: "Failed to update share request status"
-        });
-    }
+    res.status(200).json(response.data);
+  } catch (err) {
+    console.error("Respond to share request error:", err.message);
+    res.status(500).json({
+      success: false,
+      error: "Failed to update share request status",
+    });
+  }
 };
 
 exports.clearNotification = async (req, res) => {
-    const { id } = req.body;
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({
+      success: false,
+      message: "Authorization token missing or invalid.",
+    });
+  }
+  const { id } = req.body;
 
-    if (!id) {
-        return res.status(400).json({
-            success: false,
-            error: "Notification ID is required"
-        });
-    }
+  if (!id) {
+    return res.status(400).json({
+      success: false,
+      error: "Notification ID is required",
+    });
+  }
 
-    try {
-        const response = await axios.post(
-            `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/notifications/clear`,
-            { id },
-            { headers: { "Content-Type": "application/json" } }
-        );
+  try {
+    const response = await axios.post(
+      `${
+        process.env.FILE_SERVICE_URL || "http://localhost:8081"
+      }/notifications/clear`,
+      { id },
+      { headers: { "Content-Type": "application/json" } }
+    );
 
-        res.status(200).json(response.data);
-    } catch (err) {
-        console.error("Clear notification error:", err.message);
-        res.status(500).json({
-            success: false,
-            error: "Failed to clear notification"
-        });
-    }
+    res.status(200).json(response.data);
+  } catch (err) {
+    console.error("Clear notification error:", err.message);
+    res.status(500).json({
+      success: false,
+      error: "Failed to clear notification",
+    });
+  }
 };
 
 exports.addNotification = async (req, res) => {
-  console.log("I am in add notifications");
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({
+      success: false,
+      message: "Authorization token missing or invalid.",
+    });
+  }
   const body = req.body || {};
-  const { type, fromEmail, toEmail, file_name, file_id, message, receivedFileID, viewOnly } = body;
+  const {
+    type,
+    fromEmail,
+    toEmail,
+    file_name,
+    file_id,
+    message,
+    receivedFileID,
+    viewOnly,
+  } = body;
   console.log("FromEmail is: ", fromEmail);
   console.log("toEmail is: ", toEmail);
 
   if (!type || !fromEmail || !toEmail || !file_name || !file_id) {
     return res.status(400).json({
       success: false,
-      error: "Missing required fields: type, fromEmail, toEmail, file_name, file_id"
+      error:
+        "Missing required fields: type, fromEmail, toEmail, file_name, file_id",
     });
   }
 
-  const extractId = (resp) =>//nah f this
-    resp?.data?.data?.id ?? resp?.data?.data?.userId ?? null;
+  const extractId = (
+    resp //nah f this
+  ) => resp?.data?.data?.id ?? resp?.data?.data?.userId ?? null;
 
   try {
     let senderResponse;
     try {
       senderResponse = await axios.get(
-        `${process.env.API_URL || "http://localhost:5000"}/api/users/getUserId/${fromEmail}`
+        `${
+          process.env.API_URL || "http://localhost:5000"
+        }/api/users/getUserId/${fromEmail}`
       );
       console.log("Sender response:", senderResponse.data);
       const fromId = extractId(senderResponse);
       if (!senderResponse.data.success || !fromId) {
-        return res.status(404).json({ success: false, error: `Sender with email ${fromEmail} not found` });
+        return res
+          .status(404)
+          .json({
+            success: false,
+            error: `Sender with email ${fromEmail} not found`,
+          });
       }
 
       let recipientResponse = await axios.get(
-        `${process.env.API_URL || "http://localhost:5000"}/api/users/getUserId/${toEmail}`
+        `${
+          process.env.API_URL || "http://localhost:5000"
+        }/api/users/getUserId/${toEmail}`
       );
       console.log("Recipient response:", recipientResponse.data);
       const toId = extractId(recipientResponse);
       if (!recipientResponse.data.success || !toId) {
-        return res.status(404).json({ success: false, error: `Recipient with email ${toEmail} not found` });
+        return res
+          .status(404)
+          .json({
+            success: false,
+            error: `Recipient with email ${toEmail} not found`,
+          });
       }
 
       const response = await axios.post(
-        `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/notifications/add`,
-        { type, from: fromId, to: toId, file_name, file_id, message, receivedFileID, viewOnly },
+        `${
+          process.env.FILE_SERVICE_URL || "http://localhost:8081"
+        }/notifications/add`,
+        {
+          type,
+          from: fromId,
+          to: toId,
+          file_name,
+          file_id,
+          message,
+          receivedFileID,
+          viewOnly,
+        },
         { headers: { "Content-Type": "application/json" } }
       );
 
@@ -167,12 +245,19 @@ exports.addNotification = async (req, res) => {
       return res.status(201).json(response.data);
     } catch (e) {
       if (e.response?.status === 404) {
-        return res.status(404).json({ success: false, error: e.response.data?.error || "User not found" });
+        return res
+          .status(404)
+          .json({
+            success: false,
+            error: e.response.data?.error || "User not found",
+          });
       }
       throw e;
     }
   } catch (err) {
     console.error("Add notification error:", err.message);
-    return res.status(500).json({ success: false, error: "Failed to add notification" });
+    return res
+      .status(500)
+      .json({ success: false, error: "Failed to add notification" });
   }
 };

@@ -10,6 +10,15 @@ import { format, formatDistance } from 'date-fns';
 
 const API_BASE_URL = 'http://localhost:5000/api/users';
 
+function getCookie(name) {
+  if (typeof document === 'undefined') {
+    return null; 
+  }
+  return document.cookie.split("; ").find(c => c.startsWith(name + "="))?.split("=")[1];
+}
+
+const csrf = getCookie("csrf_token");
+
 export default function AccountSettings() {
   const router = useRouter();
   const { setTheme, resolvedTheme } = useTheme();

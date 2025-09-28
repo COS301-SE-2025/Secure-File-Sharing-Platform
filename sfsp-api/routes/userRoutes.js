@@ -37,4 +37,6 @@ router.delete('/sessions/:sessionId', authMiddleware, userController.deactivateU
 router.post('/test-session', authMiddleware, userController.createTestSession);
 router.post('/check-google-account', userController.checkGoogleAccount);
 
+router.get('/verify-token',authMiddleware, userController.verifyToken);
+
 module.exports = router;

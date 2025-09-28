@@ -5,16 +5,15 @@ import { useEncryptionStore } from "@/app/SecureKeyStorage";
 import { getSodium } from "@/app/lib/sodium";
 import pako from "pako";
 import { UserAvatar } from "@/app/lib/avatarUtils";
-import { Document, Page, pdfjs } from "react-pdf";
 
-//import "react-pdf/dist/esm/Page/AnnotationLayer.css";
-//import "react-pdf/dist/esm/Page/TextLayer.css";
+function getCookie(name) {
+  return document.cookie
+    .split("; ")
+    .find((c) => c.startsWith(name + "="))
+    ?.split("=")[1];
+}
 
-// Use pdfjs-dist's worker build
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  "pdfjs-dist/build/pdf.worker.min.mjs",
-  import.meta.url,
-).toString();
+const csrf = getCookie("csrf_token");
 
 export function PreviewDrawer({
   file,
@@ -56,27 +55,25 @@ export function PreviewDrawer({
       const token = localStorage.getItem("token");
       if (!token) return;
 
-      const profileRes = await fetch("http://localhost:5000/api/users/profile", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      // Get current user profile
+      const profileRes = await fetch("/proxy/auth/profile");
       const profileResult = await profileRes.json();
       const userId = profileResult?.data?.id;
       if (!userId) return;
 
-      const sharedFilesRes = await fetch(
-        "http://localhost:5000/api/files/getViewAccess",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId }),
-        }
-      );
+      // Get files shared for view-only access
+      const sharedFilesRes = await fetch("/proxy/files/getViewAccess", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-csrf": csrf || "" },
+        body: JSON.stringify({ userId }),
+      });
       const sharedFiles = await sharedFilesRes.json();
       if (sharedFiles != null) {
         const fileShares = sharedFiles.filter(
           (share) => share.file_id === file.id
         );
 
+        // Enrich each share with recipient info
         const enrichedShares = await Promise.all(
           fileShares.map(async (share) => {
             let userName = "Unknown User";
@@ -84,7 +81,7 @@ export function PreviewDrawer({
             let avatar = "";
             try {
               const res = await fetch(
-                `http://localhost:5000/api/users/getUserInfo/${share.recipient_id}`
+                `/proxy/user/getUserInfo/${share.recipient_id}`
               );
               if (res.ok) {
                 const data = await res.json();
@@ -110,6 +107,7 @@ export function PreviewDrawer({
           })
         );
 
+        console.log(enrichedShares);
         setSharedWith(enrichedShares || []);
       }
     } catch (err) {
@@ -186,6 +184,7 @@ export function PreviewDrawer({
                       />
                     </div>
                   ) : null;
+
                 case "video":
                   return content?.url ? (
                     <div className="relative w-full max-h-64">
@@ -200,79 +199,267 @@ export function PreviewDrawer({
                       />
                     </div>
                   ) : null;
+
                 case "audio":
                   return content?.url ? (
                     <audio controls src={content.url} className="w-full mt-2" />
                   ) : null;
+
                 case "pdf":
                   return content?.url ? (
-                    <div className="w-full max-h-64 overflow-y-auto border rounded bg-gray-100 p-2">
-                      <Document
-                        file={content.url}
-                        onLoadSuccess={({ numPages }) => setNumPages(numPages)}
-                        onLoadError={(err) =>
-                          console.error("PDF load error:", err)
-                        }
-                        loading={
-                          <div className="p-4 text-sm text-gray-500">
-                            Loading PDF…
-                          </div>
-                        }
-                      >
-                        {Array.from(new Array(numPages), (el, index) => (
-                          <Page
-			  key={`page_${index + 1}`}
-			  pageNumber={index + 1}
-			  width={320}
-			  renderAnnotationLayer={false}
-			  renderTextLayer={false}
-			/>
-                        ))}
-                      </Document>
-                    </div>
+                    <iframe src={content.url} className="w-full h-64 rounded" />
                   ) : null;
+
+                //Text-based files with syntax highlighting potential
                 case "md":
                 case "markdown":
-                case "txt":
-                case "json":
-                case "csv":
+                  return content?.text ? (
+                    <div className="border rounded">
+                      <div className="bg-gray-100 px-2 py-1 text-xs text-gray-600 border-b">
+                        Markdown Preview
+                      </div>
+                      <pre className="p-2 bg-white rounded-b max-h-48 overflow-y-auto text-sm text-gray-800">
+                        {content.text}
+                      </pre>
+                    </div>
+                  ) : null;
+
+                //Code files
+                case "js":
+                case "jsx":
+                case "ts":
+                case "tsx":
+                case "py":
+                case "java":
+                case "cpp":
+                case "c":
+                case "php":
+                case "rb":
+                case "go":
+                case "rs":
+                case "swift":
+                case "kt":
+                  return content?.text ? (
+                    <div className="border rounded">
+                      <div className="bg-blue-100 px-2 py-1 text-xs text-blue-700 border-b flex justify-between">
+                        <span>{file.type.toUpperCase()} Code</span>
+                        <span className="text-gray-500">Read-only preview</span>
+                      </div>
+                      <pre className="p-2 bg-gray-50 rounded-b max-h-48 overflow-y-auto text-sm font-mono text-gray-800">
+                        {content.text}
+                      </pre>
+                    </div>
+                  ) : null;
+
+                //Web files
                 case "html":
                   return content?.text ? (
-                    <pre className="p-2 bg-gray-100 rounded max-h-48 overflow-y-auto">
-                      {content.text}
-                    </pre>
+                    <div className="border rounded">
+                      <div className="bg-orange-100 px-2 py-1 text-xs text-orange-700 border-b">
+                        HTML Source (Not Rendered)
+                      </div>
+                      <pre className="p-2 bg-gray-50 rounded-b max-h-48 overflow-y-auto text-sm text-gray-800">
+                        {content.text}
+                      </pre>
+                    </div>
                   ) : null;
+
+                case "css":
+                  return content?.text ? (
+                    <div className="border rounded">
+                      <div className="bg-purple-100 px-2 py-1 text-xs text-purple-700 border-b">
+                        CSS Stylesheet
+                      </div>
+                      <pre className="p-2 bg-gray-50 rounded-b max-h-48 overflow-y-auto text-sm font-mono text-gray-800">
+                        {content.text}
+                      </pre>
+                    </div>
+                  ) : null;
+
+                //Data files
+                case "json":
+                  return content?.text ? (
+                    <div className="border rounded">
+                      <div className="bg-green-100 px-2 py-1 text-xs text-green-700 border-b">
+                        JSON Data
+                      </div>
+                      <pre className="p-2 bg-gray-50 rounded-b max-h-48 overflow-y-auto text-sm text-gray-800">
+                        {content.text}
+                      </pre>
+                    </div>
+                  ) : null;
+
+                case "xml":
+                  return content?.text ? (
+                    <div className="border rounded">
+                      <div className="bg-yellow-100 px-2 py-1 text-xs text-yellow-700 border-b">
+                        XML Document
+                      </div>
+                      <pre className="p-2 bg-gray-50 rounded-b max-h-48 overflow-y-auto text-sm text-gray-800">
+                        {content.text}
+                      </pre>
+                    </div>
+                  ) : null;
+
+                case "yaml":
+                case "yml":
+                  return content?.text ? (
+                    <div className="border rounded">
+                      <div className="bg-red-100 px-2 py-1 text-xs text-red-700 border-b">
+                        YAML Configuration
+                      </div>
+                      <pre className="p-2 bg-gray-50 rounded-b max-h-48 overflow-y-auto text-sm text-gray-800">
+                        {content.text}
+                      </pre>
+                    </div>
+                  ) : null;
+
+                case "csv":
+                  return content?.text ? (
+                    <div className="border rounded">
+                      <div className="bg-green-100 px-2 py-1 text-xs text-green-700 border-b">
+                        CSV Data
+                      </div>
+                      <div className="p-2 bg-gray-50 rounded-b max-h-48 overflow-y-auto">
+                        <pre className="text-sm text-gray-800">
+                          {content.text}
+                        </pre>
+                        {/* Future: Could parse CSV and show as table */}
+                      </div>
+                    </div>
+                  ) : null;
+
+                //Configuration files
+                case "sql":
+                  return content?.text ? (
+                    <div className="border rounded">
+                      <div className="bg-blue-100 px-2 py-1 text-xs text-blue-700 border-b">
+                        SQL Query
+                      </div>
+                      <pre className="p-2 bg-gray-50 rounded-b max-h-48 overflow-y-auto text-sm font-mono text-gray-800">
+                        {content.text}
+                      </pre>
+                    </div>
+                  ) : null;
+
+                case "log":
+                  return content?.text ? (
+                    <div className="border rounded">
+                      <div className="bg-gray-100 px-2 py-1 text-xs text-gray-700 border-b">
+                        Log File
+                      </div>
+                      <pre className="p-2 bg-gray-900 text-green-400 rounded-b max-h-48 overflow-y-auto text-xs font-mono">
+                        {content.text}
+                      </pre>
+                    </div>
+                  ) : null;
+
+                case "ini":
+                case "cfg":
+                case "conf":
+                  return content?.text ? (
+                    <div className="border rounded">
+                      <div className="bg-gray-100 px-2 py-1 text-xs text-gray-700 border-b">
+                        Configuration File
+                      </div>
+                      <pre className="p-2 bg-gray-50 rounded-b max-h-48 overflow-y-auto text-sm text-gray-800">
+                        {content.text}
+                      </pre>
+                    </div>
+                  ) : null;
+
+                //Plain text
+                case "txt":
+                  return content?.text ? (
+                    <div className="border rounded">
+                      <div className="bg-gray-100 px-2 py-1 text-xs text-gray-600 border-b">
+                        Text Document
+                      </div>
+                      <pre className="p-2 bg-white rounded-b max-h-48 overflow-y-auto text-sm whitespace-pre-wrap text-gray-800">
+                        {content.text}
+                      </pre>
+                    </div>
+                  ) : null;
+
                 case "folder":
                   return (
                     <div className="p-4 bg-blue-50 border border-blue-300 rounded text-center text-blue-700 text-sm">
                       📁 {content?.text || "This is a folder."}
                     </div>
                   );
+
+                //Unsupported files
                 default:
                   return (
                     <div className="p-4 bg-gray-50 border rounded text-center text-sm text-gray-500">
-                      ❌ This file type cannot be previewed.
+                      <div className="mb-2">❌</div>
+                      <div>This file type cannot be previewed.</div>
+                      <div className="text-xs mt-1 text-gray-400">
+                        Supported: Images, Videos, Audio, PDF, Text, Code, and
+                        Data files
+                      </div>
                     </div>
                   );
               }
             })()}
           </div>
 
-          {/* Full View Button */}
-          <button
-            onClick={() => onOpenFullView(file)}
-            className="mt-4 w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
-          >
-            Open Full View
-          </button>
+          {/* Full View Button - Only show for previewable files */}
+          {[
+            "image",
+            "video",
+            "audio",
+            "pdf",
+            "txt",
+            "json",
+            "csv",
+            "html",
+            "css",
+            "js",
+            "jsx",
+            "ts",
+            "tsx",
+            "py",
+            "java",
+            "cpp",
+            "c",
+            "php",
+            "rb",
+            "go",
+            "rs",
+            "md",
+            "markdown",
+            "xml",
+            "yaml",
+            "yml",
+            "sql",
+            "log",
+            "ini",
+            "cfg",
+            "conf",
+          ].includes(file?.type) && (
+            <button
+              onClick={() => onOpenFullView(file)}
+              className="mt-4 w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition-colors"
+            >
+              Open Full View
+            </button>
+          )}
 
           <hr className="my-4 border-gray-400" />
 
           {/* File Details */}
           <div className="mb-4">
-            <h3 className="text-m font-bold text-gray-900 mb-2">File Details</h3>
+            <h3 className="text-m font-bold text-gray-900 mb-2">
+              File Details
+            </h3>
             <div className="text-sm text-gray-600 space-y-1">
-              <div>Type: {file?.type}</div>
+              <div>
+                Type:{" "}
+                <span className="font-mono text-xs bg-gray-100 px-1 rounded">
+                  {file?.type}
+                </span>
+              </div>
               <div>Size: {file?.size}</div>
               <div>Modified: {file?.modified}</div>
             </div>
@@ -313,6 +500,22 @@ export function PreviewDrawer({
                         {user.recipient_email}
                       </div>
                     </div>
+
+                    {/* Dropdown Menu */}
+                    {/* {openMenuUserId === user.recipient_id && (
+                <div className=" absolute top-full left-0 mt-1 w-32 bg-white border border-gray-200 rounded-md shadow-md z-20">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent closing immediately
+                      handleRevokeAccess(user.recipient_id);
+                      setOpenMenuUserId(null);
+                    }}
+                    className="w-full text-left px-3 py-1 text-red-600 hover:bg-red-200 rounded-md text-sm"
+                  >
+                    Revoke Access
+                  </button>
+                </div>
+              )} */}
                   </li>
                 ))}
               </ul>
