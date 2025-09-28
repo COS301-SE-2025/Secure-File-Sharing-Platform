@@ -9,7 +9,12 @@ import { getSodium } from "@/app/lib/sodium";
 import Image from "next/image";
 import { gzip } from "pako";
 import useDrivePicker from "react-google-drive-picker"
-import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
+
+function getCookie(name) {
+  return document.cookie.split("; ").find(c => c.startsWith(name + "="))?.split("=")[1];
+}
+
+const csrf = getCookie("csrf_token");
 
 export function UploadDialog({
   open,
@@ -79,7 +84,7 @@ export function UploadDialog({
 
   const showToast = (message, type = "info") => {
     setToast({ message, type });
-    setTimeout(() => setToast(null), 4000); // auto-hide after 4s
+    setTimeout(() => setToast(null), 4000);
   };
 
   const closeToast = () => setToast(null);
@@ -151,7 +156,7 @@ export function UploadDialog({
     setUploadFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const chunkSize = 10 * 1024 * 1024; // 5MB per chunk
+  const chunkSize = 10 * 1024 * 1024;
 
   const uploadFilesHandler = async () => {
     if (uploadFiles.length === 0) return;
@@ -196,9 +201,9 @@ export function UploadDialog({
 
 
           // Call startUpload to get fileId
-          const startRes = await fetch(getFileApiUrl("/startUpload"), {
+          const startRes = await fetch("/proxy/files/startUpload", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
             body: JSON.stringify({
               fileName: file.name,
               fileType: file.type,
@@ -213,25 +218,18 @@ export function UploadDialog({
           if (!startRes.ok) throw new Error("Failed to start upload");
           const { fileId } = await startRes.json();
 
-          //Skip compression as it doesn't actually help much, with videos at least
           const fileBuffer = new Uint8Array(await file.arrayBuffer());
-          //const compressed = gzip(fileBuffer, { level: 9 });
 
-          // 3️⃣ Encrypt entire compressed file
-          //nonce is up there
           const ciphertext = sodium.crypto_secretbox_easy(fileBuffer, nonce, encryptionKey);
 
-          // 4️⃣ Compute SHA-256 hash of encrypted file
           const hashBuffer = await crypto.subtle.digest("SHA-256", ciphertext.buffer);
           const fileHash = Array.from(new Uint8Array(hashBuffer))
             .map((b) => b.toString(16).padStart(2, "0"))
             .join("");
 
-          // 5️⃣ Chunk encrypted file
           const totalChunks = Math.ceil(ciphertext.length / chunkSize);
           let uploadedChunks = 0;
 
-          // 6️⃣ Upload all chunks in parallel
           const chunkUploadPromises = Array.from({ length: totalChunks }, (_, chunkIndex) => {
             const start = chunkIndex * chunkSize;
             const end = Math.min(start + chunkSize, ciphertext.length);
@@ -254,8 +252,9 @@ export function UploadDialog({
             formData.append("totalChunks", totalChunks.toString());
             formData.append("encryptedFile", new Blob([chunk]), file.name);
 
-            return fetch(getFileApiUrl("/upload"), {
+            return fetch("/proxy/files/upload", {
               method: "POST",
+              headers: {"x-csrf":csrf||""},
               body: formData,
             })
               .then((res) => {
@@ -271,19 +270,14 @@ export function UploadDialog({
           await Promise.all(chunkUploadPromises);
           console.log(`${file.name} uploaded successfully`);
 
-          //add access log
-          const token = localStorage.getItem('token');
-
-          const res = await fetch(getApiUrl('/users/profile'), {
-            headers: { Authorization: `Bearer ${token}` },
-          });
+          const res = await fetch('/proxy/auth/profile');
 
           const result = await res.json();
           if (!res.ok) throw new Error(result.message || 'Failed to fetch profile');
 
-          await fetch(getFileApiUrl("/addAccesslog"), {
+          await fetch("/proxy/files/addAccesslog", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {"x-csrf":csrf||""},
             body: JSON.stringify({
               file_id: fileId,
               user_id: userId,

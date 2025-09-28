@@ -1,18 +1,18 @@
-'use client';
+"use client";
 
 import { useEffect, useState, useCallback } from 'react';
 import { PDFDocument, rgb } from "pdf-lib";
 import axios from 'axios';
 import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 
-import { 
-  FileText, 
-  Users, 
-  TrashIcon, 
-  UploadCloud, 
-  ListCheckIcon, 
-  AlertCircleIcon 
-} from 'lucide-react';
+import {
+  FileText,
+  Users,
+  TrashIcon,
+  UploadCloud,
+  ListCheckIcon,
+  AlertCircleIcon,
+} from "lucide-react";
 
 import { UploadDialog } from "./myFilesV2/uploadDialog";
 import { FullViewModal } from "./myFilesV2/fullViewModal";
@@ -24,38 +24,268 @@ import { useEncryptionStore } from "@/app/SecureKeyStorage";
 import { UserAvatar } from '@/app/lib/avatarUtils';
 
 
-function getFileType(mimeType) {
-  if (!mimeType) return "unknown";
-  if (mimeType.includes("pdf")) return "pdf";
-  if (mimeType.includes("image")) return "image";
-  if (mimeType.includes("video")) return "video";
-  if (mimeType.includes("audio")) return "audio";
-  if (mimeType.includes("application")) return "application";
-  if (mimeType.includes("zip") || mimeType.includes("rar")) return "archive";
-  if (mimeType.includes("spreadsheet") || mimeType.includes("excel") || mimeType.includes("sheet"))
-    return "excel";
-  if (mimeType.includes("presentation")) return "ppt";
-  if (mimeType.includes("word") || mimeType.includes("document")) return "word";
-  if (mimeType.includes("text")) return "txt";
-  if (mimeType.includes("json")) return "json";
-  if (mimeType.includes("csv")) return "csv";
-  if (mimeType.includes("html")) return "html";
-  return "file";
+function getFileType(mimeType, fileName = '') {
+  if (mimeType.includes("folder")) return "folder";
+  const normalizedMimeType = mimeType ? mimeType.toLowerCase() : '';
+  const normalizedFileName = fileName ? fileName.toLowerCase() : '';
+
+  const fileExtension = normalizedFileName.includes('.') 
+    ? normalizedFileName.split('.').pop() 
+    : '';
+
+  if (normalizedMimeType) {
+    if (normalizedMimeType.includes("pdf")) return "pdf";
+
+    if (normalizedMimeType.includes("markdown") || normalizedMimeType.includes("x-markdown")) {
+      return "markdown";
+    }
+
+    if (normalizedMimeType.includes("json")) return "json";
+    if (normalizedMimeType.includes("csv")) return "csv";
+    if (normalizedMimeType.includes("html")) return "html";
+
+    if (normalizedMimeType.includes("image")) return "image";
+    if (normalizedMimeType.includes("video")) return "video";
+    if (normalizedMimeType.includes("audio")) return "audio";
+    if (normalizedMimeType.includes("podcast")) return "podcast";
+
+    if (normalizedMimeType.includes("zip") || normalizedMimeType.includes("rar")) return "archive";
+
+    if (normalizedMimeType.includes("spreadsheet") || 
+        normalizedMimeType.includes("excel") || 
+        normalizedMimeType.includes("sheet")) return "excel";
+    if (normalizedMimeType.includes("presentation")) return "ppt";
+    if (normalizedMimeType.includes("word") || normalizedMimeType.includes("document")) return "word";
+
+    if (normalizedMimeType.includes("code") || normalizedMimeType.includes("script")) return "code";
+
+    if (normalizedMimeType.includes("text")) {
+      if (fileExtension === 'md' || fileExtension === 'markdown') return "markdown";
+      return "txt";
+    }
+    if (normalizedMimeType.includes("application")) return "application";
+  }
+  
+  if (fileExtension) {
+    switch (fileExtension) {
+      case 'md':
+      case 'markdown':
+        return "markdown";
+      case 'pdf':
+        return "pdf";
+      case 'json':
+        return "json";
+      case 'csv':
+        return "csv";
+      case 'html':
+      case 'htm':
+        return "html";
+      case 'txt':
+        return "txt";
+        //programming languages
+      case 'py':
+        return "py";
+      case 'java':
+        return "java";
+      case 'cpp':
+        return "cpp";
+      case 'c':
+        return "c";
+      case 'h':
+        return "h";
+      case 'cs':
+        return "cs";
+      case 'php':
+        return "php";
+      case 'rb':
+        return "rb";
+      case 'go':
+        return "go";
+      case 'rs':
+        return "rs";
+      case 'swift':
+        return "swift";
+      case 'kt':
+        return "kt";
+      case 'scala':
+        return "scala";
+      case 'r':
+        return "r";
+      case 'matlab':
+        return "matlab";
+      case 'pl':
+        return "pl";
+      case 'lua':
+        return "lua";
+      case 'css':
+        return "css";
+      case 'scss':
+        return "scss";
+      case 'sass':
+        return "sass";
+      case 'less':
+        return "less"
+      case 'jpg':
+      case 'jpeg':
+      case 'png':
+      case 'gif':
+      case 'svg':
+      case 'webp':
+      case 'image':
+      case 'bmp':
+      case 'tiff':
+      case 'tif':
+      case 'ico':
+      case 'heic':
+      case 'raw':
+        return "image";
+      case 'mp4':
+      case 'avi':
+      case 'mov':
+      case 'webm':
+        return "video";
+      case 'mp3':
+      case 'wav':
+      case 'flac':
+        return "audio";
+      case 'zip':
+      case 'rar':
+      case '7z':
+        return "archive";
+      case 'xlsx':
+      case 'xls':
+        return "excel";
+      case 'pptx':
+      case 'ppt':
+        return "ppt";
+      case 'docx':
+      case 'doc':
+        return "word";
+        //database files
+      case 'sql':
+        return "sql";
+      case 'db':
+        return "db";
+      case 'sqlite':
+        return "sqlite";
+      case 'mdb':
+        return "mdb"
+      case 'ods':
+        return "ods";
+      case 'odp':
+        return "odp";
+      case 'log':
+        return "log";
+      case 'readme':
+        return "readme";
+      case 'yaml':
+        return "yaml";
+      case 'yml':
+        return "yml";
+      case 'toml':
+        return "toml";
+      case 'ini':
+        return "ini";
+      case 'cfg':
+        return "cfg";
+      case 'conf':
+        return "conf";
+        //Archive files
+        case 'archive':
+          return "archive";
+        case 'zip':
+          return "zip";
+        case 'rar':
+          return "rar";
+        case '7z':
+          return "7z";
+        case 'tar':
+          return "tar";
+        case 'gz':
+          return "gz";
+        case 'bz2':
+          return "bz2";
+        case 'xz':
+          return "xz";
+          //system files
+        case 'exe':
+          return "exe";
+        case 'msi':
+          return "msi";
+        case 'deb':
+          return 'deb';
+        case 'rpm':
+          return "rpm";
+        case 'dmg':
+          return "dmg";
+        case 'iso':
+          return "iso";
+        case 'img':
+          return "img";
+          //security files
+        case 'key':
+          return "key";
+        case 'pem':
+          return "pem";
+        case 'crt':
+          return 'crt';
+        case 'cert':
+          return "cert";
+          //email files
+        case 'eml':
+          return "eml";
+        case 'msg':
+          return "msg";
+        //calender
+        case 'ics':
+          return "ics";
+        //Adobe files
+        case 'psd':
+          return "psd";
+        case 'ai':
+          return "ai";
+        case 'eps':
+          return "eps";
+        case 'indd':
+          return "indd";
+        //cad files
+        case 'dwg':
+          return "dwg";
+        case 'dxf':
+          return "dxf";
+        //3D Model Files
+        case 'obj':
+          return "obj";
+        case 'fbx':
+          return "fbx";
+        case 'blend':
+          return "blend";
+    }
+  }
+  
+  return normalizedMimeType ? "file" : "unknown";
 }
 
 function formatFileSize(size) {
   if (size < 1024) return `${size} B`;
   else if (size < 1024 * 1024) return `${(size / 1024).toFixed(2)} KB`;
-  else if (size < 1024 * 1024 * 1024) return `${(size / (1024 * 1024)).toFixed(2)} MB`;
+  else if (size < 1024 * 1024 * 1024)
+    return `${(size / (1024 * 1024)).toFixed(2)} MB`;
   else return `${(size / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
-function parseTagString(tagString = '') {
-  return tagString.replace(/[{}]/g, '').split(',').map(t => t.trim());
+function parseTagString(tagString = "") {
+  return tagString
+    .replace(/[{}]/g, "")
+    .split(",")
+    .map((t) => t.trim());
 }
 
+function getCookie(name) {
+  return document.cookie.split("; ").find(c => c.startsWith(name + "="))?.split("=")[1];
+}
 
-
+const csrf = getCookie("csrf_token");
 
   const formatTimestamp = (timestamp) => {
     const now = new Date();
@@ -91,27 +321,27 @@ export default function DashboardHomePage() {
 
 
 
-const fetchFiles = async () => {
-  try {
-    if (!userId) {
-      console.error("Cannot fetch files: Missing userId in store.");
-      return [];
-    }
-
-    const res = await fetch(getFileApiUrl("/metadata"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId }),
-    });
-
-    let data;
+  const fetchFiles = async () => {
     try {
-      data = await res.json();
-    } catch (e) {
-      const text = await res.text();
-      console.error("Failed to parse JSON:", text);
-      return [];
-    }
+      if (!userId) {
+        console.error("Cannot fetch files: Missing userId in store.");
+        return [];
+      }
+
+      const res = await fetch("/proxy/files/metadata", {
+        method: "POST",
+        headers:{"x-csrf":csrf||""},
+        body: JSON.stringify({ userId }),
+      });
+
+      let data;
+      try {
+        data = await res.json();
+      } catch (e) {
+        const text = await res.text();
+        console.error("Failed to parse JSON:", text);
+        return [];
+      }
 
 
     if(data != null){
@@ -132,7 +362,7 @@ const fetchFiles = async () => {
           id: f.fileId || "",
           name: f.fileName || "Unnamed file",
           size: formatFileSize(f.fileSize || 0),
-          type: getFileType(f.fileType || ""),
+          type: getFileType(f.fileType || "", f.fileName),
           modified: f.createdAt ? new Date(f.createdAt).toLocaleDateString() : "",
           shared: false,
           starred: false,
@@ -170,13 +400,13 @@ useEffect(() => {
     const sodium = await getSodium();
 
     try {
-      const res = await fetch(getFileApiUrl("/download"), {
+      const res = await fetch("/proxy/files/download", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-       body: JSON.stringify({
-  userId,
-  fileId: file.fileId || file.id, // ✅ Ensure correct field
-}),
+        headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
+        body: JSON.stringify({
+          userId,
+          fileId: file.fileId || file.id,
+        }),
       });
 
       if (!res.ok) {
@@ -214,11 +444,9 @@ useEffect(() => {
 
   useEffect(() => {
       const fetchProfile = async () => {
-        const token = localStorage.getItem('token');
-        if (!token) return;
   
         try {
-          const res = await fetch('http://localhost:5000/api/users/profile', {
+          const res = await fetch('/proxy/auth/profile', {
             headers: { Authorization: `Bearer ${token}` },
           });
   
@@ -238,7 +466,7 @@ useEffect(() => {
     const username = user?.username;
     const file = {
       ...rawFile,
-      type: getFileType(rawFile.fileType || rawFile.type || ""),
+      type: getFileType(rawFile.fileType || rawFile.type || "", rawFile.fileName),
       name: rawFile.fileName || rawFile.name,
       size: formatFileSize(rawFile.fileSize || rawFile.size || 0),
     };
@@ -363,28 +591,23 @@ useEffect(() => {
 
 
   const fetchNotifications = async () => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
-
     try {
-      const profileRes = await fetch(getApiUrl("/users/profile"), {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const profileRes = await fetch("/proxy/auth/profile");
 
       const profileResult = await profileRes.json();
-      if (!profileRes.ok) throw new Error(profileResult.message || "Failed to fetch profile");
+      if (!profileRes.ok)
+        throw new Error(profileResult.message || "Failed to fetch profile");
 
       try {
-        const res = await axios.post(getApiUrl('/notifications/get'), {
+        const res = await axios.post("/proxy/notifications/getNotifications", {
           userId: profileResult.data.id,
-        });
+        },{headers:{"x-csrf":csrf||""}});
         if (res.data.success) {
           setNotifications(res.data.notifications);
         }
       } catch (error) {
-        console.error('Failed to fetch notifications:', error);
+        console.error("Failed to fetch notifications:", error);
       }
-
     } catch (err) {
       console.error("Failed to fetch user profile:", err.message);
     }
@@ -392,90 +615,103 @@ useEffect(() => {
 
   const markAsRead = async (id) => {
     try {
-      const res = await axios.post(getApiUrl('/notifications/markAsRead'), { id });
+      const res = await axios.post("/proxy/notifications/markAsRead", {id },{headers:{"x-csrf":csrf||""}});
       if (res.data.success) {
         setNotifications((prev) =>
           prev.map((n) => (n.id === id ? { ...n, read: true } : n))
         );
       }
     } catch (error) {
-      console.error('Failed to mark notification as read:', error);
+      console.error("Failed to mark notification as read:", error);
     }
   };
 
   const respondToShareRequest = async (id, status) => {
     try {
-      const res = await axios.post(getApiUrl('/notifications/respond'), {
+      const res = await axios.post("/proxy/notifications/respond", {
         id,
         status,
-      });
+      },{headers:{"x-csrf":csrf||""}});
 
       if (res.data.success) {
         setNotifications((prev) =>
           prev.map((n) => (n.id === id ? { ...n, status, read: true } : n))
         );
 
-        if (status === 'accepted' && res.data.fileData) {
+        if (status === "accepted" && res.data.fileData) {
           const fileData = res.data.fileData;
           await ReceiveFile(fileData);
         }
       }
     } catch (error) {
-      console.error('Failed to respond to notification:', error);
+      console.error("Failed to respond to notification:", error);
     }
   };
 
   const clearNotification = async (id) => {
     try {
-      const res = await axios.post(getApiUrl('/notifications/clear'), { id });
+      const res = await axios.post(
+        "/proxy/notifications/clear",
+        {id },{headers:{"x-csrf":csrf||""}}
+      );
       if (res.data.success) {
         setNotifications((prev) => prev.filter((n) => n.id !== id));
       }
     } catch (error) {
-      console.error('Failed to clear notification:', error);
+      console.error("Failed to clear notification:", error);
     }
   };
-  
-const fetchRecentAccessLogs = async () => {
-  try {
-    const userId = useEncryptionStore.getState().userId;
-    if (!userId) return [];
 
-    // Fetch files
-    const res = await fetch(getFileApiUrl("/metadata"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId }),
-    });
-    let files = await res.json();
-    if (!Array.isArray(files)) files = [];
+  const fetchRecentAccessLogs = async () => {
+    try {
+      const userId = useEncryptionStore.getState().userId;
+      if (!userId) return [];
 
-    // Filter out deleted files
-    files = files.filter(f => {
-      const tags = f.tags ? f.tags.replace(/[{}]/g, "").split(",") : [];
-      return !tags.includes("deleted") && !tags.some(tag => tag.trim().startsWith("deleted_time:"));
-    });
+      // Fetch files
+      const res = await fetch("/proxy/files/metadata", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json","x-csrf":csrf||""
+        },
+        body: JSON.stringify({ userId }),
+      });
+      let files = await res.json();
+      if (!Array.isArray(files)) files = [];
 
-    const allLogs = [];
+      // Filter out deleted files
+      files = files.filter((f) => {
+        const tags = f.tags ? f.tags.replace(/[{}]/g, "").split(",") : [];
+        return (
+          !tags.includes("deleted") &&
+          !tags.some((tag) => tag.trim().startsWith("deleted_time:"))
+        );
+      });
 
-    for (const file of files) {
-      try {
-        const logRes = await fetch(getFileApiUrl("/getAccesslog"), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ file_id: file.fileId }),
-        });
-        if (!logRes.ok) continue;
-        const fileLogs = await logRes.json();
+      const allLogs = [];
 
-        for (const log of fileLogs) {
-          if (log.file_id !== file.fileId) continue;
+      for (const file of files) {
+        try {
+          const logRes = await fetch(
+            "/proxy/files/getAccessLog",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json","x-csrf":csrf||""
+              },
+              body: JSON.stringify({ file_id: file.fileId }),
+            }
+          );
+          if (!logRes.ok) continue;
+          const fileLogs = await logRes.json();
+
+          for (const log of fileLogs) {
+            if (log.file_id !== file.fileId) continue;
 
           // Get user info
           let userName = "Unknown User";
           let avatar = null; // Let UserAvatar component handle the fallback
           try {
-            const userRes = await fetch(getApiUrl(`/users/getUserInfo/${log.user_id}`));
+            const userRes = await fetch(`/proxy/user/getUserInfo/${log.user_id}`);
             if (userRes.ok) {
               const userInfo = await userRes.json();
               if (userInfo?.data?.username) {
@@ -485,33 +721,35 @@ const fetchRecentAccessLogs = async () => {
             }
           } catch {}
 
-          allLogs.push({
-            user: userName,
-            avatar,
-            action: log.action || "",
-            file: file.fileName || "Unnamed File",
-            timestamp: log.timestamp,
-            dateFormatted: new Date(log.timestamp).toLocaleString(),
-          });
-        }
-      } catch {}
+            allLogs.push({
+              user: userName,
+              avatar,
+              action: log.action || "",
+              file: file.fileName || "Unnamed File",
+              timestamp: log.timestamp,
+              dateFormatted: new Date(log.timestamp).toLocaleString(),
+            });
+            console.log("Username is (in user):", user);
+          }
+        } catch {}
+      }
+
+      // Sort by timestamp and take top 3
+      allLogs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      setRecentAccessLogs(allLogs.slice(0, 3));
+    } catch (err) {
+      console.error("Failed to fetch recent access logs:", err);
+      setRecentAccessLogs([]);
     }
-
-    // Sort by timestamp and take top 3
-    allLogs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-    setRecentAccessLogs(allLogs.slice(0, 3));
-  } catch (err) {
-    console.error("Failed to fetch recent access logs:", err);
-    setRecentAccessLogs([]);
-  }
-};
-
+  };
 
   const fetchFilesMetadata = useCallback(async () => {
     try {
-      const res = await fetch(getFileApiUrl('/metadata'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/proxy/files/metadata", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json","x-csrf":csrf||""
+        },
         body: JSON.stringify({ userId }),
       });
 
@@ -552,31 +790,35 @@ const fetchRecentAccessLogs = async () => {
       fetchFilesMetadata();
       fetchFiles();
       fetchNotifications();
-      fetchRecentAccessLogs()
+      fetchRecentAccessLogs();
     }
   }, [userId, fetchFilesMetadata, actionFilter]);
 
   const stats = [
     {
       icon: <FileText className="text-blue-600 dark:text-blue-400" size={28} />,
-      label: 'My Files',
+      label: "My Files",
       value: fileCount,
     },
     {
       icon: <Users className="text-green-600 dark:text-green-400" size={28} />,
-      label: 'Shared with Me',
+      label: "Shared with Me",
       value: receivedFilesCount,
     },
     {
-      icon: <TrashIcon className="text-purple-600 dark:text-purple-400" size={28} />,
-      label: 'Trash',
+      icon: (
+        <TrashIcon className="text-purple-600 dark:text-purple-400" size={28} />
+      ),
+      label: "Trash",
       value: trashedFilesCount,
     },
     {
-      icon: <UploadCloud className="text-blue-600 dark:text-blue-400" size={28} />,
-      label: 'Upload',
+      icon: (
+        <UploadCloud className="text-blue-600 dark:text-blue-400" size={28} />
+      ),
+      label: "Upload",
       isUpload: true,
-    }
+    },
   ];
 
   return (
@@ -638,14 +880,21 @@ const fetchRecentAccessLogs = async () => {
       {/* Notifications */}
       <div className="flex justify-center">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-12 w-full max-w-10xl">
-          <div className="h-60 w-full lg:col-span-2 p-6 flex flex-col justify-start
+          <div
+            className="h-60 w-full lg:col-span-2 p-6 flex flex-col justify-start
                           bg-gray-200 dark:bg-gray-800 rounded-lg shadow hover:shadow-lg
-                          transition-shadow overflow-hidden">
+                          transition-shadow overflow-hidden"
+          >
             <div className="flex items-center gap-3 mb-3">
               <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-full">
-                <ListCheckIcon className="text-blue-600 dark:text-blue-400" size={28} />
+                <ListCheckIcon
+                  className="text-blue-600 dark:text-blue-400"
+                  size={28}
+                />
               </div>
-              <p className="text-xl font-bold text-gray-500 dark:text-gray-400">Notifications</p>
+              <p className="text-xl font-bold text-gray-500 dark:text-gray-400">
+                Notifications
+              </p>
             </div>
 
             <div className="overflow-y-auto space-y-2 pr-1 text-sm text-gray-700 dark:text-gray-200">
@@ -660,7 +909,9 @@ const fetchRecentAccessLogs = async () => {
                     <FileText className="w-4 h-4 mt-1 text-blue-500" />
                     <div className="flex-1">
                       <p className="leading-tight">{n.message}</p>
-                      <p className="text-xs text-gray-500">{formatTimestamp(n.timestamp)}</p>
+                      <p className="text-xs text-gray-500">
+                        {formatTimestamp(n.timestamp)}
+                      </p>
 
                       <div className="flex gap-2 mt-1">
                         {!n.read && (
@@ -675,13 +926,17 @@ const fetchRecentAccessLogs = async () => {
                         {n.type === "share-request" && (
                           <>
                             <button
-                              onClick={() => respondToShareRequest(n.id, "accepted")}
+                              onClick={() =>
+                                respondToShareRequest(n.id, "accepted")
+                              }
                               className="text-xs text-green-500 hover:underline"
                             >
                               Accept
                             </button>
                             <button
-                              onClick={() => respondToShareRequest(n.id, "declined")}
+                              onClick={() =>
+                                respondToShareRequest(n.id, "declined")
+                              }
                               className="text-xs text-red-500 hover:underline"
                             >
                               Decline
@@ -703,18 +958,23 @@ const fetchRecentAccessLogs = async () => {
             </div>
           </div>
 
-      {/* Activity Logs (Dynamic Data) */}
-        <div className="h-60 w-full lg:col-span-2 p-6 flex flex-col justify-start
+          {/* Activity Logs (Dynamic Data) */}
+          <div
+            className="h-60 w-full lg:col-span-2 p-6 flex flex-col justify-start
                         bg-gray-200 dark:bg-gray-800 rounded-lg shadow hover:shadow-lg
-                        transition-shadow overflow-hidden">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-full">
-              <AlertCircleIcon className="text-green-600 dark:text-green-400" size={28} />
+                        transition-shadow overflow-hidden"
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-full">
+                <AlertCircleIcon
+                  className="text-green-600 dark:text-green-400"
+                  size={28}
+                />
+              </div>
+              <p className="text-xl font-bold text-gray-500 dark:text-gray-400">
+                Activity Logs
+              </p>
             </div>
-            <p className="text-xl font-bold text-gray-500 dark:text-gray-400">
-              Activity Logs
-            </p>
-          </div>
 
           <div className="overflow-y-auto space-y-2 pr-2 text-sm text-gray-700 dark:text-gray-200">
             {recentAccessLogs.length > 0 ? (
@@ -739,11 +999,7 @@ const fetchRecentAccessLogs = async () => {
             )}
           </div>
         </div>
-
       </div>
-    </div>
-
-
 
       {/* Recent Files */}
       <div className="mt-12 max-w-5xl mx-auto">
@@ -785,20 +1041,20 @@ const fetchRecentAccessLogs = async () => {
         />
       )}
       {previewFile && (
-      <PreviewDrawer
-        file={previewFile}
-        content={previewContent}
-        onClose={() => setPreviewFile(null)}
-        onOpenFullView={(file) => {
-          setPreviewFile(null);
-          handleOpenFullView(file);
-        }}
-        onSaveDescription={async (id, description) => {
-          console.log("Save description for:", id, description);
-        }}
-      />
-)}
-
+        <PreviewDrawer
+          file={previewFile}
+          content={previewContent}
+          onClose={() => setPreviewFile(null)}
+          onOpenFullView={(file) => {
+            setPreviewFile(null);
+            handleOpenFullView(file);
+          }}
+          onSaveDescription={async (id, description) => {
+            console.log("Save description for:", id, description);
+          }}
+        />
+      )}
     </div>
-  )
-};
+    </div>
+  );
+}

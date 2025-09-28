@@ -9,6 +9,15 @@ import { getApiUrl } from '@/lib/api-config';
 import axios from 'axios';
 import { format, formatDistance } from 'date-fns';
 
+function getCookie(name) {
+  if (typeof document === 'undefined') {
+    return null; 
+  }
+  return document.cookie.split("; ").find(c => c.startsWith(name + "="))?.split("=")[1];
+}
+
+const csrf = getCookie("csrf_token");
+
 export default function AccountSettings() {
   const router = useRouter();
   const { setTheme, resolvedTheme } = useTheme();
@@ -93,7 +102,7 @@ export default function AccountSettings() {
       }
 
       try {
-        const res = await fetch(`${getApiUrl('')}/users/profile`, {
+        const res = await fetch(`${getApiUrl('/users/profile')}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const result = await res.json();
@@ -121,7 +130,7 @@ export default function AccountSettings() {
       if (!token) return;
 
       try {
-        const res = await fetch(`${API_BASE_URL}/notifications`, {
+        const res = await fetch(`${getApiUrl('/users/notifications')}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const result = await res.json();
@@ -190,7 +199,7 @@ export default function AccountSettings() {
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${getApiUrl('')}/users/profile`, {
+      const res = await fetch(`${getApiUrl('/users/profile')}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -288,7 +297,7 @@ export default function AccountSettings() {
     setIsDeleting(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${getApiUrl('')}/users/profile`, {
+      const res = await fetch(`${getApiUrl('/users/profile')}`, {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -394,7 +403,7 @@ export default function AccountSettings() {
 
       const avatarUrl = response.data.secure_url;
 
-      const updateResponse = await fetch(`${getApiUrl('')}/users/avatar-url`, {
+      const updateResponse = await fetch(`${getApiUrl('/users/avatar-url')}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -441,7 +450,7 @@ export default function AccountSettings() {
         return;
       }
 
-      const response = await fetch(`${getApiUrl('')}/users/avatar-url`, {
+      const response = await fetch(`${getApiUrl('/users/avatar-url')}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -492,7 +501,7 @@ export default function AccountSettings() {
     setPasswordErrors({});
 
     try {
-      const response = await fetch(`${getApiUrl('')}/users/verify-password`, {
+      const response = await fetch(`${getApiUrl('/users/verify-password')}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -504,7 +513,7 @@ export default function AccountSettings() {
       });
 
       if (response.ok) {
-        const pinResponse = await fetch(`${getApiUrl('')}/users/send-reset-pin`, {
+        const pinResponse = await fetch(`${getApiUrl('/users/send-reset-pin')}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -538,7 +547,7 @@ export default function AccountSettings() {
     }
 
     try {
-      const response = await fetch(`${getApiUrl('')}/users/verify-pin`, {
+      const response = await fetch(`${getApiUrl('/users/verify-pin')}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -657,7 +666,7 @@ export default function AccountSettings() {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/verify-mnemonic`, {
+      const response = await fetch(`${getApiUrl('/users/verify-mnemonic')}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -737,7 +746,7 @@ export default function AccountSettings() {
     const token = localStorage.getItem('token');
 
     try {
-      const response = await fetch(`${getApiUrl('')}/users/notifications`, {
+      const response = await fetch(`${getApiUrl('/users/notifications')}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -774,8 +783,8 @@ export default function AccountSettings() {
       }
       
       console.log('Fetching sessions...');
-      
-      const response = await axios.get(`${API_BASE_URL}/sessions`, {
+
+      const response = await axios.get(`${getApiUrl('/users/sessions')}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -867,7 +876,7 @@ export default function AccountSettings() {
       
       console.log('Revoking session:', sessionId, 'Is current device:', isCurrentDevice);
       
-      const response = await axios.delete(`${API_BASE_URL}/sessions/${sessionId}`, {
+      const response = await axios.delete(`${getApiUrl('/users/sessions')}/${sessionId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -908,7 +917,7 @@ export default function AccountSettings() {
         return false;
       }
 
-      const response = await axios.get(`${API_BASE_URL}/profile`, {
+      const response = await axios.get(`${getApiUrl('/users/profile')}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 

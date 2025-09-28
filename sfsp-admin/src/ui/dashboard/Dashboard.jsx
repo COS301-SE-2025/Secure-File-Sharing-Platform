@@ -1,6 +1,14 @@
 import "./Dashboard.css";
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Users, UserX, AlertTriangle, ExternalLink, Activity, Shield, Trash2 } from "lucide-react";
+
+// const navigationItems = [
+//   { title: "Dashboard", url: "/dashboard" },
+//   { title: "Users", url: "/users" },
+//   { title: "Blocked Users", url: "/blocked-users" },
+//   { title: "Reports", url: "/reports" },
+// ];
 
 function Dashboard() {
   const [stats, setStats] = useState([]);
@@ -9,12 +17,16 @@ function Dashboard() {
   const [manageModal, setManageModal] = useState(false);
   const [newAnnouncement, setNewAnnouncement] = useState({
     action: "",
-    info: "",
+    info: " ",
     severity: "success",
   });
   const [infoModal, setInfoModal] = useState({ show: false, announcement: null });
+  const navigate = useNavigate();
 
-  const currentUser = "admin@example.com";
+
+
+  const user = JSON.parse(localStorage.getItem("user"));
+  const currentUser = user.email;
 
   const getSeverityColor = (severity) => {
     switch (severity) {
@@ -57,7 +69,7 @@ function Dashboard() {
   }, []);
 
   const handleAddAnnouncement = async () => {
-    if (!newAnnouncement.action || !newAnnouncement.info) return;
+    if (!newAnnouncement.action) return;
 
     const payload = { ...newAnnouncement, user: currentUser, info: newAnnouncement.info.trim() === "" ? "No details" : newAnnouncement.info };
     try {
@@ -112,16 +124,29 @@ function Dashboard() {
 
       {/* Stats */}
       <div className="stats-grid">
-        {stats.map((stat, i) => (
-          <div key={i} className={`stat-card ${stat.className}`}>
-            <div>
-              <p className="stat-title">{stat.title}</p>
-              <p className="stat-value">{stat.value}</p>
-            </div>
-            <stat.icon className="stat-icon" />
+        <div className="stat-card stat-success">
+          <div>
+            <p className="stat-title">Active Users</p>
+            <p className="stat-value">{stats[0]?.value ?? 0}</p>
           </div>
-        ))}
+          <Users className="stat-icon" />
+        </div>
+        <div className="stat-card stat-danger">
+          <div>
+            <p className="stat-title">Blocked Users</p>
+            <p className="stat-value">{stats[1]?.value ?? 0}</p>
+          </div>
+          <UserX className="stat-icon" />
+        </div>
+        <div className="stat-card stat-warning">
+          <div>
+            <p className="stat-title">Pending Reports</p>
+            <p className="stat-value">{stats[2]?.value ?? 0}</p>
+          </div>
+          <AlertTriangle className="stat-icon" />
+        </div>
       </div>
+
 
       {/* Main Grid */}
       <div className="main-grid">
@@ -160,10 +185,9 @@ function Dashboard() {
           <h2>Quick Actions</h2>
           <p className="muted">Common administrative tasks</p>
           <div className="quick-actions">
-            <button className="btn-outline"><Users className="icon" /> View All Users</button>
-            <button className="btn-outline"><UserX className="icon" /> Manage Blocked Users</button>
-            <button className="btn-outline"><AlertTriangle className="icon" /> Review Reports</button>
-            <button className="btn-outline"><Shield className="icon" /> Security Settings</button>
+            <button className="btn-outline" onClick={() => navigate("/users")}><Users className="icon" /> View All Users</button>
+            <button className="btn-outline" onClick={() => navigate("/blocked-users")}><UserX className="icon" /> Manage Blocked Users</button>
+            <button className="btn-outline" onClick={() => navigate("/reports")} ><AlertTriangle className="icon" /> Review Reports</button>
           </div>
         </div>
       </div>

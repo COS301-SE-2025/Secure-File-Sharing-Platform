@@ -54,7 +54,6 @@ class UserController {
         salt,
       });
       if (result && result.user && result.user.id) {
-        
         const vaultres = await VaultController.storeKeyBundle({
           encrypted_id: result.user.id,
           ik_private_key,
@@ -75,7 +74,10 @@ class UserController {
             result.user.email,
             result.user.username || "User"
           );
-          console.log("Verification email sent to new user:", result.user.email);
+          console.log(
+            "Verification email sent to new user:",
+            result.user.email
+          );
         } catch (emailError) {
           console.error("Failed to send verification email to new user:", emailError);
         }
@@ -91,38 +93,49 @@ class UserController {
       });
     } catch (error) {
       console.error("Error registering user:", error);
-      
+
       // Return specific error messages for known issues
       if (error.message.includes("User already exists")) {
         return res.status(409).json({
           success: false,
-          message: "An account with this email address already exists. Please use a different email or try logging in.",
+          message:
+            "An account with this email address already exists. Please use a different email or try logging in.",
         });
       }
-      
+
       if (error.message.includes("Failed to create user")) {
         return res.status(400).json({
           success: false,
-          message: "Failed to create account. Please check your information and try again.",
+          message:
+            "Failed to create account. Please check your information and try again.",
         });
       }
-      
+
       if (error.message.includes("Failed to store private keys")) {
         return res.status(500).json({
           success: false,
-          message: "Account created but failed to secure your keys. Please try registering again.",
+          message:
+            "Account created but failed to secure your keys. Please try registering again.",
         });
       }
-      
+
       // Generic fallback for unexpected errors
       return res.status(500).json({
         success: false,
-        message: "An unexpected error occurred while creating your account. Please try again.",
+        message:
+          "An unexpected error occurred while creating your account. Please try again.",
       });
     }
   }
 
   async getUserIdFromEmail(req, res) {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({
+        success: false,
+        message: "Authorization token missing or invalid.",
+      });
+    }
     try {
       const { email } = req.params;
       if (!email) {
@@ -154,8 +167,15 @@ class UserController {
   }
 
   async getUserInfoFromID(req, res) {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({
+        success: false,
+        message: "Authorization token missing or invalid.",
+      });
+    }
     try {
-      const { userId} = req.params;
+      const { userId } = req.params;
       if (!userId) {
         return res.status(400).json({
           success: false,
@@ -185,17 +205,19 @@ class UserController {
     }
   }
 
-
   async getPublicKeys(req, res) {
     try {
       const { userId } = req.params;
+      console.log("User Id is:", userId);
       if (!userId) {
+        console.log("No user id provided");
         return res.status(400).json({
           success: false,
           message: "No user ID provided",
         });
       }
 
+      console.log("Going to getPublicKeys with userId");
       const response = await userService.getPublicKeys(userId);
       if (!response) {
         return res.status(404).json({
@@ -351,6 +373,13 @@ class UserController {
 
   async refreshToken(req, res) {
     try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({
+          success: false,
+          message: "Authorization token missing or invalid.",
+        });
+      }
       const { userId } = req.body;
 
       if (!userId) {
@@ -576,7 +605,7 @@ class UserController {
       if (!userId) {
         return res.status(400).json({
           success: false,
-          message: "User ID is required."
+          message: "User ID is required.",
         });
       }
 
@@ -589,7 +618,7 @@ class UserController {
       if (error || !user) {
         return res.status(404).json({
           success: false,
-          message: "User not found."
+          message: "User not found.",
         });
       }
 
@@ -597,13 +626,13 @@ class UserController {
 
       return res.status(200).json({
         success: true,
-        token
+        token,
       });
     } catch (error) {
       console.error("Error generating token:", error);
       return res.status(500).json({
         success: false,
-        message: "Internal server error."
+        message: "Internal server error.",
       });
     }
   }
@@ -614,7 +643,7 @@ class UserController {
       if (!authHeader || !authHeader.startsWith("Bearer ")) {
         return res.status(401).json({
           success: false,
-          message: "Authorization token missing or invalid."
+          message: "Authorization token missing or invalid.",
         });
       }
 
@@ -624,7 +653,7 @@ class UserController {
       if (!result.valid) {
         return res.status(401).json({
           success: false,
-          message: "Invalid or expired token."
+          message: "Invalid or expired token.",
         });
       }
 
@@ -632,14 +661,14 @@ class UserController {
         success: true,
         data: {
           userId: result.decoded.userId,
-          email: result.decoded.email
-        }
+          email: result.decoded.email,
+        },
       });
     } catch (error) {
       console.error("Error decoding token:", error);
       return res.status(500).json({
         success: false,
-        message: "Internal server error."
+        message: "Internal server error.",
       });
     }
   }
@@ -650,13 +679,18 @@ class UserController {
       const notificationSettings = req.body;
 
       if (!notificationSettings) {
-        return res.status(400).json({ error: 'Notification settings are required' });
+        return res
+          .status(400)
+          .json({ error: "Notification settings are required" });
       }
 
-      const updatedSettings = await userService.updateNotificationSettings(userId, notificationSettings);
+      const updatedSettings = await userService.updateNotificationSettings(
+        userId,
+        notificationSettings
+      );
 
       return res.status(200).json({
-        message: 'Notification settings updated successfully',
+        message: "Notification settings updated successfully",
         data: updatedSettings,
       });
     } catch (error) {
@@ -667,15 +701,18 @@ class UserController {
   async getNotificationSettings(req, res) {
     try {
       const userId = req.user.id;
-      const { notificationSettings, email, username } = await userService.getNotificationSettings(userId);
-      return res.status(200).json({ data: { notificationSettings, email, username } });
+      const { notificationSettings, email, username } =
+        await userService.getNotificationSettings(userId);
+      return res
+        .status(200)
+        .json({ data: { notificationSettings, email, username } });
     } catch (error) {
       return res.status(500).json({ error: error.message });
     }
   }
 
   async getUserById(req, res) {
-    try{
+    try {
       const { userId } = req.params;
       if (!userId) {
         return res.status(400).json({
@@ -707,19 +744,24 @@ class UserController {
 
   async updateAvatarUrl(req, res) {
     try {
-
-      console.log('Received updateAvatarUrl request:', { userId: req.user.id, avatar_url: req.body.avatar_url });
+      console.log("Received updateAvatarUrl request:", {
+        userId: req.user.id,
+        avatar_url: req.body.avatar_url,
+      });
       const userId = req.user.id;
       const { avatar_url } = req.body;
 
       if (!avatar_url && avatar_url !== null) {
-        return res.status(400).json({ success: false, message: 'Avatar URL required (or null to remove)' });
+        return res.status(400).json({
+          success: false,
+          message: "Avatar URL required (or null to remove)",
+        });
       }
 
       const updatedUrl = await userService.updateAvatarUrl(userId, avatar_url);
       res.status(200).json({ success: true, data: { avatar_url: updatedUrl } });
     } catch (error) {
-      console.error('Error in updateAvatarUrl:', error.message);
+      console.error("Error in updateAvatarUrl:", error.message);
       res.status(500).json({ success: false, message: error.message });
     }
   }
@@ -758,7 +800,7 @@ class UserController {
       let user;
       let isNewUser = false;
 
-      if (checkError && checkError.code !== 'PGRST116') {
+      if (checkError && checkError.code !== "PGRST116") {
         throw new Error("Database error: " + checkError.message);
       }
 
@@ -776,7 +818,9 @@ class UserController {
             .single();
 
           if (updateError) {
-            throw new Error("Failed to update user with Google ID: " + updateError.message);
+            throw new Error(
+              "Failed to update user with Google ID: " + updateError.message
+            );
           }
           user = updatedUser;
         } else {
@@ -789,21 +833,33 @@ class UserController {
 
         try {
           const postgresRes = await axios.post(
-            `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/addUser`,
+            `${
+              process.env.FILE_SERVICE_URL || "http://localhost:8081"
+            }/addUser`,
             { userId: user.id },
             { headers: { "Content-Type": "application/json" } }
           );
           console.log("User successfully ensured in PostgreSQL database");
         } catch (postgresError) {
-          console.error("Failed to add user to PostgreSQL database:", postgresError.message);
+          console.error(
+            "Failed to add user to PostgreSQL database:",
+            postgresError.message
+          );
         }
         
       } else {
         isNewUser = true;
-        
-        if (!keyBundle || !keyBundle.ik_public || !keyBundle.spk_public || 
-            !keyBundle.opks_public || !keyBundle.nonce || 
-            !keyBundle.signedPrekeySignature || !keyBundle.salt) {
+
+        // For new Google users, we need key bundle data
+        if (
+          !keyBundle ||
+          !keyBundle.ik_public ||
+          !keyBundle.spk_public ||
+          !keyBundle.opks_public ||
+          !keyBundle.nonce ||
+          !keyBundle.signedPrekeySignature ||
+          !keyBundle.salt
+        ) {
           return res.status(400).json({
             success: false,
             message: "Key bundle is required for new user registration.",
@@ -813,7 +869,7 @@ class UserController {
         const { data: newUser, error: createError } = await supabase
           .from("users")
           .insert({
-            username: name || email.split('@')[0],
+            username: name || email.split("@")[0],
             email: email,
             password: null,
             google_id: google_id,
@@ -840,7 +896,7 @@ class UserController {
           spk_private_key: keyBundle.spk_private_key,
           opks_private: keyBundle.opks_private,
         });
-        
+
         if (!vaultres || vaultres.error) {
           console.log("Failed to store private keys in vault for Google user");
           return res.status(500).json({
@@ -851,7 +907,9 @@ class UserController {
 
         try {
           const postgresRes = await axios.post(
-            `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/addUser`,
+            `${
+              process.env.FILE_SERVICE_URL || "http://localhost:8081"
+            }/addUser`,
             { userId: user.id },
             { headers: { "Content-Type": "application/json" } }
           );
@@ -865,11 +923,14 @@ class UserController {
             user.id,
             user.email,
             user.username || "User",
-            'google_signin'
+            "google_signin"
           );
           console.log("Verification email sent to Google user:", user.email);
         } catch (emailError) {
-          console.error("Failed to send verification email to Google user:", emailError);
+          console.error(
+            "Failed to send verification email to Google user:",
+            emailError
+          );
         }
       }
 
@@ -887,8 +948,22 @@ class UserController {
             keyBundle_response = vaultResult?.data?.data || vaultResult?.data || null;
           }
         } catch (vaultError) {
-          console.warn("Failed to retrieve keys for existing Google user:", vaultError.message);
+          console.warn(
+            "Failed to retrieve keys for existing Google user:",
+            vaultError.message
+          );
         }
+      }
+      
+      // Create or update session for both new and existing Google users
+      try {
+        // Include request headers for better browser detection (especially Brave)
+        deviceInfo.headers = req.headers;
+        const sessionResult = await userService.createOrUpdateUserSession(user.id, deviceInfo);
+        console.log('Google user session created/updated:', sessionResult?.session?.id);
+      } catch (sessionError) {
+        console.error('Error creating session for Google user:', sessionError.message);
+        // Continue with the authentication process even if session creation fails
       }
       
       // Create or update session for both new and existing Google users
@@ -904,7 +979,9 @@ class UserController {
 
       res.status(200).json({
         success: true,
-        message: isNewUser ? "Account created successfully. Please verify your email." : "Login successful",
+        message: isNewUser
+          ? "Account created successfully. Please verify your email."
+          : "Login successful",
         data: {
           token,
           user: {
@@ -929,6 +1006,43 @@ class UserController {
       res.status(500).json({
         success: false,
         message: error.message || "Google authentication failed",
+      });
+    }
+  }
+
+  async verifyToken(req, res) {
+    try {
+      const userId = req.user.id;
+      if (!userId) {
+        return res.status(400).json({
+          success: false,
+          message: "User ID is required.",
+        });
+      }
+      const { data: user, error } = await supabase
+        .from("users")
+        .select("id, email, username, avatar_url, is_verified")
+        .eq("id", userId)
+        .single();
+      if (error || !user) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found.",
+        });
+      }
+      return res.status(200).json({
+        success: true,
+        data: user,
+      });
+    } catch (error) {
+      console.error("Error verifying token:", error);
+      console.log(
+        "Token verification failed for userId:",
+        req.user ? req.user.id : "unknown"
+      );
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error.",
       });
     }
   }
