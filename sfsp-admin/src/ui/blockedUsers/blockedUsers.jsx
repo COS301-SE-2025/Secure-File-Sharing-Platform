@@ -42,11 +42,21 @@ const BlockedUsers = () => {
         fetchStats();
     }, []);
 
-    const filteredUsers = blockedUsers.filter(user =>
-        user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.reason.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    // const filteredUsers = blockedUsers.filter(user =>
+    //     user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    //     user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    //     user.reason.toLowerCase().includes(searchTerm.toLowerCase())
+    // );
+
+    const filteredUsers = blockedUsers.filter((user) => {
+        const reason = user.blocked_info?.reason || "";
+        return (
+            user.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            reason.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    });
+
 
     const handleUnblockUser = async (userId, userName, userSeverity) => {
         try {
@@ -108,28 +118,28 @@ const BlockedUsers = () => {
                         <UserX className="stat-icon high" />
                         <p>Total Blocked</p>
                     </div>
-                    <p>{stats.total}</p>
+                    <p data-testid="stat-total">{stats.total}</p>
                 </div>
                 <div className="stat-card high">
                     <div className="stat-content">
                         <AlertCircle className="icon high" />
                         <p>High Severity</p>
                     </div>
-                    <p>{stats.high}</p>
+                    <p data-testid="stat-high">{stats.high}</p>
                 </div>
                 <div className="stat-card med">
                     <div className="stat-content">
                         <AlertTriangle className="icon medium" />
                         <p>Medium Severity</p>
                     </div>
-                    <p>{stats.medium}</p>
+                    <p data-testid="stat-medium">{stats.medium}</p>
                 </div>
                 <div className="stat-card low">
                     <div className="stat-content">
                         <CheckCircle className="icon low" />
                         <p>Low Severity</p>
                     </div>
-                    <p>{stats.low}</p>
+                    <p data-testid="stat-low">{stats.low}</p>
                 </div>
             </div>
 
