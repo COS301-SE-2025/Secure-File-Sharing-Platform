@@ -1,8 +1,23 @@
 "use client";
 
-import React from "react";
+
+import React, { useEffect, useState, useRef } from "react";
+import { Document, Page, pdfjs } from "react-pdf";
+
+//import "react-pdf/dist/esm/Page/AnnotationLayer.css";
+//import "react-pdf/dist/esm/Page/TextLayer.css";
+
+// Use pdfjs-dist's worker build
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  "pdfjs-dist/build/pdf.worker.min.mjs",
+  import.meta.url,
+).toString();
+
 
 export function FullViewModal({ file, content, onClose }) {
+	const [numPages, setNumPages] = useState(null);
+
+
   return (
     <>
       {file && (

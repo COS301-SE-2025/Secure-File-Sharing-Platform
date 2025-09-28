@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useEncryptionStore } from "@/app/SecureKeyStorage";
 import { getSodium } from "@/app/lib/sodium";
 import pako from "pako";
@@ -28,15 +29,15 @@ export function PreviewDrawer({
   const [sharedWith, setSharedWith] = useState([]);
   const [loadingAccess, setLoadingAccess] = useState(false);
   const [openMenuUserId, setOpenMenuUserId] = useState(null);
+  const [numPages, setNumPages] = useState(null);
   const drawerRef = useRef(null);
 
   useEffect(() => {
     function handleClickOutside(event) {
       if (drawerRef.current && !drawerRef.current.contains(event.target)) {
-        onClose(null); // close drawer
+        onClose(null);
       }
     }
-
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
@@ -117,35 +118,6 @@ export function PreviewDrawer({
     }
   };
 
-  /*const handleRevokeAccess = async (recipientId) => {
-    try {
-      const token = localStorage.getItem("token");
-      if (!token) return;
-
-      const profileRes = await fetch("/proxy/auth/profile");
-      const profileResult = await profileRes.json();
-      const userId = profileResult?.data?.id;
-      if (!userId) return;
-
-      const revokeRes = await fetch("/proxy/files/revokeViewAccess", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
-        body: JSON.stringify({
-          fileId: file.id,
-          userId,
-          recipientId,
-        }),
-      });
-
-      if (!revokeRes.ok) throw new Error("Failed to revoke access");
-
-      // Refresh access list
-      fetchAccessList(file);
-    } catch (err) {
-      console.error("Error revoking access:", err);
-    }
-  };
-*/
   const handleSave = async () => {
     if (!file) return;
     try {
@@ -193,6 +165,7 @@ export function PreviewDrawer({
         </div>
 
         <hr className="my-4 border-gray-400" />
+
         <div className="flex-1 overflow-y-auto p-4">
           {/* Preview Section */}
           <div className="mb-4">
@@ -516,15 +489,12 @@ export function PreviewDrawer({
                       )
                     }
                   >
-                    {/* Avatar */}
                     <UserAvatar
                       avatarUrl={user.recipient_avatar}
                       username={user.recipient_name}
                       size="w-6 h-6"
                       alt={user.recipient_name}
                     />
-
-                    {/* Name / Email */}
                     <div className="text-xs text-gray-700">
                       <div className="font-bold">{user.recipient_name}</div>
                       <div className="text-gray-500">
@@ -556,7 +526,7 @@ export function PreviewDrawer({
           <hr className="my-4 border-gray-400" />
 
           {/* Description Section */}
-          <div className="">
+          <div>
             <div className="flex justify-between items-center mb-2">
               <h3 className="text-m font-bold text-gray-900">Description</h3>
               {!isEditing && (

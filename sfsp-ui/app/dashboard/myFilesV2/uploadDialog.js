@@ -8,6 +8,7 @@ import { useEncryptionStore } from "@/app/SecureKeyStorage";
 import { getSodium } from "@/app/lib/sodium";
 import Image from "next/image";
 import { gzip } from "pako";
+import useDrivePicker from "react-google-drive-picker"
 
 function getCookie(name) {
   return document.cookie.split("; ").find(c => c.startsWith(name + "="))?.split("=")[1];
@@ -27,8 +28,38 @@ export function UploadDialog({
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef(null);
   const [dropboxLoading, setDropboxLoading] = useState(false);
-
+  const [openPicker, authResponse] = useDrivePicker();
+  const [selectedFiles, setSelectedFiles] = useState([]);
   const [toast, setToast] = useState(null);
+
+  const handleGoogleDriveUpload = async () => {
+    openPicker({
+      clientId: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
+      developerKey: process.env.NEXT_PUBLIC_GOOGLE_API_KEY,
+      viewId: "DOCS",
+      showUploadView: true,
+      showUploadFolders: true,
+      supportDrives: true,
+      multiselect: true,
+      callbackFunction: (data) => {
+        if (data.action === "cancel") {
+          console.log("User clicked cancel/close button");
+        } else if (data.docs) {
+          console.log("Google Drive selected:", data.docs);
+
+          const googleFiles = data.docs.map((doc) => ({
+            name: doc.name,
+            size: doc.sizeBytes ? parseInt(doc.sizeBytes, 10) : 0,
+            type: doc.mimeType || "application/octet-stream",
+            googleId: doc.id,
+        }));
+
+        setUploadFiles((prev) => [...prev, ...googleFiles]);
+        showToast("Google Drive files selected. Ready to upload.", "success");
+      }
+    },
+  });
+};
 
   useEffect(() => {
     if (open && !window.Dropbox) {
@@ -78,7 +109,8 @@ export function UploadDialog({
     e.target.value = null;
   };
 
-  const handleGoogleDriveUpload = () => { };
+
+
 
   const handleDropboxUpload = () => {
     const appKey = process.env.NEXT_PUBLIC_DROPBOX_APP_KEY;
@@ -150,7 +182,25 @@ export function UploadDialog({
             const blob = await response.blob();
             file = new File([blob], file.name, { type: file.type });
           }
+          // Handle Google Drive
+      if (file.googleId) {
+        const token = gapi.client.getToken()?.access_token;
+        if (!token) throw new Error("Google API token missing. User may need to re-authenticate.");
 
+        const response = await fetch(
+          `https://www.googleapis.com/drive/v3/files/${file.googleId}?alt=media`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+
+        if (!response.ok) throw new Error("Failed to fetch file from Google Drive");
+        const blob = await response.blob();
+        file = new File([blob], file.name, { type: file.type });
+      }
+
+
+          // Call startUpload to get fileId
           const startRes = await fetch("/proxy/files/startUpload", {
             method: "POST",
             headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
