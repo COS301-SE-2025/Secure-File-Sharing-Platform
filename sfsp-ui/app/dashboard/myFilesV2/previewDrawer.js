@@ -352,7 +352,7 @@ export function PreviewDrawer({
                         <pre className="text-sm text-gray-800">
                           {content.text}
                         </pre>
-                        {}
+                        {/* Future: Could parse CSV and show as table */}
                       </div>
                     </div>
                   ) : null;
