@@ -124,16 +124,29 @@ function Dashboard() {
 
       {/* Stats */}
       <div className="stats-grid">
-        {stats.map((stat, i) => (
-          <div key={i} className={`stat-card ${stat.className}`}>
-            <div>
-              <p className="stat-title">{stat.title}</p>
-              <p className="stat-value">{stat.value}</p>
-            </div>
-            <stat.icon className="stat-icon" />
+        <div className="stat-card stat-success">
+          <div>
+            <p className="stat-title">Active Users</p>
+            <p className="stat-value">{stats[0]?.value ?? 0}</p>
           </div>
-        ))}
+          <Users className="stat-icon" />
+        </div>
+        <div className="stat-card stat-danger">
+          <div>
+            <p className="stat-title">Blocked Users</p>
+            <p className="stat-value">{stats[1]?.value ?? 0}</p>
+          </div>
+          <UserX className="stat-icon" />
+        </div>
+        <div className="stat-card stat-warning">
+          <div>
+            <p className="stat-title">Pending Reports</p>
+            <p className="stat-value">{stats[2]?.value ?? 0}</p>
+          </div>
+          <AlertTriangle className="stat-icon" />
+        </div>
       </div>
+
 
       {/* Main Grid */}
       <div className="main-grid">
