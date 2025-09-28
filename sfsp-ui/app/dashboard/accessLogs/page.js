@@ -7,6 +7,8 @@ import { useDashboardSearch } from '@/app/dashboard/components/DashboardSearchCo
 import { useEncryptionStore } from '@/app/SecureKeyStorage';
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { formatDateTime } from '../../../lib/dateUtils';
+import { UserAvatar } from '@/app/lib/avatarUtils';
 import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 
 function Toast({ message, type = "info", onClose }) {
@@ -108,7 +110,7 @@ export default function AccessLogsPage() {
                 file: file.fileName || 'Unnamed file',
                 // date: new Date(log.timestamp).toLocaleString(),
                 timestamp: log.timestamp,
-                dateFormatted: new Date(log.timestamp).toLocaleString(),
+                dateFormatted: formatDateTime(log.timestamp),
               });
             }
           } catch (err) {
@@ -331,31 +333,12 @@ export default function AccessLogsPage() {
                   {filteredLogs.map((log, idx) => (
                     <tr key={idx} className="border-b border-gray-200 dark:border-gray-700">
                       <td className="py-4 flex items-center gap-3">
-                        {log.avatar ? (
-                          <Image
-                            src={log.avatar}
-                            alt={log.user}
-                            width={32}
-                            height={32}
-                            className="rounded-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-bold">
-                            {(() => {
-                              if (!log.user) return '??';
-                              const parts = log.user.split(/[_\-\s\.]+/).filter(part => 
-                                part.length > 0 && !/^\d+$/.test(part)
-                              );
-                              if (parts.length >= 2) {
-                                return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
-                              } else if (parts.length === 1) {
-                                return parts[0].slice(0, 2).toUpperCase();
-                              } else {
-                                return log.user.slice(0, 2).toUpperCase();
-                              }
-                            })()}
-                          </div>
-                        )}
+                        <UserAvatar
+                          avatarUrl={log.avatar}
+                          username={log.user}
+                          size="w-8 h-8"
+                          alt={log.user}
+                        />
                         <div>
                           <div className="font-medium">{log.user}</div>
                           <div className="text-xs text-gray-500 dark:text-gray-400">{log.email}</div>

@@ -4,6 +4,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Clock, Download, Share, Edit, Eye, Trash2,Undo2 } from 'lucide-react';
+import { formatDateTime } from '../../../lib/dateUtils';
 import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 
 export function ActivityLogsDialog({ open, onOpenChange, file }) {
@@ -123,7 +124,7 @@ export function ActivityLogsDialog({ open, onOpenChange, file }) {
                         {activity.message || ''}
                       </p>
                       <p className="text-xs text-gray-500">
-                        {new Date(activity.timestamp).toLocaleString()}
+                        {formatDateTime(activity.timestamp)}
                       </p>
                     </div>
                   </div>

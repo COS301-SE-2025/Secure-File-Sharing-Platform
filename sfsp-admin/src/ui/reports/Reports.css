@@ -1,0 +1,370 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&family=Source+Code+Pro:ital,wght@0,200..900;1,200..900&display=swap');
+
+.reports-page {
+    padding: 24px;
+    font-family: "Roboto", sans-serif;
+    color: #000000;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.header-left {
+    display: flex;
+    flex-direction: column;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+}
+
+.btn-add-report {
+    background: #183446;
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
+    border: none;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.2s;
+}
+
+.btn-add-report:hover {
+    background: #33bae2;
+}
+
+/* Modal styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right:0;
+    bottom:0;
+    background: rgba(0,0,0,0.5);
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    z-index: 50;
+}
+
+.modal {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    width: 400px;
+    max-width: 90%;
+}
+
+.modal-content label {
+    display: block;
+    margin-top: 0.5rem;
+    font-weight: 600;
+}
+
+.modal-content input,
+.modal-content select,
+.modal-content textarea {
+    width: 100%;
+    padding: 0.5rem;
+    margin-top: 0.25rem;
+    border-radius: 0.25rem;
+    border: 1px solid #ccc;
+}
+
+.modal-content input:hover,
+.modal-content select:hover,
+.modal-content textarea:hover {
+    outline: 2px solid #34bfee;
+}
+
+.modal-content input:focus,
+.modal-content select:focus,
+.modal-content textarea:focus {
+    outline: 2px solid #34bfee;
+}
+
+.modal-content textarea {
+    resize: vertical;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.btn-add {
+    background-color: #4f46e5;
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 0.25rem;
+    border: none;
+    cursor: pointer;
+}
+
+.btn-cancel {
+    background-color: #ccc;
+    color: black;
+    padding: 0.5rem 1rem;
+    border-radius: 0.25rem;
+    border: none;
+    cursor: pointer;
+}
+
+.header .title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.header .subtitle {
+    color: #666;
+    margin-bottom: 20px;
+}
+
+/* stats */
+
+.stats-grid {
+    display: flex;
+    gap: 10px;
+    margin: 15px 0;
+    flex-wrap: wrap;
+}
+
+.stat-card {
+    padding: 12px 16px;
+    border-radius: 8px;
+    flex: 1;
+    min-width: 160px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: white;
+    font-weight: bold;
+
+}
+
+.stat-icon {
+    width: 24px;
+    height: 24px;
+    background: transparent !important;
+}
+
+.stat-card.warning {
+    background-color: #38AECC;
+}
+
+.stat-card.accent {
+    background-color: #0090C1;
+}
+
+.stat-card.success {
+    background-color: #183446;
+}
+
+.stat-card.danger {
+    background-color: #046E8F;
+}
+
+.stat-card.week {
+    background-color: #38AECC;
+}
+
+.stat-label {
+    font-size: 0.8rem;
+    color: white;
+    margin: 0;
+}
+
+.stat-value {
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin: 0;
+}
+
+/* table */
+
+.table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+
+.table-card {
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    padding: 16px;
+    background: #fff;
+}
+
+.filters {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+    align-items: center;
+}
+
+.filters-drop:hover {
+    outline: 2px solid #34bfee;
+}
+
+.filters-drop:focus {
+    outline: 2px solid #34bfee;
+}
+
+.search-wrapper {
+    position: relative;
+}
+
+.search-wrapper input {
+    padding-left: 24px;
+}
+
+.search-icon {
+    position: absolute;
+    left: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    color: #888;
+}
+
+.reports-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.reports-table th,
+.reports-table td {
+    border: 1px solid #d1d5db;
+    padding: 8px;
+    text-align: left;
+}
+
+.reports-table tbody{
+    font-size: .9rem;
+}
+
+.reports-table th {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+.badge {
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: #fff;
+    font-size: 0.75rem;
+}
+
+.report-type{
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.badge-warning {
+    background: #38AECC;
+}
+
+.badge-accent {
+    background: #0090C1;
+}
+
+.badge-success {
+    background: #183446;
+}
+
+.badge-danger {
+    background: #046E8F;
+}
+
+.badge-surface {
+    background: #38AECC;
+}
+
+.actions-cell button {
+    margin-right: 4px;
+    padding: 4px 8px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.actions-cell .btn-view {
+    background: #c6cbd6;
+    color: #111;
+}
+
+.actions-cell .btn-resolve {
+    background: #16b681;
+    color: #fff;
+}
+
+.actions-cell .btn-reject {
+    background: #EF4444;
+    color: #fff;
+}
+
+.actions-cell button:hover {
+    opacity: 0.8;
+}
+
+select {
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+}
+
+/* info-view */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+}
+
+.modal {
+  background: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  width: 500px;
+  max-width: 90%;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+
+.modal-content p {
+  margin: 8px 0;
+}
+
+.modal-actions {
+  margin-top: 20px;
+  text-align: right;
+}
+
+.modal-actions button {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.modal-actions button:hover {
+  background: #1e40af;
+}

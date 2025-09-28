@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { PDFDocument, rgb } from "pdf-lib";
 import axios from 'axios';
 import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 
@@ -20,8 +21,8 @@ import { useDashboardSearch } from "./components/DashboardSearchContext";
 
 import { getSodium } from "@/app/lib/sodium";
 import { useEncryptionStore } from "@/app/SecureKeyStorage";
+import { UserAvatar } from '@/app/lib/avatarUtils';
 
-// Helper functions
 
 function getFileType(mimeType) {
   if (!mimeType) return "unknown";
@@ -53,6 +54,22 @@ function parseTagString(tagString = '') {
   return tagString.replace(/[{}]/g, '').split(',').map(t => t.trim());
 }
 
+
+
+
+  const formatTimestamp = (timestamp) => {
+    const now = new Date();
+    const time = new Date(timestamp);
+    const diff = now - time;
+    const minutes = Math.floor(diff / 60000);
+    if (minutes < 1) return 'Just now';
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    return `${Math.floor(hours / 24)}d ago`;
+  };
+  
+
 export default function DashboardHomePage() {
   const [files, setFiles] = useState([]);
   const [fileCount, setFileCount] = useState(0);
@@ -67,23 +84,12 @@ export default function DashboardHomePage() {
   const [viewerFile, setViewerFile] = useState(null);
   const [viewerContent, setViewerContent] = useState(null);
   const [previewFile, setPreviewFile] = useState(null);
-  const [previewContent, setPreviewContent] = useState(null);
-  const [logs, setLogs] = useState([]);          
+  const [previewContent, setPreviewContent] = useState(null);      
   const [recentAccessLogs, setRecentAccessLogs] = useState([]);
   const [actionFilter, setActionFilter] = useState("All actions"); 
+  const [user, setUser] = useState(null); //watermark 
 
 
-  const formatTimestamp = (timestamp) => {
-    const now = new Date();
-    const time = new Date(timestamp);
-    const diff = now - time;
-    const minutes = Math.floor(diff / 60000);
-    if (minutes < 1) return 'Just now';
-    if (minutes < 60) return `${minutes}m ago`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h ago`;
-    return `${Math.floor(hours / 24)}d ago`;
-  };
 
 const fetchFiles = async () => {
   try {
@@ -107,38 +113,47 @@ const fetchFiles = async () => {
       return [];
     }
 
-    const sortedFiles = data.sort(
-      (a, b) => new Date(b.date) - new Date(a.date)
-    );
 
-    setRecentFiles(sortedFiles.slice(0, 3));
+    if(data != null){
+      const sortedFiles = data.sort(
+        (a, b) => new Date(b.date) - new Date(a.date)
+      );
 
-    const formatted = data
-      .filter((f) => {
-        const tags = f.tags ? f.tags.replace(/[{}]/g, "").split(",") : [];
-        return (
-          !tags.includes("deleted") &&
-          !tags.some((tag) => tag.trim().startsWith("deleted_time:"))
-        );
-      })
-      .map((f) => ({
-        id: f.fileId || "",
-        name: f.fileName || "Unnamed file",
-        size: formatFileSize(f.fileSize || 0),
-        type: getFileType(f.fileType || ""),
-        modified: f.createdAt ? new Date(f.createdAt).toLocaleDateString() : "",
-        shared: false,
-        starred: false,
-      }));
 
-    setFiles(formatted);
+      const formatted = data
+        .filter((f) => {
+          const tags = f.tags ? f.tags.replace(/[{}]/g, "").split(",") : [];
+          return (
+            !tags.includes("deleted") &&
+            !tags.some((tag) => tag.trim().startsWith("deleted_time:"))
+          );
+        })
+        .map((f) => ({
+          id: f.fileId || "",
+          name: f.fileName || "Unnamed file",
+          size: formatFileSize(f.fileSize || 0),
+          type: getFileType(f.fileType || ""),
+          modified: f.createdAt ? new Date(f.createdAt).toLocaleDateString() : "",
+          shared: false,
+          starred: false,
+        }));
 
-    return formatted;
+
+      setRecentFiles(sortedFiles.slice(0, 3));
+      setFiles(formatted);
+
+      return formatted;
+    }
   } catch (err) {
     console.error("Failed to fetch files:", err);
     return [];
   }
 };
+
+useEffect(() => {
+  fetchFiles(); // Fetch when component mounts or userId changes
+}, [userId]);
+
 
 
   const handleLoadFile = async (file) => {
@@ -197,25 +212,30 @@ const fetchFiles = async () => {
     }
   };
 
-  const handleOpenFullView = async (file) => {
-    const result = await handleLoadFile(file);
-    if (!result) return;
+  useEffect(() => {
+      const fetchProfile = async () => {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+  
+        try {
+          const res = await fetch('http://localhost:5000/api/users/profile', {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+  
+          const result = await res.json();
+          if (!res.ok) throw new Error(result.message || 'Failed to fetch profile');
+  
+          setUser(result.data);
+        } catch (err) {
+          console.error('Failed to fetch profile:', err.message);
+        }
+      };
+  
+      fetchProfile();
+  }, []); 
 
-    let contentUrl = null;
-    let textFull = null;
-
-    if (file.type === "image" || file.type === "video" || file.type === "audio") {
-      contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
-    } else if (file.type === "pdf") {
-      contentUrl = URL.createObjectURL(new Blob([result.decrypted], { type: "application/pdf" }));
-    } else if (file.type === "txt" || file.type === "json" || file.type === "csv") {
-      textFull = new TextDecoder().decode(result.decrypted);
-    }
-
-    setViewerContent({ url: contentUrl, text: textFull });
-    setViewerFile(file);
-  };
   const handleOpenPreview = async (rawFile) => {
+    const username = user?.username;
     const file = {
       ...rawFile,
       type: getFileType(rawFile.fileType || rawFile.type || ""),
@@ -229,17 +249,118 @@ const fetchFiles = async () => {
     let contentUrl = null;
     let textFull = null;
 
-    if (file.type === "image" || file.type === "video" || file.type === "audio") {
+    if (file.type === "image") {
+
+      const imgBlob = new Blob([result.decrypted], { type: file.type });
+      const imgBitmap = await createImageBitmap(imgBlob);
+
+      const canvas = document.createElement("canvas");
+      canvas.width = imgBitmap.width;
+      canvas.height = imgBitmap.height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(imgBitmap, 0, 0);
+
+      const fontSize = Math.floor(imgBitmap.width / 20);
+      ctx.font = `${fontSize}px Arial`;
+      ctx.fillStyle = "rgb(255, 0, 0, 0.4)"; // semi-transparent
+      ctx.textAlign = "center";
+      ctx.fillText(username, imgBitmap.width / 2, imgBitmap.height / 2);
+
+      contentUrl = canvas.toDataURL(file.type);
+    } 
+    
+    else if (file.type === "pdf") {
+      const pdfDoc = await PDFDocument.load(result.decrypted);
+      const pages = pdfDoc.getPages();
+
+     pages.forEach((page) => {
+	  const { width, height } = page.getSize();
+	  page.drawText(username, {
+	    x: width / 2 - 50,
+	    y: height / 2,
+	    size: 36,
+	    color: rgb(1, 0, 0), // red
+	    opacity: 0.4,        // semi-transparent
+	    rotate: { type: "degrees", angle: 45 },
+	  });
+	});
+
+
+      const modifiedPdfBytes = await pdfDoc.save();
+      contentUrl = URL.createObjectURL(new Blob([modifiedPdfBytes], { type: "application/pdf" }));
+    } 
+    
+      
+    else if (file.type === "video" || file.type === "audio") {
       contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
-    } else if (file.type === "pdf") {
-      contentUrl = URL.createObjectURL(new Blob([result.decrypted], { type: "application/pdf" }));
-    } else if (file.type === "txt" || file.type === "json" || file.type === "csv") {
+    } 
+    else if (["txt", "json", "csv"].includes(file.type)) {
       textFull = new TextDecoder().decode(result.decrypted);
     }
 
     setPreviewContent({ url: contentUrl, text: textFull });
     setPreviewFile(file);
-  };  
+  };
+
+  const handleOpenFullView = async (file) => {
+    const username = user?.username;
+     const result = await handleLoadFile(file);
+     if (!result) return;
+   
+     let contentUrl = null;
+     let textFull = null;
+   
+     if (file.type === "image") {
+       const imgBlob = new Blob([result.decrypted], { type: file.type });
+       const imgBitmap = await createImageBitmap(imgBlob);
+   
+       const canvas = document.createElement("canvas");
+       canvas.width = imgBitmap.width;
+       canvas.height = imgBitmap.height;
+       const ctx = canvas.getContext("2d");
+       ctx.drawImage(imgBitmap, 0, 0);
+   
+       const fontSize = Math.floor(imgBitmap.width / 20);
+       ctx.font = `${fontSize}px Arial`;
+       ctx.fillStyle = "rgb(255, 0, 0, 1)";
+       ctx.textAlign = "center";
+       ctx.fillText(username, imgBitmap.width / 2, imgBitmap.height / 2);
+   
+       contentUrl = canvas.toDataURL(file.type);
+     } 
+     
+    
+     else if (file.type === "pdf") {
+       const pdfDoc = await PDFDocument.load(result.decrypted);
+       const pages = pdfDoc.getPages();
+   
+       pages.forEach((page) => {
+         const { width, height } = page.getSize();
+         page.drawText(username, {
+           x: width / 2 - 50,
+           y: height / 2,
+           size: 36,
+           color: rgb(1, 0, 0), //keep ths rgb or errors
+           opacity: 0.4,
+           rotate: { type: "degrees", angle: 45 },
+         });
+       });
+   
+       const modifiedPdfBytes = await pdfDoc.save();
+       contentUrl = URL.createObjectURL(new Blob([modifiedPdfBytes], { type: "application/pdf" }));
+     } 
+      else if (file.type === "video" || file.type === "audio") {
+       contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
+     } 
+     
+     else if (["txt", "json", "csv"].includes(file.type)) {
+       textFull = new TextDecoder().decode(result.decrypted);
+     }
+
+    setViewerContent({ url: contentUrl, text: textFull });
+    setViewerFile(file);
+  };
+
 
   const fetchNotifications = async () => {
     const token = localStorage.getItem("token");
@@ -352,14 +473,14 @@ const fetchRecentAccessLogs = async () => {
 
           // Get user info
           let userName = "Unknown User";
-          let avatar = "/default-avatar.png";
+          let avatar = null; // Let UserAvatar component handle the fallback
           try {
             const userRes = await fetch(getApiUrl(`/users/getUserInfo/${log.user_id}`));
             if (userRes.ok) {
               const userInfo = await userRes.json();
               if (userInfo?.data?.username) {
                 userName = userInfo.data.username;
-                avatar = userInfo.data.avatar_url || avatar;
+                avatar = userInfo.data.avatar_url; // No fallback needed here
               }
             }
           } catch {}
@@ -395,28 +516,30 @@ const fetchRecentAccessLogs = async () => {
       });
 
       const data = await res.json();
-
-      // Separate active and deleted files
-      const activeFiles = data.filter(file => {
+    
+      if(data != null){
+        // Separate active and deleted files
+        const activeFiles = data.filter(file => {
         const tags = parseTagString(file.tags);
         return !tags.includes('deleted');
-      });
+        });
 
-      const deletedFiles = data.filter(file => {
+        const deletedFiles = data.filter(file => {
         const tags = parseTagString(file.tags);
         return tags.includes('deleted');
-      });
+        });
 
-	  const receivedFiles = data.filter(file => {
-		const tags = parseTagString(file.tags);
-	  return tags.includes("received");
-	});
+        const receivedFiles = data.filter(file => {
+        const tags = parseTagString(file.tags);
+        return tags.includes("received");
+        });
+  
+        setFileCount(activeFiles.length);
+        setTrashedFilesCount(deletedFiles.length);
+        setReceivedFilesCount(receivedFiles.length);
+    }
 
       
- 
-      setFileCount(activeFiles.length);
-      setTrashedFilesCount(deletedFiles.length);
-      setReceivedFilesCount(receivedFiles.length);
     } catch (error) {
       console.error("Failed to fetch files metadata:", error);
     } finally {
@@ -597,15 +720,16 @@ const fetchRecentAccessLogs = async () => {
             {recentAccessLogs.length > 0 ? (
               recentAccessLogs.map((log, idx) => (
                 <div key={idx} className="flex items-start gap-2">
-                  <img
-                    src={log.avatar || "/default-avatar.png"}
+                  <UserAvatar
+                    avatarUrl={log.avatar}
+                    username={log.user}
+                    size="w-8 h-8"
                     alt={log.user}
-                    className="w-8 h-8 rounded-full"
                   />
                   <div className="flex flex-col">
                     <span className="font-semibold">{log.user}</span>
                     <span className="text-xs text-gray-500 dark:text-gray-400">
-                      {log.action} <strong>{log.file}</strong> at {log.date}
+                      {log.action} <strong>{log.file}</strong> at {log.dateFormatted}
                     </span>
                   </div>
                 </div>
@@ -641,7 +765,7 @@ const fetchRecentAccessLogs = async () => {
                     {formatTimestamp(file.date || file.createdAt)}
                   </p>
                 </div>
-               <button
+              <button
                 onClick={() => handleOpenPreview(file)}
                 className="text-blue-500 hover:underline"
               >

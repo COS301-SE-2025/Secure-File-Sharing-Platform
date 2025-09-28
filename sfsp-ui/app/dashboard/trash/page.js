@@ -5,6 +5,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Trash2, Undo2 } from 'lucide-react';
 import { useEncryptionStore } from '@/app/SecureKeyStorage';
+import { formatDateTime } from '../../../lib/dateUtils';
 import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 
 function parseTagString(tagString = '') {
@@ -53,7 +54,7 @@ export default function TrashPage() {
         const tags = parseTagString(file.tags);
         const deletedTag = tags.find(tag => tag.startsWith('deleted_time:'));
         const deletedAt = deletedTag
-          ? new Date(deletedTag.split(':').slice(1).join(':')).toLocaleString()
+          ? formatDateTime(deletedTag.split(':').slice(1).join(':'))
           : 'Unknown';
 
         return {

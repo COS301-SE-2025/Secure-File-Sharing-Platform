@@ -2,12 +2,13 @@
 
 "use client";
 
-import React, { useState, useRef } from "react";
-import { Upload, X, File } from "lucide-react";
+import React, { useState, useRef, useEffect } from "react";
+import { Upload, X, File as FileIcon } from "lucide-react";
 import { useEncryptionStore } from "@/app/SecureKeyStorage";
 import { getSodium } from "@/app/lib/sodium";
 import Image from "next/image";
 import { gzip } from "pako";
+import useDrivePicker from "react-google-drive-picker"
 import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 
 export function UploadDialog({
@@ -21,8 +22,60 @@ export function UploadDialog({
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef(null);
-
+  const [dropboxLoading, setDropboxLoading] = useState(false);
+  const [openPicker, authResponse] = useDrivePicker();
+  const [selectedFiles, setSelectedFiles] = useState([]);
   const [toast, setToast] = useState(null);
+
+  const handleGoogleDriveUpload = async () => {
+    openPicker({
+      clientId: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
+      developerKey: process.env.NEXT_PUBLIC_GOOGLE_API_KEY,
+      viewId: "DOCS",
+      showUploadView: true,
+      showUploadFolders: true,
+      supportDrives: true,
+      multiselect: true,
+      callbackFunction: (data) => {
+        if (data.action === "cancel") {
+          console.log("User clicked cancel/close button");
+        } else if (data.docs) {
+          console.log("Google Drive selected:", data.docs);
+
+          const googleFiles = data.docs.map((doc) => ({
+            name: doc.name,
+            size: doc.sizeBytes ? parseInt(doc.sizeBytes, 10) : 0,
+            type: doc.mimeType || "application/octet-stream",
+            googleId: doc.id,
+        }));
+
+        setUploadFiles((prev) => [...prev, ...googleFiles]);
+        showToast("Google Drive files selected. Ready to upload.", "success");
+      }
+    },
+  });
+};
+
+  useEffect(() => {
+    if (open && !window.Dropbox) {
+      const appKey = process.env.NEXT_PUBLIC_DROPBOX_APP_KEY;
+      if (appKey) {
+        setDropboxLoading(true);
+        const script = document.createElement('script');
+        script.src = 'https://www.dropbox.com/static/api/2/dropins.js';
+        script.id = 'dropboxjs';
+        script.setAttribute('data-app-key', appKey);
+        script.onload = () => {
+          setDropboxLoading(false);
+        };
+        script.onerror = () => {
+          setDropboxLoading(false);
+          console.error('Failed to load Dropbox script');
+        };
+        document.head.appendChild(script);
+      }
+    }
+  }, [open]);
 
   const showToast = (message, type = "info") => {
     setToast({ message, type });
@@ -51,9 +104,48 @@ export function UploadDialog({
     e.target.value = null;
   };
 
-  const handleGoogleDriveUpload = () => { };
 
-  const handleDropboxUpload = () => { };
+
+
+  const handleDropboxUpload = () => {
+    const appKey = process.env.NEXT_PUBLIC_DROPBOX_APP_KEY;
+    if (!appKey) {
+      showToast('Dropbox app key not configured. Please check your environment variables.', 'error');
+      return;
+    }
+
+    if (dropboxLoading) {
+      showToast('Dropbox is still loading. Please wait a moment and try again.', 'info');
+      return;
+    }
+
+    if (!window.Dropbox) {
+      showToast('Dropbox Chooser is not available. Please refresh the page and try again.', 'error');
+      return;
+    }
+
+    try {
+      window.Dropbox.choose({
+        success: (files) => {
+          const dropboxFiles = files.map(file => ({
+            name: file.name,
+            size: file.bytes,
+            type: file.link.split('.').pop() || 'application/octet-stream',
+            dropboxLink: file.link,
+          }));
+          setUploadFiles(prev => [...prev, ...dropboxFiles]);
+          showToast('Dropbox files selected. Ready to upload.', 'success');
+        },
+        cancel: () => showToast('Dropbox upload cancelled.', 'info'),
+        linkType: 'direct',
+        multiselect: true,
+        extensions: [],
+      });
+    } catch (error) {
+      console.error('Dropbox Chooser error:', error);
+      showToast('Dropbox integration error. Please check your Dropbox app configuration.', 'error');
+    }
+  };
 
   const removeFile = (index) => {
     setUploadFiles((prev) => prev.filter((_, i) => i !== index));
@@ -76,11 +168,34 @@ export function UploadDialog({
     const sodium = await getSodium();
     const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
 
-    // Process each file in parallel
     await Promise.all(
       uploadFiles.map(async (file) => {
         try {
-          // 1️⃣ Call startUpload to get fileId
+          if (file.dropboxLink) {
+            const response = await fetch(file.dropboxLink);
+            if (!response.ok) throw new Error('Failed to download from Dropbox');
+            const blob = await response.blob();
+            file = new File([blob], file.name, { type: file.type });
+          }
+          // Handle Google Drive
+      if (file.googleId) {
+        const token = gapi.client.getToken()?.access_token;
+        if (!token) throw new Error("Google API token missing. User may need to re-authenticate.");
+
+        const response = await fetch(
+          `https://www.googleapis.com/drive/v3/files/${file.googleId}?alt=media`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+
+        if (!response.ok) throw new Error("Failed to fetch file from Google Drive");
+        const blob = await response.blob();
+        file = new File([blob], file.name, { type: file.type });
+      }
+
+
+          // Call startUpload to get fileId
           const startRes = await fetch(getFileApiUrl("/startUpload"), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -274,7 +389,8 @@ export function UploadDialog({
               <button
                 type="button"
                 onClick={handleDropboxUpload}
-                className="flex items-center gap-2 border px-3 py-2 rounded text-sm hover:bg-gray-100"
+                disabled={dropboxLoading}
+                className="flex items-center gap-2 border px-3 py-2 rounded text-sm hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Image
                   src="/img/dropbox.png"
@@ -283,7 +399,7 @@ export function UploadDialog({
                   height={20}
                   className="h-5 w-5"
                 />
-                Dropbox
+                {dropboxLoading ? 'Loading...' : 'Dropbox'}
               </button>
             </div>
           </div>
@@ -296,7 +412,7 @@ export function UploadDialog({
                   className="flex justify-between items-center p-2 bg-gray-50 rounded"
                 >
                   <div className="flex items-center gap-2">
-                    <File className="h-4 w-4" />
+                    <FileIcon className="h-4 w-4" />
                     <div>
                       <p className="text-sm">{file.name}</p>
                       <p className="text-xs text-gray-500">

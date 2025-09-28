@@ -22,14 +22,16 @@ import {
   X,
   Eye,
   EyeOff,
+  PenIcon,
 } from "lucide-react";
+
 
 function Toast({ message, type = "info", onClose }) {
   return (
     <div className={`fixed inset-0 flex items-center justify-center z-50 pointer-events-none`}>
-      <div className={`bg-red-300 border ${type === "error" ? "border-red-300" : "border-blue-500"} text-gray-900 rounded shadow-lg px-6 py-3 pointer-events-auto`}>
+      <div className={`bg-green-500 border border-green-600 text-white rounded shadow-lg px-6 py-3 pointer-events-auto`}>
         <span>{message}</span>
-        <button onClick={onClose} className="ml-4 font-bold">×</button>
+        <button onClick={onClose} className="ml-4 font-bold hover:bg-green-600 rounded px-1">×</button>
       </div>
     </div>
   );
@@ -50,6 +52,8 @@ export function FileGrid({
   currentPath,
   onRevokeAccess,
   onChangeShareMode,
+  selectedFile,
+  onSelectFile,
 }) {
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const [menuFile, setMenuFile] = useState(null);
@@ -224,6 +228,7 @@ export function FileGrid({
 
   const handleDragStart = (e, file) => {
     setDraggedFile(file);
+    e.dataTransfer.setData("text/plain", file.id);
     e.dataTransfer.effectAllowed = "move";
   };
 
@@ -250,6 +255,27 @@ export function FileGrid({
     }
   };
 
+      /*const handleEsign = (file) => {
+      const canvas = document.getElementById("signature-pad");
+      if (!canvas) return;
+
+      const signaturePad = new SignaturePad(canvas);
+      signaturePad.clear();
+      console.log("Ready to sign for file:", file);
+    };
+
+    const sigPadRef = useRef();
+    
+
+    const handleEsign = (file) => {
+      if (sigPadRef.current) {
+        sigPadRef.current.prepare();  // calls prepare() inside SignaturePad
+      }
+    };
+  */
+
+ 
+
   return (
     <div>
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
@@ -261,20 +287,23 @@ export function FileGrid({
             onDragStart={(e) => handleDragStart(e, file)}
             onDragOver={(e) => handleDragOver(e, file)}
             onDrop={(e) => handleDrop(e, file)}
-            onClick={() => {
-              if (file.type !== "folder") {
-                onClick?.(file);
-              }
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelectFile?.(file);
+              // Removed onClick to prevent auto-opening preview on single click
             }}
             onDoubleClick={() => {
               if (file.type === "folder") {
                 onEnterFolder?.(file.name);
               } else {
-                onDoubleClick?.(file);
+                // Open side preview instead of full view
+                onClick?.(file);
               }
             }}
             onContextMenu={(e) => handleContextMenu(e, file)}
-            className="relative group bg-white rounded-lg border border-gray-300 p-4 hover:shadow-lg transition-shadow cursor-pointer dark:bg-gray-200 dark:hover:bg-blue-100"
+            className={`relative group bg-white rounded-lg border p-4 hover:shadow-lg transition-shadow cursor-pointer dark:bg-gray-200 dark:hover:bg-blue-100 ${
+              selectedFile?.id === file.id ? 'ring-2 ring-blue-500 border-blue-500' : 'border-gray-300'
+            }`}
           >
             {/* FOLDER DESIGN */}
             {file.type === "folder" ? (
@@ -487,6 +516,7 @@ export function FileGrid({
           >
             <X className="h-4 w-4" /> Delete
           </button>
+
         </div>
       )}
     </div>

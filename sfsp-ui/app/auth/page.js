@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Loader from '@/app/dashboard/components/Loader';
 import { getSodium } from "@/app/lib/sodium";
-import { EyeClosed, Eye } from 'lucide-react';
+import { EyeClosed, Eye, X, Info, CheckCircle, EyeOff } from 'lucide-react';
 import { v4 as uuidv4 } from "uuid";
 //import * as sodium from 'libsodium-wrappers-sumo';
 import { generateLinearEasing } from "framer-motion";
@@ -28,8 +28,17 @@ export default function AuthPage() {
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [showSignupPassword, setShowSignupPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showRecoveryNewPassword, setShowRecoveryNewPassword] = useState(false);
+  const [showRecoveryConfirmPassword, setShowRecoveryConfirmPassword] = useState(false);
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
   const [passwordRequirements, setPasswordRequirements] = useState({
+    hasMinLength: false,
+    hasUppercase: false,
+    hasLowercase: false,
+    hasNumber: false,
+    hasSpecialChar: false,
+  });
+  const [recoveryPasswordRequirements, setRecoveryPasswordRequirements] = useState({
     hasMinLength: false,
     hasUppercase: false,
     hasLowercase: false,
@@ -46,6 +55,20 @@ export default function AuthPage() {
     agreeToTerms: false,
   });
 
+  // Mnemonic recovery state
+  const [showMnemonicRecovery, setShowMnemonicRecovery] = useState(false);
+  const [recoveryStep, setRecoveryStep] = useState('email'); // 'email', 'verify', 'change'
+  const [recoveryEmail, setRecoveryEmail] = useState('');
+  const [recoveryErrors, setRecoveryErrors] = useState({});
+  const [recoveryMessage, setRecoveryMessage] = useState('');
+  const [recoveryPasswordData, setRecoveryPasswordData] = useState({
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [mnemonicWords, setMnemonicWords] = useState(Array(10).fill(''));
+  const [mnemonicErrors, setMnemonicErrors] = useState(Array(10).fill(''));
+
+  // Handle Google OAuth errors from URL parameters
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const error = urlParams.get('error');
@@ -174,14 +197,40 @@ export default function AuthPage() {
       const { ik_private_key, opks_private, spk_private_key } = result.data.keyBundle;
       const { token } = result.data;
 
-      // Check if user needs email verification
-      if (!is_verified) {
-        setLoaderMessage("Please verify your email first...");
-        setTimeout(() => {
-          router.push(`/auth/verify-email?email=${encodeURIComponent(loginData.email)}&userId=${id}`);
-        }, 1500);
-        return;
+      // Always send verification code for login security
+      setLoaderMessage("Sending verification code...");
+      
+      // Store login data temporarily for verification
+      sessionStorage.setItem("pendingLogin", JSON.stringify({
+        email: loginData.email,
+        password: loginData.password,
+        userId: id
+      }));
+      
+      // Send verification code before redirecting
+      try {
+        const sendCodeResponse = await fetch("http://localhost:3000/api/auth/send-verification", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: loginData.email,
+            userId: id,
+            userName: result.data.user.username || "User",
+                          type: "login_verify"
+          }),
+        });
+        
+        if (!sendCodeResponse.ok) {
+          console.error("Failed to send verification code");
+        }
+      } catch (error) {
+        console.error("Error sending verification code:", error);
       }
+      
+      setTimeout(() => {
+        router.push(`/auth/verify-email?email=${encodeURIComponent(loginData.email)}&userId=${id}&type=login`);
+      }, 1500);
+      return;
 
       //we don't need to securely store the user ID but I will store it in the Zustand store for easy access
       useEncryptionStore.getState().setUserId(id);
@@ -196,16 +245,34 @@ export default function AuthPage() {
         sodium.crypto_pwhash_ALG_DEFAULT
       );
 
-      // Decrypt + convert identity key
-      const decryptedIkPrivateKeyRaw = sodium.crypto_secretbox_open_easy(
+      // Decrypt vault keys (they are encrypted with the password-derived key)
+      const decryptedIkPrivateKey = sodium.crypto_secretbox_open_easy(
         sodium.from_base64(ik_private_key),
         sodium.from_base64(nonce),
         derivedKey
       );
 
-      if (!decryptedIkPrivateKeyRaw) {
-        throw new Error("Failed to decrypt identity key private key");
+      let decryptedSpkPrivateKey;
+      try {
+        decryptedSpkPrivateKey = sodium.crypto_secretbox_open_easy(
+          sodium.from_base64(spk_private_key),
+          sodium.from_base64(nonce),
+          derivedKey
+        );
+      } catch (spkError) {
+        // If SPK decryption fails, assume it's not encrypted (for backward compatibility)
+        console.log("SPK decryption failed, assuming unencrypted:", spkError.message);
+        decryptedSpkPrivateKey = sodium.from_base64(spk_private_key);
       }
+
+      const decryptedOpksPrivate = opks_private.map((opk) => ({
+        opk_id: opk.opk_id,
+        private_key: sodium.crypto_secretbox_open_easy(
+          sodium.from_base64(opk.private_key),
+          sodium.from_base64(nonce),
+          derivedKey
+        ),
+      }));
 
       let opks_public_temp;
       if (typeof opks_public === "string") {
@@ -217,13 +284,11 @@ export default function AuthPage() {
       } else {
         opks_public_temp = opks_public;
       }
+
       const userKeys = {
-        identity_private_key: decryptedIkPrivateKeyRaw, // ✅ fixed
-        signedpk_private_key: sodium.from_base64(spk_private_key),
-        oneTimepks_private: opks_private.map((opk) => ({
-          opk_id: opk.opk_id,
-          private_key: sodium.from_base64(opk.private_key),
-        })),
+        identity_private_key: decryptedIkPrivateKey,
+        signedpk_private_key: decryptedSpkPrivateKey,
+        oneTimepks_private: decryptedOpksPrivate,
         identity_public_key: sodium.from_base64(ik_public),
         signedpk_public_key: sodium.from_base64(spk_public),
         oneTimepks_public: opks_public_temp.map((opk) => ({
@@ -235,7 +300,7 @@ export default function AuthPage() {
         nonce: sodium.from_base64(nonce),
       };
 
-      console.log("Ik private is: ", decryptedIkPrivateKeyRaw);
+      console.log("User keys decrypted from vault successfully:", userKeys);
 
       await storeDerivedKeyEncrypted(derivedKey); // stores with unlockToken
       sessionStorage.setItem("unlockToken", "session-unlock");
@@ -389,7 +454,11 @@ export default function AuthPage() {
         signedpk_private_key: sodium.from_base64(spk_private_key),
         oneTimepks_private: opks_private.map((opk) => ({
           opk_id: opk.opk_id,
-          private_key: sodium.from_base64(opk.private_key),
+          private_key: sodium.crypto_secretbox_open_easy(
+            sodium.from_base64(opk.private_key),
+            sodium.from_base64(nonce),
+            derivedKey
+          ),
         })),
         identity_public_key: sodium.from_base64(ik_public),
         signedpk_public_key: sodium.from_base64(spk_public),
@@ -531,6 +600,200 @@ export default function AuthPage() {
     }
   };
 
+  const handleRecoveryEmailSubmit = async () => {
+    if (!recoveryEmail.trim()) {
+      setRecoveryErrors({ email: 'Email is required' });
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recoveryEmail)) {
+      setRecoveryErrors({ email: 'Please enter a valid email address' });
+      return;
+    }
+
+    setIsLoading(true);
+    setRecoveryMessage('');
+    setRecoveryErrors({});
+
+    try {
+      // First check if this is a Google account
+      const checkResponse = await fetch(`${API_BASE_URL}/check-google-account`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: recoveryEmail }),
+      });
+      
+      if (checkResponse.ok) {
+        const checkData = await checkResponse.json();
+        
+        if (checkData.isGoogleAccount) {
+          setRecoveryMessage(
+            'This email is linked to a Google account. Please use Google\'s account recovery to reset your password. ' +
+            'You can visit Google account recovery by clicking ' +
+            '<a href="https://accounts.google.com/signin/recovery" target="_blank" rel="noopener noreferrer" class="text-blue-500 underline">here</a>.'
+          );
+          setIsLoading(false);
+          return;
+        }
+      }
+      
+      // Continue with regular password recovery if not a Google account
+      const response = await fetch(`${API_BASE_URL}/getUserId/${encodeURIComponent(recoveryEmail)}`, {
+        method: 'GET',
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data && data.data.userId) {
+          setRecoveryStep('verify');
+          setRecoveryMessage('Email verified successfully. Please enter your recovery words.');
+        } else {
+          setRecoveryErrors({ email: 'No account found with this email address' });
+        }
+      } else {
+        setRecoveryErrors({ email: 'Failed to verify email. Please try again.' });
+      }
+    } catch (error) {
+      console.error('Email verification error:', error);
+      setRecoveryErrors({ email: 'Failed to verify email. Please try again.' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleMnemonicWordChange = (index, value) => {
+    const newWords = [...mnemonicWords];
+    newWords[index] = value.trim();
+    setMnemonicWords(newWords);
+
+    if (mnemonicErrors[index]) {
+      const newErrors = [...mnemonicErrors];
+      newErrors[index] = '';
+      setMnemonicErrors(newErrors);
+    }
+  };
+
+  const handleVerifyMnemonic = async () => {
+    const errors = Array(10).fill('');
+    let hasErrors = false;
+
+    mnemonicWords.forEach((word, index) => {
+      if (!word.trim()) {
+        errors[index] = 'Required';
+        hasErrors = true;
+      }
+    });
+
+    if (hasErrors) {
+      setMnemonicErrors(errors);
+      return;
+    }
+
+    setIsLoading(true);
+    setRecoveryMessage('');
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/verify-mnemonic-recovery`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: recoveryEmail,
+          mnemonicWords: mnemonicWords,
+        }),
+      });
+
+      if (response.ok) {
+        setRecoveryStep('change');
+        setRecoveryMessage('Mnemonic verified successfully! Please set your new password.');
+      } else {
+        const errorData = await response.json();
+        setRecoveryMessage(errorData.message || 'Invalid mnemonic words. Please try again.');
+      }
+    } catch (error) {
+      console.error('Mnemonic verification error:', error);
+      setRecoveryMessage('Failed to verify mnemonic. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRecoveryPasswordInputChange = (field, value) => {
+    setRecoveryPasswordData((prev) => ({ ...prev, [field]: value }));
+    if (recoveryErrors[field]) {
+      setRecoveryErrors((prev) => ({ ...prev, [field]: '' }));
+    }
+    
+    if (field === 'newPassword') {
+      const requirements = {
+        hasMinLength: value.length >= 8,
+        hasUppercase: /[A-Z]/.test(value),
+        hasLowercase: /[a-z]/.test(value),
+        hasNumber: /\d/.test(value),
+        hasSpecialChar: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(value),
+      };
+      setRecoveryPasswordRequirements(requirements);
+    }
+  };
+
+  const handleRecoveryPasswordChange = async () => {
+    if (!recoveryPasswordData.newPassword) {
+      setRecoveryErrors({ newPassword: 'New password is required' });
+      return;
+    }
+
+    if (!recoveryPasswordData.confirmPassword) {
+      setRecoveryErrors({ confirmPassword: 'Please confirm your password' });
+      return;
+    }
+
+    if (recoveryPasswordData.newPassword !== recoveryPasswordData.confirmPassword) {
+      setRecoveryErrors({ confirmPassword: 'Passwords do not match' });
+      return;
+    }
+
+    setIsLoading(true);
+    setRecoveryMessage('');
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/change-password-with-mnemonic-recovery`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: recoveryEmail,
+          mnemonicWords: mnemonicWords,
+          newPassword: recoveryPasswordData.newPassword,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setRecoveryMessage(`Password changed successfully! Your new recovery mnemonic is: ${data.newMnemonicWords.join(' ')}`);
+        
+        setTimeout(() => {
+          setShowMnemonicRecovery(false);
+          setRecoveryStep('verify');
+          setMnemonicWords(Array(10).fill(''));
+          setMnemonicErrors(Array(10).fill(''));
+          setRecoveryPasswordData({ newPassword: '', confirmPassword: '' });
+        }, 5000);
+      } else {
+        const errorData = await response.json();
+        setRecoveryMessage(errorData.message || 'Failed to change password. Please try again.');
+      }
+    } catch (error) {
+      console.error('Password change error:', error);
+      setRecoveryMessage('Failed to change password. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   function setError(msg) {
     setMessage(msg);
     setIsLoading(false);
@@ -581,6 +844,15 @@ export default function AuthPage() {
 
     console.log("encrypted ik is: ", encryptedIK);
 
+    const encryptedOPKs = opks.map((opk) => ({
+      opk_id: opk.opk_id,
+      private_key: sodium.to_base64(
+        sodium.crypto_secretbox_easy(opk.keypair.privateKey, nonce, derivedKey)
+      ),
+    }));
+
+    console.log("encrypted opks are: ", encryptedOPKs);
+
     console.log("SPK pub (raw):", spk.publicKey);
     console.log("IK pub (Ed25519):", ik.publicKey);
     console.log("SPK Signature:", spkSignature);
@@ -597,10 +869,7 @@ export default function AuthPage() {
 
       ik_private_key: sodium.to_base64(encryptedIK),
       spk_private_key: sodium.to_base64(spk.privateKey),
-      opks_private: opks.map((opk) => ({
-        opk_id: opk.opk_id,
-        private_key: sodium.to_base64(opk.keypair.privateKey),
-      })),
+      opks_private: encryptedOPKs,
 
       salt: sodium.to_base64(salt),
       nonce: sodium.to_base64(nonce),
@@ -758,12 +1027,22 @@ export default function AuthPage() {
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
-                  <Link
-                    href="/requestReset"
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowMnemonicRecovery(true);
+                      setRecoveryStep('email');
+                      setRecoveryEmail('');
+                      setRecoveryErrors({});
+                      setRecoveryMessage('');
+                      setMnemonicWords(Array(10).fill(''));
+                      setMnemonicErrors(Array(10).fill(''));
+                      setRecoveryPasswordData({ newPassword: '', confirmPassword: '' });
+                    }}
                     className="text-sm text-blue-600 hover:underline"
                   >
                     Forgot password?
-                  </Link>
+                  </button>
                 </div>
                 <button
                   type="submit"
@@ -1071,6 +1350,191 @@ export default function AuthPage() {
           )}
         </div>
       </div>
+
+      {/* Mnemonic Recovery Modal */}
+      {showMnemonicRecovery && (
+        <div className="fixed inset-0 bg-gray-900 bg-opacity-20 backdrop-blur-lg flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                {recoveryStep === 'email' ? 'Reset Password' : 
+                 recoveryStep === 'verify' ? 'Verify Recovery Words' : 'Set New Password'}
+              </h3>
+              <button
+                onClick={() => setShowMnemonicRecovery(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            {recoveryMessage && (
+              <div className={`p-3 rounded-md text-sm mb-4 ${
+                recoveryMessage.includes('successfully')
+                  ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+                  : 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
+              }`}
+              dangerouslySetInnerHTML={{ __html: recoveryMessage }}>
+              </div>
+            )}
+
+            {recoveryStep === 'email' ? (
+              <div>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                  Enter your email address to start the password recovery process.
+                </p>
+                <div className="space-y-3">
+                  <div>
+                    <input
+                      type="email"
+                      value={recoveryEmail}
+                      onChange={(e) => setRecoveryEmail(e.target.value)}
+                      placeholder="Enter your email address"
+                      className={`w-full border rounded-md px-3 py-2 ${
+                        recoveryErrors.email
+                          ? 'border-red-500'
+                          : 'border-gray-300 dark:border-gray-600'
+                      }`}
+                    />
+                    {recoveryErrors.email && (
+                      <p className="text-red-500 text-xs mt-1">{recoveryErrors.email}</p>
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={handleRecoveryEmailSubmit}
+                  disabled={isLoading}
+                  className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 mt-4"
+                >
+                  {isLoading ? 'Verifying Email...' : 'Continue'}
+                </button>
+              </div>
+            ) : recoveryStep === 'verify' ? (
+              <div>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                  Enter your 10 recovery words in order to reset your password.
+                </p>
+                <div className="grid grid-cols-2 gap-2 mb-4">
+                  {mnemonicWords.map((word, index) => (
+                    <div key={index}>
+                      <input
+                        type="text"
+                        value={word}
+                        onChange={(e) => handleMnemonicWordChange(index, e.target.value)}
+                        placeholder={`Word ${index + 1}`}
+                        className={`w-full border rounded-md px-3 py-2 text-sm ${
+                          mnemonicErrors[index]
+                            ? 'border-red-500'
+                            : 'border-gray-300 dark:border-gray-600'
+                        }`}
+                      />
+                      {mnemonicErrors[index] && (
+                        <p className="text-red-500 text-xs mt-1">{mnemonicErrors[index]}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={handleVerifyMnemonic}
+                  disabled={isLoading}
+                  className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {isLoading ? 'Verifying...' : 'Verify Words'}
+                </button>
+              </div>
+            ) : (
+              <div>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                  Set your new password.
+                </p>
+                <div className="space-y-3">
+                  <div>
+                    <div className="relative">
+                      <input
+                        type={showRecoveryNewPassword ? "text" : "password"}
+                        value={recoveryPasswordData.newPassword}
+                        onChange={(e) => handleRecoveryPasswordInputChange('newPassword', e.target.value)}
+                        placeholder="New password"
+                        className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowRecoveryNewPassword(!showRecoveryNewPassword)}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                      >
+                        {showRecoveryNewPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                      </button>
+                    </div>
+                    {recoveryErrors.newPassword && (
+                      <p className="text-red-500 text-xs mt-1">{recoveryErrors.newPassword}</p>
+                    )}
+                  </div>
+                  <div>
+                    <div className="relative">
+                      <input
+                        type={showRecoveryConfirmPassword ? "text" : "password"}
+                        value={recoveryPasswordData.confirmPassword}
+                        onChange={(e) => handleRecoveryPasswordInputChange('confirmPassword', e.target.value)}
+                        placeholder="Confirm new password"
+                        className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowRecoveryConfirmPassword(!showRecoveryConfirmPassword)}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                      >
+                        {showRecoveryConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                      </button>
+                    </div>
+                    {recoveryErrors.confirmPassword && (
+                      <p className="text-red-500 text-xs mt-1">{recoveryErrors.confirmPassword}</p>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-lg border border-blue-200 dark:border-blue-800 mt-4">
+                  <div className="flex items-start space-x-2">
+                    <Info size={16} className="text-blue-600 dark:text-blue-400 mt-0.5" />
+                    <div className="text-sm text-blue-800 dark:text-blue-200">
+                      <span className="font-medium">Password Requirements:</span>
+                      <ul className="mt-2 space-y-1">
+                        <li className={`flex items-center space-x-2 ${recoveryPasswordRequirements.hasMinLength ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                          <CheckCircle size={14} className={recoveryPasswordRequirements.hasMinLength ? 'text-green-600 dark:text-green-400' : 'text-gray-400'} />
+                          <span>At least 8 characters long</span>
+                        </li>
+                        <li className={`flex items-center space-x-2 ${recoveryPasswordRequirements.hasUppercase ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                          <CheckCircle size={14} className={recoveryPasswordRequirements.hasUppercase ? 'text-green-600 dark:text-green-400' : 'text-gray-400'} />
+                          <span>Include uppercase letter</span>
+                        </li>
+                        <li className={`flex items-center space-x-2 ${recoveryPasswordRequirements.hasLowercase ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                          <CheckCircle size={14} className={recoveryPasswordRequirements.hasLowercase ? 'text-green-600 dark:text-green-400' : 'text-gray-400'} />
+                          <span>Include lowercase letter</span>
+                        </li>
+                        <li className={`flex items-center space-x-2 ${recoveryPasswordRequirements.hasNumber ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                          <CheckCircle size={14} className={recoveryPasswordRequirements.hasNumber ? 'text-green-600 dark:text-green-400' : 'text-gray-400'} />
+                          <span>Include at least one number</span>
+                        </li>
+                        <li className={`flex items-center space-x-2 ${recoveryPasswordRequirements.hasSpecialChar ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                          <CheckCircle size={14} className={recoveryPasswordRequirements.hasSpecialChar ? 'text-green-600 dark:text-green-400' : 'text-gray-400'} />
+                          <span>Include special character</span>
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+                
+                <button
+                  onClick={handleRecoveryPasswordChange}
+                  disabled={isLoading}
+                  className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 mt-4"
+                >
+                  {isLoading ? 'Changing Password...' : 'Change Password'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

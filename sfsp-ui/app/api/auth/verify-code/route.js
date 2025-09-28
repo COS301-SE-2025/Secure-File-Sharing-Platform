@@ -17,7 +17,7 @@ export async function POST(request) {
         .select('*')
         .eq('user_id', userId)
         .eq('code', code)
-        .in('type', ['google_signin', 'email_verification'])
+        .in('type', ['google_signin', 'email_verification', 'login_verify', 'google_login', 'google_signup'])
         .eq('used', false)
         .order('created_at', { ascending: false })
         .limit(1)

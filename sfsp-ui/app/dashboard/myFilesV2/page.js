@@ -18,14 +18,17 @@ import { PreviewDrawer } from "./previewDrawer";
 import { FullViewModal } from "./fullViewModal";
 import { RevokeAccessDialog } from "./revokeAccessDialog";
 import { ChangeShareMethodDialog } from "./changeShareMethodDialog";
+import { PDFDocument, rgb } from "pdf-lib";
+//import fetchProfile from "../components/Sidebar"
+import { formatDate } from "../../../lib/dateUtils";
 import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 
 function Toast({ message, type = "info", onClose }) {
   return (
     <div className={`fixed inset-0 flex items-center justify-center z-50 pointer-events-none`}>
-      <div className={`bg-red-300 border ${type === "error" ? "border-red-300" : "border-blue-500"} text-gray-900 rounded shadow-lg px-6 py-3 pointer-events-auto`}>
+      <div className={`bg-green-500 border border-green-600 text-white rounded shadow-lg px-6 py-3 pointer-events-auto`}>
         <span>{message}</span>
-        <button onClick={onClose} className="ml-4 font-bold">×</button>
+        <button onClick={onClose} className="ml-4 font-bold hover:bg-green-600 rounded px-1">×</button>
       </div>
     </div>
   );
@@ -76,6 +79,9 @@ export default function MyFiles() {
   const [currentPath, setCurrentPath] = useState("");
   const [refreshFlag, setRefreshFlag] = useState(false);
 
+  // Clipboard state for cut operations
+  const [clipboard, setClipboard] = useState(null); // { file: file, operation: 'cut' }
+
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
@@ -90,6 +96,8 @@ export default function MyFiles() {
   const [viewerContent, setViewerContent] = useState(null);
 
   const [toast, setToast] = useState(null);
+
+  const [user, setUser] = useState(null); 
 
   const showToast = (message, type = "info", duration = 3000) => {
     setToast({ message, type });
@@ -190,7 +198,7 @@ export default function MyFiles() {
             description: f.description || "",
             path: f.cid || "",
             modified: f.createdAt
-              ? new Date(f.createdAt).toLocaleDateString()
+              ? formatDate(f.createdAt)
               : "",
             shared: false,
             starred: false,
@@ -219,6 +227,118 @@ export default function MyFiles() {
     fetchFiles();
   }, []);
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.contentEditable === 'true') {
+        return;
+      }
+
+      const ctrlPressed = e.ctrlKey || e.metaKey;
+
+      if (ctrlPressed) {
+        switch (e.key.toLowerCase()) {
+          case 'c':
+            e.preventDefault();
+            if (selectedFile) {
+              setClipboard({ file: selectedFile, operation: 'cut' });
+            }
+            break;
+          case 'v':
+            e.preventDefault();
+            if (clipboard) {
+              handlePaste();
+            }
+            break;
+          case 'd':
+            e.preventDefault();
+            setIsCreateFolderOpen(true);
+            break;
+          case 'u':
+            e.preventDefault();
+            setIsUploadOpen(true);
+            break;
+          case '1':
+            e.preventDefault();
+            setViewMode('grid');
+            break;
+          case '2':
+            e.preventDefault();
+            setViewMode('list');
+            break;
+        }
+      } else {
+        switch (e.key) {
+          case 'Delete':
+            if (selectedFile) {
+              e.preventDefault();
+              handleDelete(selectedFile);
+            }
+            break;
+          case 'Enter':
+            if (selectedFile) {
+              e.preventDefault();
+              if (selectedFile.type === 'folder') {
+                setCurrentPath(currentPath ? `${currentPath}/${selectedFile.name}` : selectedFile.name);
+              } else {
+                handlePreview(selectedFile);
+              }
+            }
+            break;
+          case 'Backspace':
+            if (!currentPath) return;
+            e.preventDefault();
+            setCurrentPath(currentPath.split('/').slice(0, -1).join('/'));
+            break;
+          case 'F2':
+            if (selectedFile) {
+              e.preventDefault();
+              // Might brring rename functionality here
+            }
+            break;
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [selectedFile, clipboard, currentPath]);
+
+  const handlePaste = async () => {
+    if (!clipboard) return;
+
+    const { file } = clipboard;
+    const destinationPath = currentPath;
+
+    try {
+      await handleMoveFile(file, destinationPath);
+      setClipboard(null);
+    } catch (error) {
+      // Error handling without toast
+    }
+  };
+
+  const handleDelete = async (file) => {
+    const timestamp = new Date().toISOString();
+    const tags = ["deleted", `deleted_time:${timestamp}`];
+
+    try {
+      const res = await fetch("http://localhost:5000/api/files/addTags", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileId: file.id, tags }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to tag file as deleted");
+      }
+
+      console.log(`File ${file.name} marked as deleted`);
+      fetchFiles();
+    } catch (err) {
+      console.error("Delete failed:", err);
+    }
+  };
 
   const handleDownload = async (file) => {
     if (isViewOnly(file)) {
@@ -354,59 +474,163 @@ export default function MyFiles() {
       return { fileName, decrypted };
     } catch (err) {
       console.error("Load file error:", err);
-      showToast("Failed to load file: " + err.message,"error");
       return null;
     }
   };
 
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) return;
 
-  const handlePreview = async (file) => {
-    console.log("Inside handlePreview");
-    if (file.type === "folder") {
-      setPreviewContent({ url: null, text: "This is a folder. Double-click to open." });
-      setPreviewFile(file);
-      return;
-    }
+      try {
+        const res = await fetch('http://localhost:5000/api/users/profile', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
-    const result = await handleLoadFile(file);
-    if (!result) return;
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.message || 'Failed to fetch profile');
 
-    let contentUrl = null;
-    let textSnippet = null;
+        setUser(result.data);
+      } catch (err) {
+        console.error('Failed to fetch profile:', err.message);
+      }
+    };
 
-    if (file.type.startsWith("image") || file.type.startsWith("video") || file.type.startsWith("audio")) {
-      contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
-    } else if (file.type === "pdf") {
-      contentUrl = URL.createObjectURL(new Blob([result.decrypted], { type: "application/pdf" }));
-    } else if (["txt", "json", "csv"].some((ext) => file.type.includes(ext))) {
-      textSnippet = new TextDecoder().decode(result.decrypted).slice(0, 1000);
-    }
-
-    setPreviewContent({ url: contentUrl, text: textSnippet });
-    setPreviewFile(file);
+    fetchProfile();
+  }, []); 
+  
+const handlePreview = async (rawFile) => {
+  const username = user?.username;
+  const file = {
+    ...rawFile,
+    type: getFileType(rawFile.fileType || rawFile.type || ""),
+    name: rawFile.fileName || rawFile.name,
+    size: formatFileSize(rawFile.fileSize || rawFile.size || 0),
   };
+
+  const result = await handleLoadFile(file);
+  if (!result) return;
+
+  let contentUrl = null;
+  let textFull = null;
+
+  if (file.type === "image") {
+    const imgBlob = new Blob([result.decrypted], { type: file.type });
+    const imgBitmap = await createImageBitmap(imgBlob);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = imgBitmap.width;
+    canvas.height = imgBitmap.height;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(imgBitmap, 0, 0);
+
+    const fontSize = Math.floor(imgBitmap.width / 20);
+    ctx.font = `${fontSize}px Arial`;
+    ctx.fillStyle = "rgba(255, 0, 0, 1)";
+    ctx.textAlign = "center";
+    ctx.fillText(username, imgBitmap.width / 2, imgBitmap.height / 2);
+
+    contentUrl = canvas.toDataURL(file.type);
+  } 
+  
+ 
+  else if (file.type === "pdf") {
+    const pdfDoc = await PDFDocument.load(result.decrypted);
+    const pages = pdfDoc.getPages();
+
+    pages.forEach((page) => {
+      const { width, height } = page.getSize();
+      page.drawText(username, {
+        x: width / 2 - 50,
+        y: height / 2,
+        size: 36,
+        color: rgb(1, 0, 0), //keep ths rgb or errors
+        opacity: 0.4,
+        rotate: { type: "degrees", angle: 45 },
+      });
+    });
+
+    const modifiedPdfBytes = await pdfDoc.save();
+    contentUrl = URL.createObjectURL(new Blob([modifiedPdfBytes], { type: "application/pdf" }));
+  } 
+   else if (file.type === "video" || file.type === "audio") {
+    contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
+  } 
+  
+  else if (["txt", "json", "csv"].includes(file.type)) {
+    textFull = new TextDecoder().decode(result.decrypted);
+  }
+
+
+  setPreviewContent({ url: contentUrl, text: textFull });
+  setPreviewFile(file);
+};
 
 
   const handleOpenFullView = async (file) => {
+      const username = user?.username;
+
+
     if (file.type === "folder") {
       setPreviewContent({ url: null, text: "This is a folder. Double-click to open." });
       setPreviewFile(file);
       return;
     }
 
-    const result = await handleLoadFile(file);
-    if (!result) return;
+  const result = await handleLoadFile(file);
+  if (!result) return;
 
-    let contentUrl = null;
-    let textFull = null;
+  let contentUrl = null;
+  let textFull = null;
 
-    if (file.type.startsWith("image") || file.type.startsWith("video") || file.type.startsWith("audio")) {
-      contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
-    } else if (file.type === "pdf") {
-      contentUrl = URL.createObjectURL(new Blob([result.decrypted], { type: "application/pdf" }));
-    } else if (["txt", "json", "csv"].some((ext) => file.type.includes(ext))) {
-      textFull = new TextDecoder().decode(result.decrypted);
-    }
+  if (file.type === "image") {
+    const imgBlob = new Blob([result.decrypted], { type: file.type });
+    const imgBitmap = await createImageBitmap(imgBlob);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = imgBitmap.width;
+    canvas.height = imgBitmap.height;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(imgBitmap, 0, 0);
+
+    const fontSize = Math.floor(imgBitmap.width / 20);
+    ctx.font = `${fontSize}px Arial`;
+    ctx.fillStyle = "rgba(255, 0, 0, 1)";
+    ctx.textAlign = "center";
+    ctx.fillText(username, imgBitmap.width / 2, imgBitmap.height / 2);
+
+    contentUrl = canvas.toDataURL(file.type);
+  } 
+  
+ 
+  else if (file.type === "pdf") {
+    const pdfDoc = await PDFDocument.load(result.decrypted);
+    const pages = pdfDoc.getPages();
+
+    pages.forEach((page) => {
+      const { width, height } = page.getSize();
+      page.drawText(username, {
+        x: width / 2 - 50,
+        y: height / 2,
+        size: 36,
+        color: rgb(1, 0, 0), //keep ths rgb or errors
+        opacity: 0.4,
+        rotate: { type: "degrees", angle: 45 },
+      });
+    });
+    
+
+    const modifiedPdfBytes = await pdfDoc.save();
+    contentUrl = URL.createObjectURL(new Blob([modifiedPdfBytes], { type: "application/pdf" }));
+  } 
+   else if (file.type === "video" || file.type === "audio") {
+    contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
+  } 
+  
+  else if (["txt", "json", "csv"].includes(file.type)) {
+    textFull = new TextDecoder().decode(result.decrypted);
+  }
 
     setViewerContent({ url: contentUrl, text: textFull });
     setViewerFile(file);
@@ -489,6 +713,22 @@ export default function MyFiles() {
 
     const currentDirName = segments[segments.length - 1] || "All files";
 
+    const handleDrop = async (e, targetPath) => {
+      e.preventDefault();
+      const draggedFileId = e.dataTransfer.getData("text/plain");
+      if (!draggedFileId) return;
+
+      const allFiles = files;
+      const draggedFile = allFiles.find(f => f.id === draggedFileId);
+      if (!draggedFile) return;
+
+      await handleMoveFile(draggedFile, targetPath);
+    };
+
+    const handleDragOver = (e) => {
+      e.preventDefault();
+    };
+
     return (
       <div className="mb-6">
         {/* Breadcrumbs */}
@@ -497,6 +737,8 @@ export default function MyFiles() {
             <span key={crumb.path}>
               <button
                 onClick={() => setCurrentPath(crumb.path)}
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, crumb.path)}
                 className="hover:underline"
               >
                 {crumb.name || "All files"}
@@ -535,6 +777,9 @@ export default function MyFiles() {
             <p className="text-gray-600 dark:text-gray-400">
               Manage and organize your files
             </p>
+            <div className="text-xs text-gray-500 mt-1">
+              <span className="font-medium">Shortcuts:</span> Ctrl+C/V • Del • Enter • Backspace • Ctrl+D/U • Ctrl+1/2
+            </div>
           </div>
 
           <div className="flex items-center gap-4">
@@ -626,6 +871,8 @@ export default function MyFiles() {
             onGoBack={() =>
               setCurrentPath(currentPath.split("/").slice(0, -1).join("/"))
             }
+            selectedFile={selectedFile}
+            onSelectFile={setSelectedFile}
           />
         ) : (
           <FileList
@@ -649,6 +896,8 @@ export default function MyFiles() {
             onGoBack={() =>
               setCurrentPath(currentPath.split("/").slice(0, -1).join("/"))
             }
+            selectedFile={selectedFile}
+            onSelectFile={setSelectedFile}
           />
         )}
 

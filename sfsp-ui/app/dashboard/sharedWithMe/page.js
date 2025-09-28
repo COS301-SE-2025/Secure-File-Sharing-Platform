@@ -15,6 +15,7 @@ import { getSodium } from "@/app/lib/sodium";
 import { PreviewDrawer } from "../myFilesV2/previewDrawer";
 import { FullViewModal } from "../myFilesV2/fullViewModal";
 import pako from "pako";
+import { formatDate } from "../../../lib/dateUtils";
 import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 
 function Toast({ message, type = "info", onClose }) {
@@ -136,7 +137,7 @@ export default function MyFiles() {
             type: getFileType(f.fileType || ""),
             description: f.description || "",
             path: f.cid || "",
-            modified: f.createdAt ? new Date(f.createdAt).toLocaleDateString() : "",
+            modified: f.createdAt ? formatDate(f.createdAt) : "",
             starred: false,
             viewOnly: tags.includes("view-only"),
             tags,
