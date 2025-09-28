@@ -16,12 +16,6 @@ import {
   storeDerivedKeyEncrypted,
 } from "../SecureKeyStorage";
 
-function getCookie(name) {
-  return document.cookie.split("; ").find(c => c.startsWith(name + "="))?.split("=")[1];
-}
-
-const csrf = getCookie("csrf_token");
-
 //await sodium.ready;
 //sodium.init && sodium.init();
 
