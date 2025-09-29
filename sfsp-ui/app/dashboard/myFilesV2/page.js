@@ -720,8 +720,10 @@ export default function MyFiles() {
 
   useEffect(() => {
     const fetchProfile = async () => {
+      const token = localStorage.getItem('token');
       try {
         const res = await fetch(getApiUrl('/users/profile'), {
+          headers: { Authorization: `Bearer ${token}` },
         });
 
         const result = await res.json();

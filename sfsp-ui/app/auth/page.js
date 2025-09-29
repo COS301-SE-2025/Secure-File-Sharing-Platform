@@ -542,7 +542,7 @@ export default function AuthPage() {
         return;
       }
 
-      const redirectUri = 'http://localhost:3000/auth/google/callback';
+      const redirectUri = `${window.location.origin}/auth/google/callback`;
       const scope = 'openid email profile';
       
       // Generate state parameter for security

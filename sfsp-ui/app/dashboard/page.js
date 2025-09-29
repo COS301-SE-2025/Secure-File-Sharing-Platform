@@ -438,7 +438,7 @@ useEffect(() => {
 
   useEffect(() => {
       const fetchProfile = async () => {
-  
+        const token = localStorage.getItem('token');
         try {
           const res = await fetch(getApiUrl('/user/profile'), {
             headers: { Authorization: `Bearer ${token}` },
@@ -457,6 +457,7 @@ useEffect(() => {
   }, []); 
 
   const handleOpenPreview = async (rawFile) => {
+    console.log("User profile got: ", user);
     const username = user?.username;
     const file = {
       ...rawFile,

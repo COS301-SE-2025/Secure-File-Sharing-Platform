@@ -1,5 +1,6 @@
 "use client";
 
+
 import React, { useEffect, useState, useRef } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 
@@ -9,11 +10,13 @@ import { Document, Page, pdfjs } from "react-pdf";
 // Use pdfjs-dist's worker build
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   "pdfjs-dist/build/pdf.worker.min.mjs",
-  import.meta.url
+  import.meta.url,
 ).toString();
 
+
 export function FullViewModal({ file, content, onClose }) {
-  const [numPages, setNumPages] = useState(null);
+	const [numPages, setNumPages] = useState(null);
+
 
   return (
     <>
