@@ -229,8 +229,6 @@ professional data.
 | Requirements (SRS)   | Software Requirement Specification  | [Open](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/blob/main/assets/SRS.pdf)|
 | Coding Standards Documentation | Description of our conventions and styles| [Open](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/blob/main/assets/Coding%20Standards.pdf)|
 | User Manual Document|A guide on how to use our system/platform|[Open](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/blob/main/assets/User%20Manual.pdf)|
-| Deployment Diagram|Plan for project deployment|[Open](https://drive.google.com/file/d/1ygrtnnmw6Qfvjb-w451HKQamaIMQ9bF3/view?usp=sharing)|
-| Architecture Diagram|Diagram of system overview|[Open](https://drive.google.com/file/d/1LFPgRBSH7Mg0Sq-lF3a-FYjESJy7DOKk/view?usp=sharing)|
 | Security Document| Outlines the security design of the system |[Open](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/blob/main/assets/Security%20Document.pdf)|
 | Technical Installation Manual| Instructions for system configuration |[Open](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/blob/main/assets/Technical%20Installation%20Manual.pdf)|
 | Testing Policy Document|Testing strategies and findings|[Open](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/blob/main/assets/Testing%20Policy%20Document.pdf)|
