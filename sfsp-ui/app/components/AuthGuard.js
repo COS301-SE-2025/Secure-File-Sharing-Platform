@@ -82,7 +82,6 @@ const AuthGuard = ({ children }) => {
         if (isProtectedRoute && !hasValidAuth) {
           // Protected route without auth - redirect to login
           const loginUrl = `/auth${pathname !== '/dashboard' ? `?redirect=${encodeURIComponent(pathname)}` : ''}`;
-          console.log('Redirecting to login:', loginUrl);
           router.replace(loginUrl);
           return;
         }
@@ -90,7 +89,6 @@ const AuthGuard = ({ children }) => {
         if (isAuthRoute && hasValidAuth) {
           // Auth route with valid auth - redirect to intended page or dashboard
           const redirectUrl = new URLSearchParams(window.location.search).get('redirect') || '/dashboard';
-          console.log('Redirecting authenticated user to:', redirectUrl);
           router.replace(redirectUrl);
           return;
         }

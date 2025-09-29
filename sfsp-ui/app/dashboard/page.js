@@ -457,7 +457,6 @@ useEffect(() => {
   }, []); 
 
   const handleOpenPreview = async (rawFile) => {
-    console.log("User profile got: ", user);
     const username = user?.username;
     const file = {
       ...rawFile,
@@ -690,7 +689,6 @@ useEffect(() => {
               timestamp: log.timestamp,
               dateFormatted: new Date(log.timestamp).toLocaleString(),
             });
-            console.log("Username is (in user):", user);
           }
         } catch {}
       }
@@ -1007,7 +1005,7 @@ useEffect(() => {
             handleOpenFullView(file);
           }}
           onSaveDescription={async (id, description) => {
-            console.log("Save description for:", id, description);
+            // console.log("Save description for:", id, description);
           }}
         />
       )}

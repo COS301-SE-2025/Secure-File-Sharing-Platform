@@ -131,9 +131,6 @@ export default function AuthPage() {
     setLoaderMessage("Signing you in...");
     setMessage(null);
 
-    console.log(loginData.email);
-    console.log(loginData.password);
-
     try {
       const sodium = await getSodium();
       const loginUrl = getApiUrl('/users/login');
@@ -148,7 +145,6 @@ export default function AuthPage() {
       });
 
       const result = await res.json();
-      console.log(result);
       if (!res.ok || !result.success) {
         throw new Error(result.message || "Invalid login credentials");
       }
@@ -316,8 +312,6 @@ export default function AuthPage() {
         sodium.crypto_pwhash_MEMLIMIT_MODERATE,
         sodium.crypto_pwhash_ALG_DEFAULT
       );
-      console.log("Start signup");
-      console.log("Derived key is: ", derivedKey);
 
       // Decrypt identity key for storage
       const decryptedIkPrivateKey = sodium.crypto_secretbox_open_easy(
@@ -328,8 +322,6 @@ export default function AuthPage() {
       if (!decryptedIkPrivateKey) {
         throw new Error("Failed to decrypt identity key private key");
       }
-
-      console.log("Decrypted ik private is: ", decryptedIkPrivateKey);
 
       const userKeys = {
         identity_private_key: decryptedIkPrivateKey,
@@ -364,7 +356,6 @@ export default function AuthPage() {
         userKeys: userKeys,
       });
 
-      console.log("User keys stored successfully:", userKeys);
 
       // Check if user needs email verification
       if (!user.is_verified) {
@@ -507,12 +498,6 @@ export default function AuthPage() {
     const ik = sodium.crypto_sign_keypair();
     const spk = sodium.crypto_sign_keypair();
 
-    console.log("Start key generation");
-    console.log("IK private", ik.privateKey);
-    console.log("IK public", ik.publicKey);
-    console.log("SPK private", spk.privateKey);
-    console.log("SPK public", spk.publicKey);
-
     const spkSignature = sodium.crypto_sign_detached(
       spk.publicKey,
       ik.privateKey
@@ -524,7 +509,6 @@ export default function AuthPage() {
     }));
 
     const salt = sodium.randombytes_buf(sodium.crypto_pwhash_SALTBYTES);
-    console.log("Salt is: ", salt)
     const derivedKey = sodium.crypto_pwhash(
       32,
       password,
@@ -534,17 +518,12 @@ export default function AuthPage() {
       sodium.crypto_pwhash_ALG_DEFAULT
     );
 
-    console.log("Derivedkey is: ", derivedKey);
-
     const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
-    console.log("Nonce is:", nonce);
     const encryptedIK = sodium.crypto_secretbox_easy(
       ik.privateKey,
       nonce,
       derivedKey
     );
-
-    console.log("encrypted ik is: ", encryptedIK);
 
     const encryptedOPKs = opks.map((opk) => ({
       opk_id: opk.opk_id,
@@ -552,13 +531,6 @@ export default function AuthPage() {
         sodium.crypto_secretbox_easy(opk.keypair.privateKey, nonce, derivedKey)
       ),
     }));
-
-    console.log("encrypted opks are: ", encryptedOPKs);
-
-    console.log("SPK pub (raw):", spk.publicKey);
-    console.log("IK pub (Ed25519):", ik.publicKey);
-    console.log("SPK Signature:", spkSignature);
-    console.log("End key generation");
 
     return {
       ik_public: sodium.to_base64(ik.publicKey),

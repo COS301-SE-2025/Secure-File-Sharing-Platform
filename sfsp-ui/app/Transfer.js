@@ -70,8 +70,6 @@ export async function SendFile(recipientUserId, fileid, isViewOnly = false) {
     encryptionKey
   );
 
-  console.log("[UI DEBUG] 3️⃣ Fetch recipient's public keys");
-  console.log(recipientUserId);
   const bundleRes = await fetch(
     getApiUrl(`/users/public-keys/${recipientUserId}`)
   );
@@ -169,7 +167,6 @@ export async function SendFile(recipientUserId, fileid, isViewOnly = false) {
 
     const result = await res.json();
     if (chunkIndex === totalChunks - 1) {
-      console.log("🎉 File sent successfully:", result);
       return isViewOnly ? result.shareId : result.receivedFileID;
     }
   }
@@ -182,7 +179,6 @@ export async function ChangeShareMethod(recipientUserId, fileid, isViewOnly = fa
   const userKeysRaw = await getUserKeysSecurely(encryptionKey);
   const userKeys = normalizeUserKeys(userKeysRaw, sodium);
 
-  console.log("[UI DEBUG]2️⃣ Download encrypted file as binary")
   const response = await fetch(getFileApiUrl("/download"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -194,7 +190,6 @@ export async function ChangeShareMethod(recipientUserId, fileid, isViewOnly = fa
   const encryptedLocalFile = new Uint8Array(buffer);
 
   const nonceHeader = response.headers.get("x-nonce");
-  console.log("Received x-nonce header:", nonceHeader);
   const decrypted = sodium.crypto_secretbox_open_easy(
     encryptedLocalFile,
     sodium.from_base64(
@@ -204,7 +199,6 @@ export async function ChangeShareMethod(recipientUserId, fileid, isViewOnly = fa
     encryptionKey
   );
 
-  console.log("[UI DEBUG]3️⃣ Get recipient's public keys")
   const bundleRes = await fetch(
     getApiUrl(`/users/public-keys/${recipientUserId}`)
   );
@@ -293,10 +287,8 @@ export async function ChangeShareMethod(recipientUserId, fileid, isViewOnly = fa
   if(!res.ok) throw new Error("Failed to change share method");
   const result = await res.json();
   if (isViewOnly) {
-    console.log("View-only file share ID:", result.shareId);
     return result.shareId;
   } else {
-    console.log("Received File ID:", result.receivedFileID);
     return result.receivedFileID;
   }
 }
@@ -373,9 +365,6 @@ export async function ReceiveFile(fileData) {
   const spkPrivKey = userKeys.signedpk_private_key;
   
   // Debug: Log available OPK IDs and the requested one
-  console.log("🔍 DEBUG - Available OPK IDs:", userKeys.oneTimepks_private.map(opk => opk.opk_id));
-  console.log("🔍 DEBUG - Requested OPK ID:", opk_id);
-  console.log("🔍 DEBUG - Full userKeys structure:", userKeys);
   
   const opkMatch = userKeys.oneTimepks_private.find((opk) => opk.opk_id === opk_id);
   if (!opkMatch) {
@@ -468,5 +457,5 @@ export async function ReceiveFile(fileData) {
     })
   );
 
-  console.log(`✅ File ${file_name} received and uploaded locally as ${fileId}`);
+  // console.log(`✅ File ${file_name} received and uploaded locally as ${fileId}`);
 }

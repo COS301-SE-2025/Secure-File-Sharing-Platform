@@ -410,9 +410,6 @@ export default function MyFiles() {
         }
       );
       fetchFiles();
-      if (res.status === 200) {
-        console.log("Description updated successfully");
-      }
       if (!res.ok) {
         throw new Error("Failed to update description");
       }
@@ -481,7 +478,6 @@ export default function MyFiles() {
       a.click();
       window.URL.revokeObjectURL(url);
 
-      console.log(`✅ Downloaded and decrypted ${fileName}`);
     } catch (err) {
       console.error("Download error:", err);
       showToast("Download failed","error");

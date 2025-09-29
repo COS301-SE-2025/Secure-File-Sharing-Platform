@@ -18,8 +18,6 @@ export const logout = () => {
     store.setEncryptionKey(null);
     store.setUserId(null);
     store.setUserKeys(null);
-
-    console.log('User logged out successfully');
   } catch (error) {
     console.error('Error during logout:', error);
   }
@@ -34,12 +32,6 @@ export const isAuthenticated = () => {
 
     const token = localStorage.getItem('token');
     const userId = useEncryptionStore.getState().userId;
-
-    console.log('Auth check:', {
-      hasToken: !!token,
-      tokenLength: token?.length,
-      userId
-    });
 
     return !!(token && userId);
   } catch (error) {

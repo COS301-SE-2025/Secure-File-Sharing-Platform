@@ -72,8 +72,6 @@ export default function AccessLogsPage() {
 
             if (!logsRes.ok) continue;
             const fileLogs = await logsRes.json();
-            console.log("these re the logs");
-            console.log(fileLogs);
 
             // Build logs
             for (const log of fileLogs) {
@@ -90,7 +88,6 @@ export default function AccessLogsPage() {
                 const response = await fetch(getApiUrl(`/users/getUserInfo/${Id}`));
                 if (response.ok) {
                   const userInfo = await response.json();
-                  // console.log('userInfo:', userInfo);
                   if (userInfo?.data.username) {
                     userName = userInfo.data.username;
                     avatar = userInfo.data.avatar_url;
@@ -115,7 +112,6 @@ export default function AccessLogsPage() {
             console.error(`Error fetching logs for file ${file.fileId}:`, err);
           }
         }
-        console.log(allLogs);
         allLogs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
         setLogs(allLogs);
       } catch (err) {

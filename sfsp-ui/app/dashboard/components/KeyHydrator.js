@@ -18,7 +18,6 @@ export default function KeyHydrator() {
         const userId = await get('userId');
         if (userId) {
           setUserId(userId);
-          console.log('✅ Hydrated userId');
         }
 
         // 🔑 Step 2: Restore encryptionKey using unlock token from sessionStorage
@@ -48,13 +47,11 @@ export default function KeyHydrator() {
         }
 
         setEncryptionKey(derivedKey);
-        console.log('✅ Hydrated encryptionKey');
 
         // 🔑 Step 3: Restore userKeys using the derivedKey
         const userKeys = await getUserKeysSecurely(derivedKey);
         if (userKeys) {
           setUserKeys(userKeys);
-          console.log('✅ Hydrated userKeys');
         }
       } catch (error) {
         console.error('❌ Error hydrating Zustand store:', error);
