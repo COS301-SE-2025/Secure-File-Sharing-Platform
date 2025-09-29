@@ -67,9 +67,9 @@ class TestHealthEndpoint(KeyServiceTestCase):
 
     def test_health_check(self):
         """Test that the health check endpoint returns the correct response."""
-        response = self.client.get('/health')
+        response = self.client.get('/api/vault/health')
         data = json.loads(response.data)
-        
+
         self.assertEqual(response.status_code, 200)
         self.assertEqual(data['status'], 'success')
         self.assertEqual(data['health']['status'], 'healthy')
