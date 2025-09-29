@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Loader from '@/app/dashboard/components/Loader';
 import { getSodium } from "@/app/lib/sodium";
@@ -20,6 +20,7 @@ import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 
 export default function AuthPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [tab, setTab] = useState("login");
   const [isLoading, setIsLoading] = useState(false);
   const [loaderMessage, setLoaderMessage] = useState("Loading...");
@@ -202,7 +203,9 @@ export default function AuthPage() {
 
         setLoaderMessage("Verification code sent! Redirecting...");
         setTimeout(() => {
-          router.push(`/auth/verify-email?email=${encodeURIComponent(loginData.email)}&userId=${id}`);
+          const redirectParam = searchParams.get('redirect');
+          const verifyUrl = `/auth/verify-email?email=${encodeURIComponent(loginData.email)}&userId=${id}${redirectParam ? `&redirect=${encodeURIComponent(redirectParam)}` : ''}`;
+          router.push(verifyUrl);
         }, 1500);
 
       } catch (error) {
@@ -394,7 +397,9 @@ export default function AuthPage() {
         localStorage.setItem("token", rawToken);
 
         setTimeout(() => {
-          router.push(`/auth/verify-email?email=${encodeURIComponent(user.email)}&userId=${user.id}`);
+          const redirectParam = searchParams.get('redirect');
+          const verifyUrl = `/auth/verify-email?email=${encodeURIComponent(user.email)}&userId=${user.id}${redirectParam ? `&redirect=${encodeURIComponent(redirectParam)}` : ''}`;
+          router.push(verifyUrl);
         }, 1500);
         return;
       }
@@ -427,7 +432,8 @@ export default function AuthPage() {
       }
 
       setTimeout(() => {
-        router.push('/dashboard');
+        const redirectUrl = searchParams.get('redirect') || '/dashboard';
+        router.push(redirectUrl);
       }, 1000);
     } catch (err) {
       console.error("Signup error:", err);

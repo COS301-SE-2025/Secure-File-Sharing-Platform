@@ -14,11 +14,13 @@ function VerifyEmailInner() {
     const [userId, setUserId] = useState("");
     const [mounted, setMounted] = useState(false);
     const [isLoginVerification, setIsLoginVerification] = useState(false);
+    const [redirectUrl, setRedirectUrl] = useState('/dashboard');
 
     useEffect(() => {
         setMounted(true);
         const emailParam = searchParams.get("email");
         const userIdParam = searchParams.get("userId");
+        const redirectParam = searchParams.get("redirect");
 
         if (!emailParam || !userIdParam) {
             router.push("/auth?error=missing_verification_params");
@@ -27,6 +29,7 @@ function VerifyEmailInner() {
 
         setEmail(emailParam);
         setUserId(userIdParam);
+        setRedirectUrl(redirectParam || '/dashboard');
 
         // Check if this is a login verification
         const pendingLogin = sessionStorage.getItem("pendingLogin");
@@ -96,7 +99,7 @@ function VerifyEmailInner() {
                     const hasKeys = localStorage.getItem("encryption-store");
 
                     if (unlockToken && hasKeys) {
-                        router.push("/dashboard");
+                        router.push(redirectUrl);
                     } else {
                         router.push("/auth");
                     }
@@ -233,9 +236,9 @@ function VerifyEmailInner() {
             // Clean up pending login data
             sessionStorage.removeItem("pendingLogin");
 
-            setMessage("Login successful! Redirecting to dashboard...");
+            setMessage("Login successful! Redirecting...");
             setTimeout(() => {
-                router.push("/dashboard");
+                router.push(redirectUrl);
             }, 1000);
 
         } catch (error) {

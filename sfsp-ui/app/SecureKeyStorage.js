@@ -63,7 +63,6 @@ export const storeUserKeysSecurely = async (userKeys, encryptionKey) => {
       await set('userId', userKeys.userId);
     }
 
-    console.log('✅ User keys stored securely');
   } catch (error) {
     console.error('❌ Error storing user keys:', error);
   }
@@ -95,7 +94,6 @@ export const deleteUserKeysSecurely = async () => {
   try {
     await del('userKeys');
     await del('userId');
-    console.log('User keys deleted securely');
   } catch (error) {
     console.error('Error deleting user keys:', error);
   }

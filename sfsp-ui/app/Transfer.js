@@ -51,7 +51,6 @@ export async function SendFile(recipientUserId, fileid, isViewOnly = false) {
   const userKeysRaw = await getUserKeysSecurely(encryptionKey);
   const userKeys = normalizeUserKeys(userKeysRaw, sodium);
 
-  console.log("[UI DEBUG] 2️⃣ Download encrypted file as binary");
   // 2️⃣ Download encrypted file as binary
   const response = await fetch(getFileApiUrl("/download"), {
     method: "POST",

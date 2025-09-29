@@ -6,6 +6,7 @@ import { useTheme } from 'next-themes';
 import Image from 'next/image';
 import { UserAvatar } from '@/app/lib/avatarUtils';
 import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
+import { logout } from '@/app/lib/auth';
 import {
   FileText,
   Grid3X3,
@@ -96,10 +97,8 @@ export default function Sidebar({ expanded, setExpanded, isHovered, setIsHovered
       e.stopPropagation();
       e.preventDefault();
     }
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    localStorage.removeItem('encryption-store');
-    router.push('/');
+    logout();
+    router.push('/auth');
   };
 
   const linkClasses = (path) => {
