@@ -709,14 +709,14 @@ export default function AuthPage() {
                 </button>
 
                 {/* Or separator */}
-                <div className="flex items-center my-4">
+                {/* <div className="flex items-center my-4">
                   <hr className="flex-grow border-t dark:border-gray-400 border-gray-300" />
                   <span className="mx-2 text-gray-500 text-sm">or</span>
                   <hr className="flex-grow border-t dark:border-gray-400 border-gray-300" />
-                </div>
+                </div> */}
 
                 {/* Google login button */}
-                <button
+                {/* <button
                   type="button"
                   onClick={handleGoogleAuth}
                   disabled={isLoading}
@@ -748,7 +748,7 @@ export default function AuthPage() {
                   <span className="text-sm font-medium text-gray-700">
                     Continue with Google
                   </span>
-                </button>
+                </button> */}
               </form>
             </>
           )}
@@ -961,14 +961,14 @@ export default function AuthPage() {
                     "Create account"
                   )}
                 </button>
-                <div className="flex items-center my-4">
+                {/* <div className="flex items-center my-4">
                   <hr className="flex-grow border-t dark:border-gray-400 border-gray-300" />
                   <span className="mx-2 text-gray-500 text-sm">or</span>
                   <hr className="flex-grow border-t dark:border-gray-400 border-gray-300" />
-                </div>
+                </div> */}
 
                 {/* Google Sign Up button */}
-                <button
+                {/* <button
                   type="button"
                   onClick={handleGoogleAuth}
                   disabled={isLoading}
@@ -1000,7 +1000,7 @@ export default function AuthPage() {
                   <span className="text-sm font-medium text-gray-700">
                     Continue with Google
                   </span>
-                </button>
+                </button> */}
               </form>
             </>
           )}

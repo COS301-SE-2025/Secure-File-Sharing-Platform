@@ -1053,9 +1053,9 @@ const handleOpenFullView = async (file) => {
             <p className="text-gray-600 dark:text-gray-400">
               Manage and organize your files
             </p>
-            <div className="text-xs text-gray-500 mt-1">
+            {/* <div className="text-xs text-gray-500 mt-1">
               <span className="font-medium">Shortcuts:</span> Ctrl+C/V • Del • Enter • Backspace • Ctrl+D/U • Ctrl+1/2
-            </div>
+            </div> */}
           </div>
 
           <div className="flex items-center gap-4">
@@ -1133,7 +1133,7 @@ const handleOpenFullView = async (file) => {
             onViewActivity={openActivityDialog}
             onDownload={handleDownload}
             onDelete={fetchFiles}
-            onRevokeAccess={() => setIsRevokeAccessOpen(true)}
+            onRevokeAccess={openRevokeAccessDialog}
             onChangeShareMode={() => setIsChangeMethodOpen(true)}
             onClick={handlePreview}
             onDoubleClick={handleOpenFullView}

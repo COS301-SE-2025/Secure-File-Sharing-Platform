@@ -205,6 +205,10 @@ class UserService {
         throw new Error("User not found with this email.");
       }
 
+      if(!user.active) {
+        throw new Error("User account has been blocked by admin.");
+      }
+
       const isPasswordValid = await bcrypt.compare(password, user.password);
       if (!isPasswordValid) {
         throw new Error("Invalid password.");
