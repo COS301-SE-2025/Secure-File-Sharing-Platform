@@ -13,6 +13,7 @@ function VerifyEmailInner() {
     const [email, setEmail] = useState("");
     const [userId, setUserId] = useState("");
     const [mounted, setMounted] = useState(false);
+    const [isLoginVerification, setIsLoginVerification] = useState(false);
 
     useEffect(() => {
         setMounted(true);
@@ -26,6 +27,10 @@ function VerifyEmailInner() {
 
         setEmail(emailParam);
         setUserId(userIdParam);
+
+        // Check if this is a login verification
+        const pendingLogin = sessionStorage.getItem("pendingLogin");
+        setIsLoginVerification(!!pendingLogin);
     }, [searchParams, router]);
 
     const handleSubmit = async (e) => {
@@ -66,29 +71,38 @@ function VerifyEmailInner() {
 
     const setupUserAuthentication = async () => {
         try {
-            const jwtResponse = await fetch("/api/auth/generate-jwt", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ userId, email }),
-            });
+            // Check if this is a login verification
+            const pendingLogin = sessionStorage.getItem("pendingLogin");
 
-            if (jwtResponse.ok) {
-                const { token } = await jwtResponse.json();
-                localStorage.setItem("token", token.replace(/^Bearer\s/, ""));
-                
-                // Check if encryption keys already exist from registration
-                const unlockToken = sessionStorage.getItem("unlockToken");
-                const hasKeys = localStorage.getItem("encryption-store");
-                
-                if (unlockToken && hasKeys) {
-                    router.push("/dashboard");
-                } else {
-                    router.push("/auth");
-                }
+            if (pendingLogin) {
+                // This is a login verification - complete the login process
+                await completeLoginAuthentication(JSON.parse(pendingLogin));
             } else {
-                throw new Error("Failed to complete authentication");
+                // This is a signup verification - generate JWT and proceed
+                const jwtResponse = await fetch("/api/auth/generate-jwt", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ userId, email }),
+                });
+
+                if (jwtResponse.ok) {
+                    const { token } = await jwtResponse.json();
+                    localStorage.setItem("token", token.replace(/^Bearer\s/, ""));
+
+                    // Check if encryption keys already exist from registration
+                    const unlockToken = sessionStorage.getItem("unlockToken");
+                    const hasKeys = localStorage.getItem("encryption-store");
+
+                    if (unlockToken && hasKeys) {
+                        router.push("/dashboard");
+                    } else {
+                        router.push("/auth");
+                    }
+                } else {
+                    throw new Error("Failed to complete authentication");
+                }
             }
         } catch (error) {
             console.error("Authentication setup error:", error);
@@ -98,17 +112,153 @@ function VerifyEmailInner() {
         }
     };
 
+    const completeLoginAuthentication = async (loginData) => {
+        try {
+            const sodium = await import("@/app/lib/sodium").then(m => m.getSodium());
+            const { getApiUrl } = await import("@/lib/api-config");
+            const {
+                useEncryptionStore,
+                storeUserKeysSecurely,
+                storeDerivedKeyEncrypted
+            } = await import("@/app/SecureKeyStorage");
+
+            setMessage("Completing authentication...");
+
+            // Re-authenticate to get user data
+            const loginUrl = getApiUrl('/users/login');
+
+            const res = await fetch(loginUrl, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    email: loginData.email,
+                    password: loginData.password,
+                }),
+            });
+
+            const result = await res.json();
+            if (!res.ok || !result.success) {
+                throw new Error(result.message || "Authentication failed");
+            }
+
+            const {
+                id,
+                salt,
+                nonce,
+                ik_public,
+                spk_public,
+                signedPrekeySignature,
+                opks_public,
+            } = result.data.user;
+
+            const { ik_private_key, opks_private, spk_private_key } = result.data.keyBundle;
+            const { token } = result.data;
+
+            // Derive key and decrypt user keys
+            const derivedKey = sodium.crypto_pwhash(
+                32,
+                loginData.password,
+                sodium.from_base64(salt),
+                sodium.crypto_pwhash_OPSLIMIT_MODERATE,
+                sodium.crypto_pwhash_MEMLIMIT_MODERATE,
+                sodium.crypto_pwhash_ALG_DEFAULT
+            );
+
+            const decryptedIkPrivateKey = sodium.crypto_secretbox_open_easy(
+                sodium.from_base64(ik_private_key),
+                sodium.from_base64(nonce),
+                derivedKey
+            );
+
+            let decryptedSpkPrivateKey;
+            try {
+                decryptedSpkPrivateKey = sodium.crypto_secretbox_open_easy(
+                    sodium.from_base64(spk_private_key),
+                    sodium.from_base64(nonce),
+                    derivedKey
+                );
+            } catch (spkError) {
+                decryptedSpkPrivateKey = sodium.from_base64(spk_private_key);
+            }
+
+            const decryptedOpksPrivate = opks_private.map((opk) => ({
+                opk_id: opk.opk_id,
+                private_key: sodium.crypto_secretbox_open_easy(
+                    sodium.from_base64(opk.private_key),
+                    sodium.from_base64(nonce),
+                    derivedKey
+                ),
+            }));
+
+            let opks_public_temp;
+            if (typeof opks_public === "string") {
+                try {
+                    opks_public_temp = JSON.parse(opks_public.replace(/\\+/g, ""));
+                } catch (e) {
+                    opks_public_temp = opks_public.replace(/\\+/g, "").slice(1, -1).split(",");
+                }
+            } else {
+                opks_public_temp = opks_public;
+            }
+
+            const userKeys = {
+                identity_private_key: decryptedIkPrivateKey,
+                signedpk_private_key: decryptedSpkPrivateKey,
+                oneTimepks_private: decryptedOpksPrivate,
+                identity_public_key: sodium.from_base64(ik_public),
+                signedpk_public_key: sodium.from_base64(spk_public),
+                oneTimepks_public: opks_public_temp.map((opk) => ({
+                    opk_id: opk.opk_id,
+                    publicKey: sodium.from_base64(opk.publicKey),
+                })),
+                signedPrekeySignature: sodium.from_base64(signedPrekeySignature),
+                salt: sodium.from_base64(salt),
+                nonce: sodium.from_base64(nonce),
+            };
+
+            // Store keys and tokens
+            await storeDerivedKeyEncrypted(derivedKey);
+            sessionStorage.setItem("unlockToken", "session-unlock");
+            await storeUserKeysSecurely(userKeys, derivedKey);
+
+            useEncryptionStore.setState({
+                encryptionKey: derivedKey,
+                userId: id,
+                userKeys: userKeys,
+            });
+
+            const rawToken = token.replace(/^Bearer\s/, "");
+            localStorage.setItem("token", rawToken);
+
+            // Clean up pending login data
+            sessionStorage.removeItem("pendingLogin");
+
+            setMessage("Login successful! Redirecting to dashboard...");
+            setTimeout(() => {
+                router.push("/dashboard");
+            }, 1000);
+
+        } catch (error) {
+            console.error("Login completion error:", error);
+            setMessage("Failed to complete login. Please try again.");
+        }
+    };
+
     const handleResendCode = async () => {
         setIsLoading(true);
         setMessage("");
 
         try {
+            // Check if this is a login verification
+            const pendingLogin = sessionStorage.getItem("pendingLogin");
+            const type = pendingLogin ? "login_verify" : "email_verification";
+
             const response = await fetch("/api/auth/send-verification", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ email, userId, userName: "User" }),
+                body: JSON.stringify({ email, userId, userName: "User", type }),
             });
 
             const data = await response.json();
@@ -145,9 +295,14 @@ function VerifyEmailInner() {
         <div className="min-h-screen bg-white flex items-center justify-center">
             <div className="max-w-md w-full space-y-8 p-8">
                 <div className="text-center">
-                    <h2 className="text-3xl font-bold text-gray-900">Verify Your Email</h2>
+                    <h2 className="text-3xl font-bold text-gray-900">
+                        {isLoginVerification ? "Verify Your Sign-In" : "Verify Your Email"}
+                    </h2>
                     <p className="mt-2 text-gray-600">
-                        We&apos;ve sent a 6-digit verification code to:
+                        {isLoginVerification
+                            ? "For your security, we've sent a verification code to:"
+                            : "We've sent a 6-digit verification code to:"
+                        }
                     </p>
                     <p className="font-semibold text-blue-600">{email}</p>
                 </div>

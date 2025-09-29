@@ -181,124 +181,39 @@ export default function AuthPage() {
       
       // Send verification code before redirecting
       try {
-        const sendCodeResponse = await fetch(`${process.env.NEXTAUTH_URL}/api/auth/send-verification`, {
+        const sendCodeResponse = await fetch(`/api/auth/send-verification`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             email: loginData.email,
             userId: id,
             userName: result.data.user.username || "User",
-                          type: "login_verify"
+            type: "login_verify"
           }),
         });
-        
+
         if (!sendCodeResponse.ok) {
-          console.error("Failed to send verification code");
+          const errorData = await sendCodeResponse.json();
+          console.error("Failed to send verification code:", errorData);
+          setMessage("Failed to send verification code. Please try again.");
+          setIsLoading(false);
+          return;
         }
+
+        setLoaderMessage("Verification code sent! Redirecting...");
+        setTimeout(() => {
+          router.push(`/auth/verify-email?email=${encodeURIComponent(loginData.email)}&userId=${id}`);
+        }, 1500);
+
       } catch (error) {
         console.error("Error sending verification code:", error);
-      }
-      
-      setTimeout(() => {
-          router.push(`/auth/verify-email?email=${encodeURIComponent(loginData.email)}&userId=${id}`);
-      }, 1500);
-
-      //we don't need to securely store the user ID but I will store it in the Zustand store for easy access
-      useEncryptionStore.getState().setUserId(id);
-
-      //derived key from password and salt
-      const derivedKey = sodium.crypto_pwhash(
-        32, // key length
-        loginData.password,
-        sodium.from_base64(salt),
-        sodium.crypto_pwhash_OPSLIMIT_MODERATE,
-        sodium.crypto_pwhash_MEMLIMIT_MODERATE,
-        sodium.crypto_pwhash_ALG_DEFAULT
-      );
-
-      // Decrypt vault keys (they are encrypted with the password-derived key)
-      const decryptedIkPrivateKey = sodium.crypto_secretbox_open_easy(
-        sodium.from_base64(ik_private_key),
-        sodium.from_base64(nonce),
-        derivedKey
-      );
-
-      let decryptedSpkPrivateKey;
-      try {
-        decryptedSpkPrivateKey = sodium.crypto_secretbox_open_easy(
-          sodium.from_base64(spk_private_key),
-          sodium.from_base64(nonce),
-          derivedKey
-        );
-      } catch (spkError) {
-        // If SPK decryption fails, assume it's not encrypted (for backward compatibility)
-        console.log("SPK decryption failed, assuming unencrypted:", spkError.message);
-        decryptedSpkPrivateKey = sodium.from_base64(spk_private_key);
+        setMessage("Failed to send verification code. Please try again.");
+        setIsLoading(false);
+        return;
       }
 
-      const decryptedOpksPrivate = opks_private.map((opk) => ({
-        opk_id: opk.opk_id,
-        private_key: sodium.crypto_secretbox_open_easy(
-          sodium.from_base64(opk.private_key),
-          sodium.from_base64(nonce),
-          derivedKey
-        ),
-      }));
-
-      let opks_public_temp;
-      if (typeof opks_public === "string") {
-        try {
-          opks_public_temp = JSON.parse(opks_public.replace(/\\+/g, ""));
-        } catch (e) {
-          opks_public_temp = opks_public.replace(/\\+/g, "").slice(1, -1).split(",");
-        }
-      } else {
-        opks_public_temp = opks_public;
-      }
-
-      const userKeys = {
-        identity_private_key: decryptedIkPrivateKey,
-        signedpk_private_key: decryptedSpkPrivateKey,
-        oneTimepks_private: decryptedOpksPrivate,
-        identity_public_key: sodium.from_base64(ik_public),
-        signedpk_public_key: sodium.from_base64(spk_public),
-        oneTimepks_public: opks_public_temp.map((opk) => ({
-          opk_id: opk.opk_id,
-          publicKey: sodium.from_base64(opk.publicKey),
-        })),
-        signedPrekeySignature: sodium.from_base64(signedPrekeySignature),
-        salt: sodium.from_base64(salt),
-        nonce: sodium.from_base64(nonce),
-      };
-
-      console.log("User keys decrypted from vault successfully:", userKeys);
-
-      await storeDerivedKeyEncrypted(derivedKey); // stores with unlockToken
-      sessionStorage.setItem("unlockToken", "session-unlock");
-      await storeUserKeysSecurely(userKeys, derivedKey); // your existing function
-
-      useEncryptionStore.setState({
-        encryptionKey: derivedKey,
-        userId: id,
-        userKeys: userKeys,
-      });
-
-      console.log("User keys stored successfully:", userKeys);
-      // localStorage.setItem('token', result.token);
-      const bearerToken = token;
-
-      if (!bearerToken) {
-        throw new Error("No token returned from server");
-      }
-
-      //const unlockToken = sessionStorage.getItem("unlockToken");
-
-      const rawToken = bearerToken.replace(/^Bearer\s/, "");
-      localStorage.setItem("token", rawToken);
-      setMessage("Login successful!");
-      setTimeout(() => {
-        router.push("/dashboard");
-      }, 1000);
+      // Store login data temporarily for verification completion
+      // The verification page will handle the final authentication setup
       
     } catch (err) {
       console.error("Login error:", err);
