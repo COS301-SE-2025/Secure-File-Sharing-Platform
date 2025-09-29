@@ -5,16 +5,7 @@ import { useEncryptionStore } from "@/app/SecureKeyStorage";
 import { getSodium } from "@/app/lib/sodium";
 import pako from "pako";
 import { UserAvatar } from "@/app/lib/avatarUtils";
-
-function getCookie(name) {
-  if (typeof window === 'undefined') return '';
-  return document.cookie
-    .split("; ")
-    .find((c) => c.startsWith(name + "="))
-    ?.split("=")[1];
-}
-
-const csrf = typeof window !== 'undefined' ? getCookie("csrf_token") : "";
+import { getApiUrl, getFileApiUrl } from "@/lib/api-config";  
 
 export function PreviewDrawer({
   file,
@@ -57,22 +48,24 @@ export function PreviewDrawer({
       if (!token) return;
 
       // Get current user profile
-      const profileRes = await fetch("/proxy/auth/profile");
+      const profileRes = await fetch(getApiUrl("/users/profile"), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const profileResult = await profileRes.json();
       const userId = profileResult?.data?.id;
       if (!userId) return;
 
       // Get files shared for view-only access
-      const sharedFilesRes = await fetch("/proxy/files/getViewAccess", {
+      const sharedFilesRes = await fetch(
+        getFileApiUrl("/getViewAccess"),
+        {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-csrf": csrf || "" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId }),
-      });
+        }
+      );
       const sharedFiles = await sharedFilesRes.json();
-      if (sharedFiles != null) {
-        const fileShares = sharedFiles.filter(
-          (share) => share.file_id === file.id
-        );
+      const fileShares = sharedFiles.filter((share) => share.file_id === file.id);
 
         // Enrich each share with recipient info
         const enrichedShares = await Promise.all(
@@ -81,9 +74,7 @@ export function PreviewDrawer({
             let email = "";
             let avatar = "";
             try {
-              const res = await fetch(
-                `/proxy/user/getUserInfo/${share.recipient_id}`
-              );
+            const res = await fetch(getApiUrl(`/users/getUserInfo/${share.recipient_id}`));
               if (res.ok) {
                 const data = await res.json();
                 if (data?.data) {
@@ -110,7 +101,6 @@ export function PreviewDrawer({
 
         console.log(enrichedShares);
         setSharedWith(enrichedShares || []);
-      }
     } catch (err) {
       console.error("Failed to fetch access list:", err);
     } finally {

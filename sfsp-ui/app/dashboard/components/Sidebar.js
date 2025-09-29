@@ -49,14 +49,20 @@ export default function Sidebar({ expanded, setExpanded, isHovered, setIsHovered
     }
   };
 
+  // Load user profile
   useEffect(() => {
     const fetchProfile = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
       try {
-        const res = await fetch('/proxy/auth/profile');
-        console.log("Res", res);
+        const res = await fetch(getApiUrl('/users/profile'), {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
         const result = await res.json();
         if (!res.ok) throw new Error(result.message || 'Failed to fetch profile');
-        console.log("Result data is: ",result.data);
+
         setUser(result.data);
       } catch (err) {
         console.error('Failed to fetch profile:', err.message);
@@ -93,8 +99,6 @@ export default function Sidebar({ expanded, setExpanded, isHovered, setIsHovered
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('encryption-store');
-    document.cookie = "auth_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/";
-    document.cookie = "csrf_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/";
     router.push('/');
   };
 

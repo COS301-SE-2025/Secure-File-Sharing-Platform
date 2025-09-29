@@ -16,6 +16,7 @@ import { useEncryptionStore } from "@/app/SecureKeyStorage";
 import { getSodium } from "@/app/lib/sodium";
 import { PreviewDrawer } from "./previewDrawer";
 import dynamic from "next/dynamic";
+import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 
 const FullViewModal = dynamic(() => import("./fullViewModal").then(mod => ({ default: mod.FullViewModal })), {
   ssr: false,
@@ -27,7 +28,6 @@ import { ChangeShareMethodDialog } from "./changeShareMethodDialog";
 
 //import fetchProfile from "../components/Sidebar"
 import { formatDate } from "../../../lib/dateUtils";
-import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 
 function Toast({ message, type = "info", onClose }) {
   return (
@@ -385,10 +385,9 @@ export default function MyFiles() {
         return;
       }
 
-      console.log("Csrf token is metadata is: ", csrf);
-      const res = await fetch("/proxy/files/metadata", {
+      const res = await fetch(getFileApiUrl("/metadata"), {
         method: "POST",
-        headers: { "x-csrf": csrf || "" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId }),
       });
 
@@ -550,9 +549,9 @@ export default function MyFiles() {
     const tags = ["deleted", `deleted_time:${timestamp}`];
 
     try {
-      const res = await fetch("/proxy/files/addTags", {
+      const res = await fetch(getFileApiUrl("/addTags"), {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-csrf":csrf || ""},
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fileId: file.id, tags }),
       });
 
@@ -582,9 +581,9 @@ export default function MyFiles() {
     const sodium = await getSodium();
 
     try {
-      const res = await fetch("/proxy/files/download", {
+      const res = await fetch(getFileApiUrl('/download'), {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-csrf": csrf || "" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId, fileId: file.id }),
       });
 
@@ -656,9 +655,9 @@ export default function MyFiles() {
     const sodium = await getSodium();
 
     try {
-      const res = await fetch("/proxy/files/download", {
+      const res = await fetch(getFileApiUrl("/download"), {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-csrf": csrf || "" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId,
           fileId: file.id,
@@ -722,7 +721,7 @@ export default function MyFiles() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const res = await fetch('/proxy/auth/profile', {
+        const res = await fetch(getApiUrl('/users/profile'), {
         });
 
         const result = await res.json();
@@ -917,11 +916,10 @@ const handleOpenFullView = async (file) => {
 
   const handleUpdateDescription = async (fileId, description) => {
     try {
-      const res = await fetch("/proxy/files/addDescription", {
+      const res = await fetch(getFileApiUrl("/addDescription"), {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          "x-csrf": csrf || "",
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({ fileId, description }),
       });
@@ -940,11 +938,10 @@ const handleOpenFullView = async (file) => {
   const handleMoveFile = async (file, destinationFolderPath) => {
     const fullPath = destinationFolderPath
       ? `files/${destinationFolderPath}/${file.name}`
-      : `files/${file.name}`; // for root-level
+      : `files/${file.name}`;
 
-    const res = await fetch("/proxy/files/updateFilePath", {
+    const res = await fetch(getFileApiUrl("/updateFilePath"), {
       method: "PATCH",
-      headers: {"x-csrf":csrf||""},
       body: JSON.stringify({ fileId: file.id, newPath: fullPath }),
     });
 

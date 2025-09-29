@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import "./blockedUsers.css";
 import { UserX, Search, RotateCcw, Shield, AlertCircle, AlertTriangle, CheckCircle } from "lucide-react";
+import { adminFetch } from '../../api/api_config.js';
 
 const BlockedUsers = () => {
     const [searchTerm, setSearchTerm] = useState("");
@@ -16,8 +17,8 @@ const BlockedUsers = () => {
     useEffect(() => {
         const fetchBlockedUsers = async () => {
             try {
-                const res = await fetch("http://localhost:5000/api/admin/users/blocked");
-                const data = await res.json();
+                const res = await adminFetch("/users/blocked");
+                const data = res;
                 if (data.success) {
                     setBlockedUsers(data.users);
                 }
@@ -28,8 +29,8 @@ const BlockedUsers = () => {
 
         const fetchStats = async () => {
             try {
-                const res = await fetch("http://localhost:5000/api/admin/users/blocked/stats");
-                const data = await res.json();
+                const res = await adminFetch("/users/blocked/stats");
+                const data = res;
                 if (data.success) {
                     setStats(data);
                 }
@@ -42,20 +43,30 @@ const BlockedUsers = () => {
         fetchStats();
     }, []);
 
-    const filteredUsers = blockedUsers.filter(user =>
-        user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.reason.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    // const filteredUsers = blockedUsers.filter(user =>
+    //     user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    //     user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    //     user.reason.toLowerCase().includes(searchTerm.toLowerCase())
+    // );
+
+    const filteredUsers = blockedUsers.filter((user) => {
+        const reason = user.blocked_info?.reason || "";
+        return (
+            user.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            reason.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    });
+
 
     const handleUnblockUser = async (userId, userName, userSeverity) => {
         try {
-            const res = await fetch("http://localhost:5000/api/admin/users/unblock", {
+            const res = await adminFetch("/users/unblock", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ userId }),
             });
-            const data = await res.json();
+            const data = res;
 
             if (data.success) {
                 setBlockedUsers(prev => prev.filter(u => u.id !== userId));
@@ -108,28 +119,28 @@ const BlockedUsers = () => {
                         <UserX className="stat-icon high" />
                         <p>Total Blocked</p>
                     </div>
-                    <p>{stats.total}</p>
+                    <p data-testid="stat-total">{stats.total}</p>
                 </div>
                 <div className="stat-card high">
                     <div className="stat-content">
                         <AlertCircle className="icon high" />
                         <p>High Severity</p>
                     </div>
-                    <p>{stats.high}</p>
+                    <p data-testid="stat-high">{stats.high}</p>
                 </div>
                 <div className="stat-card med">
                     <div className="stat-content">
                         <AlertTriangle className="icon medium" />
                         <p>Medium Severity</p>
                     </div>
-                    <p>{stats.medium}</p>
+                    <p data-testid="stat-medium">{stats.medium}</p>
                 </div>
                 <div className="stat-card low">
                     <div className="stat-content">
                         <CheckCircle className="icon low" />
                         <p>Low Severity</p>
                     </div>
-                    <p>{stats.low}</p>
+                    <p data-testid="stat-low">{stats.low}</p>
                 </div>
             </div>
 

@@ -59,8 +59,6 @@ function getCookie(name) {
   return document.cookie.split("; ").find(c => c.startsWith(name + "="))?.split("=")[1];
 }
 
-const csrf = typeof window !== 'undefined' ? getCookie("csrf_token") : "";
-
 export function FileGrid({
   files,
   onShare,
@@ -300,23 +298,22 @@ export function FileGrid({
     const timestamp = new Date().toISOString();
     const tags = ["deleted", `deleted_time:${timestamp}`];
 
-    console.log("X-csrf is: ", csrf)
     try {
-      const res = await fetch("/proxy/files/addTags", {
+      const res = await fetch(getFileApiUrl("/addTags"), {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-csrf": csrf||"" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fileId: file.id, tags }),
       });
 
       if (!res.ok) throw new Error("Failed to tag file as deleted");
-        const profileRes = await fetch("/proxy/auth/profile");
+        const profileRes = await fetch(getApiUrl("/profile"));
 
         const profileResult = await profileRes.json();
         if (!profileRes.ok) throw new Error(profileResult.message || "Failed to fetch profile");
 
-        await fetch("/proxy/files/addAccesslog", {
+        await fetch(getFileApiUrl("/addAccesslog"), {
           method: "POST",
-          headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             file_id: file.id,
             user_id: profileResult.data.id,

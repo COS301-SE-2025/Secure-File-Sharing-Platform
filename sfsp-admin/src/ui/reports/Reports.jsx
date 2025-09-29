@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { AlertTriangle, Search, Eye, CheckCircle, XCircle, Clock, Flag, Plus } from "lucide-react";
 import "./Reports.css";
+import { adminFetch } from '../../api/api_config.js';
 
 const Reports = () => {
     const [reports, setReports] = useState([]);
@@ -17,16 +18,16 @@ const Reports = () => {
     const [newInfo, setNewInfo] = useState("");
 
     useEffect(() => {
-        fetch("http://localhost:5000/api/admin/reports")
-            .then(res => res.json())
+        adminFetch("/reports")
+            .then(res => res)
             .then(data => setReports(data.data || []));
 
-        fetch("http://localhost:5000/api/admin/report-stats")
-            .then(res => res.json())
+        adminFetch("/report-stats")
+            .then(res => res)
             .then(data => setStats(data.data || {}));
 
-        fetch("http://localhost:5000/api/admin/assignees")
-            .then(res => res.json())
+        adminFetch("/assignees")
+            .then(res => res)
             .then(data => setAdmins(data.data || []));
     }, []);
 
@@ -75,7 +76,7 @@ const Reports = () => {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(updates),
         })
-            .then(res => res.json())
+            .then(res => res)
             .then(data => {
                 setReports(reports.map(r => (r.id === id ? data.data : r)));
             });
@@ -136,7 +137,7 @@ const Reports = () => {
                             <button
                                 className="btn-add"
                                 onClick={() => {
-                                    fetch("http://localhost:5000/api/admin/reports", {
+                                    adminFetch("/reports", {
                                         method: "POST",
                                         headers: { "Content-Type": "application/json" },
                                         body: JSON.stringify({
@@ -148,7 +149,7 @@ const Reports = () => {
                                             assignee: ""
                                         })
                                     })
-                                        .then(res => res.json())
+                                        .then(res => res)
                                         .then(data => {
                                             setReports([data.data, ...reports]);
                                             setAddReportModalOpen(false);

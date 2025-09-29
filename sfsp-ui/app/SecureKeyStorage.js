@@ -19,16 +19,21 @@ export const useEncryptionStore = create(
     }),
     {
       name: 'encryption-store',
-      partialize: (state) => ({ userId: state.userId }), 
+      partialize: (state) => ({ userId: state.userId }), // only persist this
     }
   )
 );
 
+
+// ========== Secure Storage Functions ==========
+
+// Encrypt and store user keys securely in IndexedDB
 export const storeUserKeysSecurely = async (userKeys, encryptionKey) => {
   try {
     const sodium = await getSodium();
     const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
 
+    // ✅ Encode Uint8Arrays to base64
     const serializedKeys = {
       ...userKeys,
       identity_private_key: sodium.to_base64(userKeys.identity_private_key),
@@ -60,10 +65,12 @@ export const storeUserKeysSecurely = async (userKeys, encryptionKey) => {
 
     console.log('✅ User keys stored securely');
   } catch (error) {
-    console.error('Error storing user keys:', error);
+    console.error('❌ Error storing user keys:', error);
   }
 };
 
+
+// Retrieve and decrypt user keys from IndexedDB
 export const getUserKeysSecurely = async (encryptionKey) => {
   try {
     const sodium = await getSodium();
@@ -83,6 +90,7 @@ export const getUserKeysSecurely = async (encryptionKey) => {
   }
 };
 
+// Clear all secure key data
 export const deleteUserKeysSecurely = async () => {
   try {
     await del('userKeys');
@@ -93,16 +101,19 @@ export const deleteUserKeysSecurely = async () => {
   }
 };
 
+// ========== App Startup: Load Keys Into Zustand ==========
+
 export const loadKeysToStore = async (password) => {
   const sodium = await getSodium();
 
   const encrypted = await get('userKeys');
   if (!encrypted) return false;
 
-  const decryptedPreview = await get('userId');
+  const decryptedPreview = await get('userId'); // assumes you persisted it
   if (!decryptedPreview) return false;
 
-  const decryptedKeys = await getUserKeysSecurelyFromPassword(password);
+  // For demo: load salt from decryptedPreview or from userKeys if included
+  const decryptedKeys = await getUserKeysSecurelyFromPassword(password); // use helper below
 
   if (!decryptedKeys || !decryptedKeys.userId) return false;
 
@@ -124,15 +135,17 @@ export const loadKeysToStore = async (password) => {
   return true;
 };
 
+// Helper to get user keys + salt with password (you might need salt stored separately)
 export const getUserKeysSecurelyFromPassword = async (password) => {
   try {
     const sodium = await getSodium();
     const encrypted = await get('userKeys');
     if (!encrypted) return null;
 
-    const userId = await get('userId');
+    const userId = await get('userId'); // optional
     if (!userId) return null;
 
+    // You need to have saved salt as part of userKeys before encryption
     const decrypted = sodium.crypto_secretbox_open_easy(
       sodium.from_base64(encrypted.cipherText),
       sodium.from_base64(encrypted.nonce),
@@ -146,13 +159,13 @@ export const getUserKeysSecurelyFromPassword = async (password) => {
             sodium.crypto_pwhash(
               32,
               password,
-              sodium.from_base64("...salt..."),
+              sodium.from_base64("...salt..."), // Replace with your salt storage
               sodium.crypto_pwhash_OPSLIMIT_MODERATE,
               sodium.crypto_pwhash_MEMLIMIT_MODERATE,
               sodium.crypto_pwhash_ALG_DEFAULT
             )
           )
-        ))).salt),
+        ))).salt), // assumes salt is inside userKeys
         sodium.crypto_pwhash_OPSLIMIT_MODERATE,
         sodium.crypto_pwhash_MEMLIMIT_MODERATE,
         sodium.crypto_pwhash_ALG_DEFAULT
@@ -178,6 +191,7 @@ export const storeDerivedKeyEncrypted = async (derivedKey, unlockToken = 'sessio
     nonce: sodium.to_base64(nonce),
   });
 
+  // 🔐 store token in sessionStorage
   sessionStorage.setItem('unlockToken', unlockToken);
 };
 
@@ -211,6 +225,7 @@ export const restoreSession = async () => {
   return true;
 };
 
+//One brach had this the other(receive) didn't
 export function getUserId() {
   return useEncryptionStore.getState().userId;
 }

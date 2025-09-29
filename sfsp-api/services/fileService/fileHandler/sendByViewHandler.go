@@ -1,4 +1,4 @@
-// sendByViewHandler
+//sendByViewHandler
 package fileHandler
 
 import (
@@ -317,10 +317,10 @@ func GetSharedViewFilesHandler(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var (
 			shareID, senderID, recipientID, fileID, fileName, fileType, description string
-			fileSize                                                                int64
-			metadata                                                                string
-			sharedAt                                                                time.Time
-			expiresAtPtr                                                            *time.Time
+			fileSize                                                                 int64
+			metadata                                                                 string
+			sharedAt                                                                 time.Time
+			expiresAtPtr                                                             *time.Time
 		)
 		err := rows.Scan(
 			&shareID, &senderID, &recipientID, &fileID, &metadata,
@@ -333,17 +333,17 @@ func GetSharedViewFilesHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		file := map[string]interface{}{
-			"share_id":     shareID,
-			"sender_id":    senderID,
+			"share_id":    shareID,
+			"sender_id":   senderID,
 			"recipient_id": recipientID,
-			"file_id":      fileID,
-			"metadata":     metadata,
-			"shared_at":    sharedAt,
-			"file_name":    fileName,
-			"file_type":    fileType,
-			"file_size":    fileSize,
-			"description":  description,
-			"view_only":    true,
+			"file_id":     fileID,
+			"metadata":    metadata,
+			"shared_at":   sharedAt,
+			"file_name":   fileName,
+			"file_type":   fileType,
+			"file_size":   fileSize,
+			"description": description,
+			"view_only":   true,
 		}
 		if expiresAtPtr != nil {
 			file["expires_at"] = *expiresAtPtr
@@ -355,6 +355,7 @@ func GetSharedViewFilesHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(files)
 }
+
 
 func GetViewFileAccessLogs(w http.ResponseWriter, r *http.Request) {
 	var req struct {

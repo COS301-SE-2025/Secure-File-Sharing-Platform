@@ -23,9 +23,9 @@ export function ChangeShareMethodDialog({ open, onOpenChange, file }) {
   const fetchUsersWithAccess = async () => {
     setLoading(true);
     try {
-      const accessRes = await fetch("/proxy/files/userWithFileAccess", {
+      const accessRes = await fetch(getFileApiUrl("/usersWithFileAccess"), {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-csrf": csrf || "" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fileId: file.id }),
       });
 
@@ -35,29 +35,19 @@ export function ChangeShareMethodDialog({ open, onOpenChange, file }) {
       const { owner: ownerId, users: userIds } = accessData;
 
       if (ownerId) {
-        const ownerRes = await fetch(`/proxy/user/getUserById/${ownerId}`);
+        const ownerRes = await fetch(getApiUrl(`/users/getUserById/${ownerId}`));
         if (ownerRes.ok) {
           const ownerData = await ownerRes.json();
           setOwner(ownerData.data);
         }
       }
 
-      function getCookie(name) {
-        if (typeof window === 'undefined') return '';
-        return document.cookie
-          .split("; ")
-          .find((c) => c.startsWith(name + "="))
-          ?.split("=")[1];
-      }
-
-      const csrf = getCookie("csrf_token");
-
       const userDetails = await Promise.all(
         userIds
-          .filter((userId) => userId !== ownerId)
+          .filter(userId => userId !== ownerId)
           .map(async (userId) => {
             try {
-              const userRes = await fetch(`/proxy/user/getUserById/${userId}`);
+              const userRes = await fetch(getApiUrl(`/users/getUserById/${userId}`));
               if (userRes.ok) {
                 const userData = await userRes.json();
                 return userData.data;
@@ -70,14 +60,15 @@ export function ChangeShareMethodDialog({ open, onOpenChange, file }) {
           })
       );
 
-      const validUsers = userDetails.filter((user) => user !== null);
+      const validUsers = userDetails.filter(user => user !== null);
       setUsers(validUsers);
 
       const initialMethods = {};
-      validUsers.forEach((user) => {
-        initialMethods[user.id] = "view-only";
+      validUsers.forEach(user => {
+        initialMethods[user.id] = 'view-only';
       });
       setUserShareMethods(initialMethods);
+      
     } catch (error) {
       console.error("Error fetching users with access:", error);
       alert("Failed to fetch users with access");
@@ -89,16 +80,16 @@ export function ChangeShareMethodDialog({ open, onOpenChange, file }) {
   const handleChangeShareMethod = async (userId, newMethod) => {
     setUpdating(userId);
     try {
-      const isViewOnly = newMethod === "view-only";
-
+      const isViewOnly = newMethod === 'view-only';
+      
       const result = await ChangeShareMethod(userId, file.id, isViewOnly);
-      console.log("Done with the changeShare method function");
+      
       if (result) {
-        setUserShareMethods((prev) => ({
+        setUserShareMethods(prev => ({
           ...prev,
-          [userId]: newMethod,
+          [userId]: newMethod
         }));
-
+        
         alert(`Share method changed to ${newMethod} successfully`);
       }
     } catch (error) {
@@ -129,9 +120,7 @@ export function ChangeShareMethodDialog({ open, onOpenChange, file }) {
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <Loader className="h-6 w-6 animate-spin text-blue-500" />
-            <span className="ml-2 text-gray-600 dark:text-gray-400">
-              Loading users...
-            </span>
+            <span className="ml-2 text-gray-600 dark:text-gray-400">Loading users...</span>
           </div>
         ) : (
           <div className="space-y-4">
@@ -163,7 +152,7 @@ export function ChangeShareMethodDialog({ open, onOpenChange, file }) {
               <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Shared Users ({users.length})
               </h3>
-
+              
               {users.length === 0 ? (
                 <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
                   No other users have access to this file
@@ -186,52 +175,40 @@ export function ChangeShareMethodDialog({ open, onOpenChange, file }) {
                           </p>
                         </div>
                       </div>
-
+                      
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-gray-600 dark:text-gray-400">
                           Current access:
                         </span>
                         <div className="flex gap-2">
                           <button
-                            onClick={() =>
-                              handleChangeShareMethod(user.id, "view-only")
-                            }
+                            onClick={() => handleChangeShareMethod(user.id, 'view-only')}
                             disabled={updating === user.id}
                             className={`flex items-center gap-1 px-3 py-1 text-xs rounded-full transition-colors ${
-                              userShareMethods[user.id] === "view-only"
-                                ? "bg-blue-500 text-white"
-                                : "bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-300"
+                              userShareMethods[user.id] === 'view-only'
+                                ? 'bg-blue-500 text-white'
+                                : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-300'
                             }`}
                           >
                             <Eye className="h-3 w-3" />
                             View Only
-                            {userShareMethods[user.id] === "view-only" && (
-                              <Check className="h-3 w-3" />
-                            )}
-                            {updating === user.id && (
-                              <Loader className="h-3 w-3 animate-spin" />
-                            )}
+                            {userShareMethods[user.id] === 'view-only' && <Check className="h-3 w-3" />}
+                            {updating === user.id && <Loader className="h-3 w-3 animate-spin" />}
                           </button>
-
+                          
                           <button
-                            onClick={() =>
-                              handleChangeShareMethod(user.id, "download")
-                            }
+                            onClick={() => handleChangeShareMethod(user.id, 'download')}
                             disabled={updating === user.id}
                             className={`flex items-center gap-1 px-3 py-1 text-xs rounded-full transition-colors ${
-                              userShareMethods[user.id] === "download"
-                                ? "bg-green-500 text-white"
-                                : "bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-300"
+                              userShareMethods[user.id] === 'download'
+                                ? 'bg-green-500 text-white'
+                                : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-300'
                             }`}
                           >
                             <Download className="h-3 w-3" />
                             Download
-                            {userShareMethods[user.id] === "download" && (
-                              <Check className="h-3 w-3" />
-                            )}
-                            {updating === user.id && (
-                              <Loader className="h-3 w-3 animate-spin" />
-                            )}
+                            {userShareMethods[user.id] === 'download' && <Check className="h-3 w-3" />}
+                            {updating === user.id && <Loader className="h-3 w-3 animate-spin" />}
                           </button>
                         </div>
                       </div>

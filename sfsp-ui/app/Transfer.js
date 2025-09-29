@@ -41,37 +41,29 @@ function ed25519PubToCurve(pubEd25519, sodium) {
   return sodium.crypto_sign_ed25519_pk_to_curve25519(pubEd25519);
 }
 
-function getCookie(name) {
-  if (typeof document === 'undefined') {
-    return null; 
-  }
-  return document.cookie.split("; ").find(c => c.startsWith(name + "="))?.split("=")[1];
-}
-
-const csrf = getCookie("csrf_token");
 
 export async function SendFile(recipientUserId, fileid, isViewOnly = false) {
-  console.log("Inside the Send function");
-  const chunkSize = 10 * 1024 * 1024;
+  const chunkSize = 5 * 1024 * 1024; // 5 MB per chunk
   const sodium = await getSodium();
   const { userId, encryptionKey } = useEncryptionStore.getState();
 
+  // 1️⃣ Get and normalize user keys
   const userKeysRaw = await getUserKeysSecurely(encryptionKey);
   const userKeys = normalizeUserKeys(userKeysRaw, sodium);
 
-  console.log("[UI DEBUG] 2 Download encrypted file as binary");
-
-  const response = await fetch("/proxy/files/download", {
+  console.log("[UI DEBUG] 2️⃣ Download encrypted file as binary");
+  // 2️⃣ Download encrypted file as binary
+  const response = await fetch(getFileApiUrl("/download"), {
     method: "POST",
-    headers: { "Content-Type": "application/json","x-csrf":csrf||"" },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ userId, fileId: fileid }),
   });
   if (!response.ok) throw new Error("Failed to retrieve file content");
-  console.log("Downloaded the file successfully");
 
   const buffer = await response.arrayBuffer();
   const encryptedLocalFile = new Uint8Array(buffer);
 
+  // 🔓 Decrypt local file
   const nonceHeader = response.headers.get("x-nonce");
   const decrypted = sodium.crypto_secretbox_open_easy(
     encryptedLocalFile,
@@ -79,16 +71,16 @@ export async function SendFile(recipientUserId, fileid, isViewOnly = false) {
     encryptionKey
   );
 
-  console.log("[UI DEBUG] 3 Fetch recipient's public keys");
+  console.log("[UI DEBUG] 3️⃣ Fetch recipient's public keys");
   console.log(recipientUserId);
   const bundleRes = await fetch(
-    `/proxy/user/public-keys/${recipientUserId}`
+    getApiUrl(`/users/public-keys/${recipientUserId}`)
   );
-  console.log("got the recipient users keys");
 
   if (!bundleRes.ok) throw new Error("Recipient key bundle not found");
   const { data: recipientKeys } = await bundleRes.json();
 
+  // 4️⃣ Derive X3DH shared key
   const ikPrivKeyCurve25519 = sodium.crypto_sign_ed25519_sk_to_curve25519(
     userKeys.identity_private_key
   );
@@ -120,17 +112,21 @@ export async function SendFile(recipientUserId, fileid, isViewOnly = false) {
   const combinedDH = concatUint8Arrays([DH1, DH2, DH3, DH4]);
   const sharedKey = sodium.crypto_generichash(32, combinedDH);
 
+  // 5️⃣ Encrypt file with new AES key
   const aesKey = sodium.crypto_secretbox_keygen();
   const fileNonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
   const encryptedFile = sodium.crypto_secretbox_easy(decrypted, fileNonce, aesKey);
 
+  // 6️⃣ Encrypt AES key with shared key
   const keyNonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
   const encryptedAesKey = sodium.crypto_secretbox_easy(aesKey, keyNonce, sharedKey);
 
+  // 7️⃣ Compute file hash & signature
   const ikPrivateKey = userKeys.identity_private_key;
   const fileHash = sodium.crypto_generichash(32, encryptedFile);
   const signature = sodium.crypto_sign_detached(fileHash, ikPrivateKey);
 
+  // 8️⃣ Build metadata JSON (sent with every chunk)
   const metadataJSON = JSON.stringify({
     fileNonce: sodium.to_base64(fileNonce),
     keyNonce: sodium.to_base64(keyNonce),
@@ -144,6 +140,7 @@ export async function SendFile(recipientUserId, fileid, isViewOnly = false) {
     viewOnly: isViewOnly,
   });
 
+  // 9️⃣ Chunk and upload
   const totalChunks = Math.ceil(encryptedFile.length / chunkSize);
 
   for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
@@ -160,14 +157,12 @@ export async function SendFile(recipientUserId, fileid, isViewOnly = false) {
     formData.append("totalChunks", totalChunks);
     formData.append("encryptedFile", new Blob([chunk]), `chunk_${chunkIndex}.bin`);
 
-    console.log("Sending the file now");
     const endpoint = isViewOnly
-      ? "/proxy/files/sendByView"
-      : "/proxy/files/send";
+      ? getFileApiUrl("/sendByView")
+      : getFileApiUrl("/send");
 
     const res = await fetch(endpoint, {
       method: "POST",
-      headers: {"x-csrf":csrf|""},
       body: formData,
     });
 
@@ -188,12 +183,12 @@ export async function ChangeShareMethod(recipientUserId, fileid, isViewOnly = fa
   const userKeysRaw = await getUserKeysSecurely(encryptionKey);
   const userKeys = normalizeUserKeys(userKeysRaw, sodium);
 
-  console.log("[UI DEBUG] 2 Download encrypted file as binary")
-  const response = await fetch("/proxy/files/download", {
+  console.log("[UI DEBUG]2️⃣ Download encrypted file as binary")
+  const response = await fetch(getFileApiUrl("/download"), {
     method: "POST",
-    headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ userId, fileId: fileid }),
-  }); 
+  });
   if (!response.ok) throw new Error("Failed to retrieve file content");
 
   const buffer = await response.arrayBuffer();
@@ -210,14 +205,13 @@ export async function ChangeShareMethod(recipientUserId, fileid, isViewOnly = fa
     encryptionKey
   );
 
-  console.log("[UI DEBUG] 3 Get recipient's public keys")
+  console.log("[UI DEBUG]3️⃣ Get recipient's public keys")
   const bundleRes = await fetch(
-    `/proxy/user/public-keys/${recipientUserId}`
+    getApiUrl(`/users/public-keys/${recipientUserId}`)
   );
   if (!bundleRes.ok) throw new Error("Recipient key bundle not found");
 
   const { data: recipientKeys } = await bundleRes.json();
-  console.log("Recipient key bundle received: ", recipientKeys);
 
   const ikPrivKeyCurve25519 = sodium.crypto_sign_ed25519_sk_to_curve25519(
     userKeys.identity_private_key
@@ -292,16 +286,13 @@ export async function ChangeShareMethod(recipientUserId, fileid, isViewOnly = fa
   );
   formData.append("encryptedFile", new Blob([encryptedFile]));
 
-  console.log("Going to the changeShareMethod proxy");
-  const res = await fetch("/proxy/files/changeShareMethod", {
+  const res = await fetch(getFileApiUrl("/changeShareMethod"), {
     method: "POST",
-    headers: {"x-csrf":csrf||""},
     body: formData,
   });
 
   if(!res.ok) throw new Error("Failed to change share method");
   const result = await res.json();
-  console.log("Result is :", result);
   if (isViewOnly) {
     console.log("View-only file share ID:", result.shareId);
     return result.shareId;
@@ -333,12 +324,13 @@ export async function ReceiveFile(fileData) {
 
   const path = `/files/${sender_id}/sent/${file_id}`;
   const endpoint = viewOnly
-    ? "/proxy/files/downloadViewFile"
-    : "/proxy/files/downloadSentFile";
+    ? getFileApiUrl("/downloadViewFile")
+    : getFileApiUrl("/downloadSentFile");
 
+  // 1️⃣ Stream download
   const response = await fetch(endpoint, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(viewOnly ? { userId, fileId: file_id } : { filepath: path }),
   });
 
@@ -364,6 +356,7 @@ export async function ReceiveFile(fileData) {
     offset += chunk.length;
   }
 
+  // 2️⃣ Verify file hash & signature
   const fileHashBytes = sodium.from_base64(fileHash);
   const computedHash = sodium.crypto_generichash(32, encryptedFile);
   if (!sodium.memcmp(fileHashBytes, computedHash)) {
@@ -376,12 +369,14 @@ export async function ReceiveFile(fileData) {
     throw new Error("Invalid signature for the received file");
   }
 
+  // 3️⃣ Derive shared secret with X3DH
   const ikPrivKey = userKeys.identity_private_key;
   const spkPrivKey = userKeys.signedpk_private_key;
-
-  console.log(" DEBUG - Available OPK IDs:", userKeys.oneTimepks_private.map(opk => opk.opk_id));
-  console.log(" DEBUG - Requested OPK ID:", opk_id);
-  console.log(" DEBUG - Full userKeys structure:", userKeys);
+  
+  // Debug: Log available OPK IDs and the requested one
+  console.log("🔍 DEBUG - Available OPK IDs:", userKeys.oneTimepks_private.map(opk => opk.opk_id));
+  console.log("🔍 DEBUG - Requested OPK ID:", opk_id);
+  console.log("🔍 DEBUG - Full userKeys structure:", userKeys);
   
   const opkMatch = userKeys.oneTimepks_private.find((opk) => opk.opk_id === opk_id);
   if (!opkMatch) {
@@ -408,6 +403,7 @@ export async function ReceiveFile(fileData) {
   const combinedDH = concatUint8Arrays([DH1, DH2, DH3, DH4]);
   const sharedKey = sodium.crypto_generichash(32, combinedDH);
 
+  // 4️⃣ Decrypt AES key and file
   const aesKey = sodium.crypto_secretbox_open_easy(
     sodium.from_base64(encryptedAesKey),
     sodium.from_base64(keyNonce),
@@ -422,12 +418,14 @@ export async function ReceiveFile(fileData) {
   );
   if (!decryptedFile) throw new Error("Failed to decrypt file");
 
+  // 5️⃣ Re-encrypt for local storage
   const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
   const ciphertext = sodium.crypto_secretbox_easy(decryptedFile, nonce, encryptionKey);
 
-  const startRes = await fetch("/proxy/files/startUpload", {
+  // 6️⃣ Start upload session
+  const startRes = await fetch(getFileApiUrl("/startUpload"), {
     method: "POST",
-    headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       fileName: file_name,
       fileType: file_type,
@@ -441,6 +439,7 @@ export async function ReceiveFile(fileData) {
   if (!startRes.ok) throw new Error("Failed to start upload");
   const { fileId } = await startRes.json();
 
+  // 7️⃣ Chunk + parallel upload
   const chunkSize = 5 * 1024 * 1024;
   const totalChunks = Math.ceil(ciphertext.length / chunkSize);
   await Promise.all(
@@ -466,7 +465,7 @@ export async function ReceiveFile(fileData) {
       formData.append("totalChunks", totalChunks.toString());
       formData.append("encryptedFile", new Blob([chunk]), file_name);
 
-      return fetch("/proxy/files/upload", { method: "POST",headers:{"x-csrf":csrf||""}, body: formData });
+      return fetch(getFileApiUrl("/upload"), { method: "POST", body: formData });
     })
   );
 

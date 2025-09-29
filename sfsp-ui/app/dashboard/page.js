@@ -10,8 +10,8 @@ import {
   TrashIcon,
   UploadCloud,
   ListCheckIcon,
-  AlertCircleIcon,
-} from "lucide-react";
+  AlertCircleIcon 
+} from 'lucide-react';
 
 import { UploadDialog } from "./myFilesV2/uploadDialog";
 import dynamic from "next/dynamic";
@@ -285,13 +285,6 @@ function parseTagString(tagString = "") {
     .map((t) => t.trim());
 }
 
-function getCookie(name) {
-  if (typeof window === 'undefined') return '';
-  return document.cookie.split("; ").find(c => c.startsWith(name + "="))?.split("=")[1];
-}
-
-const csrf = getCookie("csrf_token");
-
   const formatTimestamp = (timestamp) => {
     const now = new Date();
     const time = new Date(timestamp);
@@ -333,9 +326,9 @@ export default function DashboardHomePage() {
         return [];
       }
 
-      const res = await fetch("/proxy/files/metadata", {
+      const res = await fetch(getFileApiUrl("/metadata"), {
         method: "POST",
-        headers:{"x-csrf":csrf||""},
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId }),
       });
 
@@ -348,12 +341,11 @@ export default function DashboardHomePage() {
         return [];
       }
 
-
-    if(data != null){
       const sortedFiles = data.sort(
         (a, b) => new Date(b.date) - new Date(a.date)
       );
 
+    setRecentFiles(sortedFiles.slice(0, 3));
 
       const formatted = data
         .filter((f) => {
@@ -367,18 +359,15 @@ export default function DashboardHomePage() {
           id: f.fileId || "",
           name: f.fileName || "Unnamed file",
           size: formatFileSize(f.fileSize || 0),
-          type: getFileType(f.fileType || "", f.fileName),
+        type: getFileType(f.fileType || ""),
           modified: f.createdAt ? new Date(f.createdAt).toLocaleDateString() : "",
           shared: false,
           starred: false,
         }));
 
-
-      setRecentFiles(sortedFiles.slice(0, 3));
       setFiles(formatted);
 
       return formatted;
-    }
   } catch (err) {
     console.error("Failed to fetch files:", err);
     return [];
@@ -405,12 +394,12 @@ useEffect(() => {
     const sodium = await getSodium();
 
     try {
-      const res = await fetch("/proxy/files/download", {
+      const res = await fetch(getFileApiUrl("/download"), {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId,
-          fileId: file.fileId || file.id,
+  fileId: file.fileId || file.id, // ✅ Ensure correct field
         }),
       });
 
@@ -451,7 +440,7 @@ useEffect(() => {
       const fetchProfile = async () => {
   
         try {
-          const res = await fetch('/proxy/auth/profile', {
+          const res = await fetch(getApiUrl('/user/profile'), {
             headers: { Authorization: `Bearer ${token}` },
           });
   
@@ -570,23 +559,28 @@ useEffect(() => {
 
 
   const fetchNotifications = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
     try {
-      const profileRes = await fetch("/proxy/auth/profile");
+      const profileRes = await fetch(getApiUrl("/users/profile"), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
       const profileResult = await profileRes.json();
-      if (!profileRes.ok)
-        throw new Error(profileResult.message || "Failed to fetch profile");
+      if (!profileRes.ok) throw new Error(profileResult.message || "Failed to fetch profile");
 
       try {
-        const res = await axios.post("/proxy/notifications/getNotifications", {
+        const res = await axios.post(getApiUrl('/notifications/get'), {
           userId: profileResult.data.id,
-        },{headers:{"x-csrf":csrf||""}});
+        });
         if (res.data.success) {
           setNotifications(res.data.notifications);
         }
       } catch (error) {
-        console.error("Failed to fetch notifications:", error);
+        console.error('Failed to fetch notifications:', error);
       }
+
     } catch (err) {
       console.error("Failed to fetch user profile:", err.message);
     }
@@ -594,50 +588,47 @@ useEffect(() => {
 
   const markAsRead = async (id) => {
     try {
-      const res = await axios.post("/proxy/notifications/markAsRead", {id },{headers:{"x-csrf":csrf||""}});
+      const res = await axios.post(getApiUrl('/notifications/markAsRead'), { id });
       if (res.data.success) {
         setNotifications((prev) =>
           prev.map((n) => (n.id === id ? { ...n, read: true } : n))
         );
       }
     } catch (error) {
-      console.error("Failed to mark notification as read:", error);
+      console.error('Failed to mark notification as read:', error);
     }
   };
 
   const respondToShareRequest = async (id, status) => {
     try {
-      const res = await axios.post("/proxy/notifications/respond", {
+      const res = await axios.post(getApiUrl('/notifications/respond'), {
         id,
         status,
-      },{headers:{"x-csrf":csrf||""}});
+      });
 
       if (res.data.success) {
         setNotifications((prev) =>
           prev.map((n) => (n.id === id ? { ...n, status, read: true } : n))
         );
 
-        if (status === "accepted" && res.data.fileData) {
+        if (status === 'accepted' && res.data.fileData) {
           const fileData = res.data.fileData;
           await ReceiveFile(fileData);
         }
       }
     } catch (error) {
-      console.error("Failed to respond to notification:", error);
+      console.error('Failed to respond to notification:', error);
     }
   };
 
   const clearNotification = async (id) => {
     try {
-      const res = await axios.post(
-        "/proxy/notifications/clear",
-        {id },{headers:{"x-csrf":csrf||""}}
-      );
+      const res = await axios.post(getApiUrl('/notifications/clear'), { id });
       if (res.data.success) {
         setNotifications((prev) => prev.filter((n) => n.id !== id));
       }
     } catch (error) {
-      console.error("Failed to clear notification:", error);
+      console.error('Failed to clear notification:', error);
     }
   };
 
@@ -647,39 +638,29 @@ useEffect(() => {
       if (!userId) return [];
 
       // Fetch files
-      const res = await fetch("/proxy/files/metadata", {
+      const res = await fetch(getFileApiUrl("/metadata"), {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json","x-csrf":csrf||""
-        },
+      headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId }),
       });
       let files = await res.json();
       if (!Array.isArray(files)) files = [];
 
       // Filter out deleted files
-      files = files.filter((f) => {
+    files = files.filter(f => {
         const tags = f.tags ? f.tags.replace(/[{}]/g, "").split(",") : [];
-        return (
-          !tags.includes("deleted") &&
-          !tags.some((tag) => tag.trim().startsWith("deleted_time:"))
-        );
+      return !tags.includes("deleted") && !tags.some(tag => tag.trim().startsWith("deleted_time:"));
       });
 
       const allLogs = [];
 
       for (const file of files) {
         try {
-          const logRes = await fetch(
-            "/proxy/files/getAccessLog",
-            {
+        const logRes = await fetch(getFileApiUrl("/getAccesslog"), {
               method: "POST",
-              headers: {
-                "Content-Type": "application/json","x-csrf":csrf||""
-              },
+          headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ file_id: file.fileId }),
-            }
-          );
+        });
           if (!logRes.ok) continue;
           const fileLogs = await logRes.json();
 
@@ -688,14 +669,14 @@ useEffect(() => {
 
           // Get user info
           let userName = "Unknown User";
-          let avatar = null; // Let UserAvatar component handle the fallback
+          let avatar = "/default-avatar.png";
           try {
-            const userRes = await fetch(`/proxy/user/getUserInfo/${log.user_id}`);
+            const userRes = await fetch(getApiUrl(`/users/getUserInfo/${log.user_id}`));
             if (userRes.ok) {
               const userInfo = await userRes.json();
               if (userInfo?.data?.username) {
                 userName = userInfo.data.username;
-                avatar = userInfo.data.avatar_url; // No fallback needed here
+                avatar = userInfo.data.avatar_url || avatar;
               }
             }
           } catch {}
@@ -722,19 +703,17 @@ useEffect(() => {
     }
   };
 
+
   const fetchFilesMetadata = useCallback(async () => {
     try {
-      const res = await fetch("/proxy/files/metadata", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json","x-csrf":csrf||""
-        },
+      const res = await fetch(getFileApiUrl('/metadata'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId }),
       });
 
       const data = await res.json();
     
-      if(data != null){
         // Separate active and deleted files
         const activeFiles = data.filter(file => {
         const tags = parseTagString(file.tags);
@@ -750,13 +729,12 @@ useEffect(() => {
         const tags = parseTagString(file.tags);
         return tags.includes("received");
         });
+
+      
   
         setFileCount(activeFiles.length);
         setTrashedFilesCount(deletedFiles.length);
         setReceivedFilesCount(receivedFiles.length);
-    }
-
-      
     } catch (error) {
       console.error("Failed to fetch files metadata:", error);
     } finally {
@@ -769,35 +747,31 @@ useEffect(() => {
       fetchFilesMetadata();
       fetchFiles();
       fetchNotifications();
-      fetchRecentAccessLogs();
+      fetchRecentAccessLogs()
     }
   }, [userId, fetchFilesMetadata, actionFilter]);
 
   const stats = [
     {
       icon: <FileText className="text-blue-600 dark:text-blue-400" size={28} />,
-      label: "My Files",
+      label: 'My Files',
       value: fileCount,
     },
     {
       icon: <Users className="text-green-600 dark:text-green-400" size={28} />,
-      label: "Shared with Me",
+      label: 'Shared with Me',
       value: receivedFilesCount,
     },
     {
-      icon: (
-        <TrashIcon className="text-purple-600 dark:text-purple-400" size={28} />
-      ),
-      label: "Trash",
+      icon: <TrashIcon className="text-purple-600 dark:text-purple-400" size={28} />,
+      label: 'Trash',
       value: trashedFilesCount,
     },
     {
-      icon: (
-        <UploadCloud className="text-blue-600 dark:text-blue-400" size={28} />
-      ),
-      label: "Upload",
+      icon: <UploadCloud className="text-blue-600 dark:text-blue-400" size={28} />,
+      label: 'Upload',
       isUpload: true,
-    },
+    }
   ];
 
   return (
@@ -959,16 +933,15 @@ useEffect(() => {
             {recentAccessLogs.length > 0 ? (
               recentAccessLogs.map((log, idx) => (
                 <div key={idx} className="flex items-start gap-2">
-                  <UserAvatar
-                    avatarUrl={log.avatar}
-                    username={log.user}
-                    size="w-8 h-8"
+                  <img
+                    src={log.avatar || "/default-avatar.png"}
                     alt={log.user}
+                    className="w-8 h-8 rounded-full"
                   />
                   <div className="flex flex-col">
                     <span className="font-semibold">{log.user}</span>
                     <span className="text-xs text-gray-500 dark:text-gray-400">
-                      {log.action} <strong>{log.file}</strong> at {log.dateFormatted}
+                      {log.action} <strong>{log.file}</strong> at {log.date}
                     </span>
                   </div>
                 </div>
@@ -978,7 +951,11 @@ useEffect(() => {
             )}
           </div>
         </div>
+
       </div>
+    </div>
+
+
 
       {/* Recent Files */}
       <div className="mt-12 max-w-5xl mx-auto">
@@ -1033,8 +1010,7 @@ useEffect(() => {
           }}
         />
       )}
-    </div>
-    </div>
-  );
-}
 
+    </div>
+  )
+};

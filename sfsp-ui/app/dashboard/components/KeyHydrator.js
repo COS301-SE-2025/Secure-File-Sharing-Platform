@@ -14,12 +14,14 @@ export default function KeyHydrator() {
   useEffect(() => {
     const hydrate = async () => {
       try {
+        // 🔑 Step 1: Restore userId from persisted Zustand (or fallback IndexedDB)
         const userId = await get('userId');
         if (userId) {
           setUserId(userId);
           console.log('✅ Hydrated userId');
         }
 
+        // 🔑 Step 2: Restore encryptionKey using unlock token from sessionStorage
         const unlockToken = sessionStorage.getItem('unlockToken');
         if (!unlockToken) {
           console.warn('No unlock token found in sessionStorage.');
@@ -48,6 +50,7 @@ export default function KeyHydrator() {
         setEncryptionKey(derivedKey);
         console.log('✅ Hydrated encryptionKey');
 
+        // 🔑 Step 3: Restore userKeys using the derivedKey
         const userKeys = await getUserKeysSecurely(derivedKey);
         if (userKeys) {
           setUserKeys(userKeys);
@@ -59,7 +62,7 @@ export default function KeyHydrator() {
     };
 
     hydrate();
-  }, [setEncryptionKey, setUserId, setUserKeys]);
+  }, [setEncryptionKey, setUserId, setUserKeys]); // run only once on mount
 
   return null;
 }

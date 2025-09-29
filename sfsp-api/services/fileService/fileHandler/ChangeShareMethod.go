@@ -13,8 +13,7 @@ import (
 )
 
 func ChangeShareMethodHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Inside the change share method")
-	err := r.ParseMultipartForm(50 << 20) 
+	err := r.ParseMultipartForm(50 << 20) // 50 MB memory buffer (adjust as needed)
 	if err != nil {
 		log.Println("Failed to parse multipart form:", err)
 		http.Error(w, "Invalid multipart form", http.StatusBadRequest)

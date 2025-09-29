@@ -306,7 +306,7 @@ export default function MyFiles() {
   const [previewFile, setPreviewFile] = useState(null);
   const [viewerFile, setViewerFile] = useState(null);
   const [viewerContent, setViewerContent] = useState(null);
-
+  const [showSortOptions, setShowSortOptions] = useState(false);
   const [toast, setToast] = useState(null);
 
   const showToast = (message, type = "info", duration = 3000) => {
@@ -334,7 +334,7 @@ export default function MyFiles() {
       const userId = useEncryptionStore.getState().userId;
       if (!userId) return;
 
-      const res = await fetch("/proxy/files/metadata", {
+      const res = await fetch(getFileApiUrl("/metadata"), {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
         body: JSON.stringify({ userId }),
@@ -377,10 +377,30 @@ export default function MyFiles() {
     fetchFiles();
   }, []);
 
+  const sortFilesBasedOnDate = () => {
+      setFiles([...files].sort((a, b) => new Date(b.modifiedRaw) - new Date(a.modifiedRaw)));
+    };
+  
+    const sortFilesBasedOnName = () => {
+      setFiles([...files].sort((a, b) => a.name.localeCompare(b.name)));
+    };
+  
+    const sortFilesBasedOnSize = () => {
+      setFiles([...files].sort((a, b) => a.sizeBytes - b.sizeBytes));
+    }
+  
+    const handleAscendingSort = () => {
+      setFiles([...files].reverse());
+    };
+  
+    const handleDescendingSort = () => {
+      setFiles([...files].reverse());
+    };
+
   const handleUpdateDescription = async (fileId, description) => {
     try {
       const res = await fetch(
-        "/proxy/files/addDescription",
+        getFileApiUrl("/addDescription"),
         {
           method: "POST",
           headers: {
@@ -416,7 +436,7 @@ export default function MyFiles() {
     const sodium = await getSodium();
 
     try {
-      const res = await fetch("/proxy/files/download", {
+      const res = await fetch(getFileApiUrl("/download"), {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
         body: JSON.stringify({ userId, fileId: file.id }),
@@ -478,7 +498,7 @@ export default function MyFiles() {
     const sodium = await getSodium();
 
     try {
-      const res = await fetch("/proxy/files/download", {
+      const res = await fetch(getFileApiUrl("/download"), {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
         body: JSON.stringify({ userId, fileId: file.id }),
@@ -573,16 +593,16 @@ export default function MyFiles() {
   const handleRevokeViewAccess = async (file) => {
     try {
 
-      const profileRes = await fetch("/proxy/auth/profile");
+      const profileRes = await fetch(getApiUrl("/users/profile"));
 
       const profileResult = await profileRes.json();
       if (!profileRes.ok) return showToast("Failed to get user profile","error");
 
       const userId = profileResult.data.id;
 
-      const sharedFilesRes = await fetch("/proxy/files/getViewAccess", {
+      const sharedFilesRes = await fetch(getFileApiUrl("/getViewAccess"), {
         method: "POST",
-        headers: { "Content-Type": "application/json","x-csrf":csrf },
+        headers: { "Content-Type": "application/json"},
         body: JSON.stringify({ userId }),
       });
 
@@ -594,9 +614,9 @@ export default function MyFiles() {
       if (fileShares.length === 0) return showToast("No view-only shares found for this file","error");
 
       for (const share of fileShares) {
-        const revokeRes = await fetch("/proxy/files/revokeViewAccess", {
+        const revokeRes = await fetch(getFileApiUrl("/revokeViewAccess"), {
           method: "POST",
-          headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ fileId: file.id, userId, recipientId: share.recipient_id }),
         });
 

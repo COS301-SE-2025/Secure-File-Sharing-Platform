@@ -2,6 +2,7 @@ import "./Dashboard.css";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Users, UserX, AlertTriangle, ExternalLink, Activity, Shield, Trash2 } from "lucide-react";
+import { adminFetch } from '../../api/api_config.js';
 
 // const navigationItems = [
 //   { title: "Dashboard", url: "/dashboard" },
@@ -39,8 +40,8 @@ function Dashboard() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/admin/dashboard/stats");
-        const data = await res.json();
+        const res = await adminFetch("/dashboard/stats");
+        const data = res;
         if (data.success) {
           setStats([
             { title: "Active Users", value: data.stats.totalUsers, icon: Users, className: "stat-success" },
@@ -58,8 +59,8 @@ function Dashboard() {
   useEffect(() => {
     const fetchAnnouncements = async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/admin/announcements");
-        const data = await res.json();
+        const res = await adminFetch("/announcements");
+        const data = res;
         if (data.success) setAnnouncements(data.announcements);
       } catch (err) {
         console.error("Failed to fetch announcements:", err);
@@ -73,12 +74,12 @@ function Dashboard() {
 
     const payload = { ...newAnnouncement, user: currentUser, info: newAnnouncement.info.trim() === "" ? "No details" : newAnnouncement.info };
     try {
-      const res = await fetch("http://localhost:5000/api/admin/announcements", {
+      const res = await adminFetch("/announcements", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
+      const data = res;
       if (data.success) {
         setAnnouncements(prev => [data.announcement, ...prev]);
         setNewAnnouncement({ action: "", info: "", severity: "success" });
@@ -98,7 +99,7 @@ function Dashboard() {
       const res = await fetch(`http://localhost:5000/api/admin/announcements/${id}`, {
         method: "DELETE"
       });
-      const data = await res.json();
+      const data = res;
       if (data.success) {
         setAnnouncements(prev => prev.filter(a => a.id !== id));
       }

@@ -8,14 +8,8 @@ import { useEncryptionStore } from "@/app/SecureKeyStorage";
 import { getSodium } from "@/app/lib/sodium";
 import Image from "next/image";
 import { gzip } from "pako";
+import { getFileApiUrl, getApiUrl } from "@/lib/api-config";
 import useDrivePicker from "react-google-drive-picker"
-
-function getCookie(name) {
-  if (typeof window === 'undefined') return '';
-  return document.cookie.split("; ").find(c => c.startsWith(name + "="))?.split("=")[1];
-}
-
-const csrf = typeof window !== 'undefined' ? getCookie("csrf_token") : "";
 
 export function UploadDialog({
   open,
@@ -30,62 +24,44 @@ export function UploadDialog({
   const fileInputRef = useRef(null);
   const [dropboxLoading, setDropboxLoading] = useState(false);
   const [openPicker, authResponse] = useDrivePicker();
-  const [selectedFiles, setSelectedFiles] = useState([]);
   const [toast, setToast] = useState(null);
-
-  const handleGoogleDriveUpload = async () => {
-    openPicker({
-      clientId: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
-      developerKey: process.env.NEXT_PUBLIC_GOOGLE_API_KEY,
-      viewId: "DOCS",
-      showUploadView: true,
-      showUploadFolders: true,
-      supportDrives: true,
-      multiselect: true,
-      callbackFunction: (data) => {
-        if (data.action === "cancel") {
-          console.log("User clicked cancel/close button");
-        } else if (data.docs) {
-          console.log("Google Drive selected:", data.docs);
-
-          const googleFiles = data.docs.map((doc) => ({
-            name: doc.name,
-            size: doc.sizeBytes ? parseInt(doc.sizeBytes, 10) : 0,
-            type: doc.mimeType || "application/octet-stream",
-            googleId: doc.id,
-        }));
-
-        setUploadFiles((prev) => [...prev, ...googleFiles]);
-        showToast("Google Drive files selected. Ready to upload.", "success");
-      }
-    },
-  });
-};
 
   useEffect(() => {
     if (open && !window.Dropbox) {
       const appKey = process.env.NEXT_PUBLIC_DROPBOX_APP_KEY;
       if (appKey) {
         setDropboxLoading(true);
-        const script = document.createElement('script');
-        script.src = 'https://www.dropbox.com/static/api/2/dropins.js';
-        script.id = 'dropboxjs';
-        script.setAttribute('data-app-key', appKey);
-        script.onload = () => {
+
+        // Pre-create the script tag with proper attributes
+        const scriptEl = document.createElement("script");
+
+        // Set the onload and onerror handlers first
+        scriptEl.onload = () => {
           setDropboxLoading(false);
+          console.log("Dropbox script loaded successfully");
         };
-        script.onerror = () => {
+
+        scriptEl.onerror = () => {
           setDropboxLoading(false);
-          console.error('Failed to load Dropbox script');
+          console.error("Failed to load Dropbox script");
         };
-        document.head.appendChild(script);
+
+        // Set the ID and data attribute
+        scriptEl.id = "dropboxjs";
+        scriptEl.setAttribute("data-app-key", appKey);
+
+        // Set the src last (important for some browsers)
+        scriptEl.src = "https://www.dropbox.com/static/api/2/dropins.js";
+
+        // Append to document
+        document.head.appendChild(scriptEl);
       }
     }
   }, [open]);
 
   const showToast = (message, type = "info") => {
     setToast({ message, type });
-    setTimeout(() => setToast(null), 4000);
+    setTimeout(() => setToast(null), 4000); // auto-hide after 4s
   };
 
   const closeToast = () => setToast(null);
@@ -110,46 +86,84 @@ export function UploadDialog({
     e.target.value = null;
   };
 
+  const handleGoogleDriveUpload = async () => {
+    openPicker({
+      clientId: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
+      developerKey: process.env.NEXT_PUBLIC_GOOGLE_API_KEY,
+      viewId: "DOCS",
+      showUploadView: true,
+      showUploadFolders: true,
+      supportDrives: true,
+      multiselect: true,
+      callbackFunction: (data) => {
+        if (data.action === "cancel") {
+          console.log("User clicked cancel/close button");
+        } else if (data.docs) {
+          console.log("Google Drive selected:", data.docs);
 
+          const googleFiles = data.docs.map((doc) => ({
+            name: doc.name,
+            size: doc.sizeBytes ? parseInt(doc.sizeBytes, 10) : 0,
+            type: doc.mimeType || "application/octet-stream",
+            googleId: doc.id,
+          }));
 
+          setUploadFiles((prev) => [...prev, ...googleFiles]);
+          showToast("Google Drive files selected. Ready to upload.", "success");
+        }
+      },
+    });
+  };
 
   const handleDropboxUpload = () => {
     const appKey = process.env.NEXT_PUBLIC_DROPBOX_APP_KEY;
     if (!appKey) {
-      showToast('Dropbox app key not configured. Please check your environment variables.', 'error');
+      showToast(
+        "Dropbox app key not configured. Please check your environment variables.",
+        "error"
+      );
       return;
     }
 
     if (dropboxLoading) {
-      showToast('Dropbox is still loading. Please wait a moment and try again.', 'info');
+      showToast(
+        "Dropbox is still loading. Please wait a moment and try again.",
+        "info"
+      );
       return;
     }
 
     if (!window.Dropbox) {
-      showToast('Dropbox Chooser is not available. Please refresh the page and try again.', 'error');
+      showToast(
+        "Dropbox Chooser is not available. Please refresh the page and try again.",
+        "error"
+      );
       return;
     }
 
     try {
       window.Dropbox.choose({
         success: (files) => {
-          const dropboxFiles = files.map(file => ({
+          const dropboxFiles = files.map((file) => ({
             name: file.name,
             size: file.bytes,
-            type: file.link.split('.').pop() || 'application/octet-stream',
+            type: file.link.split(".").pop() || "application/octet-stream",
             dropboxLink: file.link,
           }));
-          setUploadFiles(prev => [...prev, ...dropboxFiles]);
-          showToast('Dropbox files selected. Ready to upload.', 'success');
+          setUploadFiles((prev) => [...prev, ...dropboxFiles]);
+          showToast("Dropbox files selected. Ready to upload.", "success");
         },
-        cancel: () => showToast('Dropbox upload cancelled.', 'info'),
-        linkType: 'direct',
+        cancel: () => showToast("Dropbox upload cancelled.", "info"),
+        linkType: "direct",
         multiselect: true,
         extensions: [],
       });
     } catch (error) {
-      console.error('Dropbox Chooser error:', error);
-      showToast('Dropbox integration error. Please check your Dropbox app configuration.', 'error');
+      console.error("Dropbox Chooser error:", error);
+      showToast(
+        "Dropbox integration error. Please check your Dropbox app configuration.",
+        "error"
+      );
     }
   };
 
@@ -157,7 +171,7 @@ export function UploadDialog({
     setUploadFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const chunkSize = 10 * 1024 * 1024;
+  const chunkSize = 10 * 1024 * 1024; // 5MB per chunk
 
   const uploadFilesHandler = async () => {
     if (uploadFiles.length === 0) return;
@@ -179,32 +193,36 @@ export function UploadDialog({
         try {
           if (file.dropboxLink) {
             const response = await fetch(file.dropboxLink);
-            if (!response.ok) throw new Error('Failed to download from Dropbox');
+            if (!response.ok)
+              throw new Error("Failed to download from Dropbox");
             const blob = await response.blob();
             file = new File([blob], file.name, { type: file.type });
           }
-          // Handle Google Drive
-      if (file.googleId) {
-        const token = gapi.client.getToken()?.access_token;
-        if (!token) throw new Error("Google API token missing. User may need to re-authenticate.");
 
-        const response = await fetch(
-          `https://www.googleapis.com/drive/v3/files/${file.googleId}?alt=media`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
+          if (file.googleId) {
+            const token = authResponse?.access_token;
+            if (!token)
+              throw new Error(
+                "Google API token missing. User may need to re-authenticate."
+              );
+
+            const response = await fetch(
+              `https://www.googleapis.com/drive/v3/files/${file.googleId}?alt=media`,
+              {
+                headers: { Authorization: `Bearer ${token}` },
+              }
+            );
+
+            if (!response.ok)
+              throw new Error("Failed to fetch file from Google Drive");
+            const blob = await response.blob();
+            file = new File([blob], file.name, { type: file.type });
           }
-        );
 
-        if (!response.ok) throw new Error("Failed to fetch file from Google Drive");
-        const blob = await response.blob();
-        file = new File([blob], file.name, { type: file.type });
-      }
-
-
-          // Call startUpload to get fileId
-          const startRes = await fetch("/proxy/files/startUpload", {
+          // 1️⃣ Call startUpload to get fileId
+          const startRes = await fetch(getFileApiUrl("/startUpload"), {
             method: "POST",
-            headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               fileName: file.name,
               fileType: file.type,
@@ -219,66 +237,93 @@ export function UploadDialog({
           if (!startRes.ok) throw new Error("Failed to start upload");
           const { fileId } = await startRes.json();
 
+          //Skip compression as it doesn't actually help much, with videos at least
           const fileBuffer = new Uint8Array(await file.arrayBuffer());
+          //const compressed = gzip(fileBuffer, { level: 9 });
 
-          const ciphertext = sodium.crypto_secretbox_easy(fileBuffer, nonce, encryptionKey);
+          // 3️⃣ Encrypt entire compressed file
+          //nonce is up there
+          const ciphertext = sodium.crypto_secretbox_easy(
+            fileBuffer,
+            nonce,
+            encryptionKey
+          );
 
-          const hashBuffer = await crypto.subtle.digest("SHA-256", ciphertext.buffer);
+          // 4️⃣ Compute SHA-256 hash of encrypted file
+          const hashBuffer = await crypto.subtle.digest(
+            "SHA-256",
+            ciphertext.buffer
+          );
           const fileHash = Array.from(new Uint8Array(hashBuffer))
             .map((b) => b.toString(16).padStart(2, "0"))
             .join("");
 
+          // 5️⃣ Chunk encrypted file
           const totalChunks = Math.ceil(ciphertext.length / chunkSize);
           let uploadedChunks = 0;
 
-          const chunkUploadPromises = Array.from({ length: totalChunks }, (_, chunkIndex) => {
-            const start = chunkIndex * chunkSize;
-            const end = Math.min(start + chunkSize, ciphertext.length);
-            const chunk = ciphertext.slice(start, end);
+          // 6️⃣ Upload all chunks in parallel
+          const chunkUploadPromises = Array.from(
+            { length: totalChunks },
+            (_, chunkIndex) => {
+              const start = chunkIndex * chunkSize;
+              const end = Math.min(start + chunkSize, ciphertext.length);
+              const chunk = ciphertext.slice(start, end);
 
-            const formData = new FormData();
-            formData.append("fileId", fileId);
-            formData.append("userId", userId);
-            formData.append("fileName", file.name);
-            formData.append("fileType", file.type || "application/octet-stream");
-            formData.append("fileDescription", "");
-            formData.append("fileTags", JSON.stringify(["personal use"]));
-            formData.append("path", currentFolderPath || "files");
-            formData.append("fileHash", fileHash);
-            formData.append(
-              "nonce",
-              sodium.to_base64(nonce, sodium.base64_variants.ORIGINAL)
-            );
-            formData.append("chunkIndex", chunkIndex.toString());
-            formData.append("totalChunks", totalChunks.toString());
-            formData.append("encryptedFile", new Blob([chunk]), file.name);
+              const formData = new FormData();
+              formData.append("fileId", fileId);
+              formData.append("userId", userId);
+              formData.append("fileName", file.name);
+              formData.append(
+                "fileType",
+                file.type || "application/octet-stream"
+              );
+              formData.append("fileDescription", "");
+              formData.append("fileTags", JSON.stringify(["personal use"]));
+              formData.append("path", currentFolderPath || "files");
+              formData.append("fileHash", fileHash);
+              formData.append(
+                "nonce",
+                sodium.to_base64(nonce, sodium.base64_variants.ORIGINAL)
+              );
+              formData.append("chunkIndex", chunkIndex.toString());
+              formData.append("totalChunks", totalChunks.toString());
+              formData.append("encryptedFile", new Blob([chunk]), file.name);
 
-            return fetch("/proxy/files/upload", {
-              method: "POST",
-              headers: {"x-csrf":csrf||""},
-              body: formData,
-            })
-              .then((res) => {
-                if (!res.ok) throw new Error(`Chunk ${chunkIndex} failed`);
-                return res.json();
+              return fetch(getFileApiUrl("/upload"), {
+                method: "POST",
+                body: formData,
               })
-              .then(() => {
-                uploadedChunks++;
-                setUploadProgress(Math.round((uploadedChunks / totalChunks) * 100));
-              });
-          });
+                .then((res) => {
+                  if (!res.ok) throw new Error(`Chunk ${chunkIndex} failed`);
+                  return res.json();
+                })
+                .then(() => {
+                  uploadedChunks++;
+                  setUploadProgress(
+                    Math.round((uploadedChunks / totalChunks) * 100)
+                  );
+                });
+            }
+          );
 
           await Promise.all(chunkUploadPromises);
           console.log(`${file.name} uploaded successfully`);
 
-          const res = await fetch('/proxy/auth/profile');
+          //add access log
+          const token = localStorage.getItem("token");
+
+          const res = await fetch(getApiUrl("/users/profile"), {
+            headers: { Authorization: `Bearer ${token}` },
+          });
 
           const result = await res.json();
-          if (!res.ok) throw new Error(result.message || 'Failed to fetch profile');
+          if (!res.ok)
+            throw new Error(result.message || "Failed to fetch profile");
 
-          await fetch("/proxy/files/addAccesslog", {
+          await fetch(getFileApiUrl("/addAccesslog"), {
             method: "POST",
-            headers: {"x-csrf":csrf||""},
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               file_id: fileId,
               user_id: userId,
@@ -286,7 +331,6 @@ export function UploadDialog({
               message: `User ${result.data.email} uploaded the file.`,
             }),
           });
-
         } catch (err) {
           console.error(`Upload failed for ${file.name}:`, err);
           showToast(`Upload failed for ${file.name}`, "error");
@@ -322,12 +366,13 @@ export function UploadDialog({
       {toast && (
         <div className="fixed top-1/4 left-1/2 -translate-x-1/2 z-[100]">
           <div
-            className={`flex items-center justify-between px-4 py-3 rounded shadow-lg w-80 text-sm ${toast.type === "error"
+            className={`flex items-center justify-between px-4 py-3 rounded shadow-lg w-80 text-sm ${
+              toast.type === "error"
                 ? "bg-red-500 text-white"
                 : toast.type === "success"
-                  ? "bg-green-500 text-white"
-                  : "bg-gray-800 text-white"
-              }`}
+                ? "bg-green-500 text-white"
+                : "bg-gray-800 text-white"
+            }`}
           >
             <span>{toast.message}</span>
             <button onClick={closeToast} className="ml-3">
@@ -344,8 +389,9 @@ export function UploadDialog({
           </h2>
 
           <div
-            className={`border-2 border-dashed p-8 text-center rounded-lg cursor-pointer ${dragActive ? "border-blue-500 bg-blue-50" : "border-gray-300"
-              }`}
+            className={`border-2 border-dashed p-8 text-center rounded-lg cursor-pointer ${
+              dragActive ? "border-blue-500 bg-blue-50" : "border-gray-300"
+            }`}
             onDragEnter={handleDrag}
             onDragLeave={handleDrag}
             onDragOver={handleDrag}
@@ -394,7 +440,7 @@ export function UploadDialog({
                   height={20}
                   className="h-5 w-5"
                 />
-                {dropboxLoading ? 'Loading...' : 'Dropbox'}
+                {dropboxLoading ? "Loading..." : "Dropbox"}
               </button>
             </div>
           </div>

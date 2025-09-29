@@ -70,8 +70,6 @@ function getCookie(name) {
     ?.split("=")[1];
 }
 
-const csrf = typeof window !== 'undefined' ? getCookie("csrf_token") : "";
-
 export function FileList({
   files,
   onShare,
@@ -302,23 +300,23 @@ export function FileList({
     const tags = ["deleted", `deleted_time:${timestamp}`];
 
     try {
-      const res = await fetch("/proxy/files/addTags", {
+      const res = await fetch(getFileApiUrl("/addTags"), {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-csrf": csrf || "" },
+        headers: { "Content-Type": "application/json"},
         body: JSON.stringify({ fileId: file.id, tags }),
       });
 
       if (!res.ok) throw new Error("Failed to tag file as deleted");
 
       try {
-        const profileRes = await fetch("/proxy/auth/profile");
+        const profileRes = await fetch(getApiUrl("/profile"));
         const profileResult = await profileRes.json();
         if (!profileRes.ok)
           throw new Error(profileResult.message || "Failed to fetch profile");
 
-        await fetch("/proxy/files/addAccesslogs", {
+        await fetch(getFileApiUrl("/addAccesslogs"), {
           method: "POST",
-          headers: { "Content-Type": "application/json", "x-csrf": csrf || "" },
+          headers: { "Content-Type": "application/json"},
           body: JSON.stringify({
             file_id: file.id,
             user_id: profileResult.data.id,

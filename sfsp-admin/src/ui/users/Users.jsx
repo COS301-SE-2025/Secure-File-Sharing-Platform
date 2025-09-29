@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Users as UsersIcon, Search, Trash2, Mail, Info, Shield, Settings, CheckCircle, XCircle, Slash } from "lucide-react";
 import "./Users.css";
+import { adminFetch } from '../../api/api_config';
 
 const Users = () => {
     const [searchTerm, setSearchTerm] = useState("");
@@ -25,8 +26,8 @@ const Users = () => {
     useEffect(() => {
         const fetchUsers = async () => {
             try {
-                const res = await fetch("http://localhost:5000/api/admin/users");
-                const data = await res.json();
+                const res = await adminFetch("/users");
+                const data = res;
 
                 if (data.success) {
                     const formattedUsers = data.users.map(u => ({
@@ -48,8 +49,8 @@ const Users = () => {
     useEffect(() => {
         const fetchCounts = async () => {
             try {
-                const res = await fetch("http://localhost:5000/api/admin/users/count");
-                const data = await res.json();
+                const res = await adminFetch("/users/count");
+                const data = res;
 
                 if (data.success) {
                     setTotalUsers(data.totalUsers);
@@ -72,13 +73,13 @@ const Users = () => {
 
     const handleDeleteUser = async (userId, userName, role) => {
         try {
-            const res = await fetch("http://localhost:5000/api/admin/users/delete", {
+            const res = await adminFetch("/users/delete", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ userId }),
             });
 
-            const data = await res.json();
+            const data = res;
 
             if (data.success) {
                 setUsers(prev => prev.filter(u => u.id !== userId));
@@ -124,7 +125,7 @@ const Users = () => {
         }
 
         try {
-            const res = await fetch("http://localhost:5000/api/admin/users/block", {
+            const res = await adminFetch("/users/block", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -135,7 +136,7 @@ const Users = () => {
                 }),
             });
 
-            const data = await res.json();
+            const data = res;
             if (data.success) {
                 setToastMessage(`User ${blockUserName} blocked successfully`);
                 setUsers(prev =>
@@ -161,7 +162,7 @@ const Users = () => {
         }
 
         try {
-            const res = await fetch("http://localhost:5000/api/admin/users/create", {
+            const res = await adminFetch("/users/create", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -171,7 +172,7 @@ const Users = () => {
                 }),
             });
 
-            const data = await res.json();
+            const data = res;
 
             if (data.success) {
                 setUsers(prev =>
@@ -206,13 +207,13 @@ const Users = () => {
 
     const handleRoleChange = async (userId, newRole) => {
         try {
-            const res = await fetch("http://localhost:5000/api/admin/users/role", {
+            const res = await adminFetch("/users/role", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ userId, newRole }),
             });
 
-            const data = await res.json();
+            const data = res;
             if (data.success) {
                 setToastMessage(data.message);
                 setUsers(prev =>
@@ -461,7 +462,7 @@ const Users = () => {
                                 className="btn-info"
                                 onClick={async () => {
                                     try {
-                                        const res = await fetch("http://localhost:5000/api/admin/send-message", {
+                                        const res = await adminFetch("/send-message", {
                                             method: "POST",
                                             headers: { "Content-Type": "application/json" },
                                             body: JSON.stringify({
@@ -472,7 +473,7 @@ const Users = () => {
                                                 message: messageBody,
                                             }),
                                         });
-                                        const data = await res.json();
+                                        const data = res;
                                         if (data.success) {
                                             setToastMessage(`Message sent to ${selectedUser.username}`);
                                             setTimeout(() => setToastMessage(""), 3000);

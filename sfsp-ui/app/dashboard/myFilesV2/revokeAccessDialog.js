@@ -25,13 +25,6 @@ function Toast({ message, type = "info", onClose }) {
   );
 }
 
-function getCookie(name) {
-  if (typeof window === 'undefined') return '';
-  return document.cookie.split("; ").find(c => c.startsWith(name + "="))?.split("=")[1];
-}
-
-const csrf = typeof window !== 'undefined' ? getCookie("csrf_token") : "";
-
 export function RevokeAccessDialog({ open, onOpenChange, file }) {
   const [users, setUsers] = useState([]);
   const [owner, setOwner] = useState(null);
@@ -54,10 +47,10 @@ export function RevokeAccessDialog({ open, onOpenChange, file }) {
     setLoading(true);
     try {
       const accessRes = await fetch(
-        "/proxy/files/userWithFileAccess",
+        getFileApiUrl("/usersWithFileAccess"),
         {
           method: "POST",
-          headers: { "Content-Type": "application/json", "x-csrf":csrf||"" },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ fileId: file.id }),
         }
       );
@@ -69,7 +62,7 @@ export function RevokeAccessDialog({ open, onOpenChange, file }) {
 
       if (ownerId) {
         const ownerRes = await fetch(
-          `/proxy/user/getUserById/${ownerId}`
+          getApiUrl(`/users/getUserById/${ownerId}`)
         );
         if (ownerRes.ok) {
           const ownerData = await ownerRes.json();
@@ -83,7 +76,7 @@ export function RevokeAccessDialog({ open, onOpenChange, file }) {
           .map(async (userId) => {
             try {
               const userRes = await fetch(
-                `/proxy/user/getUserById/${userId}`
+                getApiUrl(`/users/getUserById/${userId}`)
               );
               if (userRes.ok) {
                 const userData = await userRes.json();
@@ -115,8 +108,12 @@ export function RevokeAccessDialog({ open, onOpenChange, file }) {
         return;
       }
 
-      console.log("We are getting the profile to find current user ID");
-      const profileRes = await fetch("/proxy/auth/profile");
+      const profileRes = await fetch(
+        getApiUrl("/users/profile"),
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
 
       const profileResult = await profileRes.json();
       if (!profileRes.ok) {
@@ -126,12 +123,11 @@ export function RevokeAccessDialog({ open, onOpenChange, file }) {
 
       const currentUserId = profileResult.data.id;
 
-      console.log("Revoking access for user:", userId, "by user:", currentUserId);
       const revokeRes = await fetch(
-        "/proxy/file/revokeViewAccess",
+        getFileApiUrl("/revokeViewAccess"),
         {
           method: "POST",
-          headers: {"x-csrf":csrf||""},
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             fileId: file.id,
             userId: currentUserId,
@@ -139,14 +135,13 @@ export function RevokeAccessDialog({ open, onOpenChange, file }) {
           }),
         }
       );
-      console.log("Revoke response status:", revokeRes.status);
+
       if (!revokeRes.ok) {
         throw new Error("Failed to revoke access");
       }
 
       showToast("Access revoked successfully", 'info');
-      console.log("Access revoked, refreshing user list");
-      fetchUsersWithAccess(); 
+      fetchUsersWithAccess(); // Refresh the list
     } catch (error) {
       console.error("Error revoking access:", error);
       showToast("Failed to revoke access: " + error.message, "error");
