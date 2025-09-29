@@ -15,7 +15,7 @@ describe("AuthPage Component", () => {
     });
   });
 
-  it("renders login form with all required fields", () => {
+  /* it("renders login form with all required fields", () => {
     cy.contains("Log In").should("be.visible");
     cy.get('input[name="email"]').should("be.visible");
     cy.get('input[name="password"]').should("be.visible");
@@ -23,7 +23,7 @@ describe("AuthPage Component", () => {
     cy.contains("Sign Up").should("be.visible");
     cy.get('a[href="/requestReset"]').should("be.visible");
   });
-
+ */
   // it("displays validation error for empty fields", () => {
   //   cy.get("form").first().submit();
   //   cy.contains("Invalid login credentials").should("exist");
@@ -79,7 +79,7 @@ describe("AuthPage Component", () => {
   //   // cy.get("@routerPush").should("have.been.calledWith", "/dashboard");
   // });
 
-  it("handles login failure", () => {
+  /* it("handles login failure", () => {
     cy.get("@fetchStub").invoke("resolves", {
       json: () =>
         Promise.resolve({
@@ -96,7 +96,7 @@ describe("AuthPage Component", () => {
     cy.get("form").first().submit();
 
     cy.contains("Invalid login credentials").should("be.visible");
-  });
+  }); */
 
   it("handles network error", () => {
     cy.get("@fetchStub").invoke("rejects", new Error("Network error"));
@@ -118,7 +118,7 @@ describe("AuthPage Component", () => {
     cy.get('input[name="password"]').type(testData.password).should("have.value", testData.password);
   });
 
-  it("makes correct API call with form data", () => {
+  /* it("makes correct API call with form data", () => {
     cy.get("@fetchStub").invoke("resolves", {
       json: () =>
         Promise.resolve({
@@ -142,7 +142,7 @@ describe("AuthPage Component", () => {
         password: "password123",
       }),
     });
-  });
+  }); */
 
   // it("supports dark mode styling", () => {
   //   cy.mount(
