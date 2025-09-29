@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import "./blockedUsers.css";
 import { UserX, Search, RotateCcw, Shield, AlertCircle, AlertTriangle, CheckCircle } from "lucide-react";
+import { adminFetch } from '../../api/api_config.js';
 
 const BlockedUsers = () => {
     const [searchTerm, setSearchTerm] = useState("");
@@ -16,7 +17,7 @@ const BlockedUsers = () => {
     useEffect(() => {
         const fetchBlockedUsers = async () => {
             try {
-                const res = await fetch("http://localhost:5000/api/admin/users/blocked");
+                const res = await adminFetch("/users/blocked");
                 const data = await res.json();
                 if (data.success) {
                     setBlockedUsers(data.users);
@@ -28,7 +29,7 @@ const BlockedUsers = () => {
 
         const fetchStats = async () => {
             try {
-                const res = await fetch("http://localhost:5000/api/admin/users/blocked/stats");
+                const res = await adminFetch("/users/blocked/stats");
                 const data = await res.json();
                 if (data.success) {
                     setStats(data);
@@ -60,7 +61,7 @@ const BlockedUsers = () => {
 
     const handleUnblockUser = async (userId, userName, userSeverity) => {
         try {
-            const res = await fetch("http://localhost:5000/api/admin/users/unblock", {
+            const res = await adminFetch("/users/unblock", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ userId }),

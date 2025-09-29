@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { AlertTriangle, Search, Eye, CheckCircle, XCircle, Clock, Flag, Plus } from "lucide-react";
 import "./Reports.css";
+import { adminFetch } from '../../api/api_config.js';
 
 const Reports = () => {
     const [reports, setReports] = useState([]);
@@ -17,15 +18,15 @@ const Reports = () => {
     const [newInfo, setNewInfo] = useState("");
 
     useEffect(() => {
-        fetch("http://localhost:5000/api/admin/reports")
+        adminFetch("/reports")
             .then(res => res.json())
             .then(data => setReports(data.data || []));
 
-        fetch("http://localhost:5000/api/admin/report-stats")
+        adminFetch("/report-stats")
             .then(res => res.json())
             .then(data => setStats(data.data || {}));
 
-        fetch("http://localhost:5000/api/admin/assignees")
+        adminFetch("/assignees")
             .then(res => res.json())
             .then(data => setAdmins(data.data || []));
     }, []);
@@ -136,7 +137,7 @@ const Reports = () => {
                             <button
                                 className="btn-add"
                                 onClick={() => {
-                                    fetch("http://localhost:5000/api/admin/reports", {
+                                    adminFetch("/reports", {
                                         method: "POST",
                                         headers: { "Content-Type": "application/json" },
                                         body: JSON.stringify({

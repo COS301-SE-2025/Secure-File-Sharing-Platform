@@ -4,6 +4,7 @@ import "./App.css";
 import { useNavigate } from "react-router-dom";
 import LightRays from "./components/designs/appBack.jsx";
 import shieldLogo from '../assets/shield-full-white.png';
+import { adminFetch } from '../api/api_config.js';
 
 function App() {
   const navigate = useNavigate();
@@ -90,7 +91,7 @@ function App() {
 
     setIsLoading(true);
     try {
-      const res = await fetch("http://localhost:5000/api/admin/login", {
+      const res = await adminFetch("/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -119,7 +120,7 @@ function App() {
       localStorage.setItem("user", JSON.stringify(data.data.user));
       localStorage.setItem("token", data.data.token);
 
-      const otpRes = await fetch("http://localhost:5000/api/admin/send-verification", {
+      const otpRes = await adminFetch("/send-verification", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -158,7 +159,7 @@ function App() {
       const token = localStorage.getItem("token");
       const user = JSON.parse(localStorage.getItem("user"));
 
-      const res = await fetch("http://localhost:5000/api/admin/verify-code", {
+      const res = await adminFetch("/verify-code", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
