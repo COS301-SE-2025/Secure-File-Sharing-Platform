@@ -41,7 +41,7 @@ function Dashboard() {
     const fetchStats = async () => {
       try {
         const res = await adminFetch("/dashboard/stats");
-        const data = await res.json();
+        const data = res;
         if (data.success) {
           setStats([
             { title: "Active Users", value: data.stats.totalUsers, icon: Users, className: "stat-success" },
@@ -60,7 +60,7 @@ function Dashboard() {
     const fetchAnnouncements = async () => {
       try {
         const res = await adminFetch("/announcements");
-        const data = await res.json();
+        const data = res;
         if (data.success) setAnnouncements(data.announcements);
       } catch (err) {
         console.error("Failed to fetch announcements:", err);
@@ -79,7 +79,7 @@ function Dashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
+      const data = res;
       if (data.success) {
         setAnnouncements(prev => [data.announcement, ...prev]);
         setNewAnnouncement({ action: "", info: "", severity: "success" });
@@ -99,7 +99,7 @@ function Dashboard() {
       const res = await fetch(`http://localhost:5000/api/admin/announcements/${id}`, {
         method: "DELETE"
       });
-      const data = await res.json();
+      const data = res;
       if (data.success) {
         setAnnouncements(prev => prev.filter(a => a.id !== id));
       }

@@ -100,7 +100,7 @@ function App() {
         }),
       });
 
-      const data = await res.json();
+      const data = res;
 
       if (!data.success) {
         showToast(`❌ ${data.message}`);
@@ -130,7 +130,7 @@ function App() {
         }),
       });
 
-      const otpData = await otpRes.json();
+      const otpData = otpRes;
       if (!otpData.success) {
         showToast(`⚠️ Could not send OTP: ${otpData.message}`);
         return;
@@ -168,7 +168,7 @@ function App() {
         }),
       });
 
-      const data = await res.json();
+      const data = res;
 
       if (!data.success) {
         showToast(`❌ Verification failed: ${data.message}`);

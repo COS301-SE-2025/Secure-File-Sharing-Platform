@@ -18,7 +18,7 @@ const BlockedUsers = () => {
         const fetchBlockedUsers = async () => {
             try {
                 const res = await adminFetch("/users/blocked");
-                const data = await res.json();
+                const data = res;
                 if (data.success) {
                     setBlockedUsers(data.users);
                 }
@@ -30,7 +30,7 @@ const BlockedUsers = () => {
         const fetchStats = async () => {
             try {
                 const res = await adminFetch("/users/blocked/stats");
-                const data = await res.json();
+                const data = res;
                 if (data.success) {
                     setStats(data);
                 }
@@ -66,7 +66,7 @@ const BlockedUsers = () => {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ userId }),
             });
-            const data = await res.json();
+            const data = res;
 
             if (data.success) {
                 setBlockedUsers(prev => prev.filter(u => u.id !== userId));
