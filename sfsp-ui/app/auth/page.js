@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Loader from '@/app/dashboard/components/Loader';
 import { getSodium } from "@/app/lib/sodium";
-import { EyeClosed, Eye } from 'lucide-react';
+import { EyeClosed, Eye, EyeOff } from 'lucide-react';
 import { v4 as uuidv4 } from "uuid";
 //import * as sodium from 'libsodium-wrappers-sumo';
 import { generateLinearEasing } from "framer-motion";
@@ -28,7 +28,13 @@ export default function AuthPage() {
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [showSignupPassword, setShowSignupPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+  const [loginData, setLoginData] = useState({ email: "", password: "" });
+  const [signupData, setSignupData] = useState({
+    name: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+  });
   const [passwordRequirements, setPasswordRequirements] = useState({
     hasMinLength: false,
     hasUppercase: false,
@@ -36,16 +42,9 @@ export default function AuthPage() {
     hasNumber: false,
     hasSpecialChar: false,
   });
+  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
 
-  const [loginData, setLoginData] = useState({ email: "", password: "" });
-  const [signupData, setSignupData] = useState({
-    name: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
-    agreeToTerms: false,
-  });
-
+  // Handle Google OAuth errors from URL parameters
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const error = urlParams.get('error');
@@ -137,7 +136,6 @@ export default function AuthPage() {
     try {
       const sodium = await getSodium();
       const loginUrl = getApiUrl('/users/login');
-      console.log('Login URL:', loginUrl); // Debug log
       
       const res = await fetch(loginUrl, {
         method: "POST",
@@ -148,23 +146,20 @@ export default function AuthPage() {
         }),
       });
 
-      if (!res.ok) {
-        const errorText = await res.text();
-        console.error(`Login failed: ${res.status} - ${errorText}`);
-        throw new Error(`Login failed: ${res.status}`);
-      }
-
       const result = await res.json();
       console.log(result);
-      if (!result.success) {
+      if (!res.ok || !result.success) {
         throw new Error(result.message || "Invalid login credentials");
       }
 
+      //New E2EE stuff
       const {
         id,
         salt,
         nonce,
         is_verified,
+        //private keys
+        //public keys
         ik_public,
         spk_public,
         signedPrekeySignature,
@@ -174,14 +169,39 @@ export default function AuthPage() {
       const { ik_private_key, opks_private, spk_private_key } = result.data.keyBundle;
       const { token } = result.data;
 
-      // Check if user needs email verification
-      if (!is_verified) {
-        setLoaderMessage("Please verify your email first...");
-        setTimeout(() => {
-          router.push(`/auth/verify-email?email=${encodeURIComponent(loginData.email)}&userId=${id}`);
-        }, 1500);
-        return;
+      // Always send verification code for login security
+      setLoaderMessage("Sending verification code...");
+      
+      // Store login data temporarily for verification
+      sessionStorage.setItem("pendingLogin", JSON.stringify({
+        email: loginData.email,
+        password: loginData.password,
+        userId: id
+      }));
+      
+      // Send verification code before redirecting
+      try {
+        const sendCodeResponse = await fetch(`${process.env.NEXTAUTH_URL}/api/auth/send-verification`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: loginData.email,
+            userId: id,
+            userName: result.data.user.username || "User",
+                          type: "login_verify"
+          }),
+        });
+        
+        if (!sendCodeResponse.ok) {
+          console.error("Failed to send verification code");
+        }
+      } catch (error) {
+        console.error("Error sending verification code:", error);
       }
+      
+      setTimeout(() => {
+          router.push(`/auth/verify-email?email=${encodeURIComponent(loginData.email)}&userId=${id}`);
+      }, 1500);
 
       //we don't need to securely store the user ID but I will store it in the Zustand store for easy access
       useEncryptionStore.getState().setUserId(id);
@@ -196,16 +216,34 @@ export default function AuthPage() {
         sodium.crypto_pwhash_ALG_DEFAULT
       );
 
-      // Decrypt + convert identity key
-      const decryptedIkPrivateKeyRaw = sodium.crypto_secretbox_open_easy(
+      // Decrypt vault keys (they are encrypted with the password-derived key)
+      const decryptedIkPrivateKey = sodium.crypto_secretbox_open_easy(
         sodium.from_base64(ik_private_key),
         sodium.from_base64(nonce),
         derivedKey
       );
 
-      if (!decryptedIkPrivateKeyRaw) {
-        throw new Error("Failed to decrypt identity key private key");
+      let decryptedSpkPrivateKey;
+      try {
+        decryptedSpkPrivateKey = sodium.crypto_secretbox_open_easy(
+          sodium.from_base64(spk_private_key),
+          sodium.from_base64(nonce),
+          derivedKey
+        );
+      } catch (spkError) {
+        // If SPK decryption fails, assume it's not encrypted (for backward compatibility)
+        console.log("SPK decryption failed, assuming unencrypted:", spkError.message);
+        decryptedSpkPrivateKey = sodium.from_base64(spk_private_key);
       }
+
+      const decryptedOpksPrivate = opks_private.map((opk) => ({
+        opk_id: opk.opk_id,
+        private_key: sodium.crypto_secretbox_open_easy(
+          sodium.from_base64(opk.private_key),
+          sodium.from_base64(nonce),
+          derivedKey
+        ),
+      }));
 
       let opks_public_temp;
       if (typeof opks_public === "string") {
@@ -217,13 +255,11 @@ export default function AuthPage() {
       } else {
         opks_public_temp = opks_public;
       }
+
       const userKeys = {
-        identity_private_key: decryptedIkPrivateKeyRaw, // ✅ fixed
-        signedpk_private_key: sodium.from_base64(spk_private_key),
-        oneTimepks_private: opks_private.map((opk) => ({
-          opk_id: opk.opk_id,
-          private_key: sodium.from_base64(opk.private_key),
-        })),
+        identity_private_key: decryptedIkPrivateKey,
+        signedpk_private_key: decryptedSpkPrivateKey,
+        oneTimepks_private: decryptedOpksPrivate,
         identity_public_key: sodium.from_base64(ik_public),
         signedpk_public_key: sodium.from_base64(spk_public),
         oneTimepks_public: opks_public_temp.map((opk) => ({
@@ -235,7 +271,7 @@ export default function AuthPage() {
         nonce: sodium.from_base64(nonce),
       };
 
-      console.log("Ik private is: ", decryptedIkPrivateKeyRaw);
+      console.log("User keys decrypted from vault successfully:", userKeys);
 
       await storeDerivedKeyEncrypted(derivedKey); // stores with unlockToken
       sessionStorage.setItem("unlockToken", "session-unlock");
@@ -326,7 +362,6 @@ export default function AuthPage() {
       } = await GenerateX3DHKeys(password);
 
       const registerUrl = getApiUrl('/users/register');
-      console.log('Register URL:', registerUrl); // Debug log
 
       const res = await fetch(registerUrl, {
         method: "POST",
@@ -347,14 +382,8 @@ export default function AuthPage() {
         }),
       });
 
-      if (!res.ok) {
-        const errorText = await res.text();
-        console.error(`Registration failed: ${res.status} - ${errorText}`);
-        throw new Error(`Registration failed: ${res.status}`);
-      }
-
       const result = await res.json();
-      if (!result.success) {
+      if (!res.ok || !result.success) {
         throw new Error(result.message || "Registration failed");
       }
 
@@ -389,7 +418,11 @@ export default function AuthPage() {
         signedpk_private_key: sodium.from_base64(spk_private_key),
         oneTimepks_private: opks_private.map((opk) => ({
           opk_id: opk.opk_id,
-          private_key: sodium.from_base64(opk.private_key),
+          private_key: sodium.crypto_secretbox_open_easy(
+            sodium.from_base64(opk.private_key),
+            sodium.from_base64(nonce),
+            derivedKey
+          ),
         })),
         identity_public_key: sodium.from_base64(ik_public),
         signedpk_public_key: sodium.from_base64(spk_public),
@@ -402,6 +435,7 @@ export default function AuthPage() {
         nonce: sodium.from_base64(nonce),
       };
 
+      // Store encryption keys regardless of verification status
       await storeDerivedKeyEncrypted(derivedKey);
       sessionStorage.setItem("unlockToken", "session-unlock");
       await storeUserKeysSecurely(userKeys, derivedKey);
@@ -414,13 +448,13 @@ export default function AuthPage() {
 
       console.log("User keys stored successfully:", userKeys);
 
+      // Check if user needs email verification
       if (!user.is_verified) {
         setLoaderMessage("Account created! Please check your email for verification...");
         
-      
+        // Add user to PostgreSQL database before redirecting to verification
         try {
           const addUserUrl = getFileApiUrl('/addUser');
-          console.log('Add user URL:', addUserUrl); 
           
           const addUserRes = await fetch(addUserUrl, {
             method: "POST",
@@ -440,7 +474,7 @@ export default function AuthPage() {
           console.error("Error adding user to PostgreSQL database:", error);
         }
 
-      
+        // Store token for unverified users too
         const rawToken = token.replace(/^Bearer\s/, "");
         localStorage.setItem("token", rawToken);
 
@@ -450,15 +484,14 @@ export default function AuthPage() {
         return;
       }
 
-    
+      // For verified users, proceed with normal flow
       const rawToken = token.replace(/^Bearer\s/, "");
       localStorage.setItem("token", rawToken);
       setMessage("User successfully registered!");
 
-    
+      // Add user to PostgreSQL database (for verified users)
       try {
         const addUserUrl = getFileApiUrl('/addUser');
-        console.log('Add user URL (verified):', addUserUrl);
         
         const addUserRes = await fetch(addUserUrl, {
           method: "POST",
@@ -502,10 +535,20 @@ export default function AuthPage() {
       }
 
       const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-      const redirectUri = `${window.location.origin}/auth/google/callback`;
+      if (!clientId) {
+        console.error('Missing NEXT_PUBLIC_GOOGLE_CLIENT_ID environment variable');
+        setMessage('Configuration error. Please try again later or contact support.');
+        setIsLoading(false);
+        return;
+      }
+
+      const redirectUri = 'http://localhost:3000/auth/google/callback';
       const scope = 'openid email profile';
       
-      const state = crypto.randomUUID();
+      // Generate state parameter for security
+      const stateArray = new Uint32Array(4);
+      crypto.getRandomValues(stateArray);
+      const state = Array.from(stateArray, x => x.toString(16)).join('');
       sessionStorage.setItem('googleOAuthState', state);
       
       const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
@@ -521,7 +564,8 @@ export default function AuthPage() {
       
       localStorage.removeItem('lastUsedGoogleCode');
       
-      window.location.href = authUrl;
+      // Use simple location redirect instead of dynamic script injection
+      window.location.assign(authUrl);
 
     } catch (error) {
       console.error('Google OAuth error:', error);
@@ -581,6 +625,15 @@ export default function AuthPage() {
 
     console.log("encrypted ik is: ", encryptedIK);
 
+    const encryptedOPKs = opks.map((opk) => ({
+      opk_id: opk.opk_id,
+      private_key: sodium.to_base64(
+        sodium.crypto_secretbox_easy(opk.keypair.privateKey, nonce, derivedKey)
+      ),
+    }));
+
+    console.log("encrypted opks are: ", encryptedOPKs);
+
     console.log("SPK pub (raw):", spk.publicKey);
     console.log("IK pub (Ed25519):", ik.publicKey);
     console.log("SPK Signature:", spkSignature);
@@ -597,10 +650,7 @@ export default function AuthPage() {
 
       ik_private_key: sodium.to_base64(encryptedIK),
       spk_private_key: sodium.to_base64(spk.privateKey),
-      opks_private: opks.map((opk) => ({
-        opk_id: opk.opk_id,
-        private_key: sodium.to_base64(opk.keypair.privateKey),
-      })),
+      opks_private: encryptedOPKs,
 
       salt: sodium.to_base64(salt),
       nonce: sodium.to_base64(nonce),
@@ -756,14 +806,6 @@ export default function AuthPage() {
                       )}
                     </button>
                   </div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <Link
-                    href="/requestReset"
-                    className="text-sm text-blue-600 hover:underline"
-                  >
-                    Forgot password?
-                  </Link>
                 </div>
                 <button
                   type="submit"

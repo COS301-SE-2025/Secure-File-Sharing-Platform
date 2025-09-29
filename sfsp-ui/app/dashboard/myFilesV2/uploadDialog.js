@@ -2,13 +2,14 @@
 
 "use client";
 
-import React, { useState, useRef } from "react";
-import { Upload, X, File } from "lucide-react";
+import React, { useState, useRef, useEffect } from "react";
+import { Upload, X, File as FileIcon } from "lucide-react";
 import { useEncryptionStore } from "@/app/SecureKeyStorage";
 import { getSodium } from "@/app/lib/sodium";
 import Image from "next/image";
 import { gzip } from "pako";
-import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
+import { getFileApiUrl, getApiUrl } from "@/lib/api-config";
+import useDrivePicker from "react-google-drive-picker"
 
 export function UploadDialog({
   open,
@@ -21,8 +22,42 @@ export function UploadDialog({
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef(null);
-
+  const [dropboxLoading, setDropboxLoading] = useState(false);
+  const [openPicker, authResponse] = useDrivePicker();
   const [toast, setToast] = useState(null);
+
+  useEffect(() => {
+    if (open && !window.Dropbox) {
+      const appKey = process.env.NEXT_PUBLIC_DROPBOX_APP_KEY;
+      if (appKey) {
+        setDropboxLoading(true);
+
+        // Pre-create the script tag with proper attributes
+        const scriptEl = document.createElement("script");
+
+        // Set the onload and onerror handlers first
+        scriptEl.onload = () => {
+          setDropboxLoading(false);
+          console.log("Dropbox script loaded successfully");
+        };
+
+        scriptEl.onerror = () => {
+          setDropboxLoading(false);
+          console.error("Failed to load Dropbox script");
+        };
+
+        // Set the ID and data attribute
+        scriptEl.id = "dropboxjs";
+        scriptEl.setAttribute("data-app-key", appKey);
+
+        // Set the src last (important for some browsers)
+        scriptEl.src = "https://www.dropbox.com/static/api/2/dropins.js";
+
+        // Append to document
+        document.head.appendChild(scriptEl);
+      }
+    }
+  }, [open]);
 
   const showToast = (message, type = "info") => {
     setToast({ message, type });
@@ -51,9 +86,86 @@ export function UploadDialog({
     e.target.value = null;
   };
 
-  const handleGoogleDriveUpload = () => { };
+  const handleGoogleDriveUpload = async () => {
+    openPicker({
+      clientId: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
+      developerKey: process.env.NEXT_PUBLIC_GOOGLE_API_KEY,
+      viewId: "DOCS",
+      showUploadView: true,
+      showUploadFolders: true,
+      supportDrives: true,
+      multiselect: true,
+      callbackFunction: (data) => {
+        if (data.action === "cancel") {
+          console.log("User clicked cancel/close button");
+        } else if (data.docs) {
+          console.log("Google Drive selected:", data.docs);
 
-  const handleDropboxUpload = () => { };
+          const googleFiles = data.docs.map((doc) => ({
+            name: doc.name,
+            size: doc.sizeBytes ? parseInt(doc.sizeBytes, 10) : 0,
+            type: doc.mimeType || "application/octet-stream",
+            googleId: doc.id,
+          }));
+
+          setUploadFiles((prev) => [...prev, ...googleFiles]);
+          showToast("Google Drive files selected. Ready to upload.", "success");
+        }
+      },
+    });
+  };
+
+  const handleDropboxUpload = () => {
+    const appKey = process.env.NEXT_PUBLIC_DROPBOX_APP_KEY;
+    if (!appKey) {
+      showToast(
+        "Dropbox app key not configured. Please check your environment variables.",
+        "error"
+      );
+      return;
+    }
+
+    if (dropboxLoading) {
+      showToast(
+        "Dropbox is still loading. Please wait a moment and try again.",
+        "info"
+      );
+      return;
+    }
+
+    if (!window.Dropbox) {
+      showToast(
+        "Dropbox Chooser is not available. Please refresh the page and try again.",
+        "error"
+      );
+      return;
+    }
+
+    try {
+      window.Dropbox.choose({
+        success: (files) => {
+          const dropboxFiles = files.map((file) => ({
+            name: file.name,
+            size: file.bytes,
+            type: file.link.split(".").pop() || "application/octet-stream",
+            dropboxLink: file.link,
+          }));
+          setUploadFiles((prev) => [...prev, ...dropboxFiles]);
+          showToast("Dropbox files selected. Ready to upload.", "success");
+        },
+        cancel: () => showToast("Dropbox upload cancelled.", "info"),
+        linkType: "direct",
+        multiselect: true,
+        extensions: [],
+      });
+    } catch (error) {
+      console.error("Dropbox Chooser error:", error);
+      showToast(
+        "Dropbox integration error. Please check your Dropbox app configuration.",
+        "error"
+      );
+    }
+  };
 
   const removeFile = (index) => {
     setUploadFiles((prev) => prev.filter((_, i) => i !== index));
@@ -76,10 +188,37 @@ export function UploadDialog({
     const sodium = await getSodium();
     const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
 
-    // Process each file in parallel
     await Promise.all(
       uploadFiles.map(async (file) => {
         try {
+          if (file.dropboxLink) {
+            const response = await fetch(file.dropboxLink);
+            if (!response.ok)
+              throw new Error("Failed to download from Dropbox");
+            const blob = await response.blob();
+            file = new File([blob], file.name, { type: file.type });
+          }
+
+          if (file.googleId) {
+            const token = authResponse?.access_token;
+            if (!token)
+              throw new Error(
+                "Google API token missing. User may need to re-authenticate."
+              );
+
+            const response = await fetch(
+              `https://www.googleapis.com/drive/v3/files/${file.googleId}?alt=media`,
+              {
+                headers: { Authorization: `Bearer ${token}` },
+              }
+            );
+
+            if (!response.ok)
+              throw new Error("Failed to fetch file from Google Drive");
+            const blob = await response.blob();
+            file = new File([blob], file.name, { type: file.type });
+          }
+
           // 1️⃣ Call startUpload to get fileId
           const startRes = await fetch(getFileApiUrl("/startUpload"), {
             method: "POST",
@@ -104,10 +243,17 @@ export function UploadDialog({
 
           // 3️⃣ Encrypt entire compressed file
           //nonce is up there
-          const ciphertext = sodium.crypto_secretbox_easy(fileBuffer, nonce, encryptionKey);
+          const ciphertext = sodium.crypto_secretbox_easy(
+            fileBuffer,
+            nonce,
+            encryptionKey
+          );
 
           // 4️⃣ Compute SHA-256 hash of encrypted file
-          const hashBuffer = await crypto.subtle.digest("SHA-256", ciphertext.buffer);
+          const hashBuffer = await crypto.subtle.digest(
+            "SHA-256",
+            ciphertext.buffer
+          );
           const fileHash = Array.from(new Uint8Array(hashBuffer))
             .map((b) => b.toString(16).padStart(2, "0"))
             .join("");
@@ -117,54 +263,63 @@ export function UploadDialog({
           let uploadedChunks = 0;
 
           // 6️⃣ Upload all chunks in parallel
-          const chunkUploadPromises = Array.from({ length: totalChunks }, (_, chunkIndex) => {
-            const start = chunkIndex * chunkSize;
-            const end = Math.min(start + chunkSize, ciphertext.length);
-            const chunk = ciphertext.slice(start, end);
+          const chunkUploadPromises = Array.from(
+            { length: totalChunks },
+            (_, chunkIndex) => {
+              const start = chunkIndex * chunkSize;
+              const end = Math.min(start + chunkSize, ciphertext.length);
+              const chunk = ciphertext.slice(start, end);
 
-            const formData = new FormData();
-            formData.append("fileId", fileId);
-            formData.append("userId", userId);
-            formData.append("fileName", file.name);
-            formData.append("fileType", file.type || "application/octet-stream");
-            formData.append("fileDescription", "");
-            formData.append("fileTags", JSON.stringify(["personal use"]));
-            formData.append("path", currentFolderPath || "files");
-            formData.append("fileHash", fileHash);
-            formData.append(
-              "nonce",
-              sodium.to_base64(nonce, sodium.base64_variants.ORIGINAL)
-            );
-            formData.append("chunkIndex", chunkIndex.toString());
-            formData.append("totalChunks", totalChunks.toString());
-            formData.append("encryptedFile", new Blob([chunk]), file.name);
+              const formData = new FormData();
+              formData.append("fileId", fileId);
+              formData.append("userId", userId);
+              formData.append("fileName", file.name);
+              formData.append(
+                "fileType",
+                file.type || "application/octet-stream"
+              );
+              formData.append("fileDescription", "");
+              formData.append("fileTags", JSON.stringify(["personal use"]));
+              formData.append("path", currentFolderPath || "files");
+              formData.append("fileHash", fileHash);
+              formData.append(
+                "nonce",
+                sodium.to_base64(nonce, sodium.base64_variants.ORIGINAL)
+              );
+              formData.append("chunkIndex", chunkIndex.toString());
+              formData.append("totalChunks", totalChunks.toString());
+              formData.append("encryptedFile", new Blob([chunk]), file.name);
 
-            return fetch(getFileApiUrl("/upload"), {
-              method: "POST",
-              body: formData,
-            })
-              .then((res) => {
-                if (!res.ok) throw new Error(`Chunk ${chunkIndex} failed`);
-                return res.json();
+              return fetch(getFileApiUrl("/upload"), {
+                method: "POST",
+                body: formData,
               })
-              .then(() => {
-                uploadedChunks++;
-                setUploadProgress(Math.round((uploadedChunks / totalChunks) * 100));
-              });
-          });
+                .then((res) => {
+                  if (!res.ok) throw new Error(`Chunk ${chunkIndex} failed`);
+                  return res.json();
+                })
+                .then(() => {
+                  uploadedChunks++;
+                  setUploadProgress(
+                    Math.round((uploadedChunks / totalChunks) * 100)
+                  );
+                });
+            }
+          );
 
           await Promise.all(chunkUploadPromises);
           console.log(`${file.name} uploaded successfully`);
 
           //add access log
-          const token = localStorage.getItem('token');
+          const token = localStorage.getItem("token");
 
-          const res = await fetch(getApiUrl('/users/profile'), {
+          const res = await fetch(getApiUrl("/users/profile"), {
             headers: { Authorization: `Bearer ${token}` },
           });
 
           const result = await res.json();
-          if (!res.ok) throw new Error(result.message || 'Failed to fetch profile');
+          if (!res.ok)
+            throw new Error(result.message || "Failed to fetch profile");
 
           await fetch(getFileApiUrl("/addAccesslog"), {
             method: "POST",
@@ -176,7 +331,6 @@ export function UploadDialog({
               message: `User ${result.data.email} uploaded the file.`,
             }),
           });
-
         } catch (err) {
           console.error(`Upload failed for ${file.name}:`, err);
           showToast(`Upload failed for ${file.name}`, "error");
@@ -212,12 +366,13 @@ export function UploadDialog({
       {toast && (
         <div className="fixed top-1/4 left-1/2 -translate-x-1/2 z-[100]">
           <div
-            className={`flex items-center justify-between px-4 py-3 rounded shadow-lg w-80 text-sm ${toast.type === "error"
+            className={`flex items-center justify-between px-4 py-3 rounded shadow-lg w-80 text-sm ${
+              toast.type === "error"
                 ? "bg-red-500 text-white"
                 : toast.type === "success"
-                  ? "bg-green-500 text-white"
-                  : "bg-gray-800 text-white"
-              }`}
+                ? "bg-green-500 text-white"
+                : "bg-gray-800 text-white"
+            }`}
           >
             <span>{toast.message}</span>
             <button onClick={closeToast} className="ml-3">
@@ -234,8 +389,9 @@ export function UploadDialog({
           </h2>
 
           <div
-            className={`border-2 border-dashed p-8 text-center rounded-lg cursor-pointer ${dragActive ? "border-blue-500 bg-blue-50" : "border-gray-300"
-              }`}
+            className={`border-2 border-dashed p-8 text-center rounded-lg cursor-pointer ${
+              dragActive ? "border-blue-500 bg-blue-50" : "border-gray-300"
+            }`}
             onDragEnter={handleDrag}
             onDragLeave={handleDrag}
             onDragOver={handleDrag}
@@ -274,7 +430,8 @@ export function UploadDialog({
               <button
                 type="button"
                 onClick={handleDropboxUpload}
-                className="flex items-center gap-2 border px-3 py-2 rounded text-sm hover:bg-gray-100"
+                disabled={dropboxLoading}
+                className="flex items-center gap-2 border px-3 py-2 rounded text-sm hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Image
                   src="/img/dropbox.png"
@@ -283,7 +440,7 @@ export function UploadDialog({
                   height={20}
                   className="h-5 w-5"
                 />
-                Dropbox
+                {dropboxLoading ? "Loading..." : "Dropbox"}
               </button>
             </div>
           </div>
@@ -296,7 +453,7 @@ export function UploadDialog({
                   className="flex justify-between items-center p-2 bg-gray-50 rounded"
                 >
                   <div className="flex items-center gap-2">
-                    <File className="h-4 w-4" />
+                    <FileIcon className="h-4 w-4" />
                     <div>
                       <p className="text-sm">{file.name}</p>
                       <p className="text-xs text-gray-500">

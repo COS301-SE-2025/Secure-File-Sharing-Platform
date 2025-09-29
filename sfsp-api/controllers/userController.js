@@ -679,8 +679,21 @@ class UserController {
           message: "Email and Google ID are required.",
         });
       }
+      
+      const userAgent = req.headers['user-agent'] || '';
+      const ipAddress = req.ip || req.connection.remoteAddress || req.socket.remoteAddress || 'Unknown';
+      const deviceFingerprint = userService.generateDeviceFingerprint(userAgent, ipAddress);
+      const browserInfo = userService.parseUserAgent(userAgent, req.headers);
+      
+      const deviceInfo = {
+        deviceFingerprint,
+        userAgent,
+        ipAddress,
+        ...browserInfo
+      };
+      
+      console.log('Google auth device info:', deviceInfo);
 
-      // Check if user exists with this email
       const { data: existingUser, error: checkError } = await supabase
         .from("users")
         .select("*")
@@ -700,7 +713,8 @@ class UserController {
             .from("users")
             .update({
               google_id: google_id,
-              avatar_url: picture || existingUser.avatar_url
+              avatar_url: picture || existingUser.avatar_url,
+              is_verified: true
             })
             .eq("id", existingUser.id)
             .select()
@@ -712,9 +726,12 @@ class UserController {
           user = updatedUser;
         } else {
           user = existingUser;
+          
+          if (!existingUser.is_verified) {
+            console.log("Existing Google user is not verified, keeping unverified status for 2FA");
+          }
         }
 
-        // Ensure user is added to PostgreSQL database via file service (for both new and existing users)
         try {
           const postgresRes = await axios.post(
             `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/addUser`,
@@ -724,12 +741,11 @@ class UserController {
           console.log("User successfully ensured in PostgreSQL database");
         } catch (postgresError) {
           console.error("Failed to add user to PostgreSQL database:", postgresError.message);
-          // Don't fail the login if PostgreSQL insertion fails
         }
+        
       } else {
         isNewUser = true;
         
-        // For new Google users, we need key bundle data
         if (!keyBundle || !keyBundle.ik_public || !keyBundle.spk_public || 
             !keyBundle.opks_public || !keyBundle.nonce || 
             !keyBundle.signedPrekeySignature || !keyBundle.salt) {
@@ -763,7 +779,6 @@ class UserController {
         }
         user = newUser;
 
-        // Store private keys in vault
         const vaultres = await VaultController.storeKeyBundle({
           encrypted_id: user.id,
           ik_private_key: keyBundle.ik_private_key,
@@ -779,7 +794,6 @@ class UserController {
           });
         }
 
-        // Add user to PostgreSQL database via file service
         try {
           const postgresRes = await axios.post(
             `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/addUser`,
@@ -789,10 +803,8 @@ class UserController {
           console.log("Google user successfully added to PostgreSQL database");
         } catch (postgresError) {
           console.error("Failed to add Google user to PostgreSQL database:", postgresError.message);
-          // Don't fail the registration if PostgreSQL insertion fails
         }
 
-        // Send verification email for new Google users using the backend service
         try {
           await userService.sendVerificationCode(
             user.id,
@@ -806,9 +818,8 @@ class UserController {
         }
       }
 
-      // Only generate token for existing verified users
       let token = null;
-      if (!isNewUser && user.is_verified) {
+      if (user.is_verified) {
         token = await userService.generateToken(user.id, user.email);
       }
 
@@ -817,12 +828,22 @@ class UserController {
         try {
           const vaultResult = await VaultController.retrieveKeyBundle(user.id);
           if (vaultResult && !vaultResult.error) {
-            // Extract the actual key data from nested structure
-            keyBundle_response = vaultResult?.data?.data || vaultResult?.data || null;
+            keyBundle_response = vaultResult;
           }
         } catch (vaultError) {
           console.warn("Failed to retrieve keys for existing Google user:", vaultError.message);
         }
+      }
+      
+      // Create or update session for both new and existing Google users
+      try {
+        // Include request headers for better browser detection (especially Brave)
+        deviceInfo.headers = req.headers;
+        const sessionResult = await userService.createOrUpdateUserSession(user.id, deviceInfo);
+        console.log('Google user session created/updated:', sessionResult?.session?.id);
+      } catch (sessionError) {
+        console.error('Error creating session for Google user:', sessionError.message);
+        // Continue with the authentication process even if session creation fails
       }
 
       res.status(200).json({

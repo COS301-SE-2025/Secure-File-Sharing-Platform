@@ -467,7 +467,7 @@ export function FileGrid({
           )}
 
           {/* Change Share Method Button */}
-          {isOwner(menuFile) && (
+          {/* {isOwner(menuFile) && (
             <button
               onClick={() => {
                 onChangeShareMode(menuFile); // Change from setIsChangeMethodOpen(true)
@@ -479,7 +479,7 @@ export function FileGrid({
             >
               <Settings className="h-4 w-4" /> Change Share Methods
             </button>
-          )}
+          )} */}
 
           <button
             onClick={() => handleDelete(menuFile)}

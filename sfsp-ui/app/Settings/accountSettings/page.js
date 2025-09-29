@@ -178,9 +178,9 @@ export default function AccountSettings() {
   const showExpanded = !isCollapsed || isHovered;
 
   const tabsWithIcons = [
-    { name: 'MY ACCOUNT', icon: User },
-    { name: 'CHANGE PASSWORD', icon: Shield },
-    { name: 'NOTIFICATIONS', icon: Bell },
+    { name: 'MY ACCOUNT', icon: User }
+    /* { name: 'CHANGE PASSWORD', icon: Shield },
+    { name: 'NOTIFICATIONS', icon: Bell }, */
   ];
 
   // ------------------------------------Sidebar Toggle Logic------------------------------------
@@ -948,7 +948,7 @@ export default function AccountSettings() {
             </div>
             )}
 
-          {activeTab === 'CHANGE PASSWORD' && (
+          {/* {activeTab === 'CHANGE PASSWORD' && (
             <div className="max-w-2xl">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Change Password</h3>
@@ -1102,9 +1102,9 @@ export default function AccountSettings() {
                 </div>
               )}
             </div>
-          )}
+          )} */}
 
-          {activeTab === 'NOTIFICATIONS' && (
+          {/* {activeTab === 'NOTIFICATIONS' && (
             <div className="max-w-2xl">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Notification Settings</h3>
@@ -1284,7 +1284,7 @@ export default function AccountSettings() {
                 </button>
               </div>
             </div>
-          )}
+          )} */}
         </div>
       </div>
 
