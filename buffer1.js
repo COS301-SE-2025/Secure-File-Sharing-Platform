@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Upload, FolderPlus, Grid, List, Route } from "lucide-react";
+import { Upload, FolderPlus, Grid, List, Route, ChevronDown } from "lucide-react";
 import { ShareDialog } from "./shareDialog";
 import { UploadDialog } from "./uploadDialog";
 import { FileDetailsDialog } from "./fileDetailsDialog";
@@ -23,6 +23,7 @@ import { PDFDocument, rgb } from "pdf-lib";
 
 //import fetchProfile from "../components/Sidebar"
 import { formatDate } from "../../../lib/dateUtils";
+import { getFileType, forma } from "@/utils/fileUtils";
 
 function Toast({ message, type = "info", onClose }) {
   return (
@@ -35,6 +36,8 @@ function Toast({ message, type = "info", onClose }) {
   );
 }
 
+<<<<<<< HEAD
+=======
 function getFileType(mimeType, fileName = '') {
   if (mimeType.includes("folder")) return "folder";
   const normalizedMimeType = mimeType ? mimeType.toLowerCase() : '';
@@ -284,6 +287,7 @@ function formatFileSize(size) {
     return `${(size / (1024 * 1024)).toFixed(2)} MB`;
   else return `${(size / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
+>>>>>>> 6ef5904263d4ed688489c43b85722d7e5523cdae
 
 function getCookie(name) {
   return document.cookie
@@ -302,9 +306,9 @@ export default function MyFiles() {
   const [currentPath, setCurrentPath] = useState("");
   const [refreshFlag, setRefreshFlag] = useState(false);
 
-  // Clipboard state for cut operations
-  const [clipboard, setClipboard] = useState(null); // { file: file, operation: 'cut' }
 
+  const [clipboard, setClipboard] = useState(null); 	/*state for cut operations 
+  							{ file: file, operation: 'cut' } */
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
@@ -312,15 +316,14 @@ export default function MyFiles() {
   const [isActivityOpen, setIsActivityOpen] = useState(false);
   const [isRevokeAccessOpen, setIsRevokeAccessOpen] = useState(false);
   const [isChangeMethodOpen, setIsChangeMethodOpen] = useState(false);
-
   const [previewContent, setPreviewContent] = useState(null);
   const [previewFile, setPreviewFile] = useState(null);
   const [viewerFile, setViewerFile] = useState(null);
   const [viewerContent, setViewerContent] = useState(null);
-  const [showSortOptions, setShowSortOptions] = useState(false);
   const [toast, setToast] = useState(null);
-
   const [user, setUser] = useState(null); 
+  const [showSortOptions, setShowSortOptions] = useState(false);
+
 
   const showToast = (message, type = "info", duration = 3000) => {
     setToast({ message, type });
@@ -410,15 +413,22 @@ export default function MyFiles() {
         .map((f) => {
           const tags = f.tags ? f.tags.replace(/[{}]/g, "").split(",") : [];
           const isViewOnlyFile = tags.includes("view-only");
+<<<<<<< HEAD
+          const isFolder =
+            !f.fileType || f.fileType.toLowerCase() === "folder"; 
+=======
           const isFolder = !f.fileType || f.fileType.toLowerCase() === "folder";
+>>>>>>> 6ef5904263d4ed688489c43b85722d7e5523cdae
 
           return {
             id: f.fileId || "",
             name: f.fileName || "Unnamed file",
+            sizeBytes: f.fileSize || 0,
             size: formatFileSize(f.fileSize || 0),
             type: getFileType(f.fileType || "",f.fileName),
             description: f.description || "",
             path: f.cid || "",
+            modifiedRaw: f.createdAt || "",  
             modified: f.createdAt
               ? formatDate(f.createdAt)
               : "",
@@ -447,7 +457,8 @@ export default function MyFiles() {
   useEffect(() => {
     fetchFiles();
   }, []);
- const sortFilesBasedOnDate = () => {
+
+    const sortFilesBasedOnDate = () => {
       setFiles([...files].sort((a, b) => new Date(b.modifiedRaw) - new Date(a.modifiedRaw)));
     };
   
@@ -466,6 +477,7 @@ export default function MyFiles() {
     const handleDescendingSort = () => {
       setFiles([...files].reverse());
     };
+    
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -793,7 +805,11 @@ const handlePreview = async (rawFile) => {
         x: width / 2 - 50,
         y: height / 2,
         size: 36,
+<<<<<<< HEAD
+        color: rgb(1, 0, 0), //keep ths rgb else errors
+=======
         color: rgb(1, 0, 0),
+>>>>>>> 6ef5904263d4ed688489c43b85722d7e5523cdae
         opacity: 0.4,
         rotate: { type: "degrees", angle: 45 },
       });
@@ -1166,6 +1182,7 @@ const handleOpenFullView = async (file) => {
               )}
             </div>
           </div>
+        
 
             {/* Create Folder & Upload buttons */}
             <button
