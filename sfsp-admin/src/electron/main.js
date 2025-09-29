@@ -36,7 +36,7 @@ app.on("ready", () => {
     handleClose(mainWindow);
     newMenu(mainWindow);
 
-    mainWindow.webContents.on("devtools-opened", () => {
+    /* mainWindow.webContents.on("devtools-opened", () => {
         mainWindow.webContents.closeDevTools();
     });
 
@@ -45,7 +45,7 @@ app.on("ready", () => {
     });
     globalShortcut.register("F12", () => {
         console.log("Blocked attempt to open DevTools");
-    });
+    }); */
 
 });
 
