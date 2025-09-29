@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SFSP Admin</title>
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self'; 
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; 
+    font-src 'self' https://fonts.gstatic.com; 
+    script-src 'self'; 
+    connect-src 'self' http://localhost:5000 https://secureshare.co.za;
+    img-src 'self' https://lh3.googleusercontent.com https://lh3.googleusercontent.com/a/ https:;
+  " />
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/ui/main.jsx"></script>
+</body>
+
+</html>
