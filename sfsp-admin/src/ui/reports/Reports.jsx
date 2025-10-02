@@ -19,15 +19,15 @@ const Reports = () => {
 
     useEffect(() => {
         adminFetch("/reports")
-            .then(res => res.json())
+            .then(res => res)
             .then(data => setReports(data.data || []));
 
         adminFetch("/report-stats")
-            .then(res => res.json())
+            .then(res => res)
             .then(data => setStats(data.data || {}));
 
         adminFetch("/assignees")
-            .then(res => res.json())
+            .then(res => res)
             .then(data => setAdmins(data.data || []));
     }, []);
 
@@ -71,12 +71,12 @@ const Reports = () => {
     };
 
     const updateReport = (id, updates) => {
-        fetch(`http://localhost:5000/api/admin/reports/${id}`, {
+        adminFetch(`/reports/${id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(updates),
         })
-            .then(res => res.json())
+            .then(res => res)
             .then(data => {
                 setReports(reports.map(r => (r.id === id ? data.data : r)));
             });
@@ -149,7 +149,7 @@ const Reports = () => {
                                             assignee: ""
                                         })
                                     })
-                                        .then(res => res.json())
+                                        .then(res => res)
                                         .then(data => {
                                             setReports([data.data, ...reports]);
                                             setAddReportModalOpen(false);

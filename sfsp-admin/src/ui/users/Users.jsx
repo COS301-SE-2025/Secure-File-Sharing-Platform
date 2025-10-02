@@ -27,7 +27,7 @@ const Users = () => {
         const fetchUsers = async () => {
             try {
                 const res = await adminFetch("/users");
-                const data = await res.json();
+                const data = res;
 
                 if (data.success) {
                     const formattedUsers = data.users.map(u => ({
@@ -50,7 +50,7 @@ const Users = () => {
         const fetchCounts = async () => {
             try {
                 const res = await adminFetch("/users/count");
-                const data = await res.json();
+                const data = res;
 
                 if (data.success) {
                     setTotalUsers(data.totalUsers);
@@ -79,7 +79,7 @@ const Users = () => {
                 body: JSON.stringify({ userId }),
             });
 
-            const data = await res.json();
+            const data = res;
 
             if (data.success) {
                 setUsers(prev => prev.filter(u => u.id !== userId));
@@ -136,7 +136,7 @@ const Users = () => {
                 }),
             });
 
-            const data = await res.json();
+            const data = res;
             if (data.success) {
                 setToastMessage(`User ${blockUserName} blocked successfully`);
                 setUsers(prev =>
@@ -172,7 +172,8 @@ const Users = () => {
                 }),
             });
 
-            const data = await res.json();
+            const data = res;
+            console.log(data);
 
             if (data.success) {
                 setUsers(prev =>
@@ -197,7 +198,7 @@ const Users = () => {
             }
         } catch (err) {
             console.error("Failed to create admin:", err);
-            setToastMessage("Failed to create admin");
+            setToastMessage("Failed to create admin",err.Error);
             setTimeout(() => setToastMessage(""), 3000);
             setIsAdminDialogOpen(false);
             setNewAdminUsername("");
@@ -213,7 +214,7 @@ const Users = () => {
                 body: JSON.stringify({ userId, newRole }),
             });
 
-            const data = await res.json();
+            const data = res;
             if (data.success) {
                 setToastMessage(data.message);
                 setUsers(prev =>
@@ -473,7 +474,7 @@ const Users = () => {
                                                 message: messageBody,
                                             }),
                                         });
-                                        const data = await res.json();
+                                        const data = res;
                                         if (data.success) {
                                             setToastMessage(`Message sent to ${selectedUser.username}`);
                                             setTimeout(() => setToastMessage(""), 3000);

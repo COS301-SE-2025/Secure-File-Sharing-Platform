@@ -1,7 +1,7 @@
 {
   "name": "sfsp-admin",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.6.0",
   "description": "Admin desktop app for SecureShare",
   "author": "CacheME",
   "type": "module",

@@ -409,6 +409,10 @@ class UserService {
         throw new Error("User not found with this email.");
       }
 
+      if(!user.active){
+        throw new Error("User is blocked.");
+      }
+
       const MnemonicCrypto = require("../utils/mnemonicCrypto");
       const isPasswordValid = await MnemonicCrypto.validatePassword(password, user.password);
       if (!isPasswordValid) {

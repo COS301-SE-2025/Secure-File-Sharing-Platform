@@ -1163,8 +1163,8 @@ const handleOpenFullView = async (file) => {
             onViewActivity={openActivityDialog}
             onDownload={handleDownload}
             onDelete={fetchFiles}
-            onRevokeAccess={() => setIsRevokeAccessOpen(true)}
-            onChangeShareMode={() => setIsChangeMethodOpen(true)}
+            onRevokeAccess={openRevokeAccessDialog}
+            onChangeShareMode={handleChangeShareMode}
             onClick={handlePreview}
             onDoubleClick={handleOpenFullView}
             onMoveFile={handleMoveFile}
