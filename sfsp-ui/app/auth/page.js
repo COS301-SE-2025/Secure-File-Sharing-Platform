@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Loader from '@/app/dashboard/components/Loader';
 import { getSodium } from "@/app/lib/sodium";
@@ -20,6 +20,7 @@ import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 
 export default function AuthPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [tab, setTab] = useState("login");
   const [isLoading, setIsLoading] = useState(false);
   const [loaderMessage, setLoaderMessage] = useState("Loading...");
@@ -130,9 +131,6 @@ export default function AuthPage() {
     setLoaderMessage("Signing you in...");
     setMessage(null);
 
-    console.log(loginData.email);
-    console.log(loginData.password);
-
     try {
       const sodium = await getSodium();
       const loginUrl = getApiUrl('/users/login');
@@ -147,7 +145,6 @@ export default function AuthPage() {
       });
 
       const result = await res.json();
-      console.log(result);
       if (!res.ok || !result.success) {
         throw new Error(result.message || "Invalid login credentials");
       }
@@ -181,124 +178,41 @@ export default function AuthPage() {
       
       // Send verification code before redirecting
       try {
-        const sendCodeResponse = await fetch(`${process.env.NEXTAUTH_URL}/api/auth/send-verification`, {
+        const sendCodeResponse = await fetch(`/api/auth/send-verification`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             email: loginData.email,
             userId: id,
             userName: result.data.user.username || "User",
-                          type: "login_verify"
+            type: "login_verify"
           }),
         });
-        
+
         if (!sendCodeResponse.ok) {
-          console.error("Failed to send verification code");
+          const errorData = await sendCodeResponse.json();
+          console.error("Failed to send verification code:", errorData);
+          setMessage("Failed to send verification code. Please try again.");
+          setIsLoading(false);
+          return;
         }
+
+        setLoaderMessage("Verification code sent! Redirecting...");
+        setTimeout(() => {
+          const redirectParam = searchParams.get('redirect');
+          const verifyUrl = `/auth/verify-email?email=${encodeURIComponent(loginData.email)}&userId=${id}${redirectParam ? `&redirect=${encodeURIComponent(redirectParam)}` : ''}`;
+          router.push(verifyUrl);
+        }, 1500);
+
       } catch (error) {
         console.error("Error sending verification code:", error);
-      }
-      
-      setTimeout(() => {
-          router.push(`/auth/verify-email?email=${encodeURIComponent(loginData.email)}&userId=${id}`);
-      }, 1500);
-
-      //we don't need to securely store the user ID but I will store it in the Zustand store for easy access
-      useEncryptionStore.getState().setUserId(id);
-
-      //derived key from password and salt
-      const derivedKey = sodium.crypto_pwhash(
-        32, // key length
-        loginData.password,
-        sodium.from_base64(salt),
-        sodium.crypto_pwhash_OPSLIMIT_MODERATE,
-        sodium.crypto_pwhash_MEMLIMIT_MODERATE,
-        sodium.crypto_pwhash_ALG_DEFAULT
-      );
-
-      // Decrypt vault keys (they are encrypted with the password-derived key)
-      const decryptedIkPrivateKey = sodium.crypto_secretbox_open_easy(
-        sodium.from_base64(ik_private_key),
-        sodium.from_base64(nonce),
-        derivedKey
-      );
-
-      let decryptedSpkPrivateKey;
-      try {
-        decryptedSpkPrivateKey = sodium.crypto_secretbox_open_easy(
-          sodium.from_base64(spk_private_key),
-          sodium.from_base64(nonce),
-          derivedKey
-        );
-      } catch (spkError) {
-        // If SPK decryption fails, assume it's not encrypted (for backward compatibility)
-        console.log("SPK decryption failed, assuming unencrypted:", spkError.message);
-        decryptedSpkPrivateKey = sodium.from_base64(spk_private_key);
+        setMessage("Failed to send verification code. Please try again.");
+        setIsLoading(false);
+        return;
       }
 
-      const decryptedOpksPrivate = opks_private.map((opk) => ({
-        opk_id: opk.opk_id,
-        private_key: sodium.crypto_secretbox_open_easy(
-          sodium.from_base64(opk.private_key),
-          sodium.from_base64(nonce),
-          derivedKey
-        ),
-      }));
-
-      let opks_public_temp;
-      if (typeof opks_public === "string") {
-        try {
-          opks_public_temp = JSON.parse(opks_public.replace(/\\+/g, ""));
-        } catch (e) {
-          opks_public_temp = opks_public.replace(/\\+/g, "").slice(1, -1).split(",");
-        }
-      } else {
-        opks_public_temp = opks_public;
-      }
-
-      const userKeys = {
-        identity_private_key: decryptedIkPrivateKey,
-        signedpk_private_key: decryptedSpkPrivateKey,
-        oneTimepks_private: decryptedOpksPrivate,
-        identity_public_key: sodium.from_base64(ik_public),
-        signedpk_public_key: sodium.from_base64(spk_public),
-        oneTimepks_public: opks_public_temp.map((opk) => ({
-          opk_id: opk.opk_id,
-          publicKey: sodium.from_base64(opk.publicKey),
-        })),
-        signedPrekeySignature: sodium.from_base64(signedPrekeySignature),
-        salt: sodium.from_base64(salt),
-        nonce: sodium.from_base64(nonce),
-      };
-
-      console.log("User keys decrypted from vault successfully:", userKeys);
-
-      await storeDerivedKeyEncrypted(derivedKey); // stores with unlockToken
-      sessionStorage.setItem("unlockToken", "session-unlock");
-      await storeUserKeysSecurely(userKeys, derivedKey); // your existing function
-
-      useEncryptionStore.setState({
-        encryptionKey: derivedKey,
-        userId: id,
-        userKeys: userKeys,
-      });
-
-      console.log("User keys stored successfully:", userKeys);
-      // localStorage.setItem('token', result.token);
-      const bearerToken = token;
-
-      if (!bearerToken) {
-        throw new Error("No token returned from server");
-      }
-
-      //const unlockToken = sessionStorage.getItem("unlockToken");
-
-      const rawToken = bearerToken.replace(/^Bearer\s/, "");
-      localStorage.setItem("token", rawToken);
-      setMessage("Login successful!");
-      setTimeout(() => {
-        router.push("/dashboard");
-      }, 1000);
+      // Store login data temporarily for verification completion
+      // The verification page will handle the final authentication setup
       
     } catch (err) {
       console.error("Login error:", err);
@@ -398,8 +312,6 @@ export default function AuthPage() {
         sodium.crypto_pwhash_MEMLIMIT_MODERATE,
         sodium.crypto_pwhash_ALG_DEFAULT
       );
-      console.log("Start signup");
-      console.log("Derived key is: ", derivedKey);
 
       // Decrypt identity key for storage
       const decryptedIkPrivateKey = sodium.crypto_secretbox_open_easy(
@@ -410,8 +322,6 @@ export default function AuthPage() {
       if (!decryptedIkPrivateKey) {
         throw new Error("Failed to decrypt identity key private key");
       }
-
-      console.log("Decrypted ik private is: ", decryptedIkPrivateKey);
 
       const userKeys = {
         identity_private_key: decryptedIkPrivateKey,
@@ -446,7 +356,6 @@ export default function AuthPage() {
         userKeys: userKeys,
       });
 
-      console.log("User keys stored successfully:", userKeys);
 
       // Check if user needs email verification
       if (!user.is_verified) {
@@ -479,7 +388,9 @@ export default function AuthPage() {
         localStorage.setItem("token", rawToken);
 
         setTimeout(() => {
-          router.push(`/auth/verify-email?email=${encodeURIComponent(user.email)}&userId=${user.id}`);
+          const redirectParam = searchParams.get('redirect');
+          const verifyUrl = `/auth/verify-email?email=${encodeURIComponent(user.email)}&userId=${user.id}${redirectParam ? `&redirect=${encodeURIComponent(redirectParam)}` : ''}`;
+          router.push(verifyUrl);
         }, 1500);
         return;
       }
@@ -512,7 +423,8 @@ export default function AuthPage() {
       }
 
       setTimeout(() => {
-        router.push('/dashboard');
+        const redirectUrl = searchParams.get('redirect') || '/dashboard';
+        router.push(redirectUrl);
       }, 1000);
     } catch (err) {
       console.error("Signup error:", err);
@@ -542,7 +454,7 @@ export default function AuthPage() {
         return;
       }
 
-      const redirectUri = 'http://localhost:3000/auth/google/callback';
+      const redirectUri = `${window.location.origin}/auth/google/callback`;
       const scope = 'openid email profile';
       
       // Generate state parameter for security
@@ -586,12 +498,6 @@ export default function AuthPage() {
     const ik = sodium.crypto_sign_keypair();
     const spk = sodium.crypto_sign_keypair();
 
-    console.log("Start key generation");
-    console.log("IK private", ik.privateKey);
-    console.log("IK public", ik.publicKey);
-    console.log("SPK private", spk.privateKey);
-    console.log("SPK public", spk.publicKey);
-
     const spkSignature = sodium.crypto_sign_detached(
       spk.publicKey,
       ik.privateKey
@@ -603,7 +509,6 @@ export default function AuthPage() {
     }));
 
     const salt = sodium.randombytes_buf(sodium.crypto_pwhash_SALTBYTES);
-    console.log("Salt is: ", salt)
     const derivedKey = sodium.crypto_pwhash(
       32,
       password,
@@ -613,17 +518,12 @@ export default function AuthPage() {
       sodium.crypto_pwhash_ALG_DEFAULT
     );
 
-    console.log("Derivedkey is: ", derivedKey);
-
     const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
-    console.log("Nonce is:", nonce);
     const encryptedIK = sodium.crypto_secretbox_easy(
       ik.privateKey,
       nonce,
       derivedKey
     );
-
-    console.log("encrypted ik is: ", encryptedIK);
 
     const encryptedOPKs = opks.map((opk) => ({
       opk_id: opk.opk_id,
@@ -631,13 +531,6 @@ export default function AuthPage() {
         sodium.crypto_secretbox_easy(opk.keypair.privateKey, nonce, derivedKey)
       ),
     }));
-
-    console.log("encrypted opks are: ", encryptedOPKs);
-
-    console.log("SPK pub (raw):", spk.publicKey);
-    console.log("IK pub (Ed25519):", ik.publicKey);
-    console.log("SPK Signature:", spkSignature);
-    console.log("End key generation");
 
     return {
       ik_public: sodium.to_base64(ik.publicKey),
@@ -816,14 +709,14 @@ export default function AuthPage() {
                 </button>
 
                 {/* Or separator */}
-                <div className="flex items-center my-4">
+                {/* <div className="flex items-center my-4">
                   <hr className="flex-grow border-t dark:border-gray-400 border-gray-300" />
                   <span className="mx-2 text-gray-500 text-sm">or</span>
                   <hr className="flex-grow border-t dark:border-gray-400 border-gray-300" />
-                </div>
+                </div> */}
 
                 {/* Google login button */}
-                <button
+                {/* <button
                   type="button"
                   onClick={handleGoogleAuth}
                   disabled={isLoading}
@@ -855,7 +748,7 @@ export default function AuthPage() {
                   <span className="text-sm font-medium text-gray-700">
                     Continue with Google
                   </span>
-                </button>
+                </button> */}
               </form>
             </>
           )}
@@ -1068,14 +961,14 @@ export default function AuthPage() {
                     "Create account"
                   )}
                 </button>
-                <div className="flex items-center my-4">
+                {/* <div className="flex items-center my-4">
                   <hr className="flex-grow border-t dark:border-gray-400 border-gray-300" />
                   <span className="mx-2 text-gray-500 text-sm">or</span>
                   <hr className="flex-grow border-t dark:border-gray-400 border-gray-300" />
-                </div>
+                </div> */}
 
                 {/* Google Sign Up button */}
-                <button
+                {/* <button
                   type="button"
                   onClick={handleGoogleAuth}
                   disabled={isLoading}
@@ -1107,7 +1000,7 @@ export default function AuthPage() {
                   <span className="text-sm font-medium text-gray-700">
                     Continue with Google
                   </span>
-                </button>
+                </button> */}
               </form>
             </>
           )}

@@ -34,7 +34,7 @@ export async function POST(request) {
             );
         }
 
-        const emailResult = await sendVerificationEmail(email, verificationCode, userName || 'User');
+        const emailResult = await sendVerificationEmail(email, verificationCode, userName || 'User', type);
 
         if (!emailResult.success) {
             return NextResponse.json(

@@ -26,8 +26,6 @@ export function ActivityLogsDialog({ open, onOpenChange, file }) {
     const fetchLogs = async () => {
       try {
 
-        console.log(file.id);
-
         const res = await fetch(getFileApiUrl('/getAccesslog'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -39,7 +37,6 @@ export function ActivityLogsDialog({ open, onOpenChange, file }) {
         const logs = await res.json();
 
         const filteredLogs = logs.filter(log => log.file_id === file.id);
-        console.log(filteredLogs);
         setActivities(filteredLogs);
       } catch (err) {
         console.error('Error fetching activity logs:', err);

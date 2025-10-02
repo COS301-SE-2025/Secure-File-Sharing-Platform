@@ -474,7 +474,7 @@ export function FileGrid({
             <MoreVertical className="h-4 w-4" /> Activity Logs
           </button>
 
-          {(isViewOnly(menuFile) || menuFile.allow_view_sharing) && onRevokeViewAccess && (
+          {/* {(isViewOnly(menuFile) || menuFile.allow_view_sharing) && onRevokeViewAccess && (
             <button
               onClick={() => {
                 onRevokeViewAccess(menuFile);
@@ -484,7 +484,7 @@ export function FileGrid({
             >
               <EyeOff className="h-4 w-4" /> Revoke View Access
             </button>
-          )}
+          )} */}
 
           <button
             onClick={() => handleDelete(menuFile)}

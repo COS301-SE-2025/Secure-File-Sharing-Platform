@@ -438,9 +438,9 @@ useEffect(() => {
 
   useEffect(() => {
       const fetchProfile = async () => {
-  
+        const token = localStorage.getItem('token');
         try {
-          const res = await fetch(getApiUrl('/user/profile'), {
+          const res = await fetch(getApiUrl('/users/profile'), {
             headers: { Authorization: `Bearer ${token}` },
           });
   
@@ -689,7 +689,6 @@ useEffect(() => {
               timestamp: log.timestamp,
               dateFormatted: new Date(log.timestamp).toLocaleString(),
             });
-            console.log("Username is (in user):", user);
           }
         } catch {}
       }
@@ -1006,7 +1005,7 @@ useEffect(() => {
             handleOpenFullView(file);
           }}
           onSaveDescription={async (id, description) => {
-            console.log("Save description for:", id, description);
+            // console.log("Save description for:", id, description);
           }}
         />
       )}

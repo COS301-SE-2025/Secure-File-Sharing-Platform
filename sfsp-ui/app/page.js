@@ -410,7 +410,7 @@ export default function Home() {
             <Typewriter text="Get Sharing" speed={100} loop={true} cursor={true} />
           </h3>
           <a
-            href="/login"
+            href="/auth"
             className="relative overflow-hidden inline-block bg-blue-600 text-white px-10 py-3 rounded-full font-medium transition-all duration-300 hover:shadow-xl hover:scale-105 animate-slide-in-bottom animation-delay-200 group"
           >
             <span className="relative z-10">Log In</span>

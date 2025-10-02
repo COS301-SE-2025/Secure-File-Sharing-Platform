@@ -55,18 +55,13 @@ export default function GoogleCallbackPage() {
 
             const googleUser = data.user;
 
-            console.log('Checking if user exists for email:', googleUser.email);
             
             try {
             const userExistsResponse = await fetch(getApiUrl(`/users/getUserId/${googleUser.email}`));
-            console.log('User existence check response status:', userExistsResponse.status);
-            
             if (userExistsResponse.ok) {
                 const userIdData = await userExistsResponse.json();
-                console.log('User exists, handling login:', userIdData);
                 await handleExistingUserLogin(googleUser, userIdData.data.userId);
             } else if (userExistsResponse.status === 404) {
-                console.log('User does not exist, handling registration');
                 await handleNewUserRegistration(googleUser);
             } else {
                 const errorText = await userExistsResponse.text();
@@ -75,7 +70,6 @@ export default function GoogleCallbackPage() {
             }
             } catch (fetchError) {
             console.error('Network error checking user existence:', fetchError);
-            console.log('Backend seems unreachable, defaulting to registration flow');
             setLoaderMessage("Setting up your account...");
             await handleNewUserRegistration(googleUser);
             }

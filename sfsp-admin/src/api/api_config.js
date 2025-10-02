@@ -1,12 +1,12 @@
 // For production (SecureShare server)
-const BASE_URL = "https://secureshare.co.za/api";
+/* const BASE_URL = "https://secureshare.co.za/api";
 const FILE_SERVICE_URL = "https://secureshare.co.za/api/files";
-const KEY_SERVICE_URL = "https://secureshare.co.za/api/keys";
+const KEY_SERVICE_URL = "https://secureshare.co.za/api/keys"; */
 
  //For development (localhost)
-/*  const BASE_URL = "http://localhost:5000/api";
+ const BASE_URL = "http://localhost:5000/api";
  const FILE_SERVICE_URL = "http://localhost:5000/api/files";
- const KEY_SERVICE_URL = "http://localhost:5000/api/keys"; */
+ const KEY_SERVICE_URL = "http://localhost:5000/api/keys";
 
 export const API_CONFIG = {
   BASE_URL,

@@ -508,7 +508,7 @@ export function FileList({
           >
             <MoreVertical className="h-4 w-4" /> Activity Logs
           </button>
-
+{/* 
           {(isViewOnly(menuFile) || menuFile.allow_view_sharing) &&
             onRevokeViewAccess && (
               <button
@@ -520,7 +520,7 @@ export function FileList({
               >
                 <EyeOff className="h-4 w-4" /> Revoke View Access
               </button>
-            )}
+            )} */}
 
           <button
             onClick={() => handleDelete(menuFile)}

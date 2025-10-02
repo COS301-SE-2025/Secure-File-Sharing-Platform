@@ -5,10 +5,6 @@ export async function POST(request) {
     try {
         const { code } = await request.json();
 
-        console.log('Received code:', code ? 'present' : 'missing');
-        console.log('Client ID:', process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ? 'present' : 'missing');
-        console.log('Client Secret:', process.env.GOOGLE_CLIENT_SECRET ? 'present' : 'missing');
-
         if (!code) {
         return NextResponse.json(
             { error: 'Missing authorization code' },

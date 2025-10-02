@@ -21,11 +21,9 @@ export default function ContactUs() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Form submitted:', formData);
 
     try {
       const apiUrl = getApiUrl('/contact');
-      console.log('API URL:', apiUrl); // Debug log
       
       const response = await fetch(apiUrl, {
         method: 'POST',

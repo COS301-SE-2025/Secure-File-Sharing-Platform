@@ -33,7 +33,6 @@ export default function TrashPage() {
       });
 
       const data = await res.json();
-      console.log(data);
 
       // const deletedFiles = data.filter(file => {
       //   const tags = parseTagString(file.tags);
@@ -46,8 +45,6 @@ export default function TrashPage() {
           return tags.includes('deleted') && tags.some(tag => tag.startsWith('deleted_time:'));
         })
         : [];
-
-      console.log(deletedFiles);
 
       const formatted = deletedFiles.map(file => {
         const tags = parseTagString(file.tags);

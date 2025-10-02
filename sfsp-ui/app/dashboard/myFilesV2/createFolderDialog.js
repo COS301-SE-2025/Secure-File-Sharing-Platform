@@ -93,7 +93,6 @@ export function CreateFolderDialog({ open, onOpenChange, currentPath,onFolderCre
         return;
       }
 
-      console.log("Folder created successfully");
       onFolderCreated?.();
       setFolderName("");
       onOpenChange(false);
