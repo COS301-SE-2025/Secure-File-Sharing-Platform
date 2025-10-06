@@ -3,7 +3,7 @@ const { supabase } = require("../config/database");
 const MnemonicCrypto = require("../utils/mnemonicCrypto");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
-
+const he = require("he");
 const adminService = {
   async login({ email, password }) {
     try {
@@ -202,8 +202,8 @@ const adminService = {
       <html>
       <head><meta charset="utf-8"></head>
       <body>
-        <p>Hi <strong>${username}</strong>,</p>
-        <p>${message}</p>
+        <p>Hi <strong>${he.escape(username)}</strong>,</p>
+        <p>${he.escape(message)}</p>
         <hr>
         <p style="font-size:12px;color:#666;">Kind Regards, Team CacheME</p>
       </body>
