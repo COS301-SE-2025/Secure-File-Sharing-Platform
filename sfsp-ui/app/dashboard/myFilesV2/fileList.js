@@ -90,6 +90,14 @@ export function FileList({
     setTimeout(() => setToast(null), duration);
   };
 
+  function formatFileSize(size) {
+    if (size < 1024) return `${size} B`;
+    else if (size < 1024 * 1024) return `${(size / 1024).toFixed(2)} KB`;
+    else if (size < 1024 * 1024 * 1024)
+      return `${(size / (1024 * 1024)).toFixed(2)} MB`;
+    else return `${(size / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+  }
+
   const iconMap = {
     //Folders
     folder: <Folder className="h-8 w-8 text-blue-500" />,
@@ -469,7 +477,9 @@ export function FileList({
                   <Eye className="h-4 w-4 text-blue-500" title="View Only" />
                 )}
               </td>
-              <td className="p-2">{file.type === "folder" ? "" : file.size}</td>
+              <td className="p-2">
+                {file.type === "folder" ? "" : formatFileSize(file.size)}
+              </td>
               <td className="p-2">{file.modified}</td>
               <td className="p-2">
                 <span

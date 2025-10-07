@@ -40,7 +40,7 @@ import {
   X,
   Eye,
   EyeOff,
-  Settings
+  Settings,
 } from "lucide-react";
 
 function Toast({ message, type = "info", onClose }) {
@@ -63,7 +63,7 @@ function Toast({ message, type = "info", onClose }) {
 }
 
 function getCookie(name) {
-  if (typeof window === 'undefined') return '';
+  if (typeof window === "undefined") return "";
   return document.cookie
     .split("; ")
     .find((c) => c.startsWith(name + "="))
@@ -91,6 +91,14 @@ export function FileList({
     setToast({ message, type });
     setTimeout(() => setToast(null), duration);
   };
+
+  function formatFileSize(size) {
+    if (size < 1024) return `${size} B`;
+    else if (size < 1024 * 1024) return `${(size / 1024).toFixed(2)} KB`;
+    else if (size < 1024 * 1024 * 1024)
+      return `${(size / (1024 * 1024)).toFixed(2)} MB`;
+    else return `${(size / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+  }
 
   const iconMap = {
     //Folders
@@ -302,7 +310,7 @@ export function FileList({
     try {
       const res = await fetch(getFileApiUrl("/addTags"), {
         method: "POST",
-        headers: { "Content-Type": "application/json"},
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fileId: file.id, tags }),
       });
 
@@ -316,7 +324,7 @@ export function FileList({
 
         await fetch(getFileApiUrl("/addAccesslogs"), {
           method: "POST",
-          headers: { "Content-Type": "application/json"},
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             file_id: file.id,
             user_id: profileResult.data.id,
@@ -378,7 +386,7 @@ export function FileList({
                   <Eye className="h-4 w-4 text-blue-500" title="View Only" />
                 )}
               </td>
-              <td className="p-2">{file.size}</td>
+              <td className="p-2">{formatFileSize(file.size)}</td>
               <td className="p-2">{file.modified}</td>
               <td className="p-2">
                 <span
@@ -508,7 +516,7 @@ export function FileList({
           >
             <MoreVertical className="h-4 w-4" /> Activity Logs
           </button>
-{/* 
+          {/* 
           {(isViewOnly(menuFile) || menuFile.allow_view_sharing) &&
             onRevokeViewAccess && (
               <button

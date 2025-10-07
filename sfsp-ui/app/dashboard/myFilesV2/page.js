@@ -18,10 +18,14 @@ import { PreviewDrawer } from "./previewDrawer";
 import dynamic from "next/dynamic";
 import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 
-const FullViewModal = dynamic(() => import("./fullViewModal").then(mod => ({ default: mod.FullViewModal })), {
-  ssr: false,
-  loading: () => <div>Loading...</div>
-});
+const FullViewModal = dynamic(
+  () =>
+    import("./fullViewModal").then((mod) => ({ default: mod.FullViewModal })),
+  {
+    ssr: false,
+    loading: () => <div>Loading...</div>,
+  }
+);
 import { RevokeAccessDialog } from "./revokeAccessDialog";
 import { ChangeShareMethodDialog } from "./changeShareMethodDialog";
 //import Prism from 'prismjs';
@@ -31,28 +35,40 @@ import { formatDate } from "../../../lib/dateUtils";
 
 function Toast({ message, type = "info", onClose }) {
   return (
-    <div className={`fixed inset-0 flex items-center justify-center z-50 pointer-events-none`}>
-      <div className={`bg-green-500 border border-green-600 text-white rounded shadow-lg px-6 py-3 pointer-events-auto`}>
+    <div
+      className={`fixed inset-0 flex items-center justify-center z-50 pointer-events-none`}
+    >
+      <div
+        className={`bg-green-500 border border-green-600 text-white rounded shadow-lg px-6 py-3 pointer-events-auto`}
+      >
         <span>{message}</span>
-        <button onClick={onClose} className="ml-4 font-bold hover:bg-green-600 rounded px-1">×</button>
+        <button
+          onClick={onClose}
+          className="ml-4 font-bold hover:bg-green-600 rounded px-1"
+        >
+          ×
+        </button>
       </div>
     </div>
   );
 }
 
-function getFileType(mimeType, fileName = '') {
+function getFileType(mimeType, fileName = "") {
   if (mimeType.includes("folder")) return "folder";
-  const normalizedMimeType = mimeType ? mimeType.toLowerCase() : '';
-  const normalizedFileName = fileName ? fileName.toLowerCase() : '';
+  const normalizedMimeType = mimeType ? mimeType.toLowerCase() : "";
+  const normalizedFileName = fileName ? fileName.toLowerCase() : "";
 
-  const fileExtension = normalizedFileName.includes('.') 
-    ? normalizedFileName.split('.').pop() 
-    : '';
+  const fileExtension = normalizedFileName.includes(".")
+    ? normalizedFileName.split(".").pop()
+    : "";
 
   if (normalizedMimeType) {
     if (normalizedMimeType.includes("pdf")) return "pdf";
 
-    if (normalizedMimeType.includes("markdown") || normalizedMimeType.includes("x-markdown")) {
+    if (
+      normalizedMimeType.includes("markdown") ||
+      normalizedMimeType.includes("x-markdown")
+    ) {
       return "markdown";
     }
 
@@ -65,220 +81,236 @@ function getFileType(mimeType, fileName = '') {
     if (normalizedMimeType.includes("audio")) return "audio";
     if (normalizedMimeType.includes("podcast")) return "podcast";
 
-    if (normalizedMimeType.includes("zip") || normalizedMimeType.includes("rar")) return "archive";
+    if (
+      normalizedMimeType.includes("zip") ||
+      normalizedMimeType.includes("rar")
+    )
+      return "archive";
 
-    if (normalizedMimeType.includes("spreadsheet") || 
-        normalizedMimeType.includes("excel") || 
-        normalizedMimeType.includes("sheet")) return "excel";
+    if (
+      normalizedMimeType.includes("spreadsheet") ||
+      normalizedMimeType.includes("excel") ||
+      normalizedMimeType.includes("sheet")
+    )
+      return "excel";
     if (normalizedMimeType.includes("presentation")) return "ppt";
-    if (normalizedMimeType.includes("word") || normalizedMimeType.includes("document")) return "word";
+    if (
+      normalizedMimeType.includes("word") ||
+      normalizedMimeType.includes("document")
+    )
+      return "word";
 
-    if (normalizedMimeType.includes("code") || normalizedMimeType.includes("script")) return "code";
+    if (
+      normalizedMimeType.includes("code") ||
+      normalizedMimeType.includes("script")
+    )
+      return "code";
 
     if (normalizedMimeType.includes("text")) {
-      if (fileExtension === 'md' || fileExtension === 'markdown') return "markdown";
+      if (fileExtension === "md" || fileExtension === "markdown")
+        return "markdown";
       return "txt";
     }
     if (normalizedMimeType.includes("application")) return "application";
   }
-  
+
   if (fileExtension) {
     switch (fileExtension) {
-      case 'md':
-      case 'markdown':
+      case "md":
+      case "markdown":
         return "markdown";
-      case 'pdf':
+      case "pdf":
         return "pdf";
-      case 'json':
+      case "json":
         return "json";
-      case 'csv':
+      case "csv":
         return "csv";
-      case 'html':
-      case 'htm':
+      case "html":
+      case "htm":
         return "html";
-      case 'txt':
+      case "txt":
         return "txt";
-        //programming languages
-      case 'py':
+      //programming languages
+      case "py":
         return "py";
-      case 'java':
+      case "java":
         return "java";
-      case 'cpp':
+      case "cpp":
         return "cpp";
-      case 'c':
+      case "c":
         return "c";
-      case 'h':
+      case "h":
         return "h";
-      case 'cs':
+      case "cs":
         return "cs";
-      case 'php':
+      case "php":
         return "php";
-      case 'rb':
+      case "rb":
         return "rb";
-      case 'go':
+      case "go":
         return "go";
-      case 'rs':
+      case "rs":
         return "rs";
-      case 'swift':
+      case "swift":
         return "swift";
-      case 'kt':
+      case "kt":
         return "kt";
-      case 'scala':
+      case "scala":
         return "scala";
-      case 'r':
+      case "r":
         return "r";
-      case 'matlab':
+      case "matlab":
         return "matlab";
-      case 'pl':
+      case "pl":
         return "pl";
-      case 'lua':
+      case "lua":
         return "lua";
-      case 'css':
+      case "css":
         return "css";
-      case 'scss':
+      case "scss":
         return "scss";
-      case 'sass':
+      case "sass":
         return "sass";
-      case 'less':
-        return "less"
-      case 'jpg':
-      case 'jpeg':
-      case 'png':
-      case 'gif':
-      case 'svg':
-      case 'webp':
-      case 'image':
-      case 'bmp':
-      case 'tiff':
-      case 'tif':
-      case 'ico':
-      case 'heic':
-      case 'raw':
+      case "less":
+        return "less";
+      case "jpg":
+      case "jpeg":
+      case "png":
+      case "gif":
+      case "svg":
+      case "webp":
+      case "image":
+      case "bmp":
+      case "tiff":
+      case "tif":
+      case "ico":
+      case "heic":
+      case "raw":
         return "image";
-      case 'mp4':
-      case 'avi':
-      case 'mov':
-      case 'webm':
+      case "mp4":
+      case "avi":
+      case "mov":
+      case "webm":
         return "video";
-      case 'mp3':
-      case 'wav':
-      case 'flac':
+      case "mp3":
+      case "wav":
+      case "flac":
         return "audio";
-      case 'zip':
-      case 'rar':
-      case '7z':
+      case "zip":
+      case "rar":
+      case "7z":
         return "archive";
-      case 'xlsx':
-      case 'xls':
+      case "xlsx":
+      case "xls":
         return "excel";
-      case 'pptx':
-      case 'ppt':
+      case "pptx":
+      case "ppt":
         return "ppt";
-      case 'docx':
-      case 'doc':
+      case "docx":
+      case "doc":
         return "word";
-        //database files
-      case 'sql':
+      //database files
+      case "sql":
         return "sql";
-      case 'db':
+      case "db":
         return "db";
-      case 'sqlite':
+      case "sqlite":
         return "sqlite";
-      case 'mdb':
-        return "mdb"
-      case 'ods':
+      case "mdb":
+        return "mdb";
+      case "ods":
         return "ods";
-      case 'odp':
+      case "odp":
         return "odp";
-      case 'log':
+      case "log":
         return "log";
-      case 'readme':
+      case "readme":
         return "readme";
-      case 'yaml':
+      case "yaml":
         return "yaml";
-      case 'yml':
+      case "yml":
         return "yml";
-      case 'toml':
+      case "toml":
         return "toml";
-      case 'ini':
+      case "ini":
         return "ini";
-      case 'cfg':
+      case "cfg":
         return "cfg";
-      case 'conf':
+      case "conf":
         return "conf";
-        //Archive files
-        case 'archive':
-          return "archive";
-        case 'zip':
-          return "zip";
-        case 'rar':
-          return "rar";
-        case '7z':
-          return "7z";
-        case 'tar':
-          return "tar";
-        case 'gz':
-          return "gz";
-        case 'bz2':
-          return "bz2";
-        case 'xz':
-          return "xz";
-          //system files
-        case 'exe':
-          return "exe";
-        case 'msi':
-          return "msi";
-        case 'deb':
-          return 'deb';
-        case 'rpm':
-          return "rpm";
-        case 'dmg':
-          return "dmg";
-        case 'iso':
-          return "iso";
-        case 'img':
-          return "img";
-          //security files
-        case 'key':
-          return "key";
-        case 'pem':
-          return "pem";
-        case 'crt':
-          return 'crt';
-        case 'cert':
-          return "cert";
-          //email files
-        case 'eml':
-          return "eml";
-        case 'msg':
-          return "msg";
-        //calender
-        case 'ics':
-          return "ics";
-        //Adobe files
-        case 'psd':
-          return "psd";
-        case 'ai':
-          return "ai";
-        case 'eps':
-          return "eps";
-        case 'indd':
-          return "indd";
-        //cad files
-        case 'dwg':
-          return "dwg";
-        case 'dxf':
-          return "dxf";
-        //3D Model Files
-        case 'obj':
-          return "obj";
-        case 'fbx':
-          return "fbx";
-        case 'blend':
-          return "blend";
+      //Archive files
+      case "archive":
+        return "archive";
+      case "zip":
+        return "zip";
+      case "rar":
+        return "rar";
+      case "7z":
+        return "7z";
+      case "tar":
+        return "tar";
+      case "gz":
+        return "gz";
+      case "bz2":
+        return "bz2";
+      case "xz":
+        return "xz";
+      //system files
+      case "exe":
+        return "exe";
+      case "msi":
+        return "msi";
+      case "deb":
+        return "deb";
+      case "rpm":
+        return "rpm";
+      case "dmg":
+        return "dmg";
+      case "iso":
+        return "iso";
+      case "img":
+        return "img";
+      //security files
+      case "key":
+        return "key";
+      case "pem":
+        return "pem";
+      case "crt":
+        return "crt";
+      case "cert":
+        return "cert";
+      //email files
+      case "eml":
+        return "eml";
+      case "msg":
+        return "msg";
+      //calender
+      case "ics":
+        return "ics";
+      //Adobe files
+      case "psd":
+        return "psd";
+      case "ai":
+        return "ai";
+      case "eps":
+        return "eps";
+      case "indd":
+        return "indd";
+      //cad files
+      case "dwg":
+        return "dwg";
+      case "dxf":
+        return "dxf";
+      //3D Model Files
+      case "obj":
+        return "obj";
+      case "fbx":
+        return "fbx";
+      case "blend":
+        return "blend";
     }
   }
-  
+
   return normalizedMimeType ? "file" : "unknown";
 }
 
@@ -291,14 +323,14 @@ function formatFileSize(size) {
 }
 
 function getCookie(name) {
-  if (typeof window === 'undefined') return '';
+  if (typeof window === "undefined") return "";
   return document.cookie
     .split("; ")
     .find((c) => c.startsWith(name + "="))
     ?.split("=")[1];
 }
 
-const csrf = typeof window !== 'undefined' ? getCookie("csrf_token") : "";
+const csrf = typeof window !== "undefined" ? getCookie("csrf_token") : "";
 
 export default function MyFiles() {
   const [files, setFiles] = useState([]);
@@ -326,7 +358,7 @@ export default function MyFiles() {
 
   const [toast, setToast] = useState(null);
 
-  const [user, setUser] = useState(null); 
+  const [user, setUser] = useState(null);
 
   const showToast = (message, type = "info", duration = 3000) => {
     setToast({ message, type });
@@ -420,13 +452,11 @@ export default function MyFiles() {
           return {
             id: f.fileId || "",
             name: f.fileName || "Unnamed file",
-            size: formatFileSize(f.fileSize || 0),
-            type: getFileType(f.fileType || "",f.fileName),
+            size: f.fileSize || 0,
+            type: getFileType(f.fileType || "", f.fileName),
             description: f.description || "",
             path: f.cid || "",
-            modified: f.createdAt
-              ? formatDate(f.createdAt)
-              : "",
+            modified: f.createdAt ? formatDate(f.createdAt) : "",
             shared: false,
             starred: false,
             viewOnly: isViewOnlyFile,
@@ -456,7 +486,11 @@ export default function MyFiles() {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.contentEditable === 'true') {
+      if (
+        e.target.tagName === "INPUT" ||
+        e.target.tagName === "TEXTAREA" ||
+        e.target.contentEditable === "true"
+      ) {
         return;
       }
 
@@ -464,59 +498,63 @@ export default function MyFiles() {
 
       if (ctrlPressed) {
         switch (e.key.toLowerCase()) {
-          case 'c':
+          case "c":
             e.preventDefault();
             if (selectedFile) {
-              setClipboard({ file: selectedFile, operation: 'cut' });
+              setClipboard({ file: selectedFile, operation: "cut" });
             }
             break;
-          case 'v':
+          case "v":
             e.preventDefault();
             if (clipboard) {
               handlePaste();
             }
             break;
-          case 'd':
+          case "d":
             e.preventDefault();
             setIsCreateFolderOpen(true);
             break;
-          case 'u':
+          case "u":
             e.preventDefault();
             setIsUploadOpen(true);
             break;
-          case '1':
+          case "1":
             e.preventDefault();
-            setViewMode('grid');
+            setViewMode("grid");
             break;
-          case '2':
+          case "2":
             e.preventDefault();
-            setViewMode('list');
+            setViewMode("list");
             break;
         }
       } else {
         switch (e.key) {
-          case 'Delete':
+          case "Delete":
             if (selectedFile) {
               e.preventDefault();
               handleDelete(selectedFile);
             }
             break;
-          case 'Enter':
+          case "Enter":
             if (selectedFile) {
               e.preventDefault();
-              if (selectedFile.type === 'folder') {
-                setCurrentPath(currentPath ? `${currentPath}/${selectedFile.name}` : selectedFile.name);
+              if (selectedFile.type === "folder") {
+                setCurrentPath(
+                  currentPath
+                    ? `${currentPath}/${selectedFile.name}`
+                    : selectedFile.name
+                );
               } else {
                 handlePreview(selectedFile);
               }
             }
             break;
-          case 'Backspace':
+          case "Backspace":
             if (!currentPath) return;
             e.preventDefault();
-            setCurrentPath(currentPath.split('/').slice(0, -1).join('/'));
+            setCurrentPath(currentPath.split("/").slice(0, -1).join("/"));
             break;
-          case 'F2':
+          case "F2":
             if (selectedFile) {
               e.preventDefault();
               // Might brring rename functionality here
@@ -526,8 +564,8 @@ export default function MyFiles() {
       }
     };
 
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, [selectedFile, clipboard, currentPath]);
 
   const handlePaste = async () => {
@@ -581,7 +619,7 @@ export default function MyFiles() {
     const sodium = await getSodium();
 
     try {
-      const res = await fetch(getFileApiUrl('/download'), {
+      const res = await fetch(getFileApiUrl("/download"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId, fileId: file.id }),
@@ -720,208 +758,279 @@ export default function MyFiles() {
 
   useEffect(() => {
     const fetchProfile = async () => {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem("token");
       try {
-        const res = await fetch(getApiUrl('/users/profile'), {
+        const res = await fetch(getApiUrl("/users/profile"), {
           headers: { Authorization: `Bearer ${token}` },
         });
 
         const result = await res.json();
-        if (!res.ok) throw new Error(result.message || 'Failed to fetch profile');
+        if (!res.ok)
+          throw new Error(result.message || "Failed to fetch profile");
 
         setUser(result.data);
       } catch (err) {
-        console.error('Failed to fetch profile:', err.message);
+        console.error("Failed to fetch profile:", err.message);
       }
     };
 
     fetchProfile();
-  }, []); 
-  
-const handlePreview = async (rawFile) => {
-  // Ensure this only runs on the client side
-  if (typeof window === 'undefined') return;
+  }, []);
 
-  const username = user?.username;
-  const file = {
-    ...rawFile,
-    type: getFileType(rawFile.fileType || rawFile.type || "", rawFile.fileName || rawFile.name),
-    name: rawFile.fileName || rawFile.name,
-    size: formatFileSize(rawFile.fileSize || rawFile.size || 0),
-  };
+  const handlePreview = async (rawFile) => {
+    // Ensure this only runs on the client side
+    if (typeof window === "undefined") return;
 
-  const result = await handleLoadFile(file);
-  if (!result) return;
+    const username = user?.username;
+    const file = {
+      ...rawFile,
+      type: getFileType(
+        rawFile.fileType || rawFile.type || "",
+        rawFile.fileName || rawFile.name
+      ),
+      name: rawFile.fileName || rawFile.name,
+      size: formatFileSize(rawFile.fileSize || rawFile.size || 0),
+    };
 
-  let contentUrl = null;
-  let textFull = null;
+    const result = await handleLoadFile(file);
+    if (!result) return;
 
-  if (file.type === "image") {
-    if (typeof window === 'undefined') return;
+    let contentUrl = null;
+    let textFull = null;
 
-    const imgBlob = new Blob([result.decrypted], { type: file.type });
-    const imgBitmap = await createImageBitmap(imgBlob);
+    if (file.type === "image") {
+      if (typeof window === "undefined") return;
 
-    const canvas = document.createElement("canvas");
-    canvas.width = imgBitmap.width;
-    canvas.height = imgBitmap.height;
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(imgBitmap, 0, 0);
+      const imgBlob = new Blob([result.decrypted], { type: file.type });
+      const imgBitmap = await createImageBitmap(imgBlob);
 
-    const fontSize = Math.floor(imgBitmap.width / 20);
-    ctx.font = `${fontSize}px Arial`;
-    ctx.fillStyle = "rgba(255, 0, 0, 0.7)";
-    ctx.textAlign = "center";
-    ctx.fillText(username, imgBitmap.width / 2, imgBitmap.height / 2);
+      const canvas = document.createElement("canvas");
+      canvas.width = imgBitmap.width;
+      canvas.height = imgBitmap.height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(imgBitmap, 0, 0);
 
-    contentUrl = canvas.toDataURL(file.type);
-  }
+      const fontSize = Math.floor(imgBitmap.width / 20);
+      ctx.font = `${fontSize}px Arial`;
+      ctx.fillStyle = "rgba(255, 0, 0, 0.7)";
+      ctx.textAlign = "center";
+      ctx.fillText(username, imgBitmap.width / 2, imgBitmap.height / 2);
 
-  else if (file.type === "pdf") {
-    // PDF watermarking temporarily disabled - pdf-lib removed for SSR compatibility
-    // Consider using server-side PDF processing or alternative approach
-    contentUrl = URL.createObjectURL(new Blob([result.decrypted], { type: "application/pdf" }));
-  } 
+      contentUrl = canvas.toDataURL(file.type);
+    } else if (file.type === "pdf") {
+      // PDF watermarking temporarily disabled - pdf-lib removed for SSR compatibility
+      // Consider using server-side PDF processing or alternative approach
+      contentUrl = URL.createObjectURL(
+        new Blob([result.decrypted], { type: "application/pdf" })
+      );
+    } else if (file.type === "video" || file.type === "audio") {
+      contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
+    } else if (
+      [
+        "txt",
+        "json",
+        "csv",
+        "xml",
+        "yaml",
+        "yml",
+        "html",
+        "css",
+        "js",
+        "jsx",
+        "ts",
+        "tsx",
+        "py",
+        "java",
+        "cpp",
+        "c",
+        "php",
+        "rb",
+        "go",
+        "rs",
+        "sql",
+        "log",
+        "ini",
+        "cfg",
+        "conf",
+      ].includes(file.type)
+    ) {
+      textFull = new TextDecoder().decode(result.decrypted);
 
-  else if (file.type === "video" || file.type === "audio") {
-    contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
-  } 
-  
-  else if ([
-    "txt", "json", "csv", "xml", "yaml", "yml", 
-    "html", "css", "js", "jsx", "ts", "tsx",
-    "py", "java", "cpp", "c", "php", "rb", "go", "rs",
-    "sql", "log", "ini", "cfg", "conf"
-  ].includes(file.type)) {
-    textFull = new TextDecoder().decode(result.decrypted);
-    
-    //Add watermark comment for code files
-    if (["js", "jsx", "ts", "tsx", "py", "java", "cpp", "c", "php", "rb", "go", "rs"].includes(file.type)) {
-      const watermarkComment = getWatermarkComment(file.type, username);
-      textFull = watermarkComment + "\n" 
-      + textFull;
+      //Add watermark comment for code files
+      if (
+        [
+          "js",
+          "jsx",
+          "ts",
+          "tsx",
+          "py",
+          "java",
+          "cpp",
+          "c",
+          "php",
+          "rb",
+          "go",
+          "rs",
+        ].includes(file.type)
+      ) {
+        const watermarkComment = getWatermarkComment(file.type, username);
+        textFull = watermarkComment + "\n" + textFull;
+      }
     }
-  }
-  
-  //Markdown files, render this bitch as an html
-  else if (file.type === "markdown" || file.type === "md") {
-    const markdownText = new TextDecoder().decode(result.decrypted);
-    
-    //Add watermark to markdown
-    const watermarkMarkdown = `> **Viewed by: ${username}**\n\n`;
-    textFull = watermarkMarkdown + markdownText;
-  }
 
-  setPreviewContent({ url: contentUrl, text: textFull });
-  setPreviewFile(file);
-};
+    //Markdown files, render this bitch as an html
+    else if (file.type === "markdown" || file.type === "md") {
+      const markdownText = new TextDecoder().decode(result.decrypted);
 
-//Helper function to get appropriate comment syntax for watermarking code files
-const getWatermarkComment = (fileType, username) => {
-  const timestamp = new Date().toLocaleString();
-  
-  const commentStyles = {
-    js: `/* Viewed by: ${username} on ${timestamp} */`,
-    jsx: `/* Viewed by: ${username} on ${timestamp} */`,
-    ts: `/* Viewed by: ${username} on ${timestamp} */`,
-    tsx: `/* Viewed by: ${username} on ${timestamp} */`,
-    java: `/* Viewed by: ${username} on ${timestamp} */`,
-    cpp: `/* Viewed by: ${username} on ${timestamp} */`,
-    c: `/* Viewed by: ${username} on ${timestamp} */`,
-    css: `/* Viewed by: ${username} on ${timestamp} */`,
+      //Add watermark to markdown
+      const watermarkMarkdown = `> **Viewed by: ${username}**\n\n`;
+      textFull = watermarkMarkdown + markdownText;
+    }
 
-    py: `# Viewed by: ${username} on ${timestamp}`,
-    rb: `# Viewed by: ${username} on ${timestamp}`,
-    sql: `-- Viewed by: ${username} on ${timestamp}`,
-    
-    php: `<?php /* Viewed by: ${username} on ${timestamp} */ ?>`,
-    html: `<!-- Viewed by: ${username} on ${timestamp} -->`,
-    go: `// Viewed by: ${username} on ${timestamp}`,
-    rs: `// Viewed by: ${username} on ${timestamp}`,
-  };
-  
-  return commentStyles[fileType] || `// Viewed by: ${username} on ${timestamp}`;
-};
-
-const handleOpenFullView = async (file) => {
-  const username = user?.username;
-
-  if (file.type === "folder") {
-    setPreviewContent({
-      url: null,
-      text: "This is a folder. Double-click to open.",
-    });
+    setPreviewContent({ url: contentUrl, text: textFull });
     setPreviewFile(file);
-    return;
-  }
+  };
 
-  const result = await handleLoadFile(file);
-  if (!result) return;
+  //Helper function to get appropriate comment syntax for watermarking code files
+  const getWatermarkComment = (fileType, username) => {
+    const timestamp = new Date().toLocaleString();
 
-  let contentUrl = null;
-  let textFull = null;
+    const commentStyles = {
+      js: `/* Viewed by: ${username} on ${timestamp} */`,
+      jsx: `/* Viewed by: ${username} on ${timestamp} */`,
+      ts: `/* Viewed by: ${username} on ${timestamp} */`,
+      tsx: `/* Viewed by: ${username} on ${timestamp} */`,
+      java: `/* Viewed by: ${username} on ${timestamp} */`,
+      cpp: `/* Viewed by: ${username} on ${timestamp} */`,
+      c: `/* Viewed by: ${username} on ${timestamp} */`,
+      css: `/* Viewed by: ${username} on ${timestamp} */`,
 
-  if (file.type === "image") {
-    if (typeof window === 'undefined') return;
+      py: `# Viewed by: ${username} on ${timestamp}`,
+      rb: `# Viewed by: ${username} on ${timestamp}`,
+      sql: `-- Viewed by: ${username} on ${timestamp}`,
 
-    const imgBlob = new Blob([result.decrypted], { type: file.type });
-    const imgBitmap = await createImageBitmap(imgBlob);
+      php: `<?php /* Viewed by: ${username} on ${timestamp} */ ?>`,
+      html: `<!-- Viewed by: ${username} on ${timestamp} -->`,
+      go: `// Viewed by: ${username} on ${timestamp}`,
+      rs: `// Viewed by: ${username} on ${timestamp}`,
+    };
 
-    const canvas = document.createElement("canvas");
-    canvas.width = imgBitmap.width;
-    canvas.height = imgBitmap.height;
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(imgBitmap, 0, 0);
+    return (
+      commentStyles[fileType] || `// Viewed by: ${username} on ${timestamp}`
+    );
+  };
 
-    const fontSize = Math.floor(imgBitmap.width / 20);
-    ctx.font = `${fontSize}px Arial`;
-    ctx.fillStyle = "rgba(255, 0, 0, 0.7)";
-    ctx.textAlign = "center";
-    ctx.fillText(username, imgBitmap.width / 2, imgBitmap.height / 2);
+  const handleOpenFullView = async (file) => {
+    const username = user?.username;
 
-    contentUrl = canvas.toDataURL(file.type);
-  }
-
-  else if (file.type === "pdf") {
-    // PDF watermarking temporarily disabled - pdf-lib removed for SSR compatibility
-    // Consider using server-side PDF processing or alternative approach
-    contentUrl = URL.createObjectURL(new Blob([result.decrypted], { type: "application/pdf" }));
-  } 
-  
-  else if (file.type === "video" || file.type === "audio") {
-    contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
-  } 
-  
-  else if ([
-    "txt", "json", "csv", "xml", "yaml", "yml", 
-    "html", "css", "js", "jsx", "ts", "tsx",
-    "py", "java", "cpp", "c", "php", "rb", "go", "rs",
-    "sql", "log", "ini", "cfg", "conf"
-  ].includes(file.type)) {
-    textFull = new TextDecoder().decode(result.decrypted);
-    
-    if (["js", "jsx", "ts", "tsx", "py", "java", "cpp", "c", "php", "rb", "go", "rs"].includes(file.type)) {
-      const watermarkComment = getWatermarkComment(file.type, username);
-      textFull = watermarkComment + "\n" + textFull;
+    if (file.type === "folder") {
+      setPreviewContent({
+        url: null,
+        text: "This is a folder. Double-click to open.",
+      });
+      setPreviewFile(file);
+      return;
     }
-  }
-  
-  else if (file.type === "markdown" || file.type === "md") {
-    const markdownText = new TextDecoder().decode(result.decrypted);
-    const watermarkMarkdown = `> **Viewed by: ${username}**\n\n`;
-    textFull = watermarkMarkdown + markdownText;
-  }
 
-  setViewerContent({ url: contentUrl, text: textFull });
-  setViewerFile(file);
-};
+    const result = await handleLoadFile(file);
+    if (!result) return;
+
+    let contentUrl = null;
+    let textFull = null;
+
+    if (file.type === "image") {
+      if (typeof window === "undefined") return;
+
+      const imgBlob = new Blob([result.decrypted], { type: file.type });
+      const imgBitmap = await createImageBitmap(imgBlob);
+
+      const canvas = document.createElement("canvas");
+      canvas.width = imgBitmap.width;
+      canvas.height = imgBitmap.height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(imgBitmap, 0, 0);
+
+      const fontSize = Math.floor(imgBitmap.width / 20);
+      ctx.font = `${fontSize}px Arial`;
+      ctx.fillStyle = "rgba(255, 0, 0, 0.7)";
+      ctx.textAlign = "center";
+      ctx.fillText(username, imgBitmap.width / 2, imgBitmap.height / 2);
+
+      contentUrl = canvas.toDataURL(file.type);
+    } else if (file.type === "pdf") {
+      // PDF watermarking temporarily disabled - pdf-lib removed for SSR compatibility
+      // Consider using server-side PDF processing or alternative approach
+      contentUrl = URL.createObjectURL(
+        new Blob([result.decrypted], { type: "application/pdf" })
+      );
+    } else if (file.type === "video" || file.type === "audio") {
+      contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
+    } else if (
+      [
+        "txt",
+        "json",
+        "csv",
+        "xml",
+        "yaml",
+        "yml",
+        "html",
+        "css",
+        "js",
+        "jsx",
+        "ts",
+        "tsx",
+        "py",
+        "java",
+        "cpp",
+        "c",
+        "php",
+        "rb",
+        "go",
+        "rs",
+        "sql",
+        "log",
+        "ini",
+        "cfg",
+        "conf",
+      ].includes(file.type)
+    ) {
+      textFull = new TextDecoder().decode(result.decrypted);
+
+      if (
+        [
+          "js",
+          "jsx",
+          "ts",
+          "tsx",
+          "py",
+          "java",
+          "cpp",
+          "c",
+          "php",
+          "rb",
+          "go",
+          "rs",
+        ].includes(file.type)
+      ) {
+        const watermarkComment = getWatermarkComment(file.type, username);
+        textFull = watermarkComment + "\n" + textFull;
+      }
+    } else if (file.type === "markdown" || file.type === "md") {
+      const markdownText = new TextDecoder().decode(result.decrypted);
+      const watermarkMarkdown = `> **Viewed by: ${username}**\n\n`;
+      textFull = watermarkMarkdown + markdownText;
+    }
+
+    setViewerContent({ url: contentUrl, text: textFull });
+    setViewerFile(file);
+  };
 
   const handleUpdateDescription = async (fileId, description) => {
     try {
       const res = await fetch(getFileApiUrl("/addDescription"), {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ fileId, description }),
       });
@@ -995,7 +1104,7 @@ const handleOpenFullView = async (file) => {
       if (!draggedFileId) return;
 
       const allFiles = files;
-      const draggedFile = allFiles.find(f => f.id === draggedFileId);
+      const draggedFile = allFiles.find((f) => f.id === draggedFileId);
       if (!draggedFile) return;
 
       await handleMoveFile(draggedFile, targetPath);
@@ -1240,4 +1349,3 @@ const handleOpenFullView = async (file) => {
     </div>
   );
 }
-

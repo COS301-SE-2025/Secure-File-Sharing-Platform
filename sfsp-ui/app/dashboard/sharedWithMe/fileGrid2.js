@@ -40,23 +40,34 @@ import {
   X,
   Eye,
   EyeOff,
-  Settings
+  Settings,
 } from "lucide-react";
 
 function Toast({ message, type = "info", onClose }) {
   return (
-    <div className={`fixed inset-0 flex items-center justify-center z-50 pointer-events-none`}>
-      <div className={`bg-red-300 border ${type === "error" ? "border-red-300" : "border-blue-500"} text-gray-900 rounded shadow-lg px-6 py-3 pointer-events-auto`}>
+    <div
+      className={`fixed inset-0 flex items-center justify-center z-50 pointer-events-none`}
+    >
+      <div
+        className={`bg-red-300 border ${
+          type === "error" ? "border-red-300" : "border-blue-500"
+        } text-gray-900 rounded shadow-lg px-6 py-3 pointer-events-auto`}
+      >
         <span>{message}</span>
-        <button onClick={onClose} className="ml-4 font-bold">×</button>
+        <button onClick={onClose} className="ml-4 font-bold">
+          ×
+        </button>
       </div>
     </div>
   );
 }
 
 function getCookie(name) {
-  if (typeof window === 'undefined') return '';
-  return document.cookie.split("; ").find(c => c.startsWith(name + "="))?.split("=")[1];
+  if (typeof window === "undefined") return "";
+  return document.cookie
+    .split("; ")
+    .find((c) => c.startsWith(name + "="))
+    ?.split("=")[1];
 }
 
 export function FileGrid({
@@ -81,6 +92,14 @@ export function FileGrid({
     setToast({ message, type });
     setTimeout(() => setToast(null), duration);
   };
+
+  function formatFileSize(size) {
+    if (size < 1024) return `${size} B`;
+    else if (size < 1024 * 1024) return `${(size / 1024).toFixed(2)} KB`;
+    else if (size < 1024 * 1024 * 1024)
+      return `${(size / (1024 * 1024)).toFixed(2)} MB`;
+    else return `${(size / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+  }
 
   const iconMap = {
     //Folders
@@ -306,21 +325,22 @@ export function FileGrid({
       });
 
       if (!res.ok) throw new Error("Failed to tag file as deleted");
-        const profileRes = await fetch(getApiUrl("/profile"));
+      const profileRes = await fetch(getApiUrl("/profile"));
 
-        const profileResult = await profileRes.json();
-        if (!profileRes.ok) throw new Error(profileResult.message || "Failed to fetch profile");
+      const profileResult = await profileRes.json();
+      if (!profileRes.ok)
+        throw new Error(profileResult.message || "Failed to fetch profile");
 
-        await fetch(getFileApiUrl("/addAccesslog"), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            file_id: file.id,
-            user_id: profileResult.data.id,
-            action: "deleted",
-            message: `User ${profileResult.data.email} deleted the file.`,
-          }),
-        });
+      await fetch(getFileApiUrl("/addAccesslog"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          file_id: file.id,
+          user_id: profileResult.data.id,
+          action: "deleted",
+          message: `User ${profileResult.data.email} deleted the file.`,
+        }),
+      });
 
       onDelete?.(file);
     } catch (err) {
@@ -333,7 +353,13 @@ export function FileGrid({
 
   return (
     <div>
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
         {files.map((file) => (
           <div
@@ -344,7 +370,8 @@ export function FileGrid({
             className="relative group bg-white rounded-lg border border-gray-300 p-4 hover:shadow-lg transition-shadow cursor-pointer dark:bg-gray-200 dark:hover:bg-blue-100"
           >
             <div className="flex items-center justify-between mb-3">
-              <div className="relative">{getIcon(file)}
+              <div className="relative">
+                {getIcon(file)}
                 {isViewOnly(file) && (
                   <div className="absolute -top-1 -right-1 bg-blue-500 rounded-full p-1">
                     <Eye className="h-3 w-3 text-white" />
@@ -353,28 +380,38 @@ export function FileGrid({
               </div>
 
               <div className="flex items-center gap-1">
-                {file.starred && <Star className="h-4 w-4 text-yellow-500 fill-current" />}
-                {file.shared && <span className="px-1 py-0.5 text-xs bg-gray-200 rounded">Shared</span>}
+                {file.starred && (
+                  <Star className="h-4 w-4 text-yellow-500 fill-current" />
+                )}
+                {file.shared && (
+                  <span className="px-1 py-0.5 text-xs bg-gray-200 rounded">
+                    Shared
+                  </span>
+                )}
               </div>
             </div>
 
-            <h3 className="font-medium text-gray-900 text-sm mb-1 truncate" title={file.name}>
+            <h3
+              className="font-medium text-gray-900 text-sm mb-1 truncate"
+              title={file.name}
+            >
               {file.name}
             </h3>
 
             <div className="mb-2">
               <span
-                className={`px-2 py-1 rounded-full text-xs ${isViewOnly(file)
-                  ? "bg-blue-100 text-blue-800 dark:bg-blue-200"
-                  : "bg-green-100 text-green-800 dark:bg-green-200"
-                  }`}
+                className={`px-2 py-1 rounded-full text-xs ${
+                  isViewOnly(file)
+                    ? "bg-blue-100 text-blue-800 dark:bg-blue-200"
+                    : "bg-green-100 text-green-800 dark:bg-green-200"
+                }`}
               >
                 {isViewOnly(file) ? "View Only" : "Full Access"}
               </span>
             </div>
 
             <div className="text-xs text-gray-500 space-y-1">
-              <p>{file.size}</p>
+              <p>{formatFileSize(file.size)}</p>
               <p>Modified {file.modified}</p>
             </div>
 
@@ -420,10 +457,11 @@ export function FileGrid({
               if (!isViewOnly(menuFile)) onShare(menuFile);
               setMenuFile(null);
             }}
-            className={`w-full text-left px-4 py-2 flex items-center gap-2 ${isViewOnly(menuFile)
-              ? "opacity-50 cursor-not-allowed"
-              : "hover:bg-gray-100 dark:hover:bg-blue-200"
-              }`}
+            className={`w-full text-left px-4 py-2 flex items-center gap-2 ${
+              isViewOnly(menuFile)
+                ? "opacity-50 cursor-not-allowed"
+                : "hover:bg-gray-100 dark:hover:bg-blue-200"
+            }`}
             disabled={isViewOnly(menuFile)}
           >
             <Share className="h-4 w-4" /> Share
@@ -434,8 +472,11 @@ export function FileGrid({
               if (!isViewOnly(menuFile)) onDownload(menuFile);
               setMenuFile(null);
             }}
-            className={`w-full text-left px-4 py-2 flex items-center gap-2 ${isViewOnly(menuFile) ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-100 dark:hover:bg-blue-200"
-              }`}
+            className={`w-full text-left px-4 py-2 flex items-center gap-2 ${
+              isViewOnly(menuFile)
+                ? "opacity-50 cursor-not-allowed"
+                : "hover:bg-gray-100 dark:hover:bg-blue-200"
+            }`}
             disabled={isViewOnly(menuFile)}
           >
             <Download className="h-4 w-4" /> Download
