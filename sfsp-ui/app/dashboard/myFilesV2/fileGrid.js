@@ -289,11 +289,9 @@ export function FileGrid({
     return iconMap[file.type] || <FileIcon className="h-8 w-8 text-gray-500" />;
   };
 
-  // Check if file is view-only (either from tags or viewOnly property)
   const isViewOnly = (file) => {
     if (file.viewOnly) return true;
 
-    // Handle fileTags as array or string
     if (file.fileTags) {
       if (Array.isArray(file.fileTags)) {
         return file.fileTags.includes("view-only");
@@ -400,6 +398,7 @@ export function FileGrid({
   const handleDragStart = (e, file) => {
     setDraggedFile(file);
     e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("application/json", JSON.stringify(file));
   };
 
   const handleDragOver = (e, folder) => {
@@ -408,7 +407,7 @@ export function FileGrid({
       folder.type === "folder" &&
       draggedFile.id !== folder.id
     ) {
-      e.preventDefault(); // allows drop
+      e.preventDefault(); 
     }
   };
 
@@ -420,7 +419,7 @@ export function FileGrid({
       draggedFile.id !== folder.id
     ) {
       const newPath = folder.cid || folder.path || folder.name;
-      onMoveFile?.(draggedFile, newPath); // <-- You will define this in your parent component
+      onMoveFile?.(draggedFile, newPath);
       setDraggedFile(null);
     }
   };
