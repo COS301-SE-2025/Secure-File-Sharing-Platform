@@ -541,8 +541,6 @@ useEffect(() => {
 
 
      else if (file.type === "pdf") {
-       // PDF watermarking temporarily disabled - pdf-lib removed for SSR compatibility
-       // Consider using server-side PDF processing or alternative approach
        contentUrl = URL.createObjectURL(new Blob([result.decrypted], { type: "application/pdf" }));
      } 
       else if (file.type === "video" || file.type === "audio") {

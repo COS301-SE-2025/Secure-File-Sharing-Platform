@@ -2,6 +2,15 @@
 const axios = require("axios");
 require("dotenv").config();
 
+function isValidEmail(email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email) && email.length <= 254;
+}
+
+function sanitizeEmail(email) {
+    return email.replace(/[<>\"'`\s\n\r\t]/g, '');
+}
+
 exports.getNotifications = async (req, res) => {
     const { userId } = req.body;
 
@@ -133,14 +142,24 @@ exports.addNotification = async (req, res) => {
     });
   }
 
-  const extractId = (resp) =>//nah f this
+  if (!isValidEmail(fromEmail) || !isValidEmail(toEmail)) {
+    return res.status(400).json({
+      success: false,
+      error: "Invalid email format"
+    });
+  }c
+
+  const extractId = (resp) =>
     resp?.data?.data?.id ?? resp?.data?.data?.userId ?? null;
 
   try {
     let senderResponse;
     try {
       senderResponse = await axios.get(
-        `${process.env.API_URL || "http://localhost:5000"}/api/users/getUserId/${fromEmail}`
+        `${process.env.API_URL || "http://localhost:5000"}/api/users/getUserId`,
+        {
+          params: { email: sanitizeEmail(fromEmail) }
+        }
       );
       console.log("Sender response:", senderResponse.data);
       const fromId = extractId(senderResponse);
@@ -149,7 +168,10 @@ exports.addNotification = async (req, res) => {
       }
 
       let recipientResponse = await axios.get(
-        `${process.env.API_URL || "http://localhost:5000"}/api/users/getUserId/${toEmail}`
+        `${process.env.API_URL || "http://localhost:5000"}/api/users/getUserId`,
+        {
+          params: { email: sanitizeEmail(toEmail) }
+        }
       );
       console.log("Recipient response:", recipientResponse.data);
       const toId = extractId(recipientResponse);
