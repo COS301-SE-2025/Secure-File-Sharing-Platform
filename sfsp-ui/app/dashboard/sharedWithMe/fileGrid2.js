@@ -409,7 +409,6 @@ export function FileGrid({
         ))}
       </div>
 
-      {/* Context Menu */}
       {menuFile && (
         <div
           ref={menuRef}
@@ -473,18 +472,6 @@ export function FileGrid({
           >
             <MoreVertical className="h-4 w-4" /> Activity Logs
           </button>
-
-          {/* {(isViewOnly(menuFile) || menuFile.allow_view_sharing) && onRevokeViewAccess && (
-            <button
-              onClick={() => {
-                onRevokeViewAccess(menuFile);
-                setMenuFile(null);
-              }}
-              className="w-full text-left px-4 py-2 hover:bg-orange-50 text-orange-600 flex items-center gap-2 dark:hover:bg-orange-200 dark:text-orange-600"
-            >
-              <EyeOff className="h-4 w-4" /> Revoke View Access
-            </button>
-          )} */}
 
           <button
             onClick={() => handleDelete(menuFile)}

@@ -94,6 +94,9 @@ function VerifyEmailInner() {
                     const { token } = await jwtResponse.json();
                     localStorage.setItem("token", token.replace(/^Bearer\s/, ""));
 
+                    // Clear the pending verification flag
+                    sessionStorage.removeItem("pendingVerification");
+
                     // Check if encryption keys already exist from registration
                     const unlockToken = sessionStorage.getItem("unlockToken");
                     const hasKeys = localStorage.getItem("encryption-store");

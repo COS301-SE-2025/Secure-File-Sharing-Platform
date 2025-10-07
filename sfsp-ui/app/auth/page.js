@@ -360,11 +360,11 @@ export default function AuthPage() {
       // Check if user needs email verification
       if (!user.is_verified) {
         setLoaderMessage("Account created! Please check your email for verification...");
-        
+
         // Add user to PostgreSQL database before redirecting to verification
         try {
           const addUserUrl = getFileApiUrl('/addUser');
-          
+
           const addUserRes = await fetch(addUserUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -386,6 +386,9 @@ export default function AuthPage() {
         // Store token for unverified users too
         const rawToken = token.replace(/^Bearer\s/, "");
         localStorage.setItem("token", rawToken);
+
+        // Set flag to prevent AuthGuard from redirecting during verification
+        sessionStorage.setItem("pendingVerification", "true");
 
         setTimeout(() => {
           const redirectParam = searchParams.get('redirect');
@@ -707,53 +710,10 @@ export default function AuthPage() {
                 >
                   {isLoading ? "Signing in..." : "Log In"}
                 </button>
-
-                {/* Or separator */}
-                {/* <div className="flex items-center my-4">
-                  <hr className="flex-grow border-t dark:border-gray-400 border-gray-300" />
-                  <span className="mx-2 text-gray-500 text-sm">or</span>
-                  <hr className="flex-grow border-t dark:border-gray-400 border-gray-300" />
-                </div> */}
-
-                {/* Google login button */}
-                {/* <button
-                  type="button"
-                  onClick={handleGoogleAuth}
-                  disabled={isLoading}
-                  className="w-full flex items-center justify-center space-x-2 border dark:border-gray-400 border-gray-300 rounded-md py-2 hover:bg-gray-100 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                  data-testid="google-oauth-button"
-                >
-                  <svg
-                    className="w-5 h-5"
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 533.5 544.3"
-                  >
-                    <path
-                      fill="#4285f4"
-                      d="M533.5 278.4c0-17.6-1.5-34.6-4.4-51.1H272v96.9h146.7c-6.3 34.3-25 63.4-53.6 82.9v68h86.7c50.7-46.7 79.7-115.7 79.7-196.7z"
-                    />
-                    <path
-                      fill="#34a853"
-                      d="M272 544.3c72.9 0 134.1-24.1 178.7-65.3l-86.7-68c-24.1 16.1-55 25.7-91.9 25.7-70.7 0-130.6-47.7-152.1-111.9h-90.3v70.4c44.8 88.2 136.5 149.1 242.4 149.1z"
-                    />
-                    <path
-                      fill="#fbbc04"
-                      d="M119.9 322.8c-10.4-30.8-10.4-64.3 0-95.1v-70.4h-90.3c-37.8 74.8-37.8 164.7 0 239.5l90.3-73.9z"
-                    />
-                    <path
-                      fill="#ea4335"
-                      d="M272 107.7c39.4-.6 77.2 14 106 40.4l79.3-79.3C402.1 22.2 344.4-1.6 272 0 166.1 0 74.4 60.9 29.6 149.1l90.3 70.4c21.6-64.2 81.5-111.9 152.1-111.9z"
-                    />
-                  </svg>
-                  <span className="text-sm font-medium text-gray-700">
-                    Continue with Google
-                  </span>
-                </button> */}
               </form>
             </>
           )}
 
-          {/* Signup Form */}
           {tab === "signup" && (
             <>
               <div className="mb-6 text-center">

@@ -522,22 +522,6 @@ export function PreviewDrawer({
                         {user.recipient_email}
                       </div>
                     </div>
-
-                    {/* Dropdown Menu */}
-                    {/* {openMenuUserId === user.recipient_id && (
-                <div className=" absolute top-full left-0 mt-1 w-32 bg-white border border-gray-200 rounded-md shadow-md z-20">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation(); // Prevent closing immediately
-                      handleRevokeAccess(user.recipient_id);
-                      setOpenMenuUserId(null);
-                    }}
-                    className="w-full text-left px-3 py-1 text-red-600 hover:bg-red-200 rounded-md text-sm"
-                  >
-                    Revoke Access
-                  </button>
-                </div>
-              )} */}
                   </li>
                 ))}
               </ul>
