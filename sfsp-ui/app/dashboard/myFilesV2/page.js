@@ -360,6 +360,8 @@ export default function MyFiles() {
 
   const [user, setUser] = useState(null);
 
+  const [dragOverCrumb, setDragOverCrumb] = useState(null);
+
   const showToast = (message, type = "info", duration = 3000) => {
     setToast({ message, type });
     setTimeout(() => setToast(null), duration);
@@ -958,8 +960,6 @@ export default function MyFiles() {
 
       contentUrl = canvas.toDataURL(file.type);
     } else if (file.type === "pdf") {
-      // PDF watermarking temporarily disabled - pdf-lib removed for SSR compatibility
-      // Consider using server-side PDF processing or alternative approach
       contentUrl = URL.createObjectURL(
         new Blob([result.decrypted], { type: "application/pdf" })
       );
@@ -1053,6 +1053,9 @@ export default function MyFiles() {
 
     const res = await fetch(getFileApiUrl("/updateFilePath"), {
       method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({ fileId: file.id, newPath: fullPath }),
     });
 
@@ -1100,31 +1103,74 @@ export default function MyFiles() {
 
     const handleDrop = async (e, targetPath) => {
       e.preventDefault();
-      const draggedFileId = e.dataTransfer.getData("text/plain");
-      if (!draggedFileId) return;
+      e.stopPropagation();
+      setDragOverCrumb(null);
 
-      const allFiles = files;
-      const draggedFile = allFiles.find((f) => f.id === draggedFileId);
-      if (!draggedFile) return;
+      try {
+        const draggedData = e.dataTransfer.getData("application/json");
 
-      await handleMoveFile(draggedFile, targetPath);
+        if (!draggedData) {
+          console.warn("No drag data found in dataTransfer");
+          return;
+        }
+
+        const draggedFile = JSON.parse(draggedData);
+        console.log("Parsed dragged file:", draggedFile);
+
+        if (!draggedFile || !draggedFile.id) {
+          console.warn("Invalid dragged file data");
+          return;
+        }
+
+        const currentFilePath = normalizePath(draggedFile.path);
+        const currentFileDir = currentFilePath.includes("/")
+          ? currentFilePath.substring(0, currentFilePath.lastIndexOf("/"))
+          : "";
+
+        if (currentFileDir === targetPath) {
+          console.log("File is already in this directory");
+          showToast("File is already in this location", "info");
+          return;
+        }
+
+        console.log(`Moving ${draggedFile.name} to ${targetPath || "root"}`);
+        await handleMoveFile(draggedFile, targetPath);
+        await fetchFiles();
+      } catch (error) {
+        console.error("Move failed:", error);
+        showToast("Failed to move file", "error");
+      }
     };
 
-    const handleDragOver = (e) => {
+    const handleDragOver = (e, crumbPath) => {
       e.preventDefault();
+      e.stopPropagation();
+      e.dataTransfer.dropEffect = "move";
+      setDragOverCrumb(crumbPath);
+    };
+
+    const handleDragLeave = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setDragOverCrumb(null);
     };
 
     return (
       <div className="mb-6">
         {/* Breadcrumbs */}
-        <nav className="mb-2 text-s text-gray-500 dark:text-gray-400">
+        <nav className="mb-2 text-sm text-gray-500 dark:text-gray-400">
           {crumbs.map((crumb, i) => (
-            <span key={crumb.path}>
+            <span key={crumb.path || "root"}>
               <button
                 onClick={() => setCurrentPath(crumb.path)}
-                onDragOver={handleDragOver}
+                onDragOver={(e) => handleDragOver(e, crumb.path)}
+                onDragLeave={handleDragLeave}
                 onDrop={(e) => handleDrop(e, crumb.path)}
-                className="hover:underline"
+                className={`hover:underline hover:text-blue-600 transition-colors px-2 py-1 rounded ${
+                  dragOverCrumb === crumb.path
+                    ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 font-semibold"
+                    : ""
+                }`}
               >
                 {crumb.name || "All files"}
               </button>
@@ -1133,38 +1179,29 @@ export default function MyFiles() {
           ))}
         </nav>
 
-        {/* Curr Folder */}
+        {/* Current Folder */}
         <div className="flex items-center space-x-2">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
             {currentDirName}
           </h1>
-          <button className="p-1">
-            <svg
-              className="w-5 h-5 text-gray-500 dark:text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              viewBox="0 0 24 24"
-            ></svg>
-          </button>
         </div>
       </div>
     );
   };
 
   return (
-    <div className=" bg-gray-50 p-6 dark:bg-gray-900">
-      <div className=" ">
+    <div className="bg-gray-50 p-6 dark:bg-gray-900">
+      <div className="">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-2xl font-semibold text-blue-500 ">My Files</h1>
+            <h1 className="text-2xl font-semibold text-blue-500">My Files</h1>
             <p className="text-gray-600 dark:text-gray-400">
               Manage and organize your files
             </p>
             {/* <div className="text-xs text-gray-500 mt-1">
-              <span className="font-medium">Shortcuts:</span> Ctrl+C/V • Del • Enter • Backspace • Ctrl+D/U • Ctrl+1/2
-            </div> */}
+            <span className="font-medium">Shortcuts:</span> Ctrl+C/V • Del • Enter • Backspace • Ctrl+D/U • Ctrl+1/2
+          </div> */}
           </div>
 
           <div className="flex items-center gap-4">
