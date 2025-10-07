@@ -1,4 +1,4 @@
-//app/dashboard/myFilesV2/fileGrid.js
+//app/dashboard/myFilesV2/fileList.js
 
 "use client";
 
@@ -77,6 +77,8 @@ export function FileList({
   currentPath,
   onRevokeAccess,
   onChangeShareMode,
+  selectedFile,
+  onSelectFile,
 }) {
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const [menuFile, setMenuFile] = useState(null);
@@ -409,7 +411,7 @@ export function FileList({
       folder.type === "folder" &&
       draggedFile.id !== folder.id
     ) {
-      e.preventDefault(); // allows drop
+      e.preventDefault();
     }
   };
 
@@ -421,8 +423,40 @@ export function FileList({
       draggedFile.id !== folder.id
     ) {
       const newPath = folder.cid || folder.path || folder.name;
-      onMoveFile?.(draggedFile, newPath); // <-- You will define this in your parent component
+      onMoveFile?.(draggedFile, newPath);
       setDraggedFile(null);
+    }
+  };
+
+  const handleRowClick = (e, file) => {
+    if (e.target.closest("button")) {
+      return;
+    }
+
+    e.stopPropagation();
+
+    if (file.type !== "folder") {
+      onClick?.(file);
+    }
+
+    onSelectFile(file);
+
+    if (onClick) {
+      onClick(file);
+    }
+  };
+
+  const handleRowDoubleClick = (e, file) => {
+    if (e.target.closest("button")) {
+      return;
+    }
+
+    e.stopPropagation();
+
+    if (file.type === "folder" || file.isFolder) {
+      onEnterFolder(file.name);
+    } else if (onDoubleClick) {
+      onDoubleClick(file);
     }
   };
 
@@ -453,20 +487,12 @@ export function FileList({
               onDragStart={(e) => handleDragStart(e, file)}
               onDragOver={(e) => handleDragOver(e, file)}
               onDrop={(e) => handleDrop(e, file)}
-              onClick={() => {
-                if (file.type !== "folder") {
-                  onClick?.(file);
-                }
-              }}
-              onDoubleClick={() => {
-                if (file.type === "folder") {
-                  onEnterFolder?.(file.name);
-                } else {
-                  onDoubleClick?.(file);
-                }
-              }}
+              onClick={(e) => handleRowClick(e, file)}
+              onDoubleClick={(e) => handleRowDoubleClick(e, file)}
               onContextMenu={(e) => handleContextMenu(e, file)}
-              className="hover:bg-gray-200 cursor-pointer dark:hover:bg-blue-100"
+              className={`
+              hover:bg-gray-200 cursor-pointer dark:hover:bg-blue-100
+              ${selectedFile?.id === file.id? "bg-blue-100 dark:bg-blue-200 ring-2 ring-blue-500": ""}`} 
             >
               <td className="p-2 flex items-center gap-2">
                 {getIcon(file)}
