@@ -485,104 +485,165 @@ export default function MyFiles() {
     fetchFiles();
   }, []);
 
-  // Keyboard shortcuts
   useEffect(() => {
+    if (typeof window === "undefined") return;
+
     const handleKeyDown = (e) => {
+      console.log(
+        "Key pressed:",
+        e.key,
+        "Ctrl:",
+        e.ctrlKey || e.metaKey,
+        "Target:",
+        e.target.tagName
+      );
+
       if (
         e.target.tagName === "INPUT" ||
         e.target.tagName === "TEXTAREA" ||
-        e.target.contentEditable === "true"
+        e.target.contentEditable === "true" ||
+        e.target.isContentEditable
       ) {
+        console.log("Ignoring - user is in input field");
         return;
       }
 
       const ctrlPressed = e.ctrlKey || e.metaKey;
 
       if (ctrlPressed) {
+        console.log("Ctrl+Key detected:", e.key);
+
         switch (e.key.toLowerCase()) {
-          case "c":
+          case "c": 
             e.preventDefault();
             if (selectedFile) {
               setClipboard({ file: selectedFile, operation: "cut" });
+            } else {
+              console.log("No file selected to cut");
             }
             break;
+
           case "v":
             e.preventDefault();
-            if (clipboard) {
-              handlePaste();
+            if (clipboard?.file) {
+              const fileToMove = clipboard.file;
+              const destinationPath = currentPath;
+
+              handleMoveFile(fileToMove, destinationPath)
+                .then(() => {
+                  setClipboard(null);
+                  fetchFiles();
+                })
+                .catch((error) => {
+                  console.error("Paste error:", error);
+                  showToast("Failed to move file", "error", 2000);
+                });
+            } else {
+              console.log("Nothing in clipboard to paste");
+              showToast("Nothing to paste", "info", 1500);
             }
             break;
+
           case "d":
             e.preventDefault();
             setIsCreateFolderOpen(true);
             break;
+
           case "u":
             e.preventDefault();
             setIsUploadOpen(true);
             break;
+
           case "1":
             e.preventDefault();
             setViewMode("grid");
             break;
+
           case "2":
             e.preventDefault();
             setViewMode("list");
+            break;
+
+          default:
             break;
         }
       } else {
         switch (e.key) {
           case "Delete":
+            e.preventDefault();
             if (selectedFile) {
-              e.preventDefault();
-              handleDelete(selectedFile);
+              const fileToDelete = selectedFile;
+              const timestamp = new Date().toISOString();
+              const tags = ["deleted", `deleted_time:${timestamp}`];
+
+              fetch(getFileApiUrl("/addTags"), {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ fileId: fileToDelete.id, tags }),
+              })
+                .then((res) => {
+                  if (!res.ok) throw new Error("Failed to tag file as deleted");
+                  console.log("File deleted successfully");
+                  setSelectedFile(null);
+                  fetchFiles();
+                })
+                .catch((err) => {
+                  console.error("Delete failed:", err);
+                  showToast("Failed to delete file", "error", 2000);
+                });
+            } else {
+              console.log("No file selected to delete");
             }
             break;
+
           case "Enter":
+            e.preventDefault();
+            console.log("Enter pressed, selected file:", selectedFile);
             if (selectedFile) {
-              e.preventDefault();
-              if (selectedFile.type === "folder") {
-                setCurrentPath(
-                  currentPath
-                    ? `${currentPath}/${selectedFile.name}`
-                    : selectedFile.name
-                );
+              if (selectedFile.type === "folder" || selectedFile.isFolder) {
+                const newPath = currentPath
+                  ? `${currentPath}/${selectedFile.name}`
+                  : selectedFile.name;
+                setCurrentPath(newPath);
+                setSelectedFile(null);
               } else {
                 handlePreview(selectedFile);
               }
+            } else {
+              console.log("No file selected to open");
             }
             break;
+
           case "Backspace":
-            if (!currentPath) return;
-            e.preventDefault();
-            setCurrentPath(currentPath.split("/").slice(0, -1).join("/"));
-            break;
-          case "F2":
-            if (selectedFile) {
+            if (currentPath) {
               e.preventDefault();
-              // Might brring rename functionality here
+              const parentPath = currentPath.split("/").slice(0, -1).join("/");
+              setCurrentPath(parentPath);
+              setSelectedFile(null);
             }
+            break;
+
+          case "Escape":
+            e.preventDefault();
+            setSelectedFile(null);
+            setPreviewFile(null);
+            setViewerFile(null);
+            break;
+
+          default:
             break;
         }
       }
     };
 
+    console.log("Keyboard shortcuts mounted");
     document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
+
+    return () => {
+      console.log("Keyboard shortcuts unmounted");
+      document.removeEventListener("keydown", handleKeyDown);
+    };
   }, [selectedFile, clipboard, currentPath]);
-
-  const handlePaste = async () => {
-    if (!clipboard) return;
-
-    const { file } = clipboard;
-    const destinationPath = currentPath;
-
-    try {
-      await handleMoveFile(file, destinationPath);
-      setClipboard(null);
-    } catch (error) {
-      // Error handling without toast
-    }
-  };
 
   const handleDelete = async (file) => {
     const timestamp = new Date().toISOString();
@@ -668,8 +729,6 @@ export default function MyFiles() {
       );
       if (!decrypted) throw new Error("Decryption failed");
 
-      // Download file
-      //const decompressed = pako.ungzip(decrypted);
       const blob = new Blob([decrypted]);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -677,8 +736,6 @@ export default function MyFiles() {
       a.download = fileName;
       a.click();
       window.URL.revokeObjectURL(url);
-
-      console.log(`✅ Downloaded and decrypted ${fileName}`);
     } catch (err) {
       console.error("Download error:", err);
       showToast("Download failed", "error");
@@ -1128,12 +1185,10 @@ export default function MyFiles() {
           : "";
 
         if (currentFileDir === targetPath) {
-          console.log("File is already in this directory");
           showToast("File is already in this location", "info");
           return;
         }
 
-        console.log(`Moving ${draggedFile.name} to ${targetPath || "root"}`);
         await handleMoveFile(draggedFile, targetPath);
         await fetchFiles();
       } catch (error) {
@@ -1199,11 +1254,12 @@ export default function MyFiles() {
             <p className="text-gray-600 dark:text-gray-400">
               Manage and organize your files
             </p>
-            {/* <div className="text-xs text-gray-500 mt-1">
-            <span className="font-medium">Shortcuts:</span> Ctrl+C/V • Del • Enter • Backspace • Ctrl+D/U • Ctrl+1/2
-          </div> */}
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              <span className="font-medium">Shortcuts:</span> Ctrl+C (Cut) •
+              Ctrl+V (Paste) • Del (Delete) • Enter (Open) • Backspace (Back) •
+              Ctrl+D (Folder) • Ctrl+U (Upload) • Ctrl+1/2 (View) • Esc (Clear)
+            </div>
           </div>
-
           <div className="flex items-center gap-4">
             {/* View Toggle */}
             <div className="flex items-center bg-white rounded-lg border p-1 dark:bg-gray-200">
@@ -1273,7 +1329,7 @@ export default function MyFiles() {
           </div>
         ) : viewMode === "grid" ? (
           <FileGrid
-            files={filteredVisibleFiles} // files filtered by currentPath
+            files={filteredVisibleFiles}
             onShare={openShareDialog}
             onViewDetails={openDetailsDialog}
             onViewActivity={openActivityDialog}
