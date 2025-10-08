@@ -360,6 +360,8 @@ export default function MyFiles() {
 
   const [user, setUser] = useState(null);
 
+  const [dragOverCrumb, setDragOverCrumb] = useState(null);
+
   const showToast = (message, type = "info", duration = 3000) => {
     setToast({ message, type });
     setTimeout(() => setToast(null), duration);
@@ -483,104 +485,165 @@ export default function MyFiles() {
     fetchFiles();
   }, []);
 
-  // Keyboard shortcuts
   useEffect(() => {
+    if (typeof window === "undefined") return;
+
     const handleKeyDown = (e) => {
+      console.log(
+        "Key pressed:",
+        e.key,
+        "Ctrl:",
+        e.ctrlKey || e.metaKey,
+        "Target:",
+        e.target.tagName
+      );
+
       if (
         e.target.tagName === "INPUT" ||
         e.target.tagName === "TEXTAREA" ||
-        e.target.contentEditable === "true"
+        e.target.contentEditable === "true" ||
+        e.target.isContentEditable
       ) {
+        console.log("Ignoring - user is in input field");
         return;
       }
 
       const ctrlPressed = e.ctrlKey || e.metaKey;
 
       if (ctrlPressed) {
+        console.log("Ctrl+Key detected:", e.key);
+
         switch (e.key.toLowerCase()) {
-          case "c":
+          case "c": 
             e.preventDefault();
             if (selectedFile) {
               setClipboard({ file: selectedFile, operation: "cut" });
+            } else {
+              console.log("No file selected to cut");
             }
             break;
+
           case "v":
             e.preventDefault();
-            if (clipboard) {
-              handlePaste();
+            if (clipboard?.file) {
+              const fileToMove = clipboard.file;
+              const destinationPath = currentPath;
+
+              handleMoveFile(fileToMove, destinationPath)
+                .then(() => {
+                  setClipboard(null);
+                  fetchFiles();
+                })
+                .catch((error) => {
+                  console.error("Paste error:", error);
+                  showToast("Failed to move file", "error", 2000);
+                });
+            } else {
+              console.log("Nothing in clipboard to paste");
+              showToast("Nothing to paste", "info", 1500);
             }
             break;
+
           case "d":
             e.preventDefault();
             setIsCreateFolderOpen(true);
             break;
+
           case "u":
             e.preventDefault();
             setIsUploadOpen(true);
             break;
+
           case "1":
             e.preventDefault();
             setViewMode("grid");
             break;
+
           case "2":
             e.preventDefault();
             setViewMode("list");
+            break;
+
+          default:
             break;
         }
       } else {
         switch (e.key) {
           case "Delete":
+            e.preventDefault();
             if (selectedFile) {
-              e.preventDefault();
-              handleDelete(selectedFile);
+              const fileToDelete = selectedFile;
+              const timestamp = new Date().toISOString();
+              const tags = ["deleted", `deleted_time:${timestamp}`];
+
+              fetch(getFileApiUrl("/addTags"), {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ fileId: fileToDelete.id, tags }),
+              })
+                .then((res) => {
+                  if (!res.ok) throw new Error("Failed to tag file as deleted");
+                  console.log("File deleted successfully");
+                  setSelectedFile(null);
+                  fetchFiles();
+                })
+                .catch((err) => {
+                  console.error("Delete failed:", err);
+                  showToast("Failed to delete file", "error", 2000);
+                });
+            } else {
+              console.log("No file selected to delete");
             }
             break;
+
           case "Enter":
+            e.preventDefault();
+            console.log("Enter pressed, selected file:", selectedFile);
             if (selectedFile) {
-              e.preventDefault();
-              if (selectedFile.type === "folder") {
-                setCurrentPath(
-                  currentPath
-                    ? `${currentPath}/${selectedFile.name}`
-                    : selectedFile.name
-                );
+              if (selectedFile.type === "folder" || selectedFile.isFolder) {
+                const newPath = currentPath
+                  ? `${currentPath}/${selectedFile.name}`
+                  : selectedFile.name;
+                setCurrentPath(newPath);
+                setSelectedFile(null);
               } else {
                 handlePreview(selectedFile);
               }
+            } else {
+              console.log("No file selected to open");
             }
             break;
+
           case "Backspace":
-            if (!currentPath) return;
-            e.preventDefault();
-            setCurrentPath(currentPath.split("/").slice(0, -1).join("/"));
-            break;
-          case "F2":
-            if (selectedFile) {
+            if (currentPath) {
               e.preventDefault();
-              // Might brring rename functionality here
+              const parentPath = currentPath.split("/").slice(0, -1).join("/");
+              setCurrentPath(parentPath);
+              setSelectedFile(null);
             }
+            break;
+
+          case "Escape":
+            e.preventDefault();
+            setSelectedFile(null);
+            setPreviewFile(null);
+            setViewerFile(null);
+            break;
+
+          default:
             break;
         }
       }
     };
 
+    console.log("Keyboard shortcuts mounted");
     document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
+
+    return () => {
+      console.log("Keyboard shortcuts unmounted");
+      document.removeEventListener("keydown", handleKeyDown);
+    };
   }, [selectedFile, clipboard, currentPath]);
-
-  const handlePaste = async () => {
-    if (!clipboard) return;
-
-    const { file } = clipboard;
-    const destinationPath = currentPath;
-
-    try {
-      await handleMoveFile(file, destinationPath);
-      setClipboard(null);
-    } catch (error) {
-      // Error handling without toast
-    }
-  };
 
   const handleDelete = async (file) => {
     const timestamp = new Date().toISOString();
@@ -666,8 +729,6 @@ export default function MyFiles() {
       );
       if (!decrypted) throw new Error("Decryption failed");
 
-      // Download file
-      //const decompressed = pako.ungzip(decrypted);
       const blob = new Blob([decrypted]);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -675,8 +736,6 @@ export default function MyFiles() {
       a.download = fileName;
       a.click();
       window.URL.revokeObjectURL(url);
-
-      console.log(`✅ Downloaded and decrypted ${fileName}`);
     } catch (err) {
       console.error("Download error:", err);
       showToast("Download failed", "error");
@@ -958,8 +1017,6 @@ export default function MyFiles() {
 
       contentUrl = canvas.toDataURL(file.type);
     } else if (file.type === "pdf") {
-      // PDF watermarking temporarily disabled - pdf-lib removed for SSR compatibility
-      // Consider using server-side PDF processing or alternative approach
       contentUrl = URL.createObjectURL(
         new Blob([result.decrypted], { type: "application/pdf" })
       );
@@ -1053,6 +1110,9 @@ export default function MyFiles() {
 
     const res = await fetch(getFileApiUrl("/updateFilePath"), {
       method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({ fileId: file.id, newPath: fullPath }),
     });
 
@@ -1100,31 +1160,72 @@ export default function MyFiles() {
 
     const handleDrop = async (e, targetPath) => {
       e.preventDefault();
-      const draggedFileId = e.dataTransfer.getData("text/plain");
-      if (!draggedFileId) return;
+      e.stopPropagation();
+      setDragOverCrumb(null);
 
-      const allFiles = files;
-      const draggedFile = allFiles.find((f) => f.id === draggedFileId);
-      if (!draggedFile) return;
+      try {
+        const draggedData = e.dataTransfer.getData("application/json");
 
-      await handleMoveFile(draggedFile, targetPath);
+        if (!draggedData) {
+          console.warn("No drag data found in dataTransfer");
+          return;
+        }
+
+        const draggedFile = JSON.parse(draggedData);
+        console.log("Parsed dragged file:", draggedFile);
+
+        if (!draggedFile || !draggedFile.id) {
+          console.warn("Invalid dragged file data");
+          return;
+        }
+
+        const currentFilePath = normalizePath(draggedFile.path);
+        const currentFileDir = currentFilePath.includes("/")
+          ? currentFilePath.substring(0, currentFilePath.lastIndexOf("/"))
+          : "";
+
+        if (currentFileDir === targetPath) {
+          showToast("File is already in this location", "info");
+          return;
+        }
+
+        await handleMoveFile(draggedFile, targetPath);
+        await fetchFiles();
+      } catch (error) {
+        console.error("Move failed:", error);
+        showToast("Failed to move file", "error");
+      }
     };
 
-    const handleDragOver = (e) => {
+    const handleDragOver = (e, crumbPath) => {
       e.preventDefault();
+      e.stopPropagation();
+      e.dataTransfer.dropEffect = "move";
+      setDragOverCrumb(crumbPath);
+    };
+
+    const handleDragLeave = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setDragOverCrumb(null);
     };
 
     return (
       <div className="mb-6">
         {/* Breadcrumbs */}
-        <nav className="mb-2 text-s text-gray-500 dark:text-gray-400">
+        <nav className="mb-2 text-sm text-gray-500 dark:text-gray-400">
           {crumbs.map((crumb, i) => (
-            <span key={crumb.path}>
+            <span key={crumb.path || "root"}>
               <button
                 onClick={() => setCurrentPath(crumb.path)}
-                onDragOver={handleDragOver}
+                onDragOver={(e) => handleDragOver(e, crumb.path)}
+                onDragLeave={handleDragLeave}
                 onDrop={(e) => handleDrop(e, crumb.path)}
-                className="hover:underline"
+                className={`hover:underline hover:text-blue-600 transition-colors px-2 py-1 rounded ${
+                  dragOverCrumb === crumb.path
+                    ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 font-semibold"
+                    : ""
+                }`}
               >
                 {crumb.name || "All files"}
               </button>
@@ -1133,40 +1234,32 @@ export default function MyFiles() {
           ))}
         </nav>
 
-        {/* Curr Folder */}
+        {/* Current Folder */}
         <div className="flex items-center space-x-2">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
             {currentDirName}
           </h1>
-          <button className="p-1">
-            <svg
-              className="w-5 h-5 text-gray-500 dark:text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              viewBox="0 0 24 24"
-            ></svg>
-          </button>
         </div>
       </div>
     );
   };
 
   return (
-    <div className=" bg-gray-50 p-6 dark:bg-gray-900">
-      <div className=" ">
+    <div className="bg-gray-50 p-6 dark:bg-gray-900">
+      <div className="">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-2xl font-semibold text-blue-500 ">My Files</h1>
+            <h1 className="text-2xl font-semibold text-blue-500">My Files</h1>
             <p className="text-gray-600 dark:text-gray-400">
               Manage and organize your files
             </p>
-            {/* <div className="text-xs text-gray-500 mt-1">
-              <span className="font-medium">Shortcuts:</span> Ctrl+C/V • Del • Enter • Backspace • Ctrl+D/U • Ctrl+1/2
+            {/* <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              <span className="font-medium">Shortcuts:</span> Ctrl+C (Cut) •
+              Ctrl+V (Paste) • Del (Delete) • Enter (Open) • Backspace (Back) •
+              Ctrl+D (Folder) • Ctrl+U (Upload) • Ctrl+1/2 (View) • Esc (Clear)
             </div> */}
           </div>
-
           <div className="flex items-center gap-4">
             {/* View Toggle */}
             <div className="flex items-center bg-white rounded-lg border p-1 dark:bg-gray-200">
@@ -1236,7 +1329,7 @@ export default function MyFiles() {
           </div>
         ) : viewMode === "grid" ? (
           <FileGrid
-            files={filteredVisibleFiles} // files filtered by currentPath
+            files={filteredVisibleFiles}
             onShare={openShareDialog}
             onViewDetails={openDetailsDialog}
             onViewActivity={openActivityDialog}

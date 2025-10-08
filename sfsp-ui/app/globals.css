@@ -22,3 +22,25 @@ body {
   transition: background-color 0.3s, color 0.3s;
 }
 
+@keyframes fade-in-out {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -55%);
+  }
+  10% {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+  90% {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -55%);
+  }
+}
+
+.animate-fade-in-out {
+  animation: fade-in-out 3s ease-in-out forwards;
+}

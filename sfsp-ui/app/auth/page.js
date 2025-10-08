@@ -45,12 +45,13 @@ export default function AuthPage() {
     hasSpecialChar: false,
   });
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+  const [toast, setToast] = useState({ message: "", type: "" });
 
   useEffect(() => {
     logout(); 
     const urlParams = new URLSearchParams(window.location.search);
     const error = urlParams.get('error');
-    
+
     if (error) {
       switch (error) {
         case 'oauth_error':
@@ -80,7 +81,7 @@ export default function AuthPage() {
         default:
           setMessage('An error occurred during Google authentication. Please try again.');
       }
-      
+
       // Clean up URL parameters
       const newUrl = window.location.pathname;
       window.history.replaceState({}, '', newUrl);
@@ -93,6 +94,11 @@ export default function AuthPage() {
     }
   }, []);
 
+  const showToast = (message, type = "error", duration = 3000) => {
+    setToast({ message, type });
+    setTimeout(() => setToast({ message: "", type: "" }), duration);
+  };
+
   function handleChange(setter) {
     return (event) => {
       const { name, value } = event.target;
@@ -100,11 +106,11 @@ export default function AuthPage() {
         ...prev,
         [name]: value,
       }));
-      
+
       if (name === 'password' && setter === setSignupData) {
         checkPasswordRequirements(value);
       }
-      
+
       if (fieldErrors[name]) {
         setFieldErrors((prev) => ({
           ...prev,
@@ -135,7 +141,7 @@ export default function AuthPage() {
     try {
       const sodium = await getSodium();
       const loginUrl = getApiUrl('/users/login');
-      
+
       const res = await fetch(loginUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -169,14 +175,14 @@ export default function AuthPage() {
 
       // Always send verification code for login security
       setLoaderMessage("Sending verification code...");
-      
+
       // Store login data temporarily for verification
       sessionStorage.setItem("pendingLogin", JSON.stringify({
         email: loginData.email,
         password: loginData.password,
         userId: id
       }));
-      
+
       // Send verification code before redirecting
       try {
         const sendCodeResponse = await fetch(`/api/auth/send-verification`, {
@@ -194,6 +200,7 @@ export default function AuthPage() {
           const errorData = await sendCodeResponse.json();
           console.error("Failed to send verification code:", errorData);
           setMessage("Failed to send verification code. Please try again.");
+          showToast("Failed to send verification code. Please try again.", "error");
           setIsLoading(false);
           return;
         }
@@ -208,18 +215,20 @@ export default function AuthPage() {
       } catch (error) {
         console.error("Error sending verification code:", error);
         setMessage("Failed to send verification code. Please try again.");
+        showToast("Failed to send verification code. Please try again.", "error");
         setIsLoading(false);
         return;
       }
 
       // Store login data temporarily for verification completion
       // The verification page will handle the final authentication setup
-      
+
     } catch (err) {
       console.error("Login error:", err);
-      setMessage(
-        err.message || "An unexpected error occurred. Please try again."
-      );
+      // setMessage(
+      //   err.message || "An unexpected error occurred. Please try again."
+      // );
+      showToast(err.message || "An unexpected error occurred. Please try again.", "error");
     } finally {
       setIsLoading(false);
     }
@@ -403,11 +412,12 @@ export default function AuthPage() {
       const rawToken = token.replace(/^Bearer\s/, "");
       localStorage.setItem("token", rawToken);
       setMessage("User successfully registered!");
+      showToast("User successfully registered!", "success");
 
       // Add user to PostgreSQL database (for verified users)
       try {
         const addUserUrl = getFileApiUrl('/addUser');
-        
+
         const addUserRes = await fetch(addUserUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -433,6 +443,7 @@ export default function AuthPage() {
     } catch (err) {
       console.error("Signup error:", err);
       setMessage(err.message || "Something went wrong. Please try again.");
+      showToast(err.message || "Something went wrong. Please try again.", "error");
     } finally {
       setIsLoading(false);
     }
@@ -442,7 +453,7 @@ export default function AuthPage() {
     try {
       setIsLoading(true);
       setLoaderMessage("Redirecting to Google...");
-      
+
       const authInProgress = localStorage.getItem('googleAuthInProgress');
       if (authInProgress) {
         setMessage('Google authentication is already in progress. Please wait...');
@@ -460,13 +471,13 @@ export default function AuthPage() {
 
       const redirectUri = `${window.location.origin}/auth/google/callback`;
       const scope = 'openid email profile';
-      
+
       // Generate state parameter for security
       const stateArray = new Uint32Array(4);
       crypto.getRandomValues(stateArray);
       const state = Array.from(stateArray, x => x.toString(16)).join('');
       sessionStorage.setItem('googleOAuthState', state);
-      
+
       const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
         `client_id=${encodeURIComponent(clientId)}&` +
         `redirect_uri=${encodeURIComponent(redirectUri)}&` +
@@ -477,9 +488,9 @@ export default function AuthPage() {
         `prompt=consent`;
 
       localStorage.setItem('googleAuthInProgress', 'true');
-      
+
       localStorage.removeItem('lastUsedGoogleCode');
-      
+
       // Use simple location redirect instead of dynamic script injection
       window.location.assign(authUrl);
 
@@ -801,7 +812,7 @@ export default function AuthPage() {
                       )}
                     </button>
                   </div>
-                  
+
                   {/* Password Requirements Checklist */}
                   {isPasswordFocused && signupData.password && (
                     <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-100 rounded-md border">
@@ -840,7 +851,7 @@ export default function AuthPage() {
                       </div>
                     </div>
                   )}
-                  
+
                   {fieldErrors.password && (
                     <p className="text-red-500 text-sm mt-1">{fieldErrors.password}</p>
                   )}
@@ -852,34 +863,33 @@ export default function AuthPage() {
                   >
                     Confirm Password
                   </label>
-                    <div className="relative">
-                      <input
-                        id="confirmPassword"
-                        name="confirmPassword"
-                        type={showConfirmPassword ? 'text' : 'password'}
-                        value={signupData.confirmPassword}
-                        onChange={handleChange(setSignupData)}
-                        disabled={!allPasswordRequirementsMet}
-                        required
-                        className={`w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${
-                          fieldErrors.confirmPassword ? 'border-red-500' : ''
+                  <div className="relative">
+                    <input
+                      id="confirmPassword"
+                      name="confirmPassword"
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      value={signupData.confirmPassword}
+                      onChange={handleChange(setSignupData)}
+                      disabled={!allPasswordRequirementsMet}
+                      required
+                      className={`w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${fieldErrors.confirmPassword ? 'border-red-500' : ''
                         } ${!allPasswordRequirementsMet ? 'bg-gray-100 cursor-not-allowed opacity-50' : ''}`}
-                        placeholder={!allPasswordRequirementsMet ? 'Enter password' : ''}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        disabled={!allPasswordRequirementsMet}
-                        className={`absolute inset-y-0 right-0 flex items-center pr-3 ${!allPasswordRequirementsMet ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
-                      >
-                        {showConfirmPassword ? (
-                          <Eye className="h-5 w-5 text-gray-500 hover:text-gray-700" />
-                        ) : (
-                          <EyeClosed className="h-5 w-5 text-gray-500 hover:text-gray-700" />
-                        )}
-                      </button>
-                    </div>
+                      placeholder={!allPasswordRequirementsMet ? 'Enter password' : ''}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      disabled={!allPasswordRequirementsMet}
+                      className={`absolute inset-y-0 right-0 flex items-center pr-3 ${!allPasswordRequirementsMet ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+                    >
+                      {showConfirmPassword ? (
+                        <Eye className="h-5 w-5 text-gray-500 hover:text-gray-700" />
+                      ) : (
+                        <EyeClosed className="h-5 w-5 text-gray-500 hover:text-gray-700" />
+                      )}
+                    </button>
+                  </div>
                   {fieldErrors.confirmPassword && (
                     <p className="text-red-500 text-sm mt-1">{fieldErrors.confirmPassword}</p>
                   )}
@@ -967,6 +977,21 @@ export default function AuthPage() {
           )}
         </div>
       </div>
+
+      {toast.message && (
+        <div
+          className={`
+      fixed top-6 right-6 px-6 py-3 rounded-lg shadow-lg z-[9999]
+      text-sm font-medium transition-all duration-300
+      animate-slide-in-out
+      ${toast.type === "success" ? "bg-green-400 text-white" : ""}
+      ${toast.type === "error" ? "bg-red-400 text-white" : ""}
+      ${toast.type === "default" ? "bg-blue-400 text-white" : ""}
+    `}
+        >
+          {toast.message}
+        </div>
+      )}
     </div>
   );
 }

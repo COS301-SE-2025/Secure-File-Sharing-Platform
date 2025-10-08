@@ -77,6 +77,8 @@ export function FileGrid({
   currentPath,
   onRevokeAccess,
   onChangeShareMode,
+  selectedFile,
+  onSelectFile,
 }) {
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const [menuFile, setMenuFile] = useState(null);
@@ -289,11 +291,9 @@ export function FileGrid({
     return iconMap[file.type] || <FileIcon className="h-8 w-8 text-gray-500" />;
   };
 
-  // Check if file is view-only (either from tags or viewOnly property)
   const isViewOnly = (file) => {
     if (file.viewOnly) return true;
 
-    // Handle fileTags as array or string
     if (file.fileTags) {
       if (Array.isArray(file.fileTags)) {
         return file.fileTags.includes("view-only");
@@ -400,6 +400,7 @@ export function FileGrid({
   const handleDragStart = (e, file) => {
     setDraggedFile(file);
     e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("application/json", JSON.stringify(file));
   };
 
   const handleDragOver = (e, folder) => {
@@ -408,7 +409,7 @@ export function FileGrid({
       folder.type === "folder" &&
       draggedFile.id !== folder.id
     ) {
-      e.preventDefault(); // allows drop
+      e.preventDefault();
     }
   };
 
@@ -420,8 +421,32 @@ export function FileGrid({
       draggedFile.id !== folder.id
     ) {
       const newPath = folder.cid || folder.path || folder.name;
-      onMoveFile?.(draggedFile, newPath); // <-- You will define this in your parent component
+      onMoveFile?.(draggedFile, newPath);
       setDraggedFile(null);
+    }
+  };
+
+  const handleFileClick = (e, file) => {
+    e.stopPropagation();
+
+    onSelectFile(file);
+
+    if (file.type !== "folder") {
+      onClick?.(file);
+    }
+
+    if (onClick) {
+      onClick(file);
+    }
+  };
+
+  const handleFileDoubleClick = (e, file) => {
+    e.stopPropagation();
+
+    if (file.type === "folder" || file.isFolder) {
+      onEnterFolder(file.name);
+    } else if (onDoubleClick) {
+      onDoubleClick(file);
     }
   };
 
@@ -434,28 +459,27 @@ export function FileGrid({
           onClose={() => setToast(null)}
         />
       )}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
         {files.map((file) => (
           <div
             key={file.id}
-            draggable={file.type !== "folder"}
+            draggable={true}
             onDragStart={(e) => handleDragStart(e, file)}
             onDragOver={(e) => handleDragOver(e, file)}
             onDrop={(e) => handleDrop(e, file)}
-            onClick={() => {
-              if (file.type !== "folder") {
-                onClick?.(file);
-              }
-            }}
-            onDoubleClick={() => {
-              if (file.type === "folder") {
-                onEnterFolder?.(file.name);
-              } else {
-                onDoubleClick?.(file);
-              }
-            }}
+            onClick={(e) => handleFileClick(e, file)}
+            onDoubleClick={(e) => handleFileDoubleClick(e, file)}
             onContextMenu={(e) => handleContextMenu(e, file)}
-            className="relative group bg-white rounded-lg border border-gray-300 p-4 hover:shadow-lg transition-shadow cursor-pointer dark:bg-gray-200 dark:hover:bg-blue-100"
+            className={`
+            relative group bg-white rounded-lg border border-gray-300 p-4 
+            hover:shadow-lg transition-all cursor-pointer 
+            dark:bg-gray-200 dark:hover:bg-blue-100
+            ${
+            selectedFile?.id === file.id
+            ? "shadow-[0_0_15px_rgba(59,130,246,0.5)] dark:shadow-[0_0_15px_rgba(96,165,250,0.6)]"
+            : ""
+            }
+          `}
           >
             {/* FOLDER DESIGN */}
             {file.type === "folder" ? (

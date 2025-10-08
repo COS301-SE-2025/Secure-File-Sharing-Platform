@@ -6,15 +6,15 @@ const footerLinks = [
       { name: "Features", href: "#" },
     ],
   },
-  {
-    title: "Features",
-    links: [
-      { name: "Send files", href: "#" },
-      { name: "Send videos", href: "#" },
-      { name: "Cloud storage", href: "#" },
-      { name: "Secure file transfer", href: "#" },
-    ],
-  },
+  // {
+  //   title: "Features",
+  //   links: [
+  //     { name: "Send files", href: "#" },
+  //     { name: "Send videos", href: "#" },
+  //     { name: "Cloud storage", href: "#" },
+  //     { name: "Secure file transfer", href: "#" },
+  //   ],
+  // },
   {
     title: "Support",
     links: [
