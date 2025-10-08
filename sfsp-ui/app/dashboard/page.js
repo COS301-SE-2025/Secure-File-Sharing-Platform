@@ -301,8 +301,8 @@ function parseTagString(tagString = "") {
 export default function DashboardHomePage() {
   const [files, setFiles] = useState([]);
   const [fileCount, setFileCount] = useState(0);
-  const [trashedFilesCount, setTrashedFilesCount] = useState([]);
-  const [receivedFilesCount, setReceivedFilesCount] = useState([]);
+  const [trashedFilesCount, setTrashedFilesCount] = useState(0);
+  const [receivedFilesCount, setReceivedFilesCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const userId = useEncryptionStore.getState().userId;
@@ -341,6 +341,7 @@ export default function DashboardHomePage() {
         return [];
       }
 
+     if (data != null){
       const sortedFiles = data.sort(
         (a, b) => new Date(b.date) - new Date(a.date)
       );
@@ -368,6 +369,7 @@ export default function DashboardHomePage() {
       setFiles(formatted);
 
       return formatted;
+     }
   } catch (err) {
     console.error("Failed to fetch files:", err);
     return [];
@@ -711,8 +713,9 @@ useEffect(() => {
         body: JSON.stringify({ userId }),
       });
 
+     
       const data = await res.json();
-    
+       if (data != null){
         // Separate active and deleted files
         const activeFiles = data.filter(file => {
         const tags = parseTagString(file.tags);
@@ -734,6 +737,7 @@ useEffect(() => {
         setFileCount(activeFiles.length);
         setTrashedFilesCount(deletedFiles.length);
         setReceivedFilesCount(receivedFiles.length);
+       }
     } catch (error) {
       console.error("Failed to fetch files metadata:", error);
     } finally {

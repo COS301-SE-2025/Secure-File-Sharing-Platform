@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Upload, FolderPlus, Grid, List, Route } from "lucide-react";
+import { Upload, FolderPlus, Grid, List, Route, ChevronDown} from "lucide-react";
 import { ShareDialog } from "./shareDialog";
 import { UploadDialog } from "./uploadDialog";
 import { FileDetailsDialog } from "./fileDetailsDialog";
@@ -359,6 +359,8 @@ export default function MyFiles() {
   const [toast, setToast] = useState(null);
 
   const [user, setUser] = useState(null);
+  
+  const [showSortOptions, setShowSortOptions] = useState(false);
 
   const [dragOverCrumb, setDragOverCrumb] = useState(null);
 
@@ -484,6 +486,27 @@ export default function MyFiles() {
   useEffect(() => {
     fetchFiles();
   }, []);
+  
+    const sortFilesBasedOnDate = () => {
+      setFiles([...files].sort((a, b) => new Date(b.modifiedRaw) - new Date(a.modifiedRaw)));
+    };
+  
+    const sortFilesBasedOnName = () => {
+      setFiles([...files].sort((a, b) => a.name.localeCompare(b.name)));
+    };
+  
+    const sortFilesBasedOnSize = () => {
+      setFiles([...files].sort((a, b) => a.size - b.size));
+    }
+  
+    const handleAscendingSort = () => {
+      setFiles([...files].reverse());
+    };
+  
+    const handleDescendingSort = () => {
+      setFiles([...files].reverse());
+    };
+    
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1245,45 +1268,94 @@ export default function MyFiles() {
   };
 
   return (
-    <div className="bg-gray-50 p-6 dark:bg-gray-900">
-      <div className="">
+    <div className=" bg-gray-50 p-6 dark:bg-gray-900">
+      <div className=" ">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-2xl font-semibold text-blue-500">My Files</h1>
+            <h1 className="text-2xl font-semibold text-blue-500 ">My Files</h1>
             <p className="text-gray-600 dark:text-gray-400">
               Manage and organize your files
             </p>
-            {/* <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              <span className="font-medium">Shortcuts:</span> Ctrl+C (Cut) •
-              Ctrl+V (Paste) • Del (Delete) • Enter (Open) • Backspace (Back) •
-              Ctrl+D (Folder) • Ctrl+U (Upload) • Ctrl+1/2 (View) • Esc (Clear)
-            </div> */}
-          </div>
-          <div className="flex items-center gap-4">
-            {/* View Toggle */}
-            <div className="flex items-center bg-white rounded-lg border p-1 dark:bg-gray-200">
-              <button
-                className={`px-3 py-1 rounded ${
-                  viewMode === "grid"
-                    ? "bg-blue-500 text-white"
-                    : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
-                }`}
-                onClick={() => setViewMode("grid")}
-              >
-                <Grid className="h-4 w-4" />
-              </button>
-              <button
-                className={`px-3 py-1 rounded ${
-                  viewMode === "list"
-                    ? "bg-blue-500 text-white"
-                    : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
-                }`}
-                onClick={() => setViewMode("list")}
-              >
-                <List className="h-4 w-4" />
-              </button>
+            <div className="text-xs text-gray-500 mt-1">
+              <span className="font-medium">Shortcuts:</span> Ctrl+C/V • Del • Enter • Backspace • Ctrl+D/U • Ctrl+1/2
             </div>
+          </div>
+
+          {/* View + Sort Toggle */}
+        <div className="flex items-center gap-4 relative">
+          <div className="flex items-center bg-white rounded-lg border p-1 dark:bg-gray-200 relative z-50">
+            {/* Grid Button */}
+            <button
+              className={`px-3 py-1 rounded ${
+                viewMode === "grid"
+                  ? "bg-blue-500 text-white"
+                  : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
+              }`}
+              onClick={() => setViewMode("grid")}
+            >
+              <Grid className="h-4 w-4" />
+            </button>
+
+            {/* List Button */}
+            <button
+              className={`px-3 py-1 rounded ${
+                viewMode === "list"
+                  ? "bg-blue-500 text-white"
+                  : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
+              }`}
+              onClick={() => setViewMode("list")}
+            >
+              <List className="h-4 w-4" />
+            </button>
+
+            {/* Sort Button with Dropdown */}
+            <div className="relative">
+              <button
+                className="px-3 py-1 rounded flex items-center gap-1 text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
+                onClick={() => setShowSortOptions((prev) => !prev)}
+              >
+                Sort
+                <ChevronDown className="h-3 w-3" />
+              </button>
+
+              {showSortOptions && (
+                <div className="absolute right-0 top-full mt-2 w-48 bg-white border rounded-lg shadow-lg z-50 dark:bg-gray-100">
+                  <button
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700 dark:text-black"
+                    onClick={() => { sortFilesBasedOnDate(); setShowSortOptions(false); }}
+                  >
+                    Sort by Date
+                  </button>
+                  <button
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700 dark:text-black"
+                    onClick={() => { sortFilesBasedOnName(); setShowSortOptions(false); }}
+                  >
+                    Sort by Name
+                  </button>
+                  <button
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700 dark:text-black"
+                    onClick={() => { sortFilesBasedOnSize(); setShowSortOptions(false); }}
+                  >
+                    Sort by Size
+                  </button>
+                  <hr className="border-gray-200 dark:border-gray-400" />
+                  <button
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700 dark:text-black"
+                    onClick={() => { handleAscendingSort(); setShowSortOptions(false); }}
+                  >
+                    Ascending
+                  </button>
+                  <button
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700 dark:text-black"
+                    onClick={() => { handleDescendingSort(); setShowSortOptions(false); }}
+                  >
+                    Descending
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
 
             {/* Create Folder & Upload buttons */}
             <button

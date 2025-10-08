@@ -3,7 +3,7 @@ const axios = require("axios");
 
 class VaultController {
   constructor(
-    baseURL = process.env.KEY_SERVICE_URL || "http://localhost:8443",
+    baseURL = process.env.KEY_SERVICE_URL || "http://localhost:8443" || " http://127.0.0.1:8443",
     timeout = 30000
   ) {
     this.baseURL = baseURL;
