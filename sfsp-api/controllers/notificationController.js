@@ -147,31 +147,29 @@ exports.addNotification = async (req, res) => {
       success: false,
       error: "Invalid email format"
     });
-  }c
+  }
 
   const extractId = (resp) =>
     resp?.data?.data?.id ?? resp?.data?.data?.userId ?? null;
 
+  console.log("Sanitized FromEmail is: ", sanitizeEmail(fromEmail));
   try {
     let senderResponse;
     try {
+      console.log("API URL is:", process.env.API_URL || "http://localhost:5000");
       senderResponse = await axios.get(
-        `${process.env.API_URL || "http://localhost:5000"}/api/users/getUserId`,
-        {
-          params: { email: sanitizeEmail(fromEmail) }
-        }
+        `${process.env.API_URL || "http://localhost:5000"}/api/users/getUserId/${encodeURIComponent(sanitizeEmail(fromEmail))}`
       );
       console.log("Sender response:", senderResponse.data);
       const fromId = extractId(senderResponse);
       if (!senderResponse.data.success || !fromId) {
+        console.log(`Sender with email ${fromEmail} not found`);
         return res.status(404).json({ success: false, error: `Sender with email ${fromEmail} not found` });
       }
 
+      console.log("UserID: Sanitized ToEmail is: ", sanitizeEmail(toEmail));
       let recipientResponse = await axios.get(
-        `${process.env.API_URL || "http://localhost:5000"}/api/users/getUserId`,
-        {
-          params: { email: sanitizeEmail(toEmail) }
-        }
+        `${process.env.API_URL || "http://localhost:5000"}/api/users/getUserId/${encodeURIComponent(sanitizeEmail(toEmail))}`
       );
       console.log("Recipient response:", recipientResponse.data);
       const toId = extractId(recipientResponse);

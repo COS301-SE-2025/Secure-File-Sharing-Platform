@@ -1,5 +1,3 @@
-//app/dashboard/myFilesV2/fileGrid.js
-
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
@@ -285,7 +283,6 @@ export function FileGrid({
 
   const getIcon = (file) => {
     if (file.type === "folder") {
-      console.log("Folder icon selected");
       return <Folder className="h-8 w-8 text-blue-500" />;
     }
     return iconMap[file.type] || <FileIcon className="h-8 w-8 text-gray-500" />;
@@ -302,7 +299,6 @@ export function FileGrid({
       }
     }
 
-    // Handle tags as array or string
     if (file.tags) {
       if (Array.isArray(file.tags)) {
         return file.tags.includes("view-only");
@@ -475,9 +471,9 @@ export function FileGrid({
             hover:shadow-lg transition-all cursor-pointer 
             dark:bg-gray-200 dark:hover:bg-blue-100
             ${
-            selectedFile?.id === file.id
-            ? "shadow-[0_0_15px_rgba(59,130,246,0.5)] dark:shadow-[0_0_15px_rgba(96,165,250,0.6)]"
-            : ""
+              selectedFile?.id === file.id
+                ? "shadow-[0_0_15px_rgba(59,130,246,0.5)] dark:shadow-[0_0_15px_rgba(96,165,250,0.6)]"
+                : ""
             }
           `}
           >
@@ -586,105 +582,87 @@ export function FileGrid({
           className="absolute z-50 bg-white border rounded-md shadow-lg w-48 text-sm dark:bg-gray-200 dark:text-gray-900"
           style={{ top: menuPosition.y, left: menuPosition.x }}
         >
-          <button
-            onClick={() => {
-              if (!isViewOnly(menuFile)) onShare(menuFile);
-              setMenuFile(null);
-            }}
-            className={`w-full text-left px-4 py-2 flex items-center gap-2 ${
-              isViewOnly(menuFile)
-                ? "opacity-50 cursor-not-allowed"
-                : "hover:bg-gray-100 dark:hover:bg-blue-200"
-            }`}
-            disabled={isViewOnly(menuFile)}
-          >
-            <Share className="h-4 w-4" /> Share
-          </button>
+          {menuFile?.type !== "folder" && (
+            <>
+              <button
+                onClick={() => {
+                  if (!isViewOnly(menuFile)) onShare(menuFile);
+                  setMenuFile(null);
+                }}
+                className={`w-full text-left px-4 py-2 flex items-center gap-2 ${
+                  isViewOnly(menuFile)
+                    ? "opacity-50 cursor-not-allowed"
+                    : "hover:bg-gray-100 dark:hover:bg-blue-200"
+                }`}
+                disabled={isViewOnly(menuFile)}
+              >
+                <Share className="h-4 w-4" /> Share
+              </button>
 
-          <button
-            onClick={() => {
-              if (!isViewOnly(menuFile)) {
-                onDownload(menuFile);
-              }
-              setMenuFile(null);
-            }}
-            className={`w-full text-left px-4 py-2 flex items-center gap-2 ${
-              menuFile?.type === "folder"
-                ? "hidden"
-                : isViewOnly(menuFile)
-                ? "opacity-50 cursor-not-allowed"
-                : "hover:bg-gray-100 dark:hover:bg-blue-200"
-            }`}
-            disabled={menuFile?.type !== "folder" && isViewOnly(menuFile)}
-          >
-            <Download className="h-4 w-4" /> Download
-          </button>
+              <button
+                onClick={() => {
+                  if (!isViewOnly(menuFile)) {
+                    onDownload(menuFile);
+                  }
+                  setMenuFile(null);
+                }}
+                className={`w-full text-left px-4 py-2 flex items-center gap-2 ${
+                  isViewOnly(menuFile)
+                    ? "opacity-50 cursor-not-allowed"
+                    : "hover:bg-gray-100 dark:hover:bg-blue-200"
+                }`}
+                disabled={isViewOnly(menuFile)}
+              >
+                <Download className="h-4 w-4" /> Download
+              </button>
 
-          {menuFile?.type !== "folder" && <hr className="my-1" />}
+              <hr className="my-1" />
 
-          <button
-            onClick={() => {
-              onClick?.(menuFile);
-              setMenuFile(null);
-            }}
-            className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 dark:hover:bg-blue-200"
-          >
-            <Eye className="h-4 w-4" /> Preview
-          </button>
+              <button
+                onClick={() => {
+                  onClick?.(menuFile);
+                  setMenuFile(null);
+                }}
+                className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 dark:hover:bg-blue-200"
+              >
+                <Eye className="h-4 w-4" /> Preview
+              </button>
 
-          <button
-            onClick={() => {
-              onViewDetails(menuFile);
-              setMenuFile(null);
-            }}
-            className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 dark:hover:bg-blue-200"
-          >
-            <FileIcon className="h-4 w-4" /> View Details
-          </button>
+              <button
+                onClick={() => {
+                  onViewDetails(menuFile);
+                  setMenuFile(null);
+                }}
+                className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 dark:hover:bg-blue-200"
+              >
+                <FileIcon className="h-4 w-4" /> View Details
+              </button>
 
-          <button
-            onClick={() => {
-              onViewActivity(menuFile);
-              setMenuFile(null);
-            }}
-            className={`w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 dark:hover:bg-blue-200 ${
-              menuFile?.type === "folder" ? "hidden" : ""
-            }`}
-          >
-            <MoreVertical className="h-4 w-4" /> Activity Logs
-          </button>
+              <button
+                onClick={() => {
+                  onViewActivity(menuFile);
+                  setMenuFile(null);
+                }}
+                className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 dark:hover:bg-blue-200"
+              >
+                <MoreVertical className="h-4 w-4" /> Activity Logs
+              </button>
 
-          {menuFile?.type !== "folder" && <hr className="my-1" />}
+              <hr className="my-1" />
 
-          {/* Manage Access Button */}
-          {isOwner(menuFile) && (
-            <button
-              onClick={() => {
-                onRevokeAccess(menuFile); // Change from setIsRevokeAccessOpen(true)
-                setMenuFile(null);
-              }}
-              className={`w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 dark:hover:bg-blue-200 ${
-                menuFile?.type === "folder" ? "hidden" : ""
-              }`}
-            >
-              <UserMinus className="h-4 w-4" /> Manage Access
-            </button>
+              {isOwner(menuFile) && (
+                <button
+                  onClick={() => {
+                    onRevokeAccess(menuFile);
+                    setMenuFile(null);
+                  }}
+                  className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 dark:hover:bg-blue-200"
+                >
+                  <UserMinus className="h-4 w-4" /> Manage Access
+                </button>
+              )}
+            </>
           )}
-
-          {/* Change Share Method Button */}
-          {/* {isOwner(menuFile) && (
-            <button
-              onClick={() => {
-                onChangeShareMode(menuFile); // Change from setIsChangeMethodOpen(true)
-                setMenuFile(null);
-              }}
-              className={`w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 dark:hover:bg-blue-200 ${
-                menuFile?.type === "folder" ? "hidden" : ""
-              }`}
-            >
-              <Settings className="h-4 w-4" /> Change Share Methods
-            </button>
-          )} */}
 
           <button
             onClick={() => handleDelete(menuFile)}
