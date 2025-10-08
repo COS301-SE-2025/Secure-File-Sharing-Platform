@@ -43,12 +43,10 @@ export default function TrainingDialog({ open, onClose }) {
           heading: 'Drag and Drop and Short-Cuts',
           text: (
             <>
-              <p className="mb-2">
                 You can drag and drop files to move them between folders or upload them directly from your device.
                 <br /><br />
                 Ctrl+C (Cut) • Ctrl+V (Paste) • Del (Delete) •
-                Enter (Open) • Backspace (Back) • Ctrl+D (New Folder) • Ctrl+U (Upload) • Ctrl+1/2 (Switch View) • Esc (Clear)
-              </p>
+                Enter (Open) • Backspace (Back) • Ctrl+D (New Folder) • Ctrl+U (Upload) • Ctrl+1/2 (Switch View) • Esc (Clear
             </>
           ),
         },
