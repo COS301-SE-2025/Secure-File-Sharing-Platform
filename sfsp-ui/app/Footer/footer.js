@@ -3,7 +3,6 @@ const footerLinks = [
     title: "Secure Share",
     links: [
       { name: "Website", href: "#" },
-      { name: "Features", href: "#" },
     ],
   },
   // {
