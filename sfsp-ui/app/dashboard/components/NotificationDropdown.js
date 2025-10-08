@@ -46,6 +46,8 @@ export default function NotificationDropdown() {
       try {
         const res = await axios.post(getApiUrl('/notifications/get'), {
           userId: profileResult.data.id,
+        }, {
+          headers: { Authorization: `Bearer ${token}` }
         });
 
         // if (res.data.success) {
@@ -70,7 +72,10 @@ export default function NotificationDropdown() {
 
   const markAsRead = async (id) => {
     try {
-      const res = await axios.post(getApiUrl('/notifications/markAsRead'), { id });
+      const token = localStorage.getItem("token");
+      const res = await axios.post(getApiUrl('/notifications/markAsRead'), { id }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       if (res.data.success) {
         setNotifications((prev) =>
           prev.map((n) => (n.id === id ? { ...n, read: true } : n))
@@ -83,9 +88,12 @@ export default function NotificationDropdown() {
 
   const respondToShareRequest = async (id, status) => {
     try {
+      const token = localStorage.getItem("token");
       const res = await axios.post(getApiUrl('/notifications/respond'), {
         id,
         status,
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
       });
 
     if (res.data.success) {
@@ -99,7 +107,7 @@ export default function NotificationDropdown() {
 
           await ReceiveFile(fileData);
           location.reload();
-          // setActiveFile(fileData); 
+          // setActiveFile(fileData);
           // setShowPreviewModal(true);
         }
       }
@@ -110,7 +118,10 @@ export default function NotificationDropdown() {
 
   const clearNotification = async (id) => {
     try {
-      const res = await axios.post(getApiUrl('/notifications/clear'), { id });
+      const token = localStorage.getItem("token");
+      const res = await axios.post(getApiUrl('/notifications/clear'), { id }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       if (res.data.success) {
         setNotifications((prev) => prev.filter((n) => n.id !== id));
       }

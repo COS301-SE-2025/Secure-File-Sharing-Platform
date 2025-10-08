@@ -16,6 +16,7 @@ import {
   storeDerivedKeyEncrypted,
 } from "../SecureKeyStorage";
 import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
+import {logout} from "../lib/auth";
 
 
 export default function AuthPage() {
@@ -46,8 +47,8 @@ export default function AuthPage() {
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
   const [toast, setToast] = useState({ message: "", type: "" });
 
-  // Handle Google OAuth errors from URL parameters
   useEffect(() => {
+    logout(); 
     const urlParams = new URLSearchParams(window.location.search);
     const error = urlParams.get('error');
 
