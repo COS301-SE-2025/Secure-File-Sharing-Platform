@@ -386,7 +386,7 @@ function VerifyEmailInner() {
                                 value={code}
                                 onChange={handleCodeChange}
                                 placeholder="000000"
-                                className="mt-1 block w-full px-3 py-3 border border-gray-300 rounded-md shadow-sm text-black text-center text-2xl font-mono tracking-widest focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                className="mt-1 block w-full px-3 py-3 border border-gray-300 rounded-md shadow-sm text-black text-center text-2xl font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                                 maxLength={6}
                                 autoComplete="one-time-code"
                                 disabled={isLoading}
