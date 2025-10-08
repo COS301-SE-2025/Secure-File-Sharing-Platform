@@ -913,7 +913,7 @@ export default function MyFiles() {
   };
 
   return (
-    <div className="bg-gray-50 p-6 dark:bg-gray-900">
+    <div className="bg-gray-50/0 p-6 dark:bg-gray-900">
       <div>
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
