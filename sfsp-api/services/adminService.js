@@ -28,7 +28,7 @@ const adminService = {
       }
 
       const token = jwt.sign(
-        { id: user.id, email: user.email, role: "admin" },
+        { userId: user.id, role: "admin" },
         process.env.JWT_SECRET,
         { expiresIn: "7d" }
       );

@@ -538,7 +538,7 @@ class UserController {
         });
       }
 
-      const token = userService.generateToken(userId, user.email);
+      const token = userService.generateToken(userId);
 
       return res.status(200).json({
         success: true,
@@ -573,11 +573,24 @@ class UserController {
         });
       }
 
+      const { data: user, error } = await supabase
+        .from("users")
+        .select("email")
+        .eq("id", result.decoded.userId)
+        .single();
+
+      if (error || !user) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found."
+        });
+      }
+
       return res.status(200).json({
         success: true,
         data: {
           userId: result.decoded.userId,
-          email: result.decoded.email
+          email: user.email
         }
       });
     } catch (error) {
@@ -820,7 +833,7 @@ class UserController {
 
       let token = null;
       if (user.is_verified) {
-        token = await userService.generateToken(user.id, user.email);
+        token = await userService.generateToken(user.id);
       }
 
       let keyBundle_response = null;
