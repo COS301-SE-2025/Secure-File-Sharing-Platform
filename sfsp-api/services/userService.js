@@ -214,7 +214,7 @@ class UserService {
         throw new Error("Invalid password.");
       }
 
-      const token = this.generateToken(user.id, user.email);
+      const token = this.generateToken(user.id);
       return {
         user: {
           id: user.id,
@@ -270,7 +270,7 @@ class UserService {
         throw new Error("User not found.");
       }
 
-      const token = this.generateToken(user.id, user.email);
+      const token = this.generateToken(user.id);
       return token;
     } catch (error) {
       throw new Error("Failed to refresh token: " + error.message);
@@ -339,8 +339,8 @@ class UserService {
     return resetPIN;
   }
 
-  generateToken(userId, email) {
-    return jwt.sign({ userId, email }, process.env.JWT_SECRET, {
+  generateToken(userId) {
+    return jwt.sign({ userId }, process.env.JWT_SECRET, {
       expiresIn: "1h",
     });
   }
