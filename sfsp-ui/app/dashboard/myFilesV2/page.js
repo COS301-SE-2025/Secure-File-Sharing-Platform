@@ -807,7 +807,6 @@ export default function MyFiles() {
       );
       if (!decrypted) throw new Error("Decryption failed");
 
-      //const decompressed = pako.ungzip(decrypted);
       return { fileName, decrypted };
     } catch (err) {
       console.error("Load file error:", err);
@@ -877,8 +876,6 @@ export default function MyFiles() {
 
       contentUrl = canvas.toDataURL(file.type);
     } else if (file.type === "pdf") {
-      // PDF watermarking temporarily disabled - pdf-lib removed for SSR compatibility
-      // Consider using server-side PDF processing or alternative approach
       contentUrl = URL.createObjectURL(
         new Blob([result.decrypted], { type: "application/pdf" })
       );

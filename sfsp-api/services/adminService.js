@@ -1,6 +1,6 @@
 // services/adminService.js
 const { supabase } = require("../config/database");
-const MnemonicCrypto = require("../utils/mnemonicCrypto");
+const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 
@@ -18,10 +18,7 @@ const adminService = {
         throw new Error("Admin not found or unauthorized.");
       }
 
-      const isPasswordValid = await MnemonicCrypto.validatePassword(
-        password,
-        user.password
-      );
+      const isPasswordValid = await bcrypt.compare(password, user.password);
 
       if (!isPasswordValid) {
         throw new Error("Invalid password.");

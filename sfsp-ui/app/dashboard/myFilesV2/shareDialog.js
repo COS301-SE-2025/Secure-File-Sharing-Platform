@@ -1,5 +1,3 @@
-//app/dashboard/myfilesV2/shareDialog.js
-
 "use client";
 
 import React, { useState } from "react";
@@ -17,7 +15,7 @@ export function ShareDialog({ open, onOpenChange, file }) {
   const [allowComments, setAllowComments] = useState(true);
   const [allowDownload, setAllowDownload] = useState(true);
 
-  //toasts
+  // Toast states
   const [toast, setToast] = useState({ message: "", visible: false });
   const [statusToast, setStatusToast] = useState({ message: "", type: "", visible: false });
 
@@ -52,9 +50,6 @@ export function ShareDialog({ open, onOpenChange, file }) {
 
     setShareWith([...shareWith, { email: newEmail, permission: "view" }]);
     setNewEmail("");
-
-    console.log("File is", file);
-    console.log("Recipient email is: ", newEmail);
   };
 
   const updatePermission = (email, permission) => {
@@ -68,19 +63,17 @@ export function ShareDialog({ open, onOpenChange, file }) {
   };
 
   const sendInvite = async () => {
-
     if (shareWith.length === 0) {
       showToast("Please add at least one email before sending.");
       return;
     }
 
-    onOpenChange(false); //close dialogue first
+    onOpenChange(false);
 
     try {
       const token = localStorage.getItem("token");
       if (!token) return;
 
-      // Get sender profile once
       const profileRes = await fetch(getApiUrl("/users/profile"), {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -94,25 +87,21 @@ export function ShareDialog({ open, onOpenChange, file }) {
       for (const recipient of shareWith) {
         const email = recipient.email;
 
-        // Fetch recipient user ID by email
         const response = await fetch(
           getApiUrl(`/users/getUserId/${email}`)
         );
         if (!response.ok) {
           console.warn(`User ID not found for email: ${email}`);
+          showToast("User account does not exist.");
           continue;
         }
 
         const json = await response.json();
         const recipientId = json.data.userId;
-        console.log("Recipient Id is:", recipientId);
-        console.log("FileId", file.id);
-
         const isViewOnly = recipient.permission === "view";
 
         const receivedFileID = await SendFile(recipientId, file.id, isViewOnly);
-        console.log("Received File ID in shared Dialog:", receivedFileID);
-        // Log file access
+        
         await fetch(getFileApiUrl("/addAccesslog"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -124,9 +113,6 @@ export function ShareDialog({ open, onOpenChange, file }) {
           }),
         });
 
-        // Send the notification
-        console.log("Senders email is:", senderEmail);
-        console.log("Recipients emails is: ", email);
         await fetch(getApiUrl("/notifications/add"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -143,8 +129,6 @@ export function ShareDialog({ open, onOpenChange, file }) {
         });
         showStatusToast(`File: ${file.name} successfully shared to ${email}!`, "success");
       }
-
-
     } catch (err) {
       console.error("Failed to send file to recipients:", err);
       showStatusToast(`Failed to share file: ${file.name}.`, "error");
@@ -154,70 +138,87 @@ export function ShareDialog({ open, onOpenChange, file }) {
   return (
     <>
       {open && file && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 dark:text-gray-900">
-          <div className="bg-white p-6 rounded-lg w-full max-w-md space-y-6">
-            <h2 className="text-lg font-semibold">{`Share "${file.name}"`}</h2>
-
-            <div>
-              <label className="text-sm font-medium">Add people</label>
-              <div className="flex gap-2 mt-2">
-                <input
-                  className="border px-3 py-2 rounded w-full text-sm"
-                  placeholder="Enter email addresses"
-                  value={newEmail}
-                  onChange={(e) => setNewEmail(e.target.value)}
-                  onKeyPress={(e) => e.key === "Enter" && addRecipient()}
-                />
-                <button onClick={addRecipient} className="bg-gray-400 p-2 rounded">
-                  <Plus className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-
-            {shareWith.length > 0 && (
-              <div className="space-y-2">
-                {shareWith.map((r) => (
-                  <div
-                    key={r.email}
-                    className="flex justify-between items-center p-2 bg-gray-50 rounded"
-                  >
-                    <span className="text-sm">{r.email}</span>
-                    <div className="flex items-center gap-2">
-                      <select
-                        value={r.permission}
-                        onChange={(e) => updatePermission(r.email, e.target.value)}
-                        className="text-sm px-2 py-1 border rounded"
-                      >
-                        <option value="download">Download</option>
-                        <option value="view">View Only</option>
-                      </select>
-                      <button
-                        onClick={() => removeRecipient(r.email)}
-                        className="p-1"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <hr />
-
-            <div className="flex justify-end gap-2 pt-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity duration-300">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl w-full max-w-lg shadow-2xl transform transition-all duration-300 scale-100">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                Share "{file.name}"
+              </h2>
               <button
                 onClick={() => onOpenChange(false)}
-                className="border px-4 py-2 rounded text-sm"
+                className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                  Add people
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
+                    placeholder="Enter email address"
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    onKeyPress={(e) => e.key === "Enter" && addRecipient()}
+                  />
+                  <button
+                    onClick={addRecipient}
+                    className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg transition-colors"
+                  >
+                    <Plus className="h-5 w-5" />
+                  </button>
+                </div>
+              </div>
+
+              {shareWith.length > 0 && (
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {shareWith.map((r) => (
+                    <div
+                      key={r.email}
+                      className="flex justify-between items-center p-3 bg-gray-100 dark:bg-gray-700 rounded-lg"
+                    >
+                      <span className="text-sm text-gray-900 dark:text-gray-200 truncate max-w-[60%]">
+                        {r.email}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={r.permission}
+                          onChange={(e) => updatePermission(r.email, e.target.value)}
+                          className="text-sm px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="download">Can Download</option>
+                          <option value="view">View Only</option>
+                        </select>
+                        <button
+                          onClick={() => removeRecipient(r.email)}
+                          className="text-gray-500 hover:text-red-500 dark:hover:text-red-400"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={() => onOpenChange(false)}
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={sendInvite}
-                className="bg-blue-600 text-white px-4 py-2 rounded text-sm flex items-center gap-1"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm flex items-center gap-2 hover:bg-blue-700 transition-colors"
               >
-                <Mail className="h-4 w-4" />
-                Send
+                <Mail className="h-5 w-5" />
+                Send Invite
               </button>
             </div>
           </div>
@@ -225,15 +226,14 @@ export function ShareDialog({ open, onOpenChange, file }) {
       )}
 
       {toast.visible && (
-        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 
-                  bg-red-100 text-red-700 px-4 py-2 rounded shadow-lg z-50">
+        <div className="fixed top-4 right-4 max-w-xs bg-red-500 text-white px-4 py-3 rounded-lg shadow-lg z-50 animate-slide-in">
           {toast.message}
         </div>
       )}
 
       {statusToast.visible && (
-        <div className={`fixed bottom-6 right-6 px-4 py-2 rounded shadow-lg z-50 text-sm
-        ${statusToast.type === "success" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-700"}`}>
+        <div className={`fixed bottom-4 right-4 max-w-xs px-4 py-3 rounded-lg shadow-lg z-50 animate-slide-in text-white
+          ${statusToast.type === "success" ? "bg-green-500" : "bg-red-500"}`}>
           {statusToast.message}
         </div>
       )}
