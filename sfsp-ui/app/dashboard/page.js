@@ -571,6 +571,8 @@ useEffect(() => {
       try {
         const res = await axios.post(getApiUrl('/notifications/get'), {
           userId: profileResult.data.id,
+        }, {
+          headers: { Authorization: `Bearer ${token}` }
         });
         if (res.data.success) {
           setNotifications(res.data.notifications);

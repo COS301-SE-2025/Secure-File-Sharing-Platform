@@ -130,6 +130,7 @@ class UserController {
         });
       }
 
+      console.log("[Getting userID] Received email to lookup:", email);
       const response = await userService.getUserIdFromEmail(email);
       if (!response) {
         return res.status(404).json({
