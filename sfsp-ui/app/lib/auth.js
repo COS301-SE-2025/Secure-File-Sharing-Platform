@@ -29,8 +29,10 @@ export const isAuthenticated = () => {
 
     const token = localStorage.getItem("token");
     const userId = useEncryptionStore.getState().userId;
+    const userKeys = useEncryptionStore.getState().userKeys;
+    console.log("isAuthenticated check:", { token, userId, userKeys });
 
-    return !!(token && userId);
+    return !!(token && userId && userKeys);
   } catch (error) {
     console.error("Error checking authentication:", error);
     return false;
