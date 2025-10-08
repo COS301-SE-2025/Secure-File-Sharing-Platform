@@ -20,7 +20,7 @@ class UserService {
       return {
         id: data.id,
         username: data.username,
-        email: data.email
+        email: data.email,
       };
     } catch (error) {
       throw new Error("Fetching user by ID failed: " + error.message);
@@ -38,22 +38,22 @@ class UserService {
       nonce,
       signedPrekeySignature,
       salt,
+      recovery_ik_private_key,
+      recovery_opks_private,
     } = userData;
 
     try {
-      const { data: existinguser } = await supabase
+      const { data: existingUser } = await supabase
         .from("users")
         .select("*")
         .eq("email", email)
         .single();
 
-      if (existinguser) {
+      if (existingUser) {
         throw new Error("User already exists with this email.");
       }
 
-      const newsalt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(password, newsalt);
-      const resetPasswordPIN = this.generatePIN();
+      const hashedPassword = await bcrypt.hash(password, 10);
 
       const { data: newUser, error } = await supabase
         .from("users")
@@ -62,14 +62,15 @@ class UserService {
             username,
             email,
             password: hashedPassword,
-            resetPasswordPIN,
             ik_public,
             spk_public,
             opks_public,
             nonce,
             signedPrekeySignature,
             salt,
-            is_verified: false, // New users need email verification
+            recovery_ik_private_key,
+            recovery_opks_private,
+            is_verified: false,
           },
         ])
         .select("*")
@@ -78,7 +79,8 @@ class UserService {
       if (error) {
         throw new Error("Failed to create user: " + error.message);
       }
-      const token = this.generateToken(newUser.id);
+
+      const token = this.generateToken(newUser.id, newUser.email);
 
       return {
         user: {
@@ -86,6 +88,12 @@ class UserService {
           username: newUser.username,
           email: newUser.email,
           is_verified: newUser.is_verified,
+          salt: newUser.salt,
+          nonce: newUser.nonce,
+          ik_public: newUser.ik_public,
+          spk_public: newUser.spk_public,
+          signedPrekeySignature: newUser.signedPrekeySignature,
+          opks_public: newUser.opks_public,
         },
         token,
       };
@@ -98,34 +106,16 @@ class UserService {
     try {
       const { data, error } = await supabase
         .from("users")
-        .select("id")
+        .select("id, username")
         .eq("email", email)
         .single();
 
-      if (error) {
-        if (error.code === 'PGRST116' || error.message.includes('No rows returned')) {
-          return null;
-        }
-        throw new Error("Database error: " + error.message);
-      }
-
-      if (!data) {
+      if (error || !data) {
         return null;
       }
 
-      const { id } = data;
-
-      return { userId: id };
+      return { userId: data.id, username: data.username };
     } catch (error) {
-      console.log('getUserIdFromEmail error:', error.message);
-      
-      if (error.message.includes("No rows returned") || 
-          error.message.includes("PGRST116") ||
-          error.code === 'PGRST116') {
-        return null;
-      }
-      
-      console.log('Returning null for user existence check due to error:', error.message);
       return null;
     }
   }
@@ -174,9 +164,8 @@ class UserService {
           throw new Error("OPKs format is invalid JSON");
         }
 
-        // ✅ Select the first available OPK (instead of random to ensure consistency)
         if (Array.isArray(opkArray) && opkArray.length > 0) {
-          selectedOpk = opkArray[0]; // Use first OPK instead of random
+          selectedOpk = opkArray[0];
           console.log("🔍 DEBUG - Selected OPK for sending:", selectedOpk);
         }
       }
@@ -185,10 +174,30 @@ class UserService {
         ik_public,
         spk_public,
         signedPrekeySignature,
-        opk: selectedOpk, // ✅ only this single key will be sent
+        opk: selectedOpk,
       };
     } catch (error) {
       throw new Error("Fetching User Public keys failed: " + error.message);
+    }
+  }
+
+  async getUserForReset(userId) {
+    try {
+      const { data, error } = await supabase
+        .from("users")
+        .select(
+          "id, salt, nonce, recovery_ik_private_key, recovery_opks_private"
+        )
+        .eq("id", userId)
+        .single();
+
+      if (error || !data) {
+        throw new Error("User not found");
+      }
+
+      return data;
+    } catch (error) {
+      throw new Error("Fetching user for reset failed: " + error.message);
     }
   }
 
@@ -205,7 +214,7 @@ class UserService {
         throw new Error("User not found with this email.");
       }
 
-      if(!user.active) {
+      if (!user.active) {
         throw new Error("User account has been blocked by admin.");
       }
 
@@ -534,22 +543,26 @@ class UserService {
 
   async sendVerificationCode(userId, email, username) {
     try {
-      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-      
+      const verificationCode = Math.floor(
+        100000 + Math.random() * 900000
+      ).toString();
+
       const expiryTime = new Date(Date.now() + 15 * 60 * 1000);
-      
+
       const { error: insertError } = await supabase
         .from("verification_codes")
         .insert({
           user_id: userId,
           code: verificationCode,
-          type: 'email_verification',
+          type: "email_verification",
           expires_at: expiryTime.toISOString(),
           used: false,
         });
 
       if (insertError) {
-        throw new Error("Failed to store verification code: " + insertError.message);
+        throw new Error(
+          "Failed to store verification code: " + insertError.message
+        );
       }
 
       const transporter = nodemailer.createTransport({
@@ -644,12 +657,12 @@ class UserService {
       const decoded = this.verifyToken(token);
       return {
         valid: true,
-        decoded
+        decoded,
       };
     } catch (error) {
       return {
         valid: false,
-        error: error.message
+        error: error.message,
       };
     }
   }
@@ -666,20 +679,20 @@ class UserService {
 
   async updateNotificationSettings(userId, notificationSettings) {
     try {
-      if (!notificationSettings || typeof notificationSettings !== 'object') {
-        throw new Error('Invalid notification settings');
+      if (!notificationSettings || typeof notificationSettings !== "object") {
+        throw new Error("Invalid notification settings");
       }
 
       const expectedKeys = {
         alerts: [
-          'runningOutOfSpace',
-          'deleteLargeFiles',
-          'newBrowserSignIn',
-          'newDeviceLinked',
-          'newAppConnected',
+          "runningOutOfSpace",
+          "deleteLargeFiles",
+          "newBrowserSignIn",
+          "newDeviceLinked",
+          "newAppConnected",
         ],
-        files: ['sharedFolderActivity'],
-        news: ['newFeatures', 'secureShareTips', 'feedbackSurveys'],
+        files: ["sharedFolderActivity"],
+        news: ["newFeatures", "secureShareTips", "feedbackSurveys"],
       };
 
       for (const [category, settings] of Object.entries(expectedKeys)) {
@@ -690,17 +703,17 @@ class UserService {
           if (!(key in notificationSettings[category])) {
             throw new Error(`Missing ${key} in ${category}`);
           }
-          if (typeof notificationSettings[category][key] !== 'boolean') {
+          if (typeof notificationSettings[category][key] !== "boolean") {
             throw new Error(`${key} in ${category} must be a boolean`);
           }
         }
       }
 
       const { data, error } = await supabase
-        .from('users')
+        .from("users")
         .update({ notification_settings: notificationSettings })
-        .eq('id', userId)
-        .select('notification_settings')
+        .eq("id", userId)
+        .select("notification_settings")
         .single();
 
       if (error) {
@@ -708,21 +721,23 @@ class UserService {
       }
 
       if (!data) {
-        throw new Error('User not found');
+        throw new Error("User not found");
       }
 
       return data.notification_settings;
     } catch (error) {
-      throw new Error(`Failed to update notification settings: ${error.message}`);
+      throw new Error(
+        `Failed to update notification settings: ${error.message}`
+      );
     }
   }
 
   async getNotificationSettings(userId) {
     try {
       const { data, error } = await supabase
-        .from('users')
-        .select('notification_settings, email, username')
-        .eq('id', userId)
+        .from("users")
+        .select("notification_settings, email, username")
+        .eq("id", userId)
         .single();
 
       if (error) {
@@ -730,7 +745,7 @@ class UserService {
       }
 
       if (!data) {
-        throw new Error('User not found');
+        throw new Error("User not found");
       }
 
       return {
@@ -739,16 +754,18 @@ class UserService {
         username: data.username,
       };
     } catch (error) {
-      throw new Error(`Failed to fetch notification settings: ${error.message}`);
+      throw new Error(
+        `Failed to fetch notification settings: ${error.message}`
+      );
     }
   }
 
   async shouldSendEmail(userId, notificationType, category) {
     try {
       const { data, error } = await supabase
-        .from('users')
-        .select('notification_settings')
-        .eq('id', userId)
+        .from("users")
+        .select("notification_settings")
+        .eq("id", userId)
         .single();
 
       if (error || !data) {
@@ -763,16 +780,70 @@ class UserService {
 
   async updateAvatarUrl(userId, avatarUrl) {
     const { data, error } = await supabase
-      .from('users')
+      .from("users")
       .update({ avatar_url: avatarUrl })
-      .eq('id', userId)
-      .select('avatar_url')
+      .eq("id", userId)
+      .select("avatar_url")
       .single();
 
     if (error) throw new Error(error.message);
-    if (!data) throw new Error('User not found');
+    if (!data) throw new Error("User not found");
 
     return data.avatar_url;
+  }
+
+  async resetPassword(userId, newPassword, ik_private_key, opks_private) {
+    try {
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      const { error } = await supabase
+        .from("users")
+        .update({
+          password: hashedPassword,
+        })
+        .eq("id", userId);
+
+      if (error) {
+        throw new Error("Failed to update password: " + error.message);
+      }
+
+      return { success: true, message: "Password reset successful" };
+    } catch (error) {
+      throw new Error("Password reset failed: " + error.message);
+    }
+  }
+
+  async verifyOTP(email, code, type) {
+    try {
+      const { data, error } = await supabase
+        .from("verification_codes")
+        .select("*")
+        .eq("code", code)
+        .eq("type", type)
+        .eq("user_id", (await this.getUserIdFromEmail(email))?.userId)
+        .eq("used", false)
+        .gte("expires_at", new Date().toISOString())
+        .single();
+
+      if (error || !data) {
+        throw new Error("Invalid or expired OTP");
+      }
+
+      await supabase
+        .from("verification_codes")
+        .update({ used: true })
+        .eq("id", data.id);
+
+      if (type === "email_verification") {
+        await supabase
+          .from("users")
+          .update({ is_verified: true })
+          .eq("id", data.user_id);
+      }
+
+      return { userId: data.user_id };
+    } catch (error) {
+      throw new Error("OTP verification failed: " + error.message);
+    }
   }
 }
 

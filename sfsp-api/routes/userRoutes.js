@@ -25,5 +25,8 @@ router.get('/token-info', userController.getUserInfoFromToken);
 router.get('/notifications', authMiddleware, userController.getNotificationSettings);
 router.put('/notifications', authMiddleware, userController.updateNotificationSettings);
 router.post('/avatar-url', authMiddleware, userController.updateAvatarUrl);
-
+router.post('/email', userController.getUserByEmail);
+router.get('/reset/:id/reset', userController.getUserForReset);
+router.post('/reset/:id/reset-password', userController.resetPassword);
+router.post('/verify-otp', userController.verifyOTP);
 module.exports = router;
