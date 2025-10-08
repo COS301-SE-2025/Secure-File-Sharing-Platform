@@ -1254,11 +1254,11 @@ export default function MyFiles() {
             <p className="text-gray-600 dark:text-gray-400">
               Manage and organize your files
             </p>
-            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            {/* <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
               <span className="font-medium">Shortcuts:</span> Ctrl+C (Cut) •
               Ctrl+V (Paste) • Del (Delete) • Enter (Open) • Backspace (Back) •
               Ctrl+D (Folder) • Ctrl+U (Upload) • Ctrl+1/2 (View) • Esc (Clear)
-            </div>
+            </div> */}
           </div>
           <div className="flex items-center gap-4">
             {/* View Toggle */}
