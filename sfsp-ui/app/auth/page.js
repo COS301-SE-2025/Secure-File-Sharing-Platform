@@ -46,6 +46,8 @@ export default function AuthPage() {
   });
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
   const [toast, setToast] = useState({ message: "", type: "" });
+  const [showRecoveryKeyModal, setShowRecoveryKeyModal] = useState(false);
+  const [recoveryKey, setRecoveryKey] = useState("");
 
   useEffect(() => {
     logout(); 
@@ -283,6 +285,10 @@ export default function AuthPage() {
         nonce,
         signedPrekeySignature,
         salt,
+        recoveryKeyWords,
+        recovery_key_encrypted,
+        recovery_key_nonce,
+        recovery_salt,
       } = await GenerateX3DHKeys(password);
 
       const registerUrl = getApiUrl('/users/register');
@@ -303,6 +309,9 @@ export default function AuthPage() {
           nonce,
           signedPrekeySignature,
           salt,
+          recovery_key_encrypted,
+          recovery_key_nonce,
+          recovery_salt,
         }),
       });
 
@@ -366,6 +375,18 @@ export default function AuthPage() {
         userKeys: userKeys,
       });
 
+      // 🔑 Show recovery key to user BEFORE proceeding
+      setRecoveryKey(recoveryKeyWords);
+      setShowRecoveryKeyModal(true);
+      setIsLoading(false);
+
+      // Store verification state to continue after modal is closed
+      sessionStorage.setItem('pendingVerificationEmail', user.email);
+      sessionStorage.setItem('pendingVerificationUserId', user.id);
+      sessionStorage.setItem('pendingVerificationToken', token);
+      sessionStorage.setItem('needsVerification', user.is_verified ? 'false' : 'true');
+
+      return; // Wait for user to save recovery key
 
       // Check if user needs email verification
       if (!user.is_verified) {
@@ -507,6 +528,57 @@ export default function AuthPage() {
     setIsLoading(false);
   }
 
+  // 🔑 Handle recovery key modal confirmation
+  const handleRecoveryKeyConfirmed = async () => {
+    setShowRecoveryKeyModal(false);
+    setIsLoading(true);
+
+    const email = sessionStorage.getItem('pendingVerificationEmail');
+    const userId = sessionStorage.getItem('pendingVerificationUserId');
+    const token = sessionStorage.getItem('pendingVerificationToken');
+    const needsVerification = sessionStorage.getItem('needsVerification') === 'true';
+
+    // Clean up session storage
+    sessionStorage.removeItem('pendingVerificationEmail');
+    sessionStorage.removeItem('pendingVerificationUserId');
+    sessionStorage.removeItem('pendingVerificationToken');
+    sessionStorage.removeItem('needsVerification');
+
+    // Add user to PostgreSQL database
+    try {
+      const addUserUrl = getFileApiUrl('/addUser');
+      await fetch(addUserUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+    } catch (error) {
+      console.error("Error adding user to PostgreSQL database:", error);
+    }
+
+    const rawToken = token.replace(/^Bearer\s/, "");
+    localStorage.setItem("token", rawToken);
+
+    if (needsVerification) {
+      setLoaderMessage("Account created! Please check your email for verification...");
+      sessionStorage.setItem("pendingVerification", "true");
+
+      setTimeout(() => {
+        const redirectParam = searchParams.get('redirect');
+        const verifyUrl = `/auth/verify-email?email=${encodeURIComponent(email)}&userId=${userId}${redirectParam ? `&redirect=${encodeURIComponent(redirectParam)}` : ''}`;
+        router.push(verifyUrl);
+      }, 1500);
+    } else {
+      setMessage("User successfully registered!");
+      showToast("User successfully registered!", "success");
+
+      setTimeout(() => {
+        const redirectUrl = searchParams.get("redirect") || "/dashboard";
+        router.push(redirectUrl);
+      }, 1500);
+    }
+  };
+
   async function GenerateX3DHKeys(password) {
     const sodium = await getSodium();
 
@@ -547,6 +619,20 @@ export default function AuthPage() {
       ),
     }));
 
+    // 🔑 NEW: Generate recovery key for password reset
+    const recoveryKey = sodium.randombytes_buf(32);
+    const recoveryKeyBase64 = sodium.to_base64(recoveryKey);
+
+    // Encrypt the derived key with recovery key for backup
+    const recoveryNonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
+    const encryptedDerivedKeyBackup = sodium.crypto_secretbox_easy(
+      derivedKey,
+      recoveryNonce,
+      recoveryKey
+    );
+
+    const recoverySalt = sodium.randombytes_buf(sodium.crypto_pwhash_SALTBYTES);
+
     return {
       ik_public: sodium.to_base64(ik.publicKey),
       spk_public: sodium.to_base64(spk.publicKey),
@@ -562,6 +648,12 @@ export default function AuthPage() {
 
       salt: sodium.to_base64(salt),
       nonce: sodium.to_base64(nonce),
+
+      // 🔑 Recovery key data (NEW)
+      recoveryKeyWords: recoveryKeyBase64, // Show this to user ONCE
+      recovery_key_encrypted: sodium.to_base64(encryptedDerivedKeyBackup),
+      recovery_key_nonce: sodium.to_base64(recoveryNonce),
+      recovery_salt: sodium.to_base64(recoverySalt),
     };
   }
 
@@ -722,6 +814,16 @@ export default function AuthPage() {
                 >
                   {isLoading ? "Signing in..." : "Log In"}
                 </button>
+
+                {/* Forgot Password Link */}
+                <div className="text-center">
+                  <Link
+                    href="/reset-password"
+                    className="text-sm text-blue-600 hover:text-blue-700 hover:underline"
+                  >
+                    Forgot your password?
+                  </Link>
+                </div>
               </form>
             </>
           )}
@@ -990,6 +1092,83 @@ export default function AuthPage() {
     `}
         >
           {toast.message}
+        </div>
+      )}
+
+      {/* 🔑 Recovery Key Modal */}
+      {showRecoveryKeyModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[10000] p-4">
+          <div className="bg-white rounded-lg shadow-2xl max-w-2xl w-full p-8 animate-fade-in">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+              <h2 className="text-2xl font-bold text-gray-800 mb-2">Save Your Recovery Key</h2>
+              <p className="text-gray-600">
+                This is your only chance to save your recovery key. You&apos;ll need it to reset your password if you forget it.
+              </p>
+            </div>
+
+            <div className="bg-gray-50 border-2 border-yellow-300 rounded-lg p-4 mb-6">
+              <div className="flex items-start mb-2">
+                <svg className="w-5 h-5 text-yellow-600 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+                <p className="text-sm font-semibold text-gray-800">Important: Store this key securely!</p>
+              </div>
+              <div className="bg-white p-4 rounded border border-gray-200 mb-3 font-mono text-sm break-all select-all">
+                {recoveryKey}
+              </div>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(recoveryKey);
+                  showToast("Recovery key copied to clipboard!", "success");
+                }}
+                className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center"
+              >
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                Copy Recovery Key
+              </button>
+            </div>
+
+            <div className="space-y-3 mb-6">
+              <div className="flex items-start">
+                <svg className="w-5 h-5 text-green-600 mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-sm text-gray-700">Save this key in a secure password manager</p>
+              </div>
+              <div className="flex items-start">
+                <svg className="w-5 h-5 text-green-600 mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-sm text-gray-700">Write it down and store it in a safe place</p>
+              </div>
+              <div className="flex items-start">
+                <svg className="w-5 h-5 text-red-600 mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                <p className="text-sm text-gray-700">Never share this key with anyone</p>
+              </div>
+            </div>
+
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+              <p className="text-sm text-red-800">
+                <strong>Warning:</strong> Without this recovery key, you will not be able to reset your password or access your files if you forget your password.
+              </p>
+            </div>
+
+            <button
+              onClick={handleRecoveryKeyConfirmed}
+              className="w-full bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-semibold"
+            >
+              I&apos;ve Saved My Recovery Key - Continue
+            </button>
+          </div>
         </div>
       )}
     </div>
