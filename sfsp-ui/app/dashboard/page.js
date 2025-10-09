@@ -319,6 +319,8 @@ export default function DashboardHomePage() {
   const [recentAccessLogs, setRecentAccessLogs] = useState([]);
   const [actionFilter, setActionFilter] = useState("All actions");
   const [user, setUser] = useState(null);
+  const [activeTab, setActiveTab] = useState("notifications"); // "notifications" or "activity"
+
 
   const fetchFiles = async () => {
     try {
@@ -766,77 +768,97 @@ return (
     </div>
 
     {/* Two-column layout */}
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
-      {/* LEFT COLUMN — Notifications + Activity Logs */}
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* LEFT COLUMN — Notifications / Activity Logs */}
       <div className="flex flex-col gap-6">
-        {/* Notifications */}
-        <div className="h-60 p-4 flex flex-col justify-start bg-gray-200 dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="p-3 bg-gray-100 dark:bg-gray-700 rounded-full">
-              <ListCheckIcon className="text-blue-600 dark:text-blue-400" size={22} />
-            </div>
-            <p className="text-lg font-bold text-gray-500 dark:text-gray-400">Notifications</p>
+        <div className="h-120 p-4 bg-gray-200 dark:bg-gray-800 rounded-lg shadow-md flex flex-col">
+          {/* Tabs */}
+          <div className="flex gap-4 mb-3 border-b border-gray-300 dark:border-gray-700">
+            <button
+              onClick={() => setActiveTab("notifications")}
+              className={`flex items-center gap-2 pb-2 text-sm font-semibold ${
+                activeTab === "notifications"
+                  ? "border-b-2 border-green-500 text-green-500"
+                  : "text-gray-500 dark:text-gray-400"
+              }`}
+            >
+              <ListCheckIcon className="w-5 h-5" />
+              Notifications
+            </button>
+            <button
+              onClick={() => setActiveTab("activity")}
+              className={`flex items-center gap-2 pb-2 text-sm font-semibold ${
+                activeTab === "activity"
+                  ? "border-b-2 border-green-500 text-green-500"
+                  : "text-gray-500 dark:text-gray-400"
+              }`}
+            >
+              <AlertCircleIcon className="w-5 h-5" />
+              Activity Logs
+            </button>
           </div>
-          <div className="p-6 overflow-y-auto space-y-1 pr-1 text-xs text-gray-700 dark:text-gray-200">
-            {notifications.length === 0 ? (
-              <p className="text-gray-500">No new notifications</p>
-            ) : (
-              notifications.map((n) => (
-                <div key={n.id} className="flex items-start gap-2 p-2 bg-gray-50 dark:bg-gray-700 rounded">
-                  <FileText className="w-3 h-3 mt-1 text-blue-500" />
-                  <div className="flex-1">
-                    <p className="leading-tight">{n.message}</p>
-                    <p className="text-[10px] text-gray-500">{formatTimestamp(n.timestamp)}</p>
+          {/* Tab content */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 text-sm text-gray-700 dark:text-gray-200">
+            {activeTab === "notifications" ? (
+              notifications.length === 0 ? (
+                <p className="text-gray-500">No new notifications</p>
+              ) : (
+                notifications.map((n) => (
+                  <div
+                    key={n.id}
+                    className="flex items-start gap-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg shadow-sm"
+                  >
+                    <ListCheckIcon className="w-6 h-6 mt-1 text-blue-500 flex-shrink-0" />
+                    <div className="flex-1">
+                      <p className="leading-snug text-base">{n.message}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        {formatTimestamp(n.timestamp)}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* Activity Logs */}
-        <div className="h-60 p-4 flex flex-col justify-start bg-gray-200 dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="p-3 bg-gray-100 dark:bg-gray-700 rounded-full">
-              <AlertCircleIcon className="text-green-600 dark:text-green-400" size={22} />
-            </div>
-            <p className="text-lg font-bold text-gray-500 dark:text-gray-400">Activity Logs</p>
-          </div>
-          <div className="p-6 overflow-y-auto space-y-1 pr-1 text-xs text-gray-700 dark:text-gray-200">
-            {recentAccessLogs.length > 0 ? (
+                ))
+              )
+            ) : recentAccessLogs.length === 0 ? (
+              <p className="text-gray-500 dark:text-gray-400 text-sm">No recent activity.</p>
+            ) : (
               recentAccessLogs.map((log, idx) => (
-                <div key={idx} className="flex items-start gap-2">
+                <div
+                  key={idx}
+                  className="flex items-start gap-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg shadow-sm"
+                >
                   <UserAvatar
                     avatarUrl={user?.avatar_url}
                     username={user?.username}
-                    size="w-6 h-6 flex-shrink-0"
+                    size="w-8 h-8 flex-shrink-0"
                     alt="User Avatar"
                   />
                   <div className="flex flex-col">
-                    <span className="font-semibold text-sm">{log.user}</span>
-                    <span className="text-[10px] text-gray-500 dark:text-gray-400">
+                    <span className="font-semibold text-base">{log.user}</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                       {log.action} <strong>{log.file}</strong> at {log.dateFormatted}
                     </span>
                   </div>
                 </div>
               ))
-            ) : (
-              <p className="text-gray-500 dark:text-gray-400 text-xs">No recent activity.</p>
             )}
           </div>
-        </div>
       </div>
+    </div>
 
       {/* RIGHT COLUMN — Upload + Recent Files */}
       <div className="flex flex-col gap-6">
         {/* Upload Section */}
-        <div className=" h-60 p-4 bg-gray-200 dark:bg-gray-800 rounded-lg shadow-md flex flex-col items-center justify-center h-40">
-          <p className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2">Upload Files</p>
+        <div className="h-60 p-4 bg-gray-200 dark:bg-gray-800 rounded-lg shadow-md flex flex-col items-center justify-center">
+          <p className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2">
+            Upload Files
+          </p>
           <div
             onClick={() => setIsUploadOpen(true)}
             className="w-full h-24 border-2 border-dashed border-blue-400 dark:border-blue-500 rounded-lg flex items-center justify-center cursor-pointer hover:bg-blue-50 dark:hover:bg-gray-700 transition"
           >
-            <p className="text-blue-500 dark:text-blue-400 text-sm">Drag & Drop or click to upload</p>
+            <p className="text-blue-500 dark:text-blue-400 text-sm">
+              Drag & Drop or click to upload
+            </p>
           </div>
           <UploadDialog
             open={isUploadOpen}
@@ -846,8 +868,10 @@ return (
         </div>
 
         {/* Recent Files */}
-        <div className=" h-60 p-4 bg-gray-200 dark:bg-gray-800 rounded-lg shadow-md h-40 overflow-hidden">
-          <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">Recent Files</h2>
+        <div className="h-60 p-4 bg-gray-200 dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">
+            Recent Files
+          </h2>
           <ul className="bg-white dark:bg-gray-800 rounded-lg divide-y divide-gray-200 dark:divide-gray-700 overflow-y-auto text-sm">
             {recentFiles.length === 0 ? (
               <li className="p-2 text-gray-500">No recent files</li>
@@ -877,4 +901,5 @@ return (
     </div>
   </div>
 );
+
 }
