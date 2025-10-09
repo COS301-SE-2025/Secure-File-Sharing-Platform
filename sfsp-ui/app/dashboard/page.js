@@ -683,16 +683,16 @@ export default function DashboardHomePage() {
         const tags = parseTagString(file.tags);
         return tags.includes("received");
       });
-        const sharedFiles = data.filter((file) => {
-        const tags = parseTagString(file.tags);
-        return tags.includes("shared");
-      });
+       const sharedFiles = data.filter(file => {
+      const tags = file.tags ? file.tags.replace(/[{}]/g, "").split(",").map(t => t.trim()) : [];
+      return tags.includes("shared");
+    });
 
 
       setFileCount(activeFiles.length);
       setTrashedFilesCount(deletedFiles.length);
       setReceivedFilesCount(receivedFiles.length);
-      setSharedFileCount(sharedFiles.length);     //new
+      setSharedFileCount(sharedFiles.length);     //this count not retrieving properly
 
      } 
     }catch (error) {
@@ -845,9 +845,9 @@ return (
       </div>
     </div>
 
-      {/* RIGHT COLUMN — Upload + Recent Files */}
+      {/* Upload & Recent Files */}
       <div className="flex flex-col gap-6">
-        {/* Upload Section */}
+        {/* Upload Section -- fix to be drga and drop  */ } 
         <div className="h-60 p-4 bg-gray-200 dark:bg-gray-800 rounded-lg shadow-md flex flex-col items-center justify-center">
           <p className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2">
             Upload Files
@@ -875,11 +875,11 @@ return (
           <ul className="bg-white dark:bg-gray-800 rounded-lg divide-y divide-gray-200 dark:divide-gray-700 overflow-y-auto text-sm">
             {recentFiles.length === 0 ? (
               <li className="p-2 text-gray-500">No recent files</li>
-            ) : (
+            ) : (  //increase size of font here 
               recentFiles.map((file, index) => (
                 <li key={index} className="p-3 flex justify-between items-center">
                   <div>
-                    <p className="font-medium text-gray-700 dark:text-gray-200 text-sm">
+                    <p className="font-lg text-gray-700 dark:text-gray-200 text-sm">
                       {file.fileName || file.name || "Unnamed File"}
                     </p>
                     <p className="text-[10px] text-gray-500 dark:text-gray-400">
