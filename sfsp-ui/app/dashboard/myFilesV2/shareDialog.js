@@ -17,7 +17,7 @@ export function ShareDialog({ open, onOpenChange, file }) {
 
   // Toast states
   const [toast, setToast] = useState({ message: "", visible: false });
-  const [statusToast, setStatusToast] = useState({ message: "", type: "", visible: false });
+  const [statusToasts, setStatusToasts] = useState([]);
 
   const showToast = (message) => {
     setToast({ message, visible: true });
@@ -25,8 +25,12 @@ export function ShareDialog({ open, onOpenChange, file }) {
   };
 
   const showStatusToast = (message, type = "success") => {
-    setStatusToast({ message, type, visible: true });
-    setTimeout(() => setStatusToast({ message: "", type: "", visible: false }), 3000);
+    const id = Date.now();
+    setStatusToasts((prev) => [...prev, { id, message, type }]);
+
+    setTimeout(() => {
+      setStatusToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 3000);
   };
 
   const addRecipient = () => {
@@ -92,7 +96,7 @@ export function ShareDialog({ open, onOpenChange, file }) {
         );
         if (!response.ok) {
           console.warn(`User ID not found for email: ${email}`);
-          showToast("User account does not exist.");
+          showStatusToast(`User:${email} account does not exist.`);
           continue;
         }
 
@@ -101,7 +105,7 @@ export function ShareDialog({ open, onOpenChange, file }) {
         const isViewOnly = recipient.permission === "view";
 
         const receivedFileID = await SendFile(recipientId, file.id, isViewOnly);
-        
+
         await fetch(getFileApiUrl("/addAccesslog"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -231,12 +235,17 @@ export function ShareDialog({ open, onOpenChange, file }) {
         </div>
       )}
 
-      {statusToast.visible && (
-        <div className={`fixed bottom-4 right-4 max-w-xs px-4 py-3 rounded-lg shadow-lg z-50 animate-slide-in text-white
-          ${statusToast.type === "success" ? "bg-green-500" : "bg-red-500"}`}>
-          {statusToast.message}
-        </div>
-      )}
+      <div className="fixed bottom-4 right-4 flex flex-col items-end gap-2 z-50">
+        {statusToasts.map((toast) => (
+          <div
+            key={toast.id}
+            className={`px-4 py-3 rounded-lg shadow-lg text-white animate-slide-in
+        ${toast.type === "success" ? "bg-green-500" : "bg-red-500"}`}
+          >
+            {toast.message}
+          </div>
+        ))}
+      </div>
     </>
   );
 }
