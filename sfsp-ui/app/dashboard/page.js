@@ -304,6 +304,7 @@ export default function DashboardHomePage() {
   const [fileCount, setFileCount] = useState(0);
   const [trashedFilesCount, setTrashedFilesCount] = useState(0);
   const [receivedFilesCount, setReceivedFilesCount] = useState(0);
+  const [sharedFilesCount, setSharedFileCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [showExpanded, setShowExpanded] = useState(true); // New state for expanded view
@@ -318,6 +319,8 @@ export default function DashboardHomePage() {
   const [recentAccessLogs, setRecentAccessLogs] = useState([]);
   const [actionFilter, setActionFilter] = useState("All actions");
   const [user, setUser] = useState(null);
+  const [activeTab, setActiveTab] = useState("notifications"); // "notifications" or "activity"
+
 
   const fetchFiles = async () => {
     try {
@@ -338,10 +341,12 @@ export default function DashboardHomePage() {
         console.error("Failed to parse JSON:", text);
         return [];
       }
+      if (data != null){
+      
       const filesOnly = data.filter(
         (file) => getFileType(file.fileType || "", file.fileName) !== "folder"
       );
-     if (data != null){
+     
       const sortedFiles = filesOnly.sort(
         (a, b) => new Date(b.date) - new Date(a.date)
       );
@@ -678,9 +683,17 @@ export default function DashboardHomePage() {
         const tags = parseTagString(file.tags);
         return tags.includes("received");
       });
+       const sharedFiles = data.filter(file => {
+      const tags = file.tags ? file.tags.replace(/[{}]/g, "").split(",").map(t => t.trim()) : [];
+      return tags.includes("shared");
+    });
+
+
       setFileCount(activeFiles.length);
       setTrashedFilesCount(deletedFiles.length);
       setReceivedFilesCount(receivedFiles.length);
+      setSharedFileCount(sharedFiles.length);     //this count not retrieving properly
+
      } 
     }catch (error) {
       console.error("Failed to fetch files metadata:", error);
@@ -720,235 +733,173 @@ export default function DashboardHomePage() {
       icon: (
         <UploadCloud className="text-blue-600 dark:text-blue-400" size={28} />
       ),
-      label: "Upload",
-      isUpload: true,
+      label: "Shared Files",
+      value: sharedFilesCount,
     },
   ];
+return (
+  <div className="p-6 bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white">
+    <h1 className="text-2xl font-semibold mb-2 text-blue-500">
+      Welcome, {user?.username}!
+    </h1>
+    <p className="text-gray-600 dark:text-gray-400 mb-7">
+      Here&apos;s an overview of your activity.
+    </p>
+    <input id="file-upload-input" type="file" hidden />
 
-  return (
-    <div className="p-6 bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white">
-      {/* <div className="flex items-center gap-3 mb-6">
-        <UserAvatar
-          avatarUrl={user?.avatar_url}
-          username={user?.username}
-          size="w-10 h-10 flex-shrink-0"
-          alt="User Avatar"
-        />
-        {showExpanded && (
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">
-              {user?.username || "Loading..."}
-            </p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-              {user?.email || ""}
-            </p>
+    {/* Stats Section */}
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+      {stats.map((item, idx) => (
+        <div
+          key={idx}
+          className="flex items-center gap-4 p-7 bg-gray-200 dark:bg-gray-800 rounded-lg shadow hover:shadow-lg transition-shadow"
+        >
+          <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-full">
+            {item.icon}
           </div>
-        )}
-      </div> */}
-      <h1 className="text-2xl font-semibold mb-2 text-blue-500">Welcome, {user?.username}!</h1>
-      <p className="text-gray-600 dark:text-gray-400 mb-7">
-        Here&apos;s an overview of your activity.
-      </p>
-      <input id="file-upload-input" type="file" hidden />
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-        {stats.map((item, idx) => {
-          const CardContent = (
-            <>
-              <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-full">
-                {item.icon}
-              </div>
-              <div>
-                <p className="text-lg font-bold text-gray-500 dark:text-gray-400">
-                  {item.label}
-                </p>
-                <p className="text-xl font-bold">{item.value}</p>
-              </div>
-            </>
-          );
-          return item.isUpload ? (
+          <div>
+            <p className="text-lg font-bold text-gray-500 dark:text-gray-400">
+              {item.label}
+            </p>
+            <p className="text-xl font-bold">{item.value}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+
+    {/* Two-column layout */}
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* LEFT COLUMN — Notifications / Activity Logs */}
+      <div className="flex flex-col gap-6">
+        <div className="h-120 p-4 bg-gray-200 dark:bg-gray-800 rounded-lg shadow-md flex flex-col">
+          {/* Tabs */}
+          <div className="flex gap-4 mb-3 border-b border-gray-300 dark:border-gray-700">
             <button
-              key={idx}
-              onClick={() => setIsUploadOpen(true)}
-              className="flex items-center gap-4 p-7 w-full text-left bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow transition-shadow"
+              onClick={() => setActiveTab("notifications")}
+              className={`flex items-center gap-2 pb-2 text-sm font-semibold ${
+                activeTab === "notifications"
+                  ? "border-b-2 border-green-500 text-green-500"
+                  : "text-gray-500 dark:text-gray-400"
+              }`}
             >
-              {CardContent}
+              <ListCheckIcon className="w-5 h-5" />
+              Notifications
             </button>
-          ) : (
-            <div
-              key={idx}
-              className="flex items-center gap-4 p-7 bg-gray-200 dark:bg-gray-800 rounded-lg shadow hover:shadow-lg transition-shadow"
+            <button
+              onClick={() => setActiveTab("activity")}
+              className={`flex items-center gap-2 pb-2 text-sm font-semibold ${
+                activeTab === "activity"
+                  ? "border-b-2 border-green-500 text-green-500"
+                  : "text-gray-500 dark:text-gray-400"
+              }`}
             >
-              {CardContent}
-            </div>
-          );
-        })}
-      </div>
-      <UploadDialog
-        open={isUploadOpen}
-        onOpenChange={setIsUploadOpen}
-        onUploadSuccess={fetchFiles}
-      />
-      <div className="flex justify-center">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-12 w-full max-w-10xl">
-          <div className="h-60 w-full lg:col-span-2 p-6 flex flex-col justify-start bg-gray-200 dark:bg-gray-800 rounded-lg shadow hover:shadow-lg transition-shadow overflow-hidden">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-full">
-                <ListCheckIcon
-                  className="text-blue-600 dark:text-blue-400"
-                  size={28}
-                />
-              </div>
-              <p className="text-xl font-bold text-gray-500 dark:text-gray-400">
-                Notifications
-              </p>
-            </div>
-            <div className="overflow-y-auto space-y-2 pr-1 text-sm text-gray-700 dark:text-gray-200">
-              {notifications.length === 0 ? (
+              <AlertCircleIcon className="w-5 h-5" />
+              Activity Logs
+            </button>
+          </div>
+          {/* Tab content */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 text-sm text-gray-700 dark:text-gray-200">
+            {activeTab === "notifications" ? (
+              notifications.length === 0 ? (
                 <p className="text-gray-500">No new notifications</p>
               ) : (
                 notifications.map((n) => (
                   <div
                     key={n.id}
-                    className="flex items-start gap-2 p-2 bg-gray-50 dark:bg-gray-700 rounded"
+                    className="flex items-start gap-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg shadow-sm"
                   >
-                    <FileText className="w-4 h-4 mt-1 text-blue-500" />
+                    <ListCheckIcon className="w-6 h-6 mt-1 text-blue-500 flex-shrink-0" />
                     <div className="flex-1">
-                      <p className="leading-tight">{n.message}</p>
-                      <p className="text-xs text-gray-500">
+                      <p className="leading-snug text-base">{n.message}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                         {formatTimestamp(n.timestamp)}
                       </p>
-                      <div className="flex gap-2 mt-1">
-                        {!n.read && (
-                          <button
-                            onClick={() => markAsRead(n.id)}
-                            className="text-xs text-blue-500 hover:underline"
-                          >
-                            Mark as Read
-                          </button>
-                        )}
-                        {n.type === "share-request" && (
-                          <>
-                            <button
-                              onClick={() =>
-                                respondToShareRequest(n.id, "accepted")
-                              }
-                              className="text-xs text-green-500 hover:underline"
-                            >
-                              Accept
-                            </button>
-                            <button
-                              onClick={() =>
-                                respondToShareRequest(n.id, "declined")
-                              }
-                              className="text-xs text-red-500 hover:underline"
-                            >
-                              Decline
-                            </button>
-                          </>
-                        )}
-                        <button
-                          onClick={() => clearNotification(n.id)}
-                          className="text-xs text-gray-500 hover:underline"
-                        >
-                          Clear
-                        </button>
-                      </div>
                     </div>
                   </div>
                 ))
-              )}
-            </div>
-          </div>
-          <div className="h-60 w-full lg:col-span-2 p-6 flex flex-col justify-start bg-gray-200 dark:bg-gray-800 rounded-lg shadow hover:shadow-lg transition-shadow overflow-hidden">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-full">
-                <AlertCircleIcon
-                  className="text-green-600 dark:text-green-400"
-                  size={28}
-                />
-              </div>
-              <p className="text-xl font-bold text-gray-500 dark:text-gray-400">
-                Activity Logs
-              </p>
-            </div>
-            <div className="overflow-y-auto space-y-2 pr-2 text-sm text-gray-700 dark:text-gray-200">
-              {recentAccessLogs.length > 0 ? (
-                recentAccessLogs.map((log, idx) => (
-                  <div key={idx} className="flex items-start gap-2">
-                    <UserAvatar
-                      avatarUrl={user?.avatar_url}
-                      username={user?.username}
-                      size="w-10 h-10 flex-shrink-0"
-                      alt="User Avatar"
-                    />
-                    <div className="flex flex-col">
-                      <span className="font-semibold">{log.user}</span>
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        {log.action} <strong>{log.file}</strong> at{" "}
-                        {log.dateFormatted}
-                      </span>
-                    </div>
+              )
+            ) : recentAccessLogs.length === 0 ? (
+              <p className="text-gray-500 dark:text-gray-400 text-sm">No recent activity.</p>
+            ) : (
+              recentAccessLogs.map((log, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-start gap-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg shadow-sm"
+                >
+                  <UserAvatar
+                    avatarUrl={user?.avatar_url}
+                    username={user?.username}
+                    size="w-8 h-8 flex-shrink-0"
+                    alt="User Avatar"
+                  />
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-base">{log.user}</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      {log.action} <strong>{log.file}</strong> at {log.dateFormatted}
+                    </span>
                   </div>
-                ))
-              ) : (
-                <p className="text-gray-500 dark:text-gray-400">
-                  No recent activity.
-                </p>
-              )}
-            </div>
+                </div>
+              ))
+            )}
           </div>
+      </div>
+    </div>
+
+      {/* Upload & Recent Files */}
+      <div className="flex flex-col gap-6">
+        {/* Upload Section -- fix to be drga and drop  */ } 
+        <div className="h-60 p-4 bg-gray-200 dark:bg-gray-800 rounded-lg shadow-md flex flex-col items-center justify-center">
+          <p className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2">
+            Upload Files
+          </p>
+          <div
+            onClick={() => setIsUploadOpen(true)}
+            className="w-full h-24 border-2 border-dashed border-blue-400 dark:border-blue-500 rounded-lg flex items-center justify-center cursor-pointer hover:bg-blue-50 dark:hover:bg-gray-700 transition"
+          >
+            <p className="text-blue-500 dark:text-blue-400 text-sm">
+              Drag & Drop or click to upload
+            </p>
+          </div>
+          <UploadDialog
+            open={isUploadOpen}
+            onOpenChange={setIsUploadOpen}
+            onUploadSuccess={fetchFiles}
+          />
+        </div>
+
+        {/* Recent Files */}
+        <div className="h-60 p-4 bg-gray-200 dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">
+            Recent Files
+          </h2>
+          <ul className="bg-white dark:bg-gray-800 rounded-lg divide-y divide-gray-200 dark:divide-gray-700 overflow-y-auto text-sm">
+            {recentFiles.length === 0 ? (
+              <li className="p-2 text-gray-500">No recent files</li>
+            ) : (  //increase size of font here 
+              recentFiles.map((file, index) => (
+                <li key={index} className="p-3 flex justify-between items-center">
+                  <div>
+                    <p className="font-lg text-gray-700 dark:text-gray-200 text-sm">
+                      {file.fileName || file.name || "Unnamed File"}
+                    </p>
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                      {formatTimestamp(file.date || file.createdAt)}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleOpenPreview(file)}
+                    className="text-blue-500 hover:underline text-xs"
+                  >
+                    Open
+                  </button>
+                </li>
+              ))
+            )}
+          </ul>
         </div>
       </div>
-      <div className="mt-12 max-w-5xl mx-auto">
-        <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-4">
-          Recent Files
-        </h2>
-        <ul className="bg-white dark:bg-gray-800 rounded-lg shadow divide-y divide-gray-200 dark:divide-gray-700">
-          {recentFiles.length === 0 ? (
-            <li className="p-4 text-gray-500">No recent files</li>
-          ) : (
-            recentFiles.map((file, index) => (
-              <li key={index} className="p-4 flex justify-between items-center">
-                <div>
-                  <p className="text-lg font-medium text-gray-700 dark:text-gray-200">
-                    {file.fileName || file.name || "Unnamed File"}
-                  </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {formatTimestamp(file.date || file.createdAt)}
-                  </p>
-                </div>
-                <button
-                  onClick={() => handleOpenPreview(file)}
-                  className="text-blue-500 hover:underline"
-                >
-                  Open
-                </button>
-              </li>
-            ))
-          )}
-        </ul>
-      </div>
-      {viewerFile && (
-        <FullViewModal
-          file={viewerFile}
-          content={viewerContent}
-          onClose={() => setViewerFile(null)}
-        />
-      )}
-      {previewFile && (
-        <PreviewDrawer
-          file={previewFile}
-          content={previewContent}
-          onClose={() => setPreviewFile(null)}
-          onOpenFullView={(file) => {
-            setPreviewFile(null);
-            handleOpenFullView(file);
-          }}
-          onSaveDescription={async (id, description) => {
-            // console.log("Save description for:", id, description);
-          }}
-        />
-      )}
     </div>
-  );
+  </div>
+);
+
 }

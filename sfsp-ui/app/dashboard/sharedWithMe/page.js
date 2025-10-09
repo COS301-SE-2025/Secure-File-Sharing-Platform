@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Grid, List } from "lucide-react";
+import { Grid, List, ChevronDown } from "lucide-react";
 import { ShareDialog } from "../myFilesV2/shareDialog";
 import { FileDetailsDialog } from "../myFilesV2/fileDetailsDialog";
 import { ActivityLogsDialog } from "../myFilesV2/activityLogsDialog";
