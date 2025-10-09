@@ -164,7 +164,7 @@ const SecurityPage = ({ onNavigate }) => {
   ];
 
   return (
-    <div className="p-6 bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white min-h-screen">
+    <div className="p-6 bg-gray-200 dark:bg-gray-900 text-gray-900 dark:text-white min-h-screen">
       <div className="max-w-6xl mx-auto">
         {/* Header with Back Button */}
         <div className="flex items-center gap-4 mb-6">
@@ -172,20 +172,20 @@ const SecurityPage = ({ onNavigate }) => {
             onClick={handleBack}
             className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm"
           >
-            <svg 
-              className="w-4 h-4" 
-              fill="none" 
-              stroke="currentColor" 
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
               viewBox="0 0 24 24"
             >
-              <path 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                strokeWidth={2} 
-                d="M10 19l-7-7m0 0l7-7m-7 7h18" 
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M10 19l-7-7m0 0l7-7m-7 7h18"
               />
             </svg>
-            
+
           </button>
           <div>
             <h1 className="text-3xl font-bold text-blue-500">Security & Encryption</h1>
@@ -204,18 +204,17 @@ const SecurityPage = ({ onNavigate }) => {
               onClick={() => toggleFlip(method.id)}
             >
               {/* Flip Card Container */}
-              <div 
+              <div
                 className={`relative w-full h-full transition-transform duration-600 ease-in-out`}
-                style={{ 
+                style={{
                   transformStyle: 'preserve-3d',
                   transform: flippedCards[method.id] ? 'rotateY(180deg)' : 'rotateY(0deg)'
                 }}
               >
                 {/* Front of Card */}
-                <div 
-                  className={`absolute inset-0 w-full h-full bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 border-2 border-blue-200 dark:border-blue-800 transition-opacity duration-300 ${
-                    flippedCards[method.id] ? 'opacity-0' : 'opacity-100'
-                  }`}
+                <div
+                  className={`absolute inset-0 w-full h-full bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 border-2 border-blue-200 dark:border-blue-800 transition-opacity duration-300 ${flippedCards[method.id] ? 'opacity-0' : 'opacity-100'
+                    }`}
                   style={{ backfaceVisibility: 'hidden' }}
                 >
                   <div className="flex flex-col items-center justify-center h-full text-center">
@@ -233,11 +232,10 @@ const SecurityPage = ({ onNavigate }) => {
                 </div>
 
                 {/* Back of Card */}
-                <div 
-                  className={`absolute inset-0 w-full h-full bg-gradient-to-br from-blue-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 rounded-lg shadow-lg p-6 border-2 border-blue-300 dark:border-blue-600 transition-opacity duration-300 overflow-y-auto ${
-                    flippedCards[method.id] ? 'opacity-100' : 'opacity-0'
-                  }`}
-                  style={{ 
+                <div
+                  className={`absolute inset-0 w-full h-full bg-gradient-to-br from-blue-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 rounded-lg shadow-lg p-6 border-2 border-blue-300 dark:border-blue-600 transition-opacity duration-300 overflow-y-auto ${flippedCards[method.id] ? 'opacity-100' : 'opacity-0'
+                    }`}
+                  style={{
                     backfaceVisibility: 'hidden',
                     transform: 'rotateY(180deg)'
                   }}
@@ -249,7 +247,7 @@ const SecurityPage = ({ onNavigate }) => {
                         {method.name}
                       </h3>
                     </div>
-                    
+
                     <div className="space-y-4 text-sm">
                       <div>
                         <h4 className="font-semibold text-blue-600 dark:text-blue-400 mb-1">
@@ -259,7 +257,7 @@ const SecurityPage = ({ onNavigate }) => {
                           {method.back.usage}
                         </p>
                       </div>
-                      
+
                       <div>
                         <h4 className="font-semibold text-blue-600 dark:text-blue-400 mb-1">
                           How it works:
@@ -268,7 +266,7 @@ const SecurityPage = ({ onNavigate }) => {
                           {method.back.explanation}
                         </p>
                       </div>
-                      
+
                       <div className="grid grid-cols-1 gap-3">
                         <div>
                           <h4 className="font-semibold text-green-600 dark:text-green-400 mb-1">
@@ -280,10 +278,10 @@ const SecurityPage = ({ onNavigate }) => {
                             ))}
                           </ul>
                         </div>
-                        
+
                       </div>
                     </div>
-                    
+
                     <div className="mt-4 text-center text-xs text-blue-500 dark:text-blue-400">
                       Click to flip back
                     </div>
@@ -295,28 +293,28 @@ const SecurityPage = ({ onNavigate }) => {
         </div>
 
         {/* Additional Security Information */}
-        <div className="mt-12 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+        <div className="mt-12 bg-blue-100 dark:bg-gray-800 rounded-lg shadow-lg p-6">
           <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">
-            Security Best Practices
+            Security Best Practices from You
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
               <div className="flex items-start gap-3">
                 <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
                 <p className="text-gray-700 dark:text-gray-300">
-                  <strong>Use strong, unique passwords</strong> and store them securely using hashing algorithms like bcrypt
+                  <strong>Save your recovery key securely</strong> - This is your only way to reset your password and access your files
                 </p>
               </div>
               <div className="flex items-start gap-3">
                 <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
                 <p className="text-gray-700 dark:text-gray-300">
-                  <strong>Implement HTTPS</strong> using TLS with RSA or ECDHE for key exchange
+                  <strong>Use strong, unique passwords</strong> with a mix of letters, numbers, and special characters
                 </p>
               </div>
               <div className="flex items-start gap-3">
                 <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
                 <p className="text-gray-700 dark:text-gray-300">
-                  <strong>Use AES-256</strong> for encrypting sensitive data at rest
+                  <strong>Never share your recovery key</strong> with anyone - we will never ask for it
                 </p>
               </div>
             </div>
@@ -324,19 +322,20 @@ const SecurityPage = ({ onNavigate }) => {
               <div className="flex items-start gap-3">
                 <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
                 <p className="text-gray-700 dark:text-gray-300">
-                  <strong>Regularly update</strong> encryption libraries and dependencies
+                  <strong>Be cautious with file sharing</strong> - only share with trusted individuals and set appropriate permissions
                 </p>
               </div>
-              <div className="flex items-start gap-3">
-                <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
-                <p className="text-gray-700 dark:text-gray-300">
-                  <strong>Implement proper key management</strong> and rotation policies
-                </p>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
-                <p className="text-gray-700 dark:text-gray-300">
-                  <strong>Use authenticated encryption</strong> to ensure data integrity
+            </div>
+          </div>
+          <div className="mt-6 p-4 bg-blue-200 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 rounded-lg">
+            <div className="flex items-start gap-3">
+              <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+              <div>
+                <p className="text-sm font-semibold text-blue-900 dark:text-blue-100">Remember:</p>
+                <p className="text-sm text-blue-800 dark:text-blue-200 mt-1">
+                  Your files are protected with end-to-end encryption. We cannot access your data or reset your password without your recovery key.
                 </p>
               </div>
             </div>
