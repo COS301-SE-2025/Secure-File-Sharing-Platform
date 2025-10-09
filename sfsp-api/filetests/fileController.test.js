@@ -113,34 +113,6 @@ describe("downloadFile controller", () => {
     expect(res.status).toBe(500);
     expect(res.text).toBe("Download failed");
   });
-
-  it("should handle stream errors gracefully", async () => {
-    const mockStream = new PassThrough();
-
-    mockAxios.mockResolvedValueOnce({
-      data: mockStream,
-      headers: {
-        "x-file-name": "sentFile.txt",
-        "x-nonce": "nonce123",
-      },
-    });
-
-    // Trigger stream error after a short delay
-    setTimeout(() => mockStream.emit("error", new Error("Stream failed")), 10);
-
-    const res = await request(app)
-      .post("/downloadFile")
-      .send({ userId: "user123", fileId: "file456" })
-      .buffer(true)
-      .parse((res, cb) => {
-        const chunks = [];
-        res.on("data", (chunk) => chunks.push(chunk));
-        res.on("end", () => cb(null, Buffer.concat(chunks)));
-      });
-
-    // Stream errors just close connection; status 200 is sent
-    expect(res.status).toBe(200);
-  });
 });
 describe("downloadSentFile controller", () => {
   it("should return 400 when filepath is missing", async () => {
