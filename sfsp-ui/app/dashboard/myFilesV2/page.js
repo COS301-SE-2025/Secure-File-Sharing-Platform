@@ -1,9 +1,7 @@
-//app/dashboard/myFilesV2/page.js
-
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Upload, FolderPlus, Grid, List, Route } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { Upload, FolderPlus, Grid, List, Route, ChevronDown } from "lucide-react";
 import { ShareDialog } from "./shareDialog";
 import { UploadDialog } from "./uploadDialog";
 import { FileDetailsDialog } from "./fileDetailsDialog";
@@ -18,41 +16,54 @@ import { PreviewDrawer } from "./previewDrawer";
 import dynamic from "next/dynamic";
 import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 
-const FullViewModal = dynamic(() => import("./fullViewModal").then(mod => ({ default: mod.FullViewModal })), {
-  ssr: false,
-  loading: () => <div>Loading...</div>
-});
+const FullViewModal = dynamic(
+  () =>
+    import("./fullViewModal").then((mod) => ({ default: mod.FullViewModal })),
+  {
+    ssr: false,
+    loading: () => <div>Loading...</div>,
+  }
+);
 import { RevokeAccessDialog } from "./revokeAccessDialog";
 import { ChangeShareMethodDialog } from "./changeShareMethodDialog";
-//import Prism from 'prismjs';
-
-//import fetchProfile from "../components/Sidebar"
 import { formatDate } from "../../../lib/dateUtils";
 
 function Toast({ message, type = "info", onClose }) {
   return (
-    <div className={`fixed inset-0 flex items-center justify-center z-50 pointer-events-none`}>
-      <div className={`bg-green-500 border border-green-600 text-white rounded shadow-lg px-6 py-3 pointer-events-auto`}>
+    <div
+      className={`fixed inset-0 flex items-center justify-center z-50 pointer-events-none`}
+    >
+      <div
+        className={`bg-green-500 border border-green-600 text-white rounded shadow-lg px-6 py-3 pointer-events-auto`}
+      >
         <span>{message}</span>
-        <button onClick={onClose} className="ml-4 font-bold hover:bg-green-600 rounded px-1">×</button>
+        <button
+          onClick={onClose}
+          className="ml-4 font-bold hover:bg-green-600 rounded px-1"
+        >
+          ×
+        </button>
       </div>
     </div>
   );
 }
 
-function getFileType(mimeType, fileName = '') {
+function getFileType(mimeType, fileName = "") {
   if (mimeType.includes("folder")) return "folder";
-  const normalizedMimeType = mimeType ? mimeType.toLowerCase() : '';
-  const normalizedFileName = fileName ? fileName.toLowerCase() : '';
+  const normalizedMimeType = mimeType ? mimeType.toLowerCase() : "";
+  const normalizedFileName = fileName ? fileName.toLowerCase() : "";
 
-  const fileExtension = normalizedFileName.includes('.') 
-    ? normalizedFileName.split('.').pop() 
-    : '';
+  const fileExtension = normalizedFileName.includes(".")
+    ? normalizedFileName.split(".").pop()
+    : "";
 
   if (normalizedMimeType) {
     if (normalizedMimeType.includes("pdf")) return "pdf";
 
-    if (normalizedMimeType.includes("markdown") || normalizedMimeType.includes("x-markdown")) {
+    if (
+      normalizedMimeType.includes("markdown") ||
+      normalizedMimeType.includes("x-markdown")
+    ) {
       return "markdown";
     }
 
@@ -65,220 +76,236 @@ function getFileType(mimeType, fileName = '') {
     if (normalizedMimeType.includes("audio")) return "audio";
     if (normalizedMimeType.includes("podcast")) return "podcast";
 
-    if (normalizedMimeType.includes("zip") || normalizedMimeType.includes("rar")) return "archive";
+    if (
+      normalizedMimeType.includes("zip") ||
+      normalizedMimeType.includes("rar")
+    )
+      return "archive";
 
-    if (normalizedMimeType.includes("spreadsheet") || 
-        normalizedMimeType.includes("excel") || 
-        normalizedMimeType.includes("sheet")) return "excel";
+    if (
+      normalizedMimeType.includes("spreadsheet") ||
+      normalizedMimeType.includes("excel") ||
+      normalizedMimeType.includes("sheet")
+    )
+      return "excel";
     if (normalizedMimeType.includes("presentation")) return "ppt";
-    if (normalizedMimeType.includes("word") || normalizedMimeType.includes("document")) return "word";
+    if (
+      normalizedMimeType.includes("word") ||
+      normalizedMimeType.includes("document")
+    )
+      return "word";
 
-    if (normalizedMimeType.includes("code") || normalizedMimeType.includes("script")) return "code";
+    if (
+      normalizedMimeType.includes("code") ||
+      normalizedMimeType.includes("script")
+    )
+      return "code";
 
     if (normalizedMimeType.includes("text")) {
-      if (fileExtension === 'md' || fileExtension === 'markdown') return "markdown";
+      if (fileExtension === "md" || fileExtension === "markdown")
+        return "markdown";
       return "txt";
     }
     if (normalizedMimeType.includes("application")) return "application";
   }
-  
+
   if (fileExtension) {
     switch (fileExtension) {
-      case 'md':
-      case 'markdown':
+      case "md":
+      case "markdown":
         return "markdown";
-      case 'pdf':
+      case "pdf":
         return "pdf";
-      case 'json':
+      case "json":
         return "json";
-      case 'csv':
+      case "csv":
         return "csv";
-      case 'html':
-      case 'htm':
+      case "html":
+      case "htm":
         return "html";
-      case 'txt':
+      case "txt":
         return "txt";
-        //programming languages
-      case 'py':
+      //programming languages
+      case "py":
         return "py";
-      case 'java':
+      case "java":
         return "java";
-      case 'cpp':
+      case "cpp":
         return "cpp";
-      case 'c':
+      case "c":
         return "c";
-      case 'h':
+      case "h":
         return "h";
-      case 'cs':
+      case "cs":
         return "cs";
-      case 'php':
+      case "php":
         return "php";
-      case 'rb':
+      case "rb":
         return "rb";
-      case 'go':
+      case "go":
         return "go";
-      case 'rs':
+      case "rs":
         return "rs";
-      case 'swift':
+      case "swift":
         return "swift";
-      case 'kt':
+      case "kt":
         return "kt";
-      case 'scala':
+      case "scala":
         return "scala";
-      case 'r':
+      case "r":
         return "r";
-      case 'matlab':
+      case "matlab":
         return "matlab";
-      case 'pl':
+      case "pl":
         return "pl";
-      case 'lua':
+      case "lua":
         return "lua";
-      case 'css':
+      case "css":
         return "css";
-      case 'scss':
+      case "scss":
         return "scss";
-      case 'sass':
+      case "sass":
         return "sass";
-      case 'less':
-        return "less"
-      case 'jpg':
-      case 'jpeg':
-      case 'png':
-      case 'gif':
-      case 'svg':
-      case 'webp':
-      case 'image':
-      case 'bmp':
-      case 'tiff':
-      case 'tif':
-      case 'ico':
-      case 'heic':
-      case 'raw':
+      case "less":
+        return "less";
+      case "jpg":
+      case "jpeg":
+      case "png":
+      case "gif":
+      case "svg":
+      case "webp":
+      case "image":
+      case "bmp":
+      case "tiff":
+      case "tif":
+      case "ico":
+      case "heic":
+      case "raw":
         return "image";
-      case 'mp4':
-      case 'avi':
-      case 'mov':
-      case 'webm':
+      case "mp4":
+      case "avi":
+      case "mov":
+      case "webm":
         return "video";
-      case 'mp3':
-      case 'wav':
-      case 'flac':
+      case "mp3":
+      case "wav":
+      case "flac":
         return "audio";
-      case 'zip':
-      case 'rar':
-      case '7z':
+      case "zip":
+      case "rar":
+      case "7z":
         return "archive";
-      case 'xlsx':
-      case 'xls':
+      case "xlsx":
+      case "xls":
         return "excel";
-      case 'pptx':
-      case 'ppt':
+      case "pptx":
+      case "ppt":
         return "ppt";
-      case 'docx':
-      case 'doc':
+      case "docx":
+      case "doc":
         return "word";
-        //database files
-      case 'sql':
+      //database files
+      case "sql":
         return "sql";
-      case 'db':
+      case "db":
         return "db";
-      case 'sqlite':
+      case "sqlite":
         return "sqlite";
-      case 'mdb':
-        return "mdb"
-      case 'ods':
+      case "mdb":
+        return "mdb";
+      case "ods":
         return "ods";
-      case 'odp':
+      case "odp":
         return "odp";
-      case 'log':
+      case "log":
         return "log";
-      case 'readme':
+      case "readme":
         return "readme";
-      case 'yaml':
+      case "yaml":
         return "yaml";
-      case 'yml':
+      case "yml":
         return "yml";
-      case 'toml':
+      case "toml":
         return "toml";
-      case 'ini':
+      case "ini":
         return "ini";
-      case 'cfg':
+      case "cfg":
         return "cfg";
-      case 'conf':
+      case "conf":
         return "conf";
-        //Archive files
-        case 'archive':
-          return "archive";
-        case 'zip':
-          return "zip";
-        case 'rar':
-          return "rar";
-        case '7z':
-          return "7z";
-        case 'tar':
-          return "tar";
-        case 'gz':
-          return "gz";
-        case 'bz2':
-          return "bz2";
-        case 'xz':
-          return "xz";
-          //system files
-        case 'exe':
-          return "exe";
-        case 'msi':
-          return "msi";
-        case 'deb':
-          return 'deb';
-        case 'rpm':
-          return "rpm";
-        case 'dmg':
-          return "dmg";
-        case 'iso':
-          return "iso";
-        case 'img':
-          return "img";
-          //security files
-        case 'key':
-          return "key";
-        case 'pem':
-          return "pem";
-        case 'crt':
-          return 'crt';
-        case 'cert':
-          return "cert";
-          //email files
-        case 'eml':
-          return "eml";
-        case 'msg':
-          return "msg";
-        //calender
-        case 'ics':
-          return "ics";
-        //Adobe files
-        case 'psd':
-          return "psd";
-        case 'ai':
-          return "ai";
-        case 'eps':
-          return "eps";
-        case 'indd':
-          return "indd";
-        //cad files
-        case 'dwg':
-          return "dwg";
-        case 'dxf':
-          return "dxf";
-        //3D Model Files
-        case 'obj':
-          return "obj";
-        case 'fbx':
-          return "fbx";
-        case 'blend':
-          return "blend";
+      //Archive files
+      case "archive":
+        return "archive";
+      case "zip":
+        return "zip";
+      case "rar":
+        return "rar";
+      case "7z":
+        return "7z";
+      case "tar":
+        return "tar";
+      case "gz":
+        return "gz";
+      case "bz2":
+        return "bz2";
+      case "xz":
+        return "xz";
+      //system files
+      case "exe":
+        return "exe";
+      case "msi":
+        return "msi";
+      case "deb":
+        return "deb";
+      case "rpm":
+        return "rpm";
+      case "dmg":
+        return "dmg";
+      case "iso":
+        return "iso";
+      case "img":
+        return "img";
+      //security files
+      case "key":
+        return "key";
+      case "pem":
+        return "pem";
+      case "crt":
+        return "crt";
+      case "cert":
+        return "cert";
+      //email files
+      case "eml":
+        return "eml";
+      case "msg":
+        return "msg";
+      //calender
+      case "ics":
+        return "ics";
+      //Adobe files
+      case "psd":
+        return "psd";
+      case "ai":
+        return "ai";
+      case "eps":
+        return "eps";
+      case "indd":
+        return "indd";
+      //cad files
+      case "dwg":
+        return "dwg";
+      case "dxf":
+        return "dxf";
+      //3D Model Files
+      case "obj":
+        return "obj";
+      case "fbx":
+        return "fbx";
+      case "blend":
+        return "blend";
     }
   }
-  
+
   return normalizedMimeType ? "file" : "unknown";
 }
 
@@ -291,14 +318,14 @@ function formatFileSize(size) {
 }
 
 function getCookie(name) {
-  if (typeof window === 'undefined') return '';
+  if (typeof window === "undefined") return "";
   return document.cookie
     .split("; ")
     .find((c) => c.startsWith(name + "="))
     ?.split("=")[1];
 }
 
-const csrf = typeof window !== 'undefined' ? getCookie("csrf_token") : "";
+const csrf = typeof window !== "undefined" ? getCookie("csrf_token") : "";
 
 export default function MyFiles() {
   const [files, setFiles] = useState([]);
@@ -326,7 +353,18 @@ export default function MyFiles() {
 
   const [toast, setToast] = useState(null);
 
-  const [user, setUser] = useState(null); 
+  const [user, setUser] = useState(null);
+
+  const [showSortOptions, setShowSortOptions] = useState(false);
+  const [sortOptions, setSortOptions] = useState({
+    byDate: false,
+    byName: true, // Default sort
+    bySize: false,
+    ascending: true,
+  });
+  const sortDropdownRef = useRef(null);
+
+  const [dragOverCrumb, setDragOverCrumb] = useState(null);
 
   const showToast = (message, type = "info", duration = 3000) => {
     setToast({ message, type });
@@ -420,13 +458,12 @@ export default function MyFiles() {
           return {
             id: f.fileId || "",
             name: f.fileName || "Unnamed file",
-            size: formatFileSize(f.fileSize || 0),
-            type: getFileType(f.fileType || "",f.fileName),
+            size: f.fileSize || 0,
+            type: getFileType(f.fileType || "", f.fileName),
             description: f.description || "",
             path: f.cid || "",
-            modified: f.createdAt
-              ? formatDate(f.createdAt)
-              : "",
+            modified: f.createdAt ? formatDate(f.createdAt) : "",
+            modifiedRaw: f.createdAt || "",
             shared: false,
             starred: false,
             viewOnly: isViewOnlyFile,
@@ -436,113 +473,243 @@ export default function MyFiles() {
           };
         });
 
-      const sorted = formatted.sort((a, b) => {
-        if (a.isFolder && !b.isFolder) return -1;
-        if (!a.isFolder && b.isFolder) return 1;
-        return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
-      });
-
-      console.log("Sorted files:", sorted);
+      const sorted = applySort(formatted);
       setFiles(sorted);
     } catch (err) {
       console.error("Failed to fetch files:", err);
     }
   };
 
+  const applySort = (filesToSort) => {
+    let sortedFiles = [...filesToSort];
+
+    // Apply sort by type
+    if (sortOptions.byDate) {
+      sortedFiles.sort((a, b) => new Date(b.modifiedRaw) - new Date(a.modifiedRaw));
+    } else if (sortOptions.byName) {
+      sortedFiles.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+    } else if (sortOptions.bySize) {
+      sortedFiles.sort((a, b) => a.size - b.size);
+    }
+
+    // Apply folder priority
+    sortedFiles.sort((a, b) => {
+      if (a.isFolder && !b.isFolder) return -1;
+      if (!a.isFolder && b.isFolder) return 1;
+      return 0;
+    });
+
+    // Apply ascending/descending
+    if (!sortOptions.ascending) {
+      sortedFiles.reverse();
+    }
+
+    return sortedFiles;
+  };
+
+  const handleSortChange = (option) => {
+    setSortOptions((prev) => {
+      const newOptions = { ...prev };
+      if (option === "reset") {
+        return {
+          byDate: false,
+          byName: true,
+          bySize: false,
+          ascending: true,
+        };
+      }
+      if (option === "ascending") {
+        newOptions.ascending = !newOptions.ascending;
+      } else {
+        newOptions.byDate = option === "byDate" ? !newOptions.byDate : false;
+        newOptions.byName = option === "byName" ? !newOptions.byName : false;
+        newOptions.bySize = option === "bySize" ? !newOptions.bySize : false;
+        // Ensure at least one sort option is selected
+        if (!newOptions.byDate && !newOptions.byName && !newOptions.bySize) {
+          newOptions.byName = true;
+        }
+      }
+      return newOptions;
+    });
+    setFiles(applySort(files));
+  };
+
   useEffect(() => {
     fetchFiles();
   }, []);
 
-  // Keyboard shortcuts
   useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target)) {
+        setShowSortOptions(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
     const handleKeyDown = (e) => {
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.contentEditable === 'true') {
+      console.log(
+        "Key pressed:",
+        e.key,
+        "Ctrl:",
+        e.ctrlKey || e.metaKey,
+        "Target:",
+        e.target.tagName
+      );
+
+      if (
+        e.target.tagName === "INPUT" ||
+        e.target.tagName === "TEXTAREA" ||
+        e.target.contentEditable === "true" ||
+        e.target.isContentEditable
+      ) {
+        console.log("Ignoring - user is in input field");
         return;
       }
 
       const ctrlPressed = e.ctrlKey || e.metaKey;
 
       if (ctrlPressed) {
+        console.log("Ctrl+Key detected:", e.key);
+
         switch (e.key.toLowerCase()) {
-          case 'c':
+          case "c": 
             e.preventDefault();
             if (selectedFile) {
-              setClipboard({ file: selectedFile, operation: 'cut' });
+              setClipboard({ file: selectedFile, operation: "cut" });
+            } else {
+              console.log("No file selected to cut");
             }
             break;
-          case 'v':
+
+          case "v":
             e.preventDefault();
-            if (clipboard) {
-              handlePaste();
+            if (clipboard?.file) {
+              const fileToMove = clipboard.file;
+              const destinationPath = currentPath;
+
+              handleMoveFile(fileToMove, destinationPath)
+                .then(() => {
+                  setClipboard(null);
+                  fetchFiles();
+                })
+                .catch((error) => {
+                  console.error("Paste error:", error);
+                  showToast("Failed to move file", "error", 2000);
+                });
+            } else {
+              console.log("Nothing in clipboard to paste");
+              showToast("Nothing to paste", "info", 1500);
             }
             break;
-          case 'd':
+
+          case "d":
             e.preventDefault();
             setIsCreateFolderOpen(true);
             break;
-          case 'u':
+
+          case "u":
             e.preventDefault();
             setIsUploadOpen(true);
             break;
-          case '1':
+
+          case "1":
             e.preventDefault();
-            setViewMode('grid');
+            setViewMode("grid");
             break;
-          case '2':
+
+          case "2":
             e.preventDefault();
-            setViewMode('list');
+            setViewMode("list");
+            break;
+
+          default:
             break;
         }
       } else {
         switch (e.key) {
-          case 'Delete':
+          case "Delete":
+            e.preventDefault();
             if (selectedFile) {
-              e.preventDefault();
-              handleDelete(selectedFile);
+              const fileToDelete = selectedFile;
+              const timestamp = new Date().toISOString();
+              const tags = ["deleted", `deleted_time:${timestamp}`];
+
+              fetch(getFileApiUrl("/addTags"), {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ fileId: fileToDelete.id, tags }),
+              })
+                .then((res) => {
+                  if (!res.ok) throw new Error("Failed to tag file as deleted");
+                  console.log("File deleted successfully");
+                  setSelectedFile(null);
+                  fetchFiles();
+                })
+                .catch((err) => {
+                  console.error("Delete failed:", err);
+                  showToast("Failed to delete file", "error", 2000);
+                });
+            } else {
+              console.log("No file selected to delete");
             }
             break;
-          case 'Enter':
+
+          case "Enter":
+            e.preventDefault();
+            console.log("Enter pressed, selected file:", selectedFile);
             if (selectedFile) {
-              e.preventDefault();
-              if (selectedFile.type === 'folder') {
-                setCurrentPath(currentPath ? `${currentPath}/${selectedFile.name}` : selectedFile.name);
+              if (selectedFile.type === "folder" || selectedFile.isFolder) {
+                const newPath = currentPath
+                  ? `${currentPath}/${selectedFile.name}`
+                  : selectedFile.name;
+                setCurrentPath(newPath);
+                setSelectedFile(null);
               } else {
                 handlePreview(selectedFile);
               }
+            } else {
+              console.log("No file selected to open");
             }
             break;
-          case 'Backspace':
-            if (!currentPath) return;
-            e.preventDefault();
-            setCurrentPath(currentPath.split('/').slice(0, -1).join('/'));
-            break;
-          case 'F2':
-            if (selectedFile) {
+
+          case "Backspace":
+            if (currentPath) {
               e.preventDefault();
-              // Might brring rename functionality here
+              const parentPath = currentPath.split("/").slice(0, -1).join("/");
+              setCurrentPath(parentPath);
+              setSelectedFile(null);
             }
+            break;
+
+          case "Escape":
+            e.preventDefault();
+            setSelectedFile(null);
+            setPreviewFile(null);
+            setViewerFile(null);
+            break;
+
+          default:
             break;
         }
       }
     };
 
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    console.log("Keyboard shortcuts mounted");
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      console.log("Keyboard shortcuts unmounted");
+      document.removeEventListener("keydown", handleKeyDown);
+    };
   }, [selectedFile, clipboard, currentPath]);
-
-  const handlePaste = async () => {
-    if (!clipboard) return;
-
-    const { file } = clipboard;
-    const destinationPath = currentPath;
-
-    try {
-      await handleMoveFile(file, destinationPath);
-      setClipboard(null);
-    } catch (error) {
-      // Error handling without toast
-    }
-  };
 
   const handleDelete = async (file) => {
     const timestamp = new Date().toISOString();
@@ -581,7 +748,7 @@ export default function MyFiles() {
     const sodium = await getSodium();
 
     try {
-      const res = await fetch(getFileApiUrl('/download'), {
+      const res = await fetch(getFileApiUrl("/download"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId, fileId: file.id }),
@@ -628,8 +795,6 @@ export default function MyFiles() {
       );
       if (!decrypted) throw new Error("Decryption failed");
 
-      // Download file
-      //const decompressed = pako.ungzip(decrypted);
       const blob = new Blob([decrypted]);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -637,8 +802,6 @@ export default function MyFiles() {
       a.download = fileName;
       a.click();
       window.URL.revokeObjectURL(url);
-
-      console.log(`✅ Downloaded and decrypted ${fileName}`);
     } catch (err) {
       console.error("Download error:", err);
       showToast("Download failed", "error");
@@ -710,7 +873,6 @@ export default function MyFiles() {
       );
       if (!decrypted) throw new Error("Decryption failed");
 
-      //const decompressed = pako.ungzip(decrypted);
       return { fileName, decrypted };
     } catch (err) {
       console.error("Load file error:", err);
@@ -720,208 +882,275 @@ export default function MyFiles() {
 
   useEffect(() => {
     const fetchProfile = async () => {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem("token");
       try {
-        const res = await fetch(getApiUrl('/users/profile'), {
+        const res = await fetch(getApiUrl("/users/profile"), {
           headers: { Authorization: `Bearer ${token}` },
         });
 
         const result = await res.json();
-        if (!res.ok) throw new Error(result.message || 'Failed to fetch profile');
+        if (!res.ok)
+          throw new Error(result.message || "Failed to fetch profile");
 
         setUser(result.data);
       } catch (err) {
-        console.error('Failed to fetch profile:', err.message);
+        console.error("Failed to fetch profile:", err.message);
       }
     };
 
     fetchProfile();
-  }, []); 
-  
-const handlePreview = async (rawFile) => {
-  // Ensure this only runs on the client side
-  if (typeof window === 'undefined') return;
+  }, []);
 
-  const username = user?.username;
-  const file = {
-    ...rawFile,
-    type: getFileType(rawFile.fileType || rawFile.type || "", rawFile.fileName || rawFile.name),
-    name: rawFile.fileName || rawFile.name,
-    size: formatFileSize(rawFile.fileSize || rawFile.size || 0),
-  };
+  const handlePreview = async (rawFile) => {
+    // Ensure this only runs on the client side
+    if (typeof window === "undefined") return;
 
-  const result = await handleLoadFile(file);
-  if (!result) return;
+    const username = user?.username;
+    const file = {
+      ...rawFile,
+      type: getFileType(
+        rawFile.fileType || rawFile.type || "",
+        rawFile.fileName || rawFile.name
+      ),
+      name: rawFile.fileName || rawFile.name,
+      size: formatFileSize(rawFile.fileSize || rawFile.size || 0),
+    };
 
-  let contentUrl = null;
-  let textFull = null;
+    const result = await handleLoadFile(file);
+    if (!result) return;
 
-  if (file.type === "image") {
-    if (typeof window === 'undefined') return;
+    let contentUrl = null;
+    let textFull = null;
 
-    const imgBlob = new Blob([result.decrypted], { type: file.type });
-    const imgBitmap = await createImageBitmap(imgBlob);
+    if (file.type === "image") {
+      if (typeof window === "undefined") return;
 
-    const canvas = document.createElement("canvas");
-    canvas.width = imgBitmap.width;
-    canvas.height = imgBitmap.height;
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(imgBitmap, 0, 0);
+      const imgBlob = new Blob([result.decrypted], { type: file.type });
+      const imgBitmap = await createImageBitmap(imgBlob);
 
-    const fontSize = Math.floor(imgBitmap.width / 20);
-    ctx.font = `${fontSize}px Arial`;
-    ctx.fillStyle = "rgba(255, 0, 0, 0.7)";
-    ctx.textAlign = "center";
-    ctx.fillText(username, imgBitmap.width / 2, imgBitmap.height / 2);
+      const canvas = document.createElement("canvas");
+      canvas.width = imgBitmap.width;
+      canvas.height = imgBitmap.height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(imgBitmap, 0, 0);
 
-    contentUrl = canvas.toDataURL(file.type);
-  }
+      const fontSize = Math.floor(imgBitmap.width / 20);
+      ctx.font = `${fontSize}px Arial`;
+      ctx.fillStyle = "rgba(255, 0, 0, 0.7)";
+      ctx.textAlign = "center";
+      ctx.fillText(username, imgBitmap.width / 2, imgBitmap.height / 2);
 
-  else if (file.type === "pdf") {
-    // PDF watermarking temporarily disabled - pdf-lib removed for SSR compatibility
-    // Consider using server-side PDF processing or alternative approach
-    contentUrl = URL.createObjectURL(new Blob([result.decrypted], { type: "application/pdf" }));
-  } 
+      contentUrl = canvas.toDataURL(file.type);
+    } else if (file.type === "pdf") {
+      contentUrl = URL.createObjectURL(
+        new Blob([result.decrypted], { type: "application/pdf" })
+      );
+    } else if (file.type === "video" || file.type === "audio") {
+      contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
+    } else if (
+      [
+        "txt",
+        "json",
+        "csv",
+        "xml",
+        "yaml",
+        "yml",
+        "html",
+        "css",
+        "js",
+        "jsx",
+        "ts",
+        "tsx",
+        "py",
+        "java",
+        "cpp",
+        "c",
+        "php",
+        "rb",
+        "go",
+        "rs",
+        "sql",
+        "log",
+        "ini",
+        "cfg",
+        "conf",
+      ].includes(file.type)
+    ) {
+      textFull = new TextDecoder().decode(result.decrypted);
 
-  else if (file.type === "video" || file.type === "audio") {
-    contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
-  } 
-  
-  else if ([
-    "txt", "json", "csv", "xml", "yaml", "yml", 
-    "html", "css", "js", "jsx", "ts", "tsx",
-    "py", "java", "cpp", "c", "php", "rb", "go", "rs",
-    "sql", "log", "ini", "cfg", "conf"
-  ].includes(file.type)) {
-    textFull = new TextDecoder().decode(result.decrypted);
-    
-    //Add watermark comment for code files
-    if (["js", "jsx", "ts", "tsx", "py", "java", "cpp", "c", "php", "rb", "go", "rs"].includes(file.type)) {
-      const watermarkComment = getWatermarkComment(file.type, username);
-      textFull = watermarkComment + "\n" 
-      + textFull;
+      //Add watermark comment for code files
+      if (
+        [
+          "js",
+          "jsx",
+          "ts",
+          "tsx",
+          "py",
+          "java",
+          "cpp",
+          "c",
+          "php",
+          "rb",
+          "go",
+          "rs",
+        ].includes(file.type)
+      ) {
+        const watermarkComment = getWatermarkComment(file.type, username);
+        textFull = watermarkComment + "\n" + textFull;
+      }
     }
-  }
-  
-  //Markdown files, render this bitch as an html
-  else if (file.type === "markdown" || file.type === "md") {
-    const markdownText = new TextDecoder().decode(result.decrypted);
-    
-    //Add watermark to markdown
-    const watermarkMarkdown = `> **Viewed by: ${username}**\n\n`;
-    textFull = watermarkMarkdown + markdownText;
-  }
 
-  setPreviewContent({ url: contentUrl, text: textFull });
-  setPreviewFile(file);
-};
+    //Markdown files, render this bitch as an html
+    else if (file.type === "markdown" || file.type === "md") {
+      const markdownText = new TextDecoder().decode(result.decrypted);
 
-//Helper function to get appropriate comment syntax for watermarking code files
-const getWatermarkComment = (fileType, username) => {
-  const timestamp = new Date().toLocaleString();
-  
-  const commentStyles = {
-    js: `/* Viewed by: ${username} on ${timestamp} */`,
-    jsx: `/* Viewed by: ${username} on ${timestamp} */`,
-    ts: `/* Viewed by: ${username} on ${timestamp} */`,
-    tsx: `/* Viewed by: ${username} on ${timestamp} */`,
-    java: `/* Viewed by: ${username} on ${timestamp} */`,
-    cpp: `/* Viewed by: ${username} on ${timestamp} */`,
-    c: `/* Viewed by: ${username} on ${timestamp} */`,
-    css: `/* Viewed by: ${username} on ${timestamp} */`,
+      //Add watermark to markdown
+      const watermarkMarkdown = `> **Viewed by: ${username}**\n\n`;
+      textFull = watermarkMarkdown + markdownText;
+    }
 
-    py: `# Viewed by: ${username} on ${timestamp}`,
-    rb: `# Viewed by: ${username} on ${timestamp}`,
-    sql: `-- Viewed by: ${username} on ${timestamp}`,
-    
-    php: `<?php /* Viewed by: ${username} on ${timestamp} */ ?>`,
-    html: `<!-- Viewed by: ${username} on ${timestamp} -->`,
-    go: `// Viewed by: ${username} on ${timestamp}`,
-    rs: `// Viewed by: ${username} on ${timestamp}`,
-  };
-  
-  return commentStyles[fileType] || `// Viewed by: ${username} on ${timestamp}`;
-};
-
-const handleOpenFullView = async (file) => {
-  const username = user?.username;
-
-  if (file.type === "folder") {
-    setPreviewContent({
-      url: null,
-      text: "This is a folder. Double-click to open.",
-    });
+    setPreviewContent({ url: contentUrl, text: textFull });
     setPreviewFile(file);
-    return;
-  }
+  };
 
-  const result = await handleLoadFile(file);
-  if (!result) return;
+  //Helper function to get appropriate comment syntax for watermarking code files
+  const getWatermarkComment = (fileType, username) => {
+    const timestamp = new Date().toLocaleString();
 
-  let contentUrl = null;
-  let textFull = null;
+    const commentStyles = {
+      js: `/* Viewed by: ${username} on ${timestamp} */`,
+      jsx: `/* Viewed by: ${username} on ${timestamp} */`,
+      ts: `/* Viewed by: ${username} on ${timestamp} */`,
+      tsx: `/* Viewed by: ${username} on ${timestamp} */`,
+      java: `/* Viewed by: ${username} on ${timestamp} */`,
+      cpp: `/* Viewed by: ${username} on ${timestamp} */`,
+      c: `/* Viewed by: ${username} on ${timestamp} */`,
+      css: `/* Viewed by: ${username} on ${timestamp} */`,
 
-  if (file.type === "image") {
-    if (typeof window === 'undefined') return;
+      py: `# Viewed by: ${username} on ${timestamp}`,
+      rb: `# Viewed by: ${username} on ${timestamp}`,
+      sql: `-- Viewed by: ${username} on ${timestamp}`,
 
-    const imgBlob = new Blob([result.decrypted], { type: file.type });
-    const imgBitmap = await createImageBitmap(imgBlob);
+      php: `<?php /* Viewed by: ${username} on ${timestamp} */ ?>`,
+      html: `<!-- Viewed by: ${username} on ${timestamp} -->`,
+      go: `// Viewed by: ${username} on ${timestamp}`,
+      rs: `// Viewed by: ${username} on ${timestamp}`,
+    };
 
-    const canvas = document.createElement("canvas");
-    canvas.width = imgBitmap.width;
-    canvas.height = imgBitmap.height;
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(imgBitmap, 0, 0);
+    return (
+      commentStyles[fileType] || `// Viewed by: ${username} on ${timestamp}`
+    );
+  };
 
-    const fontSize = Math.floor(imgBitmap.width / 20);
-    ctx.font = `${fontSize}px Arial`;
-    ctx.fillStyle = "rgba(255, 0, 0, 0.7)";
-    ctx.textAlign = "center";
-    ctx.fillText(username, imgBitmap.width / 2, imgBitmap.height / 2);
+  const handleOpenFullView = async (file) => {
+    const username = user?.username;
 
-    contentUrl = canvas.toDataURL(file.type);
-  }
-
-  else if (file.type === "pdf") {
-    // PDF watermarking temporarily disabled - pdf-lib removed for SSR compatibility
-    // Consider using server-side PDF processing or alternative approach
-    contentUrl = URL.createObjectURL(new Blob([result.decrypted], { type: "application/pdf" }));
-  } 
-  
-  else if (file.type === "video" || file.type === "audio") {
-    contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
-  } 
-  
-  else if ([
-    "txt", "json", "csv", "xml", "yaml", "yml", 
-    "html", "css", "js", "jsx", "ts", "tsx",
-    "py", "java", "cpp", "c", "php", "rb", "go", "rs",
-    "sql", "log", "ini", "cfg", "conf"
-  ].includes(file.type)) {
-    textFull = new TextDecoder().decode(result.decrypted);
-    
-    if (["js", "jsx", "ts", "tsx", "py", "java", "cpp", "c", "php", "rb", "go", "rs"].includes(file.type)) {
-      const watermarkComment = getWatermarkComment(file.type, username);
-      textFull = watermarkComment + "\n" + textFull;
+    if (file.type === "folder") {
+      setPreviewContent({
+        url: null,
+        text: "This is a folder. Double-click to open.",
+      });
+      setPreviewFile(file);
+      return;
     }
-  }
-  
-  else if (file.type === "markdown" || file.type === "md") {
-    const markdownText = new TextDecoder().decode(result.decrypted);
-    const watermarkMarkdown = `> **Viewed by: ${username}**\n\n`;
-    textFull = watermarkMarkdown + markdownText;
-  }
 
-  setViewerContent({ url: contentUrl, text: textFull });
-  setViewerFile(file);
-};
+    const result = await handleLoadFile(file);
+    if (!result) return;
+
+    let contentUrl = null;
+    let textFull = null;
+
+    if (file.type === "image") {
+      if (typeof window === "undefined") return;
+
+      const imgBlob = new Blob([result.decrypted], { type: file.type });
+      const imgBitmap = await createImageBitmap(imgBlob);
+
+      const canvas = document.createElement("canvas");
+      canvas.width = imgBitmap.width;
+      canvas.height = imgBitmap.height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(imgBitmap, 0, 0);
+
+      const fontSize = Math.floor(imgBitmap.width / 20);
+      ctx.font = `${fontSize}px Arial`;
+      ctx.fillStyle = "rgba(255, 0, 0, 0.7)";
+      ctx.textAlign = "center";
+      ctx.fillText(username, imgBitmap.width / 2, imgBitmap.height / 2);
+
+      contentUrl = canvas.toDataURL(file.type);
+    } else if (file.type === "pdf") {
+      contentUrl = URL.createObjectURL(
+        new Blob([result.decrypted], { type: "application/pdf" })
+      );
+    } else if (file.type === "video" || file.type === "audio") {
+      contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
+    } else if (
+      [
+        "txt",
+        "json",
+        "csv",
+        "xml",
+        "yaml",
+        "yml",
+        "html",
+        "css",
+        "js",
+        "jsx",
+        "ts",
+        "tsx",
+        "py",
+        "java",
+        "cpp",
+        "c",
+        "php",
+        "rb",
+        "go",
+        "rs",
+        "sql",
+        "log",
+        "ini",
+        "cfg",
+        "conf",
+      ].includes(file.type)
+    ) {
+      textFull = new TextDecoder().decode(result.decrypted);
+
+      if (
+        [
+          "js",
+          "jsx",
+          "ts",
+          "tsx",
+          "py",
+          "java",
+          "cpp",
+          "c",
+          "php",
+          "rb",
+          "go",
+          "rs",
+        ].includes(file.type)
+      ) {
+        const watermarkComment = getWatermarkComment(file.type, username);
+        textFull = watermarkComment + "\n" + textFull;
+      }
+    } else if (file.type === "markdown" || file.type === "md") {
+      const markdownText = new TextDecoder().decode(result.decrypted);
+      const watermarkMarkdown = `> **Viewed by: ${username}**\n\n`;
+      textFull = watermarkMarkdown + markdownText;
+    }
+
+    setViewerContent({ url: contentUrl, text: textFull });
+    setViewerFile(file);
+  };
 
   const handleUpdateDescription = async (fileId, description) => {
     try {
       const res = await fetch(getFileApiUrl("/addDescription"), {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ fileId, description }),
       });
@@ -944,6 +1173,9 @@ const handleOpenFullView = async (file) => {
 
     const res = await fetch(getFileApiUrl("/updateFilePath"), {
       method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({ fileId: file.id, newPath: fullPath }),
     });
 
@@ -991,31 +1223,72 @@ const handleOpenFullView = async (file) => {
 
     const handleDrop = async (e, targetPath) => {
       e.preventDefault();
-      const draggedFileId = e.dataTransfer.getData("text/plain");
-      if (!draggedFileId) return;
+      e.stopPropagation();
+      setDragOverCrumb(null);
 
-      const allFiles = files;
-      const draggedFile = allFiles.find(f => f.id === draggedFileId);
-      if (!draggedFile) return;
+      try {
+        const draggedData = e.dataTransfer.getData("application/json");
 
-      await handleMoveFile(draggedFile, targetPath);
+        if (!draggedData) {
+          console.warn("No drag data found in dataTransfer");
+          return;
+        }
+
+        const draggedFile = JSON.parse(draggedData);
+        console.log("Parsed dragged file:", draggedFile);
+
+        if (!draggedFile || !draggedFile.id) {
+          console.warn("Invalid dragged file data");
+          return;
+        }
+
+        const currentFilePath = normalizePath(draggedFile.path);
+        const currentFileDir = currentFilePath.includes("/")
+          ? currentFilePath.substring(0, currentFilePath.lastIndexOf("/"))
+          : "";
+
+        if (currentFileDir === targetPath) {
+          showToast("File is already in this location", "info");
+          return;
+        }
+
+        await handleMoveFile(draggedFile, targetPath);
+        await fetchFiles();
+      } catch (error) {
+        console.error("Move failed:", error);
+        showToast("Failed to move file", "error");
+      }
     };
 
-    const handleDragOver = (e) => {
+    const handleDragOver = (e, crumbPath) => {
       e.preventDefault();
+      e.stopPropagation();
+      e.dataTransfer.dropEffect = "move";
+      setDragOverCrumb(crumbPath);
+    };
+
+    const handleDragLeave = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setDragOverCrumb(null);
     };
 
     return (
       <div className="mb-6">
         {/* Breadcrumbs */}
-        <nav className="mb-2 text-s text-gray-500 dark:text-gray-400">
+        <nav className="mb-2 text-sm text-gray-500 dark:text-gray-400">
           {crumbs.map((crumb, i) => (
-            <span key={crumb.path}>
+            <span key={crumb.path || "root"}>
               <button
                 onClick={() => setCurrentPath(crumb.path)}
-                onDragOver={handleDragOver}
+                onDragOver={(e) => handleDragOver(e, crumb.path)}
+                onDragLeave={handleDragLeave}
                 onDrop={(e) => handleDrop(e, crumb.path)}
-                className="hover:underline"
+                className={`hover:underline hover:text-blue-600 transition-colors px-2 py-1 rounded ${
+                  dragOverCrumb === crumb.path
+                    ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 font-semibold"
+                    : ""
+                }`}
               >
                 {crumb.name || "All files"}
               </button>
@@ -1024,43 +1297,32 @@ const handleOpenFullView = async (file) => {
           ))}
         </nav>
 
-        {/* Curr Folder */}
+        {/* Current Folder */}
         <div className="flex items-center space-x-2">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
             {currentDirName}
           </h1>
-          <button className="p-1">
-            <svg
-              className="w-5 h-5 text-gray-500 dark:text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              viewBox="0 0 24 24"
-            ></svg>
-          </button>
         </div>
       </div>
     );
   };
 
   return (
-    <div className=" bg-gray-50 p-6 dark:bg-gray-900">
-      <div className=" ">
+     <div className="bg-gray-50 p-6 dark:bg-gray-900">
+      <div className="">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-2xl font-semibold text-blue-500 ">My Files</h1>
+            <h1 className="text-2xl font-semibold text-blue-500">My Files</h1>
             <p className="text-gray-600 dark:text-gray-400">
               Manage and organize your files
-            </p>
-            {/* <div className="text-xs text-gray-500 mt-1">
-              <span className="font-medium">Shortcuts:</span> Ctrl+C/V • Del • Enter • Backspace • Ctrl+D/U • Ctrl+1/2
-            </div> */}
+            </p>            
           </div>
 
-          <div className="flex items-center gap-4">
-            {/* View Toggle */}
-            <div className="flex items-center bg-white rounded-lg border p-1 dark:bg-gray-200">
+          {/* View + Sort Toggle */}
+          <div className="z-10 flex items-center gap-4 relative">
+            <div className="flex items-center bg-white rounded-lg border p-1 dark:bg-gray-200 relative z-50">
+              {/* Grid Button */}
               <button
                 className={`px-3 py-1 rounded ${
                   viewMode === "grid"
@@ -1071,6 +1333,8 @@ const handleOpenFullView = async (file) => {
               >
                 <Grid className="h-4 w-4" />
               </button>
+
+              {/* List Button */}
               <button
                 className={`px-3 py-1 rounded ${
                   viewMode === "list"
@@ -1081,8 +1345,66 @@ const handleOpenFullView = async (file) => {
               >
                 <List className="h-4 w-4" />
               </button>
-            </div>
 
+              {/* Sort Button with Dropdown */}
+              <div className="relative" ref={sortDropdownRef}>
+                <button
+                  className="px-3 py-1 rounded flex items-center gap-1 text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
+                  onClick={() => setShowSortOptions((prev) => !prev)}
+                >
+                  Sort
+                  <ChevronDown className="h-3 w-3" />
+                </button>
+
+                {showSortOptions && (
+                  <div className="absolute right-0 top-full mt-2 w-48 bg-white border rounded-lg shadow-lg z-50 dark:bg-gray-100 p-2">
+                    <label className="flex items-center px-4 py-2 hover:bg-gray-100 text-gray-700 dark:text-black">
+                      <input
+                        type="checkbox"
+                        checked={sortOptions.byDate}
+                        onChange={() => handleSortChange("byDate")}
+                        className="mr-2 appearance-none h-4 w-4 border border-gray-400 rounded-sm checked:bg-blue-500 checked:border-blue-600 checked:ring-1 checked:ring-gray-600"
+                      />
+                      Sort by Date
+                    </label>
+                    <label className="flex items-center px-4 py-2 hover:bg-gray-100 text-gray-700 dark:text-black">
+                      <input
+                        type="checkbox"
+                        checked={sortOptions.byName}
+                        onChange={() => handleSortChange("byName")}
+                        className="mr-2 appearance-none h-4 w-4 border border-gray-400 rounded-sm checked:bg-blue-500 checked:border-blue-600 checked:ring-1 checked:ring-gray-600"
+                      />
+                      Sort by Name
+                    </label>
+                    <label className="flex items-center px-4 py-2 hover:bg-gray-100 text-gray-700 dark:text-black">
+                      <input
+                        type="checkbox"
+                        checked={sortOptions.bySize}
+                        onChange={() => handleSortChange("bySize")}
+                        className="mr-2 appearance-none h-4 w-4 border border-gray-400 rounded-sm checked:bg-blue-500 checked:border-blue-600 checked:ring-1 checked:ring-gray-600"
+                      />
+                      Sort by Size
+                    </label>
+                    <hr className="border-gray-200 dark:border-gray-400 my-1" />
+                    <label className="flex items-center px-4 py-2 hover:bg-gray-100 text-gray-700 dark:text-black">
+                      <input
+                        type="checkbox"
+                        checked={sortOptions.ascending}
+                        onChange={() => handleSortChange("ascending")}
+                        className="mr-2 appearance-none h-4 w-4 border border-gray-400 rounded-sm checked:bg-blue-500 checked:border-blue-600 checked:ring-1 checked:ring-gray-600"
+                      />
+                      Ascending
+                    </label>
+                    <button
+                      className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700 dark:text-black"
+                      onClick={() => handleSortChange("reset")}
+                    >
+                      Reset to Default
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
             {/* Create Folder & Upload buttons */}
             <button
               onClick={() => setIsCreateFolderOpen(true)}
@@ -1106,7 +1428,7 @@ const handleOpenFullView = async (file) => {
 
         {/*File */}
         {filteredVisibleFiles.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-96 text-center text-gray-700 dark:text-gray-500  rounded-lg p-10">
+          <div className="flex flex-col items-center justify-center h-96 text-center text-gray-700 dark:text-gray-500 rounded-lg p-10">
             <svg
               className="w-16 h-16 mb-4 text-gray-500 dark:text-gray-300"
               fill="none"
@@ -1127,7 +1449,7 @@ const handleOpenFullView = async (file) => {
           </div>
         ) : viewMode === "grid" ? (
           <FileGrid
-            files={filteredVisibleFiles} // files filtered by currentPath
+            files={filteredVisibleFiles}
             onShare={openShareDialog}
             onViewDetails={openDetailsDialog}
             onViewActivity={openActivityDialog}
@@ -1240,4 +1562,3 @@ const handleOpenFullView = async (file) => {
     </div>
   );
 }
-

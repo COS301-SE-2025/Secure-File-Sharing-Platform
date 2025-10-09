@@ -3,24 +3,24 @@ const footerLinks = [
     title: "Secure Share",
     links: [
       { name: "Website", href: "#" },
-      { name: "Features", href: "#" },
     ],
   },
-  {
-    title: "Features",
-    links: [
-      { name: "Send files", href: "#" },
-      { name: "Send videos", href: "#" },
-      { name: "Cloud storage", href: "#" },
-      { name: "Secure file transfer", href: "#" },
-    ],
-  },
+  // {
+  //   title: "Features",
+  //   links: [
+  //     { name: "Send files", href: "#" },
+  //     { name: "Send videos", href: "#" },
+  //     { name: "Cloud storage", href: "#" },
+  //     { name: "Secure file transfer", href: "#" },
+  //   ],
+  // },
   {
     title: "Support",
     links: [
       { name: "Help center", href: "/Support/helpCenter" },
       { name: "Contact us", href: "/Support/contactPage" },
       { name: "FAQ", href: "/Support/FAQs" },
+      { name: "Security", href: "/Support/Security" },
     ],
   },
   

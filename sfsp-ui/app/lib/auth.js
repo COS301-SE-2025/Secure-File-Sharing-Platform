@@ -1,50 +1,49 @@
-'use client';
+"use client";
 
-import { useEncryptionStore } from '@/app/SecureKeyStorage';
+import { useEncryptionStore } from "@/app/SecureKeyStorage";
 
 export const logout = () => {
   try {
-    // Clear localStorage items
-    localStorage.removeItem('token');
-    localStorage.removeItem('encryption-store');
-    localStorage.removeItem('user');
+    localStorage.removeItem("token");
+    localStorage.removeItem("encryption-store");
+    localStorage.removeItem("user");
 
-    // Clear sessionStorage items
-    sessionStorage.removeItem('unlockToken');
-    sessionStorage.removeItem('pendingLogin');
+    sessionStorage.removeItem("unlockToken");
+    sessionStorage.removeItem("pendingLogin");
+    sessionStorage.removeItem("pendingVerification");
 
-    // Reset the encryption store
     const store = useEncryptionStore.getState();
     store.setEncryptionKey(null);
     store.setUserId(null);
     store.setUserKeys(null);
   } catch (error) {
-    console.error('Error during logout:', error);
+    console.error("Error during logout:", error);
   }
 };
 
 export const isAuthenticated = () => {
   try {
-    // Check if localStorage is available (SSR safety)
-    if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+    if (typeof window === "undefined" || typeof localStorage === "undefined") {
       return false;
     }
 
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem("token");
     const userId = useEncryptionStore.getState().userId;
+    const userKeys = useEncryptionStore.getState().userKeys;
+    console.log("isAuthenticated check:", { token, userId, userKeys });
 
-    return !!(token && userId);
+    return !!(token && userId && userKeys);
   } catch (error) {
-    console.error('Error checking authentication:', error);
+    console.error("Error checking authentication:", error);
     return false;
   }
 };
 
 export const getAuthToken = () => {
   try {
-    return localStorage.getItem('token');
+    return localStorage.getItem("token");
   } catch (error) {
-    console.error('Error getting auth token:', error);
+    console.error("Error getting auth token:", error);
     return null;
   }
 };

@@ -16,6 +16,7 @@ import {
   storeDerivedKeyEncrypted,
 } from "../SecureKeyStorage";
 import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
+import { logout } from "../lib/auth";
 
 
 export default function AuthPage() {
@@ -44,12 +45,15 @@ export default function AuthPage() {
     hasSpecialChar: false,
   });
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+  const [toast, setToast] = useState({ message: "", type: "" });
+  const [showRecoveryKeyModal, setShowRecoveryKeyModal] = useState(false);
+  const [recoveryKey, setRecoveryKey] = useState("");
 
-  // Handle Google OAuth errors from URL parameters
   useEffect(() => {
+    logout();
     const urlParams = new URLSearchParams(window.location.search);
     const error = urlParams.get('error');
-    
+
     if (error) {
       switch (error) {
         case 'oauth_error':
@@ -79,7 +83,7 @@ export default function AuthPage() {
         default:
           setMessage('An error occurred during Google authentication. Please try again.');
       }
-      
+
       // Clean up URL parameters
       const newUrl = window.location.pathname;
       window.history.replaceState({}, '', newUrl);
@@ -92,6 +96,11 @@ export default function AuthPage() {
     }
   }, []);
 
+  const showToast = (message, type = "error", duration = 3000) => {
+    setToast({ message, type });
+    setTimeout(() => setToast({ message: "", type: "" }), duration);
+  };
+
   function handleChange(setter) {
     return (event) => {
       const { name, value } = event.target;
@@ -99,11 +108,11 @@ export default function AuthPage() {
         ...prev,
         [name]: value,
       }));
-      
+
       if (name === 'password' && setter === setSignupData) {
         checkPasswordRequirements(value);
       }
-      
+
       if (fieldErrors[name]) {
         setFieldErrors((prev) => ({
           ...prev,
@@ -134,7 +143,7 @@ export default function AuthPage() {
     try {
       const sodium = await getSodium();
       const loginUrl = getApiUrl('/users/login');
-      
+
       const res = await fetch(loginUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -168,14 +177,14 @@ export default function AuthPage() {
 
       // Always send verification code for login security
       setLoaderMessage("Sending verification code...");
-      
+
       // Store login data temporarily for verification
       sessionStorage.setItem("pendingLogin", JSON.stringify({
         email: loginData.email,
         password: loginData.password,
         userId: id
       }));
-      
+
       // Send verification code before redirecting
       try {
         const sendCodeResponse = await fetch(`/api/auth/send-verification`, {
@@ -193,6 +202,7 @@ export default function AuthPage() {
           const errorData = await sendCodeResponse.json();
           console.error("Failed to send verification code:", errorData);
           setMessage("Failed to send verification code. Please try again.");
+          showToast("Failed to send verification code. Please try again.", "error");
           setIsLoading(false);
           return;
         }
@@ -207,18 +217,20 @@ export default function AuthPage() {
       } catch (error) {
         console.error("Error sending verification code:", error);
         setMessage("Failed to send verification code. Please try again.");
+        showToast("Failed to send verification code. Please try again.", "error");
         setIsLoading(false);
         return;
       }
 
       // Store login data temporarily for verification completion
       // The verification page will handle the final authentication setup
-      
+
     } catch (err) {
       console.error("Login error:", err);
-      setMessage(
-        err.message || "An unexpected error occurred. Please try again."
-      );
+      // setMessage(
+      //   err.message || "An unexpected error occurred. Please try again."
+      // );
+      showToast(err.message || "An unexpected error occurred. Please try again.", "error");
     } finally {
       setIsLoading(false);
     }
@@ -273,6 +285,10 @@ export default function AuthPage() {
         nonce,
         signedPrekeySignature,
         salt,
+        recoveryKeyWords,
+        recovery_key_encrypted,
+        recovery_key_nonce,
+        recovery_salt,
       } = await GenerateX3DHKeys(password);
 
       const registerUrl = getApiUrl('/users/register');
@@ -293,6 +309,9 @@ export default function AuthPage() {
           nonce,
           signedPrekeySignature,
           salt,
+          recovery_key_encrypted,
+          recovery_key_nonce,
+          recovery_salt,
         }),
       });
 
@@ -356,15 +375,27 @@ export default function AuthPage() {
         userKeys: userKeys,
       });
 
+      // 🔑 Show recovery key to user BEFORE proceeding
+      setRecoveryKey(recoveryKeyWords);
+      setShowRecoveryKeyModal(true);
+      setIsLoading(false);
+
+      // Store verification state to continue after modal is closed
+      sessionStorage.setItem('pendingVerificationEmail', user.email);
+      sessionStorage.setItem('pendingVerificationUserId', user.id);
+      sessionStorage.setItem('pendingVerificationToken', token);
+      sessionStorage.setItem('needsVerification', user.is_verified ? 'false' : 'true');
+
+      return; // Wait for user to save recovery key
 
       // Check if user needs email verification
       if (!user.is_verified) {
         setLoaderMessage("Account created! Please check your email for verification...");
-        
+
         // Add user to PostgreSQL database before redirecting to verification
         try {
           const addUserUrl = getFileApiUrl('/addUser');
-          
+
           const addUserRes = await fetch(addUserUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -387,6 +418,9 @@ export default function AuthPage() {
         const rawToken = token.replace(/^Bearer\s/, "");
         localStorage.setItem("token", rawToken);
 
+        // Set flag to prevent AuthGuard from redirecting during verification
+        sessionStorage.setItem("pendingVerification", "true");
+
         setTimeout(() => {
           const redirectParam = searchParams.get('redirect');
           const verifyUrl = `/auth/verify-email?email=${encodeURIComponent(user.email)}&userId=${user.id}${redirectParam ? `&redirect=${encodeURIComponent(redirectParam)}` : ''}`;
@@ -399,11 +433,12 @@ export default function AuthPage() {
       const rawToken = token.replace(/^Bearer\s/, "");
       localStorage.setItem("token", rawToken);
       setMessage("User successfully registered!");
+      showToast("User successfully registered!", "success");
 
       // Add user to PostgreSQL database (for verified users)
       try {
         const addUserUrl = getFileApiUrl('/addUser');
-        
+
         const addUserRes = await fetch(addUserUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -429,6 +464,7 @@ export default function AuthPage() {
     } catch (err) {
       console.error("Signup error:", err);
       setMessage(err.message || "Something went wrong. Please try again.");
+      showToast(err.message || "Something went wrong. Please try again.", "error");
     } finally {
       setIsLoading(false);
     }
@@ -438,7 +474,7 @@ export default function AuthPage() {
     try {
       setIsLoading(true);
       setLoaderMessage("Redirecting to Google...");
-      
+
       const authInProgress = localStorage.getItem('googleAuthInProgress');
       if (authInProgress) {
         setMessage('Google authentication is already in progress. Please wait...');
@@ -456,13 +492,13 @@ export default function AuthPage() {
 
       const redirectUri = `${window.location.origin}/auth/google/callback`;
       const scope = 'openid email profile';
-      
+
       // Generate state parameter for security
       const stateArray = new Uint32Array(4);
       crypto.getRandomValues(stateArray);
       const state = Array.from(stateArray, x => x.toString(16)).join('');
       sessionStorage.setItem('googleOAuthState', state);
-      
+
       const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
         `client_id=${encodeURIComponent(clientId)}&` +
         `redirect_uri=${encodeURIComponent(redirectUri)}&` +
@@ -473,9 +509,9 @@ export default function AuthPage() {
         `prompt=consent`;
 
       localStorage.setItem('googleAuthInProgress', 'true');
-      
+
       localStorage.removeItem('lastUsedGoogleCode');
-      
+
       // Use simple location redirect instead of dynamic script injection
       window.location.assign(authUrl);
 
@@ -491,6 +527,57 @@ export default function AuthPage() {
     setMessage(msg);
     setIsLoading(false);
   }
+
+  // 🔑 Handle recovery key modal confirmation
+  const handleRecoveryKeyConfirmed = async () => {
+    setShowRecoveryKeyModal(false);
+    setIsLoading(true);
+
+    const email = sessionStorage.getItem('pendingVerificationEmail');
+    const userId = sessionStorage.getItem('pendingVerificationUserId');
+    const token = sessionStorage.getItem('pendingVerificationToken');
+    const needsVerification = sessionStorage.getItem('needsVerification') === 'true';
+
+    // Clean up session storage
+    sessionStorage.removeItem('pendingVerificationEmail');
+    sessionStorage.removeItem('pendingVerificationUserId');
+    sessionStorage.removeItem('pendingVerificationToken');
+    sessionStorage.removeItem('needsVerification');
+
+    // Add user to PostgreSQL database
+    try {
+      const addUserUrl = getFileApiUrl('/addUser');
+      await fetch(addUserUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+    } catch (error) {
+      console.error("Error adding user to PostgreSQL database:", error);
+    }
+
+    const rawToken = token.replace(/^Bearer\s/, "");
+    localStorage.setItem("token", rawToken);
+
+    if (needsVerification) {
+      setLoaderMessage("Account created! Please check your email for verification...");
+      sessionStorage.setItem("pendingVerification", "true");
+
+      setTimeout(() => {
+        const redirectParam = searchParams.get('redirect');
+        const verifyUrl = `/auth/verify-email?email=${encodeURIComponent(email)}&userId=${userId}${redirectParam ? `&redirect=${encodeURIComponent(redirectParam)}` : ''}`;
+        router.push(verifyUrl);
+      }, 1500);
+    } else {
+      setMessage("User successfully registered!");
+      showToast("User successfully registered!", "success");
+
+      setTimeout(() => {
+        const redirectUrl = searchParams.get("redirect") || "/dashboard";
+        router.push(redirectUrl);
+      }, 1500);
+    }
+  };
 
   async function GenerateX3DHKeys(password) {
     const sodium = await getSodium();
@@ -532,6 +619,20 @@ export default function AuthPage() {
       ),
     }));
 
+    // 🔑 NEW: Generate recovery key for password reset
+    const recoveryKey = sodium.randombytes_buf(32);
+    const recoveryKeyBase64 = sodium.to_base64(recoveryKey);
+
+    // Encrypt the derived key with recovery key for backup
+    const recoveryNonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
+    const encryptedDerivedKeyBackup = sodium.crypto_secretbox_easy(
+      derivedKey,
+      recoveryNonce,
+      recoveryKey
+    );
+
+    const recoverySalt = sodium.randombytes_buf(sodium.crypto_pwhash_SALTBYTES);
+
     return {
       ik_public: sodium.to_base64(ik.publicKey),
       spk_public: sodium.to_base64(spk.publicKey),
@@ -547,6 +648,12 @@ export default function AuthPage() {
 
       salt: sodium.to_base64(salt),
       nonce: sodium.to_base64(nonce),
+
+      // 🔑 Recovery key data (NEW)
+      recoveryKeyWords: recoveryKeyBase64, // Show this to user ONCE
+      recovery_key_encrypted: sodium.to_base64(encryptedDerivedKeyBackup),
+      recovery_key_nonce: sodium.to_base64(recoveryNonce),
+      recovery_salt: sodium.to_base64(recoverySalt),
     };
   }
 
@@ -708,52 +815,19 @@ export default function AuthPage() {
                   {isLoading ? "Signing in..." : "Log In"}
                 </button>
 
-                {/* Or separator */}
-                {/* <div className="flex items-center my-4">
-                  <hr className="flex-grow border-t dark:border-gray-400 border-gray-300" />
-                  <span className="mx-2 text-gray-500 text-sm">or</span>
-                  <hr className="flex-grow border-t dark:border-gray-400 border-gray-300" />
-                </div> */}
-
-                {/* Google login button */}
-                {/* <button
-                  type="button"
-                  onClick={handleGoogleAuth}
-                  disabled={isLoading}
-                  className="w-full flex items-center justify-center space-x-2 border dark:border-gray-400 border-gray-300 rounded-md py-2 hover:bg-gray-100 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                  data-testid="google-oauth-button"
-                >
-                  <svg
-                    className="w-5 h-5"
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 533.5 544.3"
+                {/* Forgot Password Link */}
+                <div className="text-center">
+                  <Link
+                    href="/reset-password"
+                    className="text-sm text-blue-600 hover:text-blue-700 hover:underline"
                   >
-                    <path
-                      fill="#4285f4"
-                      d="M533.5 278.4c0-17.6-1.5-34.6-4.4-51.1H272v96.9h146.7c-6.3 34.3-25 63.4-53.6 82.9v68h86.7c50.7-46.7 79.7-115.7 79.7-196.7z"
-                    />
-                    <path
-                      fill="#34a853"
-                      d="M272 544.3c72.9 0 134.1-24.1 178.7-65.3l-86.7-68c-24.1 16.1-55 25.7-91.9 25.7-70.7 0-130.6-47.7-152.1-111.9h-90.3v70.4c44.8 88.2 136.5 149.1 242.4 149.1z"
-                    />
-                    <path
-                      fill="#fbbc04"
-                      d="M119.9 322.8c-10.4-30.8-10.4-64.3 0-95.1v-70.4h-90.3c-37.8 74.8-37.8 164.7 0 239.5l90.3-73.9z"
-                    />
-                    <path
-                      fill="#ea4335"
-                      d="M272 107.7c39.4-.6 77.2 14 106 40.4l79.3-79.3C402.1 22.2 344.4-1.6 272 0 166.1 0 74.4 60.9 29.6 149.1l90.3 70.4c21.6-64.2 81.5-111.9 152.1-111.9z"
-                    />
-                  </svg>
-                  <span className="text-sm font-medium text-gray-700">
-                    Continue with Google
-                  </span>
-                </button> */}
+                    Forgot your password?
+                  </Link>
+                </div>
               </form>
             </>
           )}
 
-          {/* Signup Form */}
           {tab === "signup" && (
             <>
               <div className="mb-6 text-center">
@@ -840,7 +914,7 @@ export default function AuthPage() {
                       )}
                     </button>
                   </div>
-                  
+
                   {/* Password Requirements Checklist */}
                   {isPasswordFocused && signupData.password && (
                     <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-100 rounded-md border">
@@ -879,7 +953,7 @@ export default function AuthPage() {
                       </div>
                     </div>
                   )}
-                  
+
                   {fieldErrors.password && (
                     <p className="text-red-500 text-sm mt-1">{fieldErrors.password}</p>
                   )}
@@ -891,34 +965,33 @@ export default function AuthPage() {
                   >
                     Confirm Password
                   </label>
-                    <div className="relative">
-                      <input
-                        id="confirmPassword"
-                        name="confirmPassword"
-                        type={showConfirmPassword ? 'text' : 'password'}
-                        value={signupData.confirmPassword}
-                        onChange={handleChange(setSignupData)}
-                        disabled={!allPasswordRequirementsMet}
-                        required
-                        className={`w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${
-                          fieldErrors.confirmPassword ? 'border-red-500' : ''
+                  <div className="relative">
+                    <input
+                      id="confirmPassword"
+                      name="confirmPassword"
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      value={signupData.confirmPassword}
+                      onChange={handleChange(setSignupData)}
+                      disabled={!allPasswordRequirementsMet}
+                      required
+                      className={`w-full border dark:border-gray-400 border-gray-300 rounded-md px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${fieldErrors.confirmPassword ? 'border-red-500' : ''
                         } ${!allPasswordRequirementsMet ? 'bg-gray-100 cursor-not-allowed opacity-50' : ''}`}
-                        placeholder={!allPasswordRequirementsMet ? 'Enter password' : ''}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        disabled={!allPasswordRequirementsMet}
-                        className={`absolute inset-y-0 right-0 flex items-center pr-3 ${!allPasswordRequirementsMet ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
-                      >
-                        {showConfirmPassword ? (
-                          <Eye className="h-5 w-5 text-gray-500 hover:text-gray-700" />
-                        ) : (
-                          <EyeClosed className="h-5 w-5 text-gray-500 hover:text-gray-700" />
-                        )}
-                      </button>
-                    </div>
+                      placeholder={!allPasswordRequirementsMet ? 'Enter password' : ''}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      disabled={!allPasswordRequirementsMet}
+                      className={`absolute inset-y-0 right-0 flex items-center pr-3 ${!allPasswordRequirementsMet ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+                    >
+                      {showConfirmPassword ? (
+                        <Eye className="h-5 w-5 text-gray-500 hover:text-gray-700" />
+                      ) : (
+                        <EyeClosed className="h-5 w-5 text-gray-500 hover:text-gray-700" />
+                      )}
+                    </button>
+                  </div>
                   {fieldErrors.confirmPassword && (
                     <p className="text-red-500 text-sm mt-1">{fieldErrors.confirmPassword}</p>
                   )}
@@ -1006,6 +1079,87 @@ export default function AuthPage() {
           )}
         </div>
       </div>
+
+      {toast.message && (
+        <div
+          className={`
+      fixed top-6 right-6 px-6 py-3 rounded-lg shadow-lg z-[9999]
+      text-sm font-medium transition-all duration-300
+      animate-slide-in-out
+      ${toast.type === "success" ? "bg-green-400 text-white" : ""}
+      ${toast.type === "error" ? "bg-red-400 text-white" : ""}
+      ${toast.type === "default" ? "bg-blue-400 text-white" : ""}
+    `}
+        >
+          {toast.message}
+        </div>
+      )}
+
+      {/* Recovery Key Modal */}
+      {showRecoveryKeyModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[10000] p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl max-w-2xl w-full p-8 animate-fade-in">
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">Save Your Recovery Key</h2>
+              <p className="text-gray-600 dark:text-gray-400">
+                This is your only chance to save your recovery key. You&apos;ll need it to reset your password if you forget it.
+              </p>
+            </div>
+
+            <div className="bg-gray-50 dark:bg-gray-700 border-2 border-blue-300 dark:border-blue-600 rounded-lg p-4 mb-6">
+              <div className="flex items-start mb-2">
+                <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+                <p className="text-sm font-semibold text-gray-800 dark:text-white">Important: Store this key securely!</p>
+              </div>
+              <div className="bg-white dark:bg-gray-600 p-4 rounded border border-gray-400 dark:border-gray-500 mb-3 font-mono text-sm break-all select-all text-gray-900 dark:text-white">
+                {recoveryKey}
+              </div>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(recoveryKey);
+                  showToast("Recovery key copied to clipboard!", "success");
+                }}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center justify-center"
+              >
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                Copy
+              </button>
+            </div>
+
+            <div className="space-y-3 mb-6">
+              <div className="flex items-start">
+                <svg className="w-5 h-5 text-green-600 dark:text-green-400 mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-sm text-gray-700 dark:text-gray-300">Save this key somewhere safe.</p>
+              </div>
+              <div className="flex items-start">
+                <svg className="w-5 h-5 text-red-600 dark:text-red-400 mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                <p className="text-sm text-gray-700 dark:text-gray-300">Avoid sharing your key.</p>
+              </div>
+            </div>
+
+            <div className="bg-red-200 dark:bg-red-500 border border-red-200 dark:border-red-700 rounded-lg p-4 mb-6">
+              <p className="text-sm text-red-800 dark:text-red-200">
+                <strong>Warning:</strong> Without this recovery key, you will not be able to reset your password or access your files if you forget your password.
+              </p>
+            </div>
+
+            <button
+              onClick={handleRecoveryKeyConfirmed}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors font-semibold"
+            >
+              I&apos;ve Saved My Recovery Key - Continue
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

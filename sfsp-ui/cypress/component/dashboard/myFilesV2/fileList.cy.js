@@ -8,7 +8,7 @@ describe('FileList Component', () => {
             id: 1,
             name: 'Document.pdf',
             type: 'pdf',
-            size: '2.5 MB',
+            size: 2621440, // 2.5 MB in bytes
             modified: '2024-01-15',
             starred: false,
         },
@@ -16,7 +16,7 @@ describe('FileList Component', () => {
             id: 2,
             name: 'Image.jpg',
             type: 'image',
-            size: '1.8 MB',
+            size: 1887436, // 1.8 MB in bytes
             modified: '2024-01-14',
             starred: true,
         },
@@ -24,7 +24,7 @@ describe('FileList Component', () => {
             id: 3,
             name: 'Video.mp4',
             type: 'video',
-            size: '25.3 MB',
+            size: 26525900, // 25.3 MB in bytes
             modified: '2024-01-13',
             starred: false,
         },
@@ -32,7 +32,7 @@ describe('FileList Component', () => {
             id: 4,
             name: 'Folder1',
             type: 'folder',
-            size: '--',
+            size: 0,
             modified: '2024-01-12',
             starred: false,
         },
@@ -40,7 +40,7 @@ describe('FileList Component', () => {
             id: 5,
             name: 'Unknown.xyz',
             type: 'unknown',
-            size: '500 KB',
+            size: 512000, // 500 KB in bytes
             modified: '2024-01-11',
             starred: false,
         },
@@ -102,7 +102,7 @@ describe('FileList Component', () => {
 
         cy.get('tbody tr').eq(0).within(() => {
             cy.get('td').eq(0).should('contain.text', 'Document.pdf');
-            cy.get('td').eq(1).should('contain.text', '2.5 MB');
+            cy.get('td').eq(1).should('contain.text', '2.50 MB');
             cy.get('td').eq(2).should('contain.text', '2024-01-15');
         });
 

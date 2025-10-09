@@ -137,8 +137,8 @@ export default function TrashPage() {
   };
 
   const handleDelete = async (fileId) => {
-    const confirm = window.confirm("Are you sure you want to permanently delete this file?");
-    if (!confirm) return;
+    // const confirm = window.confirm("Are you sure you want to permanently delete this file?");
+    // if (!confirm) return;
 
     try {
       const res = await fetch(getFileApiUrl("/deleteFile"), {

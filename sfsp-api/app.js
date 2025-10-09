@@ -7,7 +7,7 @@ const routes = require('./routes')
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '2gb' }));
 
 const allowedOrigins = process.env.CORS_ORIGINS
     ? process.env.CORS_ORIGINS.split(',')
@@ -38,8 +38,12 @@ app.use(express.urlencoded({
 
 app.use('/api', routes);
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
     console.log("Server running at http://localhost:" + PORT)
 });
+
+server.timeout = 1800000; 
+server.keepAliveTimeout = 300000; 
+server.headersTimeout = 310000;
 
 module.exports = app;

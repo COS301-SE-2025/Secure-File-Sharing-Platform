@@ -120,6 +120,9 @@ func main() {
 	http.HandleFunc("/createFolder", fileHandler.CreateFolderHandler)
 	http.HandleFunc("/updateFilePath", metadata.UpdateFilePathHandler)
 
+	// Password reset - file re-encryption
+	http.HandleFunc("/updateFile", fileHandler.UpdateFileHandler)
+
 	//changeMethod
 	http.HandleFunc("/changeMethod", fileHandler.ChangeShareMethodHandler)
 	http.HandleFunc("/usersWithFileAccess", fileHandler.GetUsersWithFileAccessHandler)

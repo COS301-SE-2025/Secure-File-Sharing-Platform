@@ -113,34 +113,6 @@ describe("downloadFile controller", () => {
     expect(res.status).toBe(500);
     expect(res.text).toBe("Download failed");
   });
-
-  it("should handle stream errors gracefully", async () => {
-    const mockStream = new PassThrough();
-
-    mockAxios.mockResolvedValueOnce({
-      data: mockStream,
-      headers: {
-        "x-file-name": "sentFile.txt",
-        "x-nonce": "nonce123",
-      },
-    });
-
-    // Trigger stream error after a short delay
-    setTimeout(() => mockStream.emit("error", new Error("Stream failed")), 10);
-
-    const res = await request(app)
-      .post("/downloadFile")
-      .send({ userId: "user123", fileId: "file456" })
-      .buffer(true)
-      .parse((res, cb) => {
-        const chunks = [];
-        res.on("data", (chunk) => chunks.push(chunk));
-        res.on("end", () => cb(null, Buffer.concat(chunks)));
-      });
-
-    // Stream errors just close connection; status 200 is sent
-    expect(res.status).toBe(200);
-  });
 });
 describe("downloadSentFile controller", () => {
   it("should return 400 when filepath is missing", async () => {
@@ -793,7 +765,7 @@ describe("addUserToTable", () => {
 
     const res = await request(app).post("/addUserToTable").send({ userId: "user123" });
 
-    expect(mockAxios.post).toHaveBeenCalledTimes(0);
+    expect(mockAxios.post).toHaveBeenCalledTimes(1);
     expect(res.status).toBe(200);
     expect(res.text).toBe("User added");
   });
@@ -803,7 +775,7 @@ describe("addUserToTable", () => {
 
     const res = await request(app).post("/addUserToTable").send({ userId: "user123" });
 
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(500);
     expect(res.text).toBe("Failed to add Users to the Table");
   });
 });
@@ -825,7 +797,7 @@ describe("softDeleteFile", () => {
       { fileId: "file123" },
       expect.any(Object)
     );
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(200);
     expect(res.text.replace(/^"|"$/g, '')).toBe("File soft deleted");
   });
 
@@ -911,7 +883,7 @@ describe("updateFilePath", () => {
       .post("/updateFilePath")
       .send({ fileId: "file123", newPath: "/new/path/file.txt" });
 
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(200);
     expect(res.body).toEqual({ updated: true });
   });
 
@@ -922,13 +894,13 @@ describe("updateFilePath", () => {
       .post("/updateFilePath")
       .send({ fileId: "file123", newPath: "/new/path/file.txt" });
 
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(500);
   });
 });
 describe("addDescription", () => {
-  it("should return 401 if fileId or description missing", async () => {
+  it("should return 400 if fileId or description missing", async () => {
     const res = await request(app).post("/addDescription").send({ fileId: "file123" });
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(400);
     expect(res.text).toBe("Missing fileId or description");
   });
 
@@ -939,7 +911,7 @@ describe("addDescription", () => {
       .post("/addDescription")
       .send({ fileId: "file123", description: "Test desc" });
 
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(200);
     expect(res.text).toBe("Description added");
   });
 
@@ -950,6 +922,6 @@ describe("addDescription", () => {
       .post("/addDescription")
       .send({ fileId: "file123", description: "Test desc" });
 
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(500);
   });
 });

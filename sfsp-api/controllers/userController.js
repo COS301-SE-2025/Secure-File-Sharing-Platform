@@ -18,6 +18,9 @@ class UserController {
         nonce,
         signedPrekeySignature,
         salt,
+        recovery_key_encrypted,
+        recovery_key_nonce,
+        recovery_salt,
       } = req.body;
       const { ik_private_key, spk_private_key, opks_private } = req.body;
 
@@ -51,6 +54,9 @@ class UserController {
         nonce,
         signedPrekeySignature,
         salt,
+        recovery_key_encrypted,
+        recovery_key_nonce,
+        recovery_salt,
       });
       if (result && result.user && result.user.id) {
         
@@ -130,6 +136,7 @@ class UserController {
         });
       }
 
+      console.log("[Getting userID] Received email to lookup:", email);
       const response = await userService.getUserIdFromEmail(email);
       if (!response) {
         return res.status(404).json({
@@ -538,7 +545,7 @@ class UserController {
         });
       }
 
-      const token = userService.generateToken(userId, user.email);
+      const token = userService.generateToken(userId);
 
       return res.status(200).json({
         success: true,
@@ -573,11 +580,24 @@ class UserController {
         });
       }
 
+      const { data: user, error } = await supabase
+        .from("users")
+        .select("email")
+        .eq("id", result.decoded.userId)
+        .single();
+
+      if (error || !user) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found."
+        });
+      }
+
       return res.status(200).json({
         success: true,
         data: {
           userId: result.decoded.userId,
-          email: result.decoded.email
+          email: user.email
         }
       });
     } catch (error) {
@@ -820,7 +840,7 @@ class UserController {
 
       let token = null;
       if (user.is_verified) {
-        token = await userService.generateToken(user.id, user.email);
+        token = await userService.generateToken(user.id);
       }
 
       let keyBundle_response = null;
@@ -873,6 +893,73 @@ class UserController {
       res.status(500).json({
         success: false,
         message: error.message || "Google authentication failed",
+      });
+    }
+  }
+
+  /**
+   * Reset password using recovery key
+   * POST /users/reset-password-with-recovery
+   */
+  async resetPasswordWithRecovery(req, res) {
+    try {
+      const {
+        userId,
+        email,
+        newPassword,
+        oldDerivedKey,
+        newDerivedKey,
+        newSalt,
+        recovery_key_encrypted,
+        recovery_key_nonce,
+        oldNonce,
+        reencryptedFiles = [], // Re-encrypted files from frontend
+      } = req.body;
+
+      // Validation
+      if (
+        !userId ||
+        !email ||
+        !newPassword ||
+        !oldDerivedKey ||
+        !newDerivedKey ||
+        !newSalt ||
+        !recovery_key_encrypted ||
+        !recovery_key_nonce ||
+        !oldNonce
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "All fields are required for password reset.",
+        });
+      }
+
+      console.log(`Password reset: Re-encrypting ${reencryptedFiles.length} files for user ${userId}`);
+
+      // Call service to reset password
+      const result = await userService.resetPasswordWithRecovery({
+        userId,
+        email,
+        newPassword,
+        oldDerivedKey,
+        newDerivedKey,
+        newSalt,
+        recovery_key_encrypted,
+        recovery_key_nonce,
+        oldNonce,
+        reencryptedFiles,
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: result.message,
+        data: result.user,
+      });
+    } catch (error) {
+      console.error("Reset password with recovery error:", error);
+      return res.status(500).json({
+        success: false,
+        message: error.message || "Failed to reset password",
       });
     }
   }

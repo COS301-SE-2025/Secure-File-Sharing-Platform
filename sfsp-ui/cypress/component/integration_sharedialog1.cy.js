@@ -16,7 +16,7 @@ describe("ShareDialog Integration Test", () => {
   it("renders dialog and adds recipients", () => {
     cy.contains(`Share "${falseFile.name}"`).should("be.visible");
 
-    cy.get("input[placeholder='Enter email addresses']")
+    cy.get("input[placeholder='Enter email address']")
       .type("testuser@example.com{enter}");
 
     cy.contains("testuser@example.com").should("be.visible");
@@ -24,7 +24,7 @@ describe("ShareDialog Integration Test", () => {
   });
 
   it("allows changing permission and removing recipient", () => {
-    cy.get("input[placeholder='Enter email addresses']")
+    cy.get("input[placeholder='Enter email address']")
       .type("edituser@example.com{enter}");
 
     cy.contains("edituser@example.com").should("exist");
@@ -66,7 +66,7 @@ describe("ShareDialog Integration Test", () => {
       statusCode: 200,
     }).as("addNotification");
 
-    cy.get("input[placeholder='Enter email addresses']")
+    cy.get("input[placeholder='Enter email address']")
       .type("notifyuser@example.com{enter}");
 
     cy.contains("notifyuser@example.com").should("exist");
