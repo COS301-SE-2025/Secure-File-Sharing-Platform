@@ -5,7 +5,7 @@ import HomeRotator from './home_features';
 import Footer from './Footer/footer';
 import Link from 'next/link';
 import AnimatedIcon from './AnimatedIcon';
-import {ShieldCheckIcon, ShieldExclamationIcon, EyeIcon, LinkIcon, ArrowUpOnSquareIcon, LockClosedIcon, DevicePhoneMobileIcon, UserGroupIcon, RocketLaunchIcon,} from '@heroicons/react/24/solid';
+import { ShieldCheckIcon, ShieldExclamationIcon, EyeIcon, LinkIcon, ArrowUpOnSquareIcon, LockClosedIcon, DevicePhoneMobileIcon, UserGroupIcon, RocketLaunchIcon, } from '@heroicons/react/24/solid';
 
 export default function Home() {
   return (
@@ -14,19 +14,19 @@ export default function Home() {
       <nav className="fixed top-0 left-0 w-full z-50 px-8 py-4 flex justify-between items-center bg-neutral-200/95 backdrop-blur-sm shadow-md dark:bg-gray-800/95 transition-all duration-300">
         <div className="flex items-center gap-3 animate-fade-in-left">
           {/* Light mode logo */}
-          <Image 
-            src="/img/shield-emp-black.png" 
-            alt="SecureShare Logo Light" 
-            width={28} 
-            height={28} 
+          <Image
+            src="/img/shield-emp-black.png"
+            alt="SecureShare Logo Light"
+            width={28}
+            height={28}
             className="block dark:hidden transition-transform duration-300 hover:scale-110"
           />
           {/* Dark mode logo */}
-          <Image 
-            src="/img/shield-emp-white.png" 
-            alt="SecureShare Logo Dark" 
-            width={28} 
-            height={28} 
+          <Image
+            src="/img/shield-emp-white.png"
+            alt="SecureShare Logo Dark"
+            width={28}
+            height={28}
             className="hidden dark:block transition-transform duration-300 hover:scale-110"
           />
           <Link href="/">
@@ -35,7 +35,7 @@ export default function Home() {
             </span>
           </Link>
         </div>
-        
+
         <ul className="flex gap-6 text-sm sm:text-base animate-fade-in-up">
           <li>
             <a href="#main" className="hover:underline hover:text-blue-600 dark:hover:text-blue-400 transition-all duration-300 underline-offset-4">
@@ -73,20 +73,20 @@ export default function Home() {
         <div className="flex-1 max-w-xl space-y-6 animate-fade-in-left">
           <div className="inline-flex items-center gap-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-4 py-2 rounded-full text-sm font-medium animate-slide-in-bottom">
             <AnimatedIcon
-            icon={ShieldCheckIcon}
-            alt="SecureShare Icon"
-            width={20}
-            height={20}
-            animationType="bounce"
-            colorClass="text-blue-600 dark:text-blue-400"
-          />
-          Privacy-First File Sharing Platform
-        </div>
-          
+              icon={ShieldCheckIcon}
+              alt="SecureShare Icon"
+              width={20}
+              height={20}
+              animationType="bounce"
+              colorClass="text-blue-600 dark:text-blue-400"
+            />
+            Privacy-First File Sharing Platform
+          </div>
+
           <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight animate-slide-in-bottom">
             Secure File Sharing with <span className="text-blue-600 dark:text-blue-400 animate-gradient-text">End-to-End Encryption</span>
           </h1>
-          
+
           <p className="text-lg text-gray-600 dark:text-gray-300 animate-slide-in-bottom animation-delay-200">
             Share files with absolute confidence. SecureShare ensures only you and your intended recipient can access your content through military-grade encryption. No backdoors, no third-party access—ever.
           </p>
@@ -251,8 +251,8 @@ export default function Home() {
                   colorClass="text-purple-600 dark:text-purple-400"
                 />
               </div>
-              <h3 className="font-semibold mb-2">3. Share Link</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Get a secure, time-limited link to share with your recipient</p>
+              <h3 className="font-semibold mb-2">3. Share Files</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Securely share your files with recipient</p>
             </div>
             <div className="text-center animate-slide-in-bottom animation-delay-500">
               <div className="w-16 h-16 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -403,15 +403,121 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Security */}
+      <section id="security" className="py-16 px-8 sm:px-20 bg-white dark:bg-gray-900 animate-fade-in-up">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold animate-slide-in-bottom">
+              Our <span className="text-blue-600 dark:text-blue-400">Security</span> Architecture
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400 mt-4 max-w-2xl mx-auto">
+              SecureShare employs multiple layers of protection to ensure your files remain private and secure
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-12 items-center mb-12">
+            <div className="space-y-6 animate-fade-in-left">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                <LockClosedIcon className="w-6 h-6 text-blue-600" />
+                File Encryption Flow
+              </h3>
+
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+                <div className="flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0">
+                  <div className="text-center">
+                    <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-2">
+                      <span className="text-2xl">📄</span>
+                    </div>
+                    <p className="text-sm font-medium">Original File</p>
+                  </div>
+                  <div className="text-2xl text-gray-400">→</div>
+                  <div className="text-center">
+                    <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-2">
+                      <span className="text-2xl">🔑</span>
+                    </div>
+                    <p className="text-sm font-medium">AES-256 Encryption</p>
+                  </div>
+                  <div className="text-2xl text-gray-400">→</div>
+                  <div className="text-center">
+                    <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-2">
+                      <span className="text-2xl">🛡️</span>
+                    </div>
+                    <p className="text-sm font-medium">Encrypted File</p>
+                  </div>
+                  <div className="text-2xl text-gray-400">→</div>
+                  <div className="text-center">
+                    <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-2">
+                      <span className="text-2xl">☁️</span>
+                    </div>
+                    <p className="text-sm font-medium">Secure Storage</p>
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-gray-600 dark:text-gray-400 text-sm">
+                Files are encrypted client-side using AES-256 before being uploaded to our servers, ensuring true end-to-end encryption.
+              </p>
+            </div>
+
+            <div className="space-y-6 animate-fade-in-right">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                <ShieldCheckIcon className="w-6 h-6 text-green-600" />
+                Security Features
+              </h3>
+
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                    <LockClosedIcon className="w-3 h-3 text-green-600" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-900 dark:text-white">Client-Side Encryption</h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Files are encrypted on your device before upload</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                    <ShieldExclamationIcon className="w-3 h-3 text-blue-600" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-900 dark:text-white">Zero-Knowledge Architecture</h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">We never have access to your encryption keys or file contents</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Security Reference Link */}
+          <div className="text-center animate-fade-in-up">
+            <Link
+              href="/Support/Security"
+              className="inline-flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium transition-colors duration-300 group"
+            >
+              <span>Learn more about our security implementation</span>
+              <svg
+                className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* Login */}
-      <div className="text-center py-20 bg-gray-100 dark:bg-gray-900 animate-slide-in-bottom">
+      <div className="text-center py-20 text-gray-800 bg-gray-300 dark:text-white dark:bg-gray-300 animate-slide-in-bottom">
         <div className="flex flex-col items-center gap-6">
-          <h3 className="text-3xl font-semibold inline-flex items-center">
-            <Typewriter text="Get Sharing" speed={100} loop={true} cursor={true} />
+          <h3 className="text-3xl font-semibold inline-flex items-center text-gray-800">
+            <Typewriter text="Get Sharing" speed={100} loop={true} cursor={true}  />
           </h3>
           <a
             href="/auth"
-            className="relative overflow-hidden inline-block bg-blue-600 text-white px-10 py-3 rounded-full font-medium transition-all duration-300 hover:shadow-xl hover:scale-105 animate-slide-in-bottom animation-delay-200 group"
+            className="relative overflow-hidden inline-block bg-blue-600 text-white  px-10 py-3 rounded-full font-medium transition-all duration-300 hover:shadow-xl hover:scale-105 animate-slide-in-bottom animation-delay-200 group"
           >
             <span className="relative z-10">Log In</span>
             <div className="absolute inset-0 bg-blue-800 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out"></div>
