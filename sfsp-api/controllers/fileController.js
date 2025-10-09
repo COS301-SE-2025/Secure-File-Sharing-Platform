@@ -6,6 +6,13 @@ const FormData = require("form-data");
 
 const upload = multer({ storage: multer.memoryStorage() });
 
+const fileServiceAxios = axios.create({
+  baseURL: process.env.FILE_SERVICE_URL || "http://localhost:8081",
+  timeout: 1800000, // 30 minutes (1800000ms)
+  maxBodyLength: Infinity,
+  maxContentLength: Infinity,
+});
+
 
 exports.downloadFile = async (req, res) => {
   const { userId, fileId } = req.body;
@@ -16,7 +23,7 @@ exports.downloadFile = async (req, res) => {
 
   try {
     // 🔹 Request Go service with streaming
-    const response = await axios({
+    const response = await fileServiceAxios({
       method: "post",
       url: `${
         process.env.FILE_SERVICE_URL || "http://localhost:8081"
@@ -80,7 +87,7 @@ exports.getMetaData = async (req, res) => {
   }
 
   try {
-    const response = await axios.post(
+    const response = await fileServiceAxios.post(
       `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/metadata`,
       { userId },
       { headers: { "Content-Type": "application/json" } }
@@ -124,7 +131,7 @@ exports.startUpload = async (req, res) => {
       tagsArray = [fileTags];
     }
 
-    const response = await axios.post(
+    const response = await fileServiceAxios.post(
       `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/startUpload`,
       {
         fileName,
@@ -197,7 +204,7 @@ exports.uploadChunk = async (req, res) => {
     formData.append("path", folderPath || "files");
     formData.append("encryptedFile", req.file.buffer, { filename: fileName });
 
-    const goResponse = await axios.post(
+    const goResponse = await fileServiceAxios.post(
       `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/upload`,
       formData,
       { headers: formData.getHeaders(), maxBodyLength: Infinity }
@@ -218,7 +225,7 @@ exports.getNumberOfFiles = async (req, res) => {
   }
 
   try {
-    const response = await axios.post(
+    const response = await fileServiceAxios.post(
       `${
         process.env.FILE_SERVICE_URL || "http://localhost:8081"
       }/getNumberOfFiles`,
@@ -250,7 +257,7 @@ exports.deleteFile = async (req, res) => {
   }
 
   try {
-    const response = await axios.post(
+    const response = await fileServiceAxios.post(
       `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/deleteFile`,
       { fileId, userId },
       { fileId, userId },
@@ -300,7 +307,7 @@ exports.sendFile = [
       });
 
       // 🔹 Send to Go backend
-      const goResponse = await axios.post(
+      const goResponse = await fileServiceAxios.post(
         `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/sendFile`,
         formData,
         {
@@ -326,7 +333,7 @@ exports.addAccesslog = async (req, res) => {
       .send("Missing required fields: file_id, user_id, action or message");
   }
   try {
-    const response = await axios.post(
+    const response = await fileServiceAxios.post(
       `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/addAccesslog`,
       { file_id, user_id, action, message },
       { headers: { "Content-Type": "application/json" } }
@@ -341,7 +348,7 @@ exports.addAccesslog = async (req, res) => {
 exports.getAccesslog = async (req, res) => {
   const { file_id } = req.body;
   try {
-    const response = await axios.post(
+    const response = await fileServiceAxios.post(
       `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/getAccesslog`,
       file_id ? { file_id } : {},
       { headers: { "Content-Type": "application/json" } }
@@ -359,7 +366,7 @@ exports.addTags = async (req, res) => {
     return res.status(400).send("Missing required fields: fileId or tags");
   }
   try {
-    const response = await axios.post(
+    const response = await fileServiceAxios.post(
       `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/addTags`,
       { fileId, tags },
       { headers: { "Content-Type": "application/json" } }
@@ -378,7 +385,7 @@ exports.addUserToTable = async (req, res) => {
     return res.status(400).send("Missing UserId");
   }
   try {
-    const response = await axios.post(
+    const response = await fileServiceAxios.post(
       `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/addUser`,
       { userId },
       { headers: { "Content-Type": "application/json" } }
@@ -397,7 +404,7 @@ exports.softDeleteFile = async (req, res) => {
   }
 
   try {
-    const response = await axios.post(
+    const response = await fileServiceAxios.post(
       `${
         process.env.FILE_SERVICE_URL || "http://localhost:8081"
       }/softDeleteFile`,
@@ -418,7 +425,7 @@ exports.restoreFile = async (req, res) => {
   }
 
   try {
-    const response = await axios.post(
+    const response = await fileServiceAxios.post(
       `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/restoreFile`,
       { fileId },
       { headers: { "Content-Type": "application/json" } }
@@ -436,7 +443,7 @@ exports.removeFileTags = async (req, res) => {
     return res.status(400).send("Missing required fields: fileId or tags");
   }
   try {
-    const response = await axios.post(
+    const response = await fileServiceAxios.post(
       `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/removeTags`,
       { fileId, tags },
       { headers: { "Content-Type": "application/json" } }
@@ -459,7 +466,7 @@ exports.downloadSentFile = async (req, res) => {
 
   try {
     // 🔹 1. Request Go service with streaming
-    const response = await axios({
+    const response = await fileServiceAxios({
       method: "post",
       url: `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/downloadSentFile`,
       data: { filePath: filepath },
@@ -505,7 +512,7 @@ exports.addDescription = async (req, res) => {
   }
 
   try {
-    const response = await axios.post(
+    const response = await fileServiceAxios.post(
       `${
         process.env.FILE_SERVICE_URL || "http://localhost:8081"
       }/addDescription`,
@@ -527,7 +534,7 @@ exports.createFolder = async (req, res) => {
   }
 
   try {
-    const response = await axios.post(
+    const response = await fileServiceAxios.post(
       `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/createFolder`,
       { userId, folderName, parentPath, description },
       { headers: { "Content-Type": "application/json" } }
@@ -547,7 +554,7 @@ exports.updateFilePath = async (req, res) => {
   }
 
   try {
-    const response = await axios.post(
+    const response = await fileServiceAxios.post(
       `${
         process.env.FILE_SERVICE_URL || "http://localhost:8081"
       }/updateFilePath`,
@@ -601,7 +608,7 @@ exports.sendByView = [
       });
 
       // 🔹 Forward to Go service
-      const response = await axios.post(
+      const response = await fileServiceAxios.post(
         `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/sendByView`,
         formData,
         {
@@ -636,7 +643,7 @@ exports.getSharedViewFiles = async (req, res) => {
   }
 
   try {
-    const response = await axios.post(
+    const response = await fileServiceAxios.post(
       `${
         process.env.FILE_SERVICE_URL || "http://localhost:8081"
       }/getSharedViewFiles`,
@@ -665,7 +672,7 @@ exports.getViewFileAccessLogs = async (req, res) => {
   }
 
   try {
-    const response = await axios.post(
+    const response = await fileServiceAxios.post(
       `${
         process.env.FILE_SERVICE_URL || "http://localhost:8081"
       }/getViewFileAccessLogs`,
@@ -693,7 +700,7 @@ exports.revokeViewAccess = async (req, res) => {
   }
 
   try {
-    const response = await axios.post(
+    const response = await fileServiceAxios.post(
       `${
         process.env.FILE_SERVICE_URL || "http://localhost:8081"
       }/revokeViewAccess`,
@@ -720,7 +727,7 @@ exports.downloadViewFile = async (req, res) => {
   }
 
   try {
-    const response = await axios({
+    const response = await fileServiceAxios({
       method: "post",
       url: `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/downloadViewFile`,
       data: { userId, fileId },
@@ -787,7 +794,7 @@ exports.changeShareMethod = [
         contentType: "application/octet-stream"
       });
 
-      const response = await axios.post(
+      const response = await fileServiceAxios.post(
         `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/changeShareMethod`,
         formData,
         { headers: formData.getHeaders() }
@@ -818,7 +825,7 @@ exports.getUsersWithFileAccess = async (req, res) => {
   }
 
   try {
-    const response = await axios.get(
+    const response = await fileServiceAxios.get(
       `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/usersWithFileAccess`,
       { params: { fileId } },
       { headers: { "Content-Type": "application/json" } }
