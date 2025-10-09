@@ -22,59 +22,143 @@ const SecurityPage = ({ onNavigate }) => {
 
   const encryptionMethods = [
     {
-      id: 'rsa',
-      name: 'RSA Encryption',
-      icon: '🔒',
+      id: 'aes-256',
+      name: 'AES-256-CBC',
+      icon: '🛡️',
       front: {
-        title: 'RSA Encryption',
-        description: 'Asymmetric cryptography for secure data transmission'
+        title: 'AES-256-CBC',
+        description: 'Symmetric file encryption standard'
       },
       back: {
-        usage: 'Used for secure data transmission, digital signatures, SSL/TLS certificates',
-        explanation: 'RSA uses a public key for encryption and a private key for decryption. It relies on the practical difficulty of factoring the product of two large prime numbers.',
-        strengths: ['Secure key exchange', 'Digital signatures', 'Widely adopted']
+        usage: 'Used for encrypting files at rest and during transmission, mnemonic-based recovery encryption',
+        explanation: 'Advanced Encryption Standard with 256-bit keys in CBC mode. Our platform uses it for encrypting user files before storage and for securing recovery keys with PBKDF2-derived keys from mnemonics.',
+        strengths: ['256-bit key length', 'Fast encryption/decryption', 'Industry standard', 'Hardware accelerated']
       }
     },
     {
-      id: 'diffie-hellman',
-      name: 'Diffie-Hellman Key Exchange',
+      id: 'x3dh',
+      name: 'X3DH Key Agreement',
       icon: '🔄',
       front: {
-        title: 'DH Key Exchange',
-        description: 'Secure method for exchanging cryptographic keys'
+        title: 'X3DH Protocol',
+        description: 'Extended Triple Diffie-Hellman key exchange'
       },
       back: {
-        usage: 'Used in SSL/TLS, VPNs, SSH for establishing shared secrets over insecure channels',
-        explanation: 'Allows two parties to establish a shared secret over an insecure channel without prior communication. The security relies on the discrete logarithm problem.',
-        strengths: ['Perfect forward secrecy', 'Secure key establishment', 'No pre-shared keys needed']
+        usage: 'Used for secure file sharing between users, establishing shared secrets without prior communication',
+        explanation: 'X3DH combines identity keys, signed prekeys, one-time prekeys, and ephemeral keys to create a shared secret. Enables end-to-end encrypted file sharing with forward secrecy and deniability.',
+        strengths: ['Perfect forward secrecy', 'Asynchronous messaging', 'Deniable authentication', 'Multiple DH exchanges']
+      }
+    },
+    {
+      id: 'ed25519',
+      name: 'Ed25519 Signatures',
+      icon: '✍️',
+      front: {
+        title: 'Ed25519',
+        description: 'Digital signature algorithm for authentication'
+      },
+      back: {
+        usage: 'Used for identity keys, signed prekeys, file integrity verification, and authentication',
+        explanation: 'EdDSA signature scheme using Curve25519. Provides fast, secure digital signatures for verifying file authenticity and sender identity with small signature sizes.',
+        strengths: ['Fast signature generation', 'Small key and signature sizes', 'Deterministic', 'Side-channel resistant']
+      }
+    },
+    {
+      id: 'curve25519',
+      name: 'Curve25519 ECDH',
+      icon: '🔐',
+      front: {
+        title: 'Curve25519',
+        description: 'Elliptic curve for key exchange'
+      },
+      back: {
+        usage: 'Used in X3DH protocol for Diffie-Hellman exchanges, ephemeral key generation',
+        explanation: 'High-performance elliptic curve for Diffie-Hellman key exchange. Converted from Ed25519 keys for use in X3DH protocol to establish shared secrets between users.',
+        strengths: ['High security margin', 'Fast computation', 'Constant-time operations', 'Widely audited']
       }
     },
     {
       id: 'bcrypt',
-      name: 'Bcrypt Hashing',
-      icon: '🔑',
+      name: 'Bcrypt',
+      icon: '🔒',
       front: {
-        title: 'Bcrypt Hashing',
-        description: 'Password hashing function designed for security'
+        title: 'Bcrypt',
+        description: 'Adaptive password hashing'
       },
       back: {
-        usage: 'Used for password storage, user authentication systems',
+        usage: 'Used for frontend password hashing in user authentication',
         explanation: 'Bcrypt is an adaptive hash function based on the Blowfish cipher. It incorporates a salt and is intentionally slow to protect against brute-force attacks.',
-        strengths: ['Built-in salt', 'Adaptive to hardware improvements', 'Resistant to brute-force']
+        strengths: ['Built-in salt', 'Adaptive cost factor', 'Resistant to brute-force', 'Battle-tested']
       }
     },
     {
-      id: 'aes',
-      name: 'AES Encryption',
-      icon: '🛡️',
+      id: 'xsalsa20-poly1305',
+      name: 'XSalsa20-Poly1305',
+      icon: '🚀',
       front: {
-        title: 'AES Encryption',
-        description: 'Symmetric encryption standard'
+        title: 'XSalsa20-Poly1305',
+        description: 'Authenticated encryption cipher'
       },
       back: {
-        usage: 'Used in SSL/TLS, VPNs, disk encryption, file encryption, wireless security',
-        explanation: 'Advanced Encryption Standard is a symmetric-key algorithm that uses the same key for encryption and decryption. It operates on fixed block sizes and supports key sizes of 128, 192, and 256 bits.',
-        strengths: ['Fast and efficient', 'Highly secure', 'Hardware accelerated']
+        usage: 'Used via libsodium crypto_secretbox for encrypting files and keys with authentication',
+        explanation: 'Combines XSalsa20 stream cipher with Poly1305 MAC for authenticated encryption. Provides both confidentiality and integrity verification in a single operation.',
+        strengths: ['Fast performance', 'Authenticated encryption', 'Large nonce space', 'Simple API']
+      }
+    },
+    {
+      id: 'blake2b',
+      name: 'BLAKE2b',
+      icon: '⚡',
+      front: {
+        title: 'BLAKE2b',
+        description: 'Fast cryptographic hash function'
+      },
+      back: {
+        usage: 'Used via libsodium crypto_generichash for file integrity checks and key derivation in X3DH',
+        explanation: 'Cryptographic hash function faster than MD5, SHA-1, SHA-2, and SHA-3, yet as secure as SHA-3. Used for hashing combined DH outputs and verifying file integrity.',
+        strengths: ['Extremely fast', 'Secure as SHA-3', 'Keyed hashing support', 'Variable output length']
+      }
+    },
+    {
+      id: 'jwt',
+      name: 'JWT (HS256)',
+      icon: '🎫',
+      front: {
+        title: 'JSON Web Tokens',
+        description: 'Secure authentication tokens'
+      },
+      back: {
+        usage: 'Used for user authentication, session management, and API authorization',
+        explanation: 'JWTs with HMAC-SHA256 signatures provide stateless authentication. Tokens contain user identity and are verified on each API request without database lookups.',
+        strengths: ['Stateless authentication', 'Signed tokens', 'Standard format', 'Easy to verify']
+      }
+    },
+    {
+      id: 'tls',
+      name: 'TLS/HTTPS',
+      icon: '🌐',
+      front: {
+        title: 'Transport Layer Security',
+        description: 'Secure network communication'
+      },
+      back: {
+        usage: 'Used for all client-server communications, API calls, and file transfers',
+        explanation: 'TLS encrypts all data in transit between users and servers. Ensures that encrypted files remain protected even during upload/download over the network.',
+        strengths: ['Industry standard', 'End-to-end encryption', 'Certificate validation', 'Forward secrecy']
+      }
+    },
+    {
+      id: '256-bit-keys',
+      name: '256-bit Key Length',
+      icon: '🔑',
+      front: {
+        title: '256-bit Keys',
+        description: 'High-security encryption standard'
+      },
+      back: {
+        usage: 'Used across AES, X3DH, Ed25519, Curve25519, and bcrypt for strong security',
+        explanation: '256-bit keys provide a high level of security against brute-force attacks. Our platform consistently uses 256-bit keys to ensure robust protection of user data.',
+        strengths: ['High security margin', 'Resistant to brute-force', 'Industry recommended', 'Future-proof']
       }
     }
   ];
