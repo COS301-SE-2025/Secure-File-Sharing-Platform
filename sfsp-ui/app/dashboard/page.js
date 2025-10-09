@@ -723,7 +723,7 @@ export default function DashboardHomePage() {
 
   return (
     <div className="p-6 bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white">
-      <div className="flex items-center gap-3 mb-6">
+      {/* <div className="flex items-center gap-3 mb-6">
         <UserAvatar
           avatarUrl={user?.avatar_url}
           username={user?.username}
@@ -740,8 +740,8 @@ export default function DashboardHomePage() {
             </p>
           </div>
         )}
-      </div>
-      <h1 className="text-2xl font-semibold mb-2 text-blue-500">Welcome!</h1>
+      </div> */}
+      <h1 className="text-2xl font-semibold mb-2 text-blue-500">Welcome, {user?.username}!</h1>
       <p className="text-gray-600 dark:text-gray-400 mb-7">
         Here&apos;s an overview of your activity.
       </p>
