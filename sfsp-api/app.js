@@ -7,7 +7,7 @@ const routes = require('./routes')
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '2gb' }));
 
 const allowedOrigins = process.env.CORS_ORIGINS
     ? process.env.CORS_ORIGINS.split(',')
