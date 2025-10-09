@@ -43,14 +43,16 @@ import {
 
 function Toast({ message, type = "info", onClose }) {
   return (
-    <div className="fixed top-4 right-4 max-w-xs px-4 py-3 rounded-lg shadow-lg z-50 animate-slide-in text-white pointer-events-auto">
+    <div
+      className={`fixed inset-0 flex items-center justify-center z-50 pointer-events-none`}
+    >
       <div
-        className={`flex items-center gap-2 ${
-          type === "error" ? "bg-red-500" : "bg-blue-500"
-        }`}
+        className={`bg-red-300 border ${
+          type === "error" ? "border-red-300" : "border-blue-500"
+        } text-gray-900 rounded shadow-lg px-6 py-3 pointer-events-auto`}
       >
         <span>{message}</span>
-        <button onClick={onClose} className="font-bold">
+        <button onClick={onClose} className="ml-4 font-bold">
           ×
         </button>
       </div>
@@ -78,8 +80,6 @@ export function FileList({
 }) {
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const [menuFile, setMenuFile] = useState(null);
-  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
-  const [confirmDeleteFile, setConfirmDeleteFile] = useState(null);
   const menuRef = useRef(null);
   const [draggedFile, setDraggedFile] = useState(null);
   const [toast, setToast] = useState(null);
@@ -286,284 +286,59 @@ export function FileList({
     return () => document.removeEventListener("click", handleClickOutside);
   }, []);
 
-  const handleDelete = async (file, moveFiles = false) => {
+  const handleDelete = async (file) => {
     const timestamp = new Date().toISOString();
     const tags = ["deleted", `deleted_time:${timestamp}`];
-    const token = localStorage.getItem("token");
-    if (!token) {
-      showToast("No authentication token found", "error");
-      return;
-    }
 
     try {
-      // Get user profile
-      const profileRes = await fetch(getApiUrl("/users/profile"), {
-        headers: { Authorization: `Bearer ${token}` },
+      const res = await fetch(getFileApiUrl("/addTags"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileId: file.id, tags }),
       });
-      const profileResult = await profileRes.json();
-      if (!profileRes.ok) {
-        throw new Error(profileResult.message || "Failed to fetch profile");
+
+      if (!res.ok) {
+        throw new Error("Failed to tag file as deleted");
       }
-      const userEmail = profileResult.data.email;
-      const userId = profileResult.data.id;
 
-      if (file.type === "folder") {
-        // Build the correct folder path
-        const folderPath = currentPath
-          ? `${currentPath}/${file.name}`
-          : file.name;
+      console.log(`File ${file.name} marked as deleted`);
 
-        // Fetch files in the folder
-        const res = await fetch(getFileApiUrl("/metadata"), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            userId,
-            path: folderPath,
-          }),
+      const token = localStorage.getItem("token");
+      if (!token) return;
+
+      try {
+        const profileRes = await fetch(getApiUrl("/users/profile"), {
+          headers: { Authorization: `Bearer ${token}` },
         });
 
-        if (!res.ok) {
-          throw new Error("Failed to fetch folder contents");
-        }
-
-        const folderFiles = await res.json();
-
-        if (moveFiles) {
-          // OPTION 1: Move files to parent folder and delete only the folder
-          let movedCount = 0;
-
-          for (const folderFile of folderFiles) {
-            // Skip the folder itself and any subfolders (only move files)
-            if (folderFile.type === "folder" || folderFile.fileId === file.id) {
-              continue;
-            }
-
-            // Calculate the new path - remove the folder name from the path
-            let newPath = currentPath || "";
-
-            // If the file has a path that includes our folder, reconstruct it
-            if (folderFile.path && folderFile.path.startsWith(folderPath)) {
-              // This handles files in subdirectories of the folder being deleted
-              const remainingPath = folderFile.path.slice(
-                folderPath.length + 1
-              );
-              newPath = currentPath
-                ? `${currentPath}/${remainingPath}`
-                : remainingPath;
-            }
-
-            console.log(
-              `Moving file ${folderFile.name} from ${folderFile.path} to ${newPath}`
-            );
-
-            const updateRes = await fetch(getFileApiUrl("/updatePath"), {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                fileId: folderFile.fileId,
-                newPath: newPath,
-              }),
-            });
-
-            if (updateRes.ok) {
-              movedCount++;
-              await fetch(getFileApiUrl("/addAccesslog"), {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  file_id: folderFile.fileId,
-                  user_id: userId,
-                  action: "moved",
-                  message: `User ${userEmail} moved the file from folder ${file.name} to parent folder.`,
-                }),
-              });
-            } else {
-              console.warn(`Failed to move file ${folderFile.fileName}`);
-            }
-          }
-
-          showToast(
-            `${movedCount} files moved to parent folder and folder "${file.name}" deleted`,
-            "info"
-          );
-        } else {
-          // OPTION 2: Delete folder and all contents
-          let deletedCount = 0;
-
-          // Delete all files in the folder first
-          for (const folderFile of folderFiles) {
-            // Skip the folder itself (we'll handle it separately)
-            if (folderFile.fileId === file.id) continue;
-
-            const deleteRes = await fetch(getFileApiUrl("/addTags"), {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                fileId: folderFile.fileId,
-                tags: ["deleted", `deleted_time:${timestamp}`],
-              }),
-            });
-
-            if (deleteRes.ok) {
-              deletedCount++;
-              await fetch(getFileApiUrl("/addAccesslog"), {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  file_id: folderFile.fileId,
-                  user_id: userId,
-                  action: "deleted",
-                  message: `User ${userEmail} deleted the ${folderFile.type} as part of folder ${file.name} deletion.`,
-                }),
-              });
-            }
-          }
-
-          showToast(
-            `Folder "${file.name}" and ${deletedCount} items deleted`,
-            "info"
-          );
-        }
-      } else {
-        // Regular file deletion
-        const res = await fetch(getFileApiUrl("/addTags"), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ fileId: file.id, tags }),
-        });
-
-        if (!res.ok) {
-          throw new Error("Failed to tag file as deleted");
-        }
+        const profileResult = await profileRes.json();
+        if (!profileRes.ok)
+          throw new Error(profileResult.message || "Failed to fetch profile");
 
         await fetch(getFileApiUrl("/addAccesslog"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             file_id: file.id,
-            user_id: userId,
+            user_id: profileResult.data.id,
             action: "deleted",
-            message: `User ${userEmail} deleted the file.`,
+            message: `User ${profileResult.data.email} deleted the file.`,
           }),
         });
-
-        showToast(`File "${file.name}" deleted successfully`, "info");
+      } catch (err) {
+        console.error("Failed to fetch user profile:", err.message);
       }
-
-      // Delete the folder/file itself
-      const deleteRes = await fetch(getFileApiUrl("/addTags"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fileId: file.id, tags }),
-      });
-
-      if (!deleteRes.ok) {
-        throw new Error("Failed to tag file as deleted");
-      }
-
-      // Final access log for the folder/file itself
-      await fetch(getFileApiUrl("/addAccesslog"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          file_id: file.id,
-          user_id: userId,
-          action: "deleted",
-          message: `User ${userEmail} deleted the ${
-            file.type === "folder" ? "folder" : "file"
-          }.`,
-        }),
-      });
 
       if (onDelete) {
         onDelete(file);
       }
     } catch (err) {
       console.error("Delete failed:", err);
-      showToast(
-        `Failed to delete ${file.type === "folder" ? "folder" : "file"}: ${
-          err.message
-        }`,
-        "error"
-      );
+      showToast("Failed to delete file");
     } finally {
       setMenuFile(null);
-      setShowConfirmDelete(false);
-      setConfirmDeleteFile(null);
     }
   };
-
-  // Helper function to recursively delete folder contents
-  const deleteFolderContents = async (userId, folderPath, userEmail) => {
-    try {
-      // Fetch all files in the folder (including subfolders)
-      const res = await fetch(getFileApiUrl("/metadata"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId,
-          path: folderPath,
-          includeSubfolders: true,
-        }),
-      });
-
-      if (!res.ok) {
-        throw new Error("Failed to fetch folder contents");
-      }
-
-      const folderContents = await res.json();
-      const timestamp = new Date().toISOString();
-      const tags = ["deleted", `deleted_time:${timestamp}`];
-
-      // Delete all files and subfolders
-      for (const item of folderContents) {
-        // Skip the folder itself (we'll handle that separately)
-        if (
-          item.path === folderPath &&
-          item.name === folderPath.split("/").pop()
-        ) {
-          continue;
-        }
-
-        // If it's a subfolder, recursively delete its contents
-        if (item.type === "folder") {
-          const subFolderPath = item.path
-            ? `${item.path}/${item.name}`
-            : item.name;
-          await deleteFolderContents(userId, subFolderPath, userEmail);
-        }
-
-        // Mark the item as deleted
-        const deleteRes = await fetch(getFileApiUrl("/addTags"), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ fileId: item.fileId, tags }),
-        });
-
-        if (deleteRes.ok) {
-          await fetch(getFileApiUrl("/addAccesslog"), {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              file_id: item.fileId,
-              user_id: userId,
-              action: "deleted",
-              message: `User ${userEmail} deleted the ${item.type} as part of folder deletion.`,
-            }),
-          });
-        }
-      }
-    } catch (error) {
-      console.error(`Error deleting contents of ${folderPath}:`, error);
-      throw error;
-    }
-  };
-
-  useEffect(() => {
-    document.addEventListener("click", handleClickOutside);
-    return () => document.removeEventListener("click", handleClickOutside);
-  }, []);
 
   const handleDragStart = (e, file) => {
     setDraggedFile(file);
@@ -599,10 +374,10 @@ export function FileList({
       return;
     }
     e.stopPropagation();
+    onSelectFile(file);
     if (file.type !== "folder") {
       onClick?.(file);
     }
-    onSelectFile(file);
     if (onClick) {
       onClick(file);
     }
@@ -629,72 +404,6 @@ export function FileList({
           onClose={() => setToast(null)}
         />
       )}
-      {showConfirmDelete && confirmDeleteFile && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl w-full max-w-md shadow-2xl">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                Delete Folder "{confirmDeleteFile.name}"
-              </h2>
-              <button
-                onClick={() => {
-                  setShowConfirmDelete(false);
-                  setConfirmDeleteFile(null);
-                }}
-                className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <p className="text-sm text-gray-700 dark:text-gray-200 mb-6">
-              How would you like to delete this folder?
-            </p>
-            <div className="space-y-3 mb-6">
-              <div className="p-3 border border-gray-200 dark:border-gray-600 rounded-lg">
-                <h3 className="font-medium text-gray-900 dark:text-white">
-                  Move Files & Delete Folder Only
-                </h3>
-                <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
-                  All files inside will be moved to the current folder, then the
-                  empty folder will be deleted.
-                </p>
-              </div>
-              <div className="p-3 border border-gray-200 dark:border-gray-600 rounded-lg">
-                <h3 className="font-medium text-gray-900 dark:text-white">
-                  Delete Folder & All Contents
-                </h3>
-                <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
-                  The folder and all files and subfolders inside will be
-                  permanently deleted.
-                </p>
-              </div>
-            </div>
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => {
-                  setShowConfirmDelete(false);
-                  setConfirmDeleteFile(null);
-                }}
-                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => handleDelete(confirmDeleteFile, true)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
-              >
-                Move Files & Delete Folder
-              </button>
-              <button
-                onClick={() => handleDelete(confirmDeleteFile, false)}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700"
-              >
-                Delete Folder & Files
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
       <table className="w-full bg-white rounded-lg">
         <thead>
           <tr className="bg-gray-300 dark:bg-gray-700">
@@ -709,27 +418,17 @@ export function FileList({
           {files.map((file) => (
             <tr
               key={file.id}
-              draggable={file.type !== "folder"}
+              draggable={true}
               onDragStart={(e) => handleDragStart(e, file)}
               onDragOver={(e) => handleDragOver(e, file)}
               onDrop={(e) => handleDrop(e, file)}
               onClick={(e) => handleRowClick(e, file)}
               onDoubleClick={(e) => handleRowDoubleClick(e, file)}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                setMenuPosition({ x: e.pageX, y: e.pageY });
-                if (file.type === "folder") {
-                  setConfirmDeleteFile(file);
-                  setShowConfirmDelete(true);
-                } else {
-                  setMenuFile(file);
-                }
-              }}
-              className={`
-                hover:bg-gray-200 cursor-pointer dark:hover:bg-blue-100
+              onContextMenu={(e) => handleContextMenu(e, file)}
+              className={`hover:bg-gray-200 cursor-pointer dark:hover:bg-blue-100
                 ${
                   selectedFile?.id === file.id
-                    ? "bg-blue-100 dark:bg-blue-200 ring-2 ring-blue-500"
+                    ? ""
                     : ""
                 }`}
             >
@@ -759,7 +458,7 @@ export function FileList({
                 </span>
               </td>
               <td className="p-2 flex gap-2">
-                {file.type !== "folder" && !isViewOnly(file) ? (
+                {!isViewOnly(file) && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -770,16 +469,8 @@ export function FileList({
                   >
                     <Share className="h-3 w-3" />
                   </button>
-                ) : (
-                  <button
-                    onClick={(e) => e.stopPropagation()}
-                    className="p-1 opacity-50 cursor-not-allowed rounded dark:text-black"
-                    title="Share disabled for folders or view-only files"
-                  >
-                    <Share className="h-3 w-3" />
-                  </button>
                 )}
-                {file.type !== "folder" && !isViewOnly(file) ? (
+                {!isViewOnly(file) && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -787,14 +478,6 @@ export function FileList({
                     }}
                     className="p-1 hover:bg-gray-100 rounded dark:text-black"
                     title="Download"
-                  >
-                    <Download className="h-3 w-3" />
-                  </button>
-                ) : (
-                  <button
-                    onClick={(e) => e.stopPropagation()}
-                    className="p-1 opacity-50 cursor-not-allowed rounded dark:text-black"
-                    title="Download disabled for folders or view-only files"
                   >
                     <Download className="h-3 w-3" />
                   </button>
@@ -895,14 +578,7 @@ export function FileList({
           )}
 
           <button
-            onClick={() => {
-              if (menuFile?.type === "folder") {
-                setConfirmDeleteFile(menuFile);
-                setShowConfirmDelete(true);
-              } else {
-                handleDelete(menuFile);
-              }
-            }}
+            onClick={() => handleDelete(menuFile)}
             className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 flex items-center gap-2 dark:hover:bg-red-200 dark:text-red-600"
           >
             <X className="h-4 w-4" /> Delete

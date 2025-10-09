@@ -5,8 +5,9 @@ import Image from 'next/image';
 
 const SecurityPage = ({ onNavigate }) => {
   const [flippedCards, setFlippedCards] = useState({});
-  const [activeTab, setActiveTab] = useState('security'); // 'security' or 'diagrams'
-  const [isModalOpen, setIsModalOpen] = useState(false); // Modal state
+  const [activeTab, setActiveTab] = useState('security')
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isFPModalOpen, setIsFPModalOpen] = useState(false);
 
   const toggleFlip = (id) => {
     setFlippedCards(prev => ({
@@ -398,6 +399,38 @@ const SecurityPage = ({ onNavigate }) => {
             </button>
           </div>
         </div>
+
+      </div>
+
+      {/* Forget Password */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-300 dark:border-gray-700">
+        <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
+          <span className="text-2xl">🗝️</span>
+          Forget Password Flow
+        </h3>
+        <div className="bg-gray-100 dark:bg-gray-200 rounded-lg p-6 border border-gray-300 dark:border-gray-700">
+          <div className="flex justify-center">
+            <Image
+              src="/img/forget-pass.svg"
+              alt="File Transfer Flow Diagram"
+              width={800}
+              height={500}
+              className="w-full max-w-4xl h-auto rounded-lg shadow-md cursor-pointer"
+              onClick={() => setIsFPModalOpen(true)}
+            />
+          </div>
+          <div className="text-center mt-4">
+            <button
+              onClick={() => setIsFPModalOpen(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+            >
+              <span>View Full Size</span>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -476,6 +509,34 @@ const SecurityPage = ({ onNavigate }) => {
               <div className="bg-white rounded-lg overflow-hidden">
                 <Image
                   src="/img/File-trans.svg"
+                  alt="File Transfer Flow Diagram - Full Size"
+                  width={1400}
+                  height={1000}
+                  className="max-w-full max-h-[80vh] object-contain"
+                />
+              </div>
+              <div className="text-center mt-2 text-white text-sm">
+                Click anywhere to close
+              </div>
+            </div>
+          </div>
+        )}
+
+        {isFPModalOpen && (
+          <div
+            className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+            onClick={() => setIsFPModalOpen(false)}
+          >
+            <div className="relative max-w-7xl max-h-full">
+              <button
+                className="absolute -top-12 right-0 text-white text-2xl hover:text-gray-300 z-10 bg-gray-800 rounded-full w-8 h-8 flex items-center justify-center"
+                onClick={() => setIsFPModalOpen(false)}
+              >
+                ✕
+              </button>
+              <div className="bg-white rounded-lg overflow-hidden">
+                <Image
+                  src="/img/forget-pass.svg"
                   alt="File Transfer Flow Diagram - Full Size"
                   width={1400}
                   height={1000}

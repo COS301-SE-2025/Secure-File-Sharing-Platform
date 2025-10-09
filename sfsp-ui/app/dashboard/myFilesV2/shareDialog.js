@@ -96,7 +96,7 @@ export function ShareDialog({ open, onOpenChange, file }) {
         );
         if (!response.ok) {
           console.warn(`User ID not found for email: ${email}`);
-          showStatusToast(`User:${email} account does not exist.`);
+          showStatusToast(`User:${email} account does not exist.`, "error");
           continue;
         }
 
@@ -136,6 +136,8 @@ export function ShareDialog({ open, onOpenChange, file }) {
     } catch (err) {
       console.error("Failed to send file to recipients:", err);
       showStatusToast(`Failed to share file: ${file.name}.`, "error");
+    } finally {
+      setShareWith([]);
     }
   };
 
@@ -146,7 +148,7 @@ export function ShareDialog({ open, onOpenChange, file }) {
           <div className="bg-white dark:bg-gray-800 p-6 rounded-xl w-full max-w-lg shadow-2xl transform transition-all duration-300 scale-100">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                Share "{file.name}"
+                Share &quot;{file.name}&quot;
               </h2>
               <button
                 onClick={() => onOpenChange(false)}
