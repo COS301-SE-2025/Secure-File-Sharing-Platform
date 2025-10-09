@@ -18,6 +18,9 @@ class UserController {
         nonce,
         signedPrekeySignature,
         salt,
+        recovery_key_encrypted,
+        recovery_key_nonce,
+        recovery_salt,
       } = req.body;
       const { ik_private_key, spk_private_key, opks_private } = req.body;
 
@@ -51,6 +54,9 @@ class UserController {
         nonce,
         signedPrekeySignature,
         salt,
+        recovery_key_encrypted,
+        recovery_key_nonce,
+        recovery_salt,
       });
       if (result && result.user && result.user.id) {
         
@@ -887,6 +893,73 @@ class UserController {
       res.status(500).json({
         success: false,
         message: error.message || "Google authentication failed",
+      });
+    }
+  }
+
+  /**
+   * Reset password using recovery key
+   * POST /users/reset-password-with-recovery
+   */
+  async resetPasswordWithRecovery(req, res) {
+    try {
+      const {
+        userId,
+        email,
+        newPassword,
+        oldDerivedKey,
+        newDerivedKey,
+        newSalt,
+        recovery_key_encrypted,
+        recovery_key_nonce,
+        oldNonce,
+        reencryptedFiles = [], // Re-encrypted files from frontend
+      } = req.body;
+
+      // Validation
+      if (
+        !userId ||
+        !email ||
+        !newPassword ||
+        !oldDerivedKey ||
+        !newDerivedKey ||
+        !newSalt ||
+        !recovery_key_encrypted ||
+        !recovery_key_nonce ||
+        !oldNonce
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "All fields are required for password reset.",
+        });
+      }
+
+      console.log(`Password reset: Re-encrypting ${reencryptedFiles.length} files for user ${userId}`);
+
+      // Call service to reset password
+      const result = await userService.resetPasswordWithRecovery({
+        userId,
+        email,
+        newPassword,
+        oldDerivedKey,
+        newDerivedKey,
+        newSalt,
+        recovery_key_encrypted,
+        recovery_key_nonce,
+        oldNonce,
+        reencryptedFiles,
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: result.message,
+        data: result.user,
+      });
+    } catch (error) {
+      console.error("Reset password with recovery error:", error);
+      return res.status(500).json({
+        success: false,
+        message: error.message || "Failed to reset password",
       });
     }
   }

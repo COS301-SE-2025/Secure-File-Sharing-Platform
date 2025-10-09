@@ -38,6 +38,9 @@ class UserService {
       nonce,
       signedPrekeySignature,
       salt,
+      recovery_key_encrypted,
+      recovery_key_nonce,
+      recovery_salt,
     } = userData;
 
     try {
@@ -69,6 +72,9 @@ class UserService {
             nonce,
             signedPrekeySignature,
             salt,
+            recovery_key_encrypted,
+            recovery_key_nonce,
+            recovery_salt,
             is_verified: false, // New users need email verification
           },
         ])
@@ -773,6 +779,180 @@ class UserService {
     if (!data) throw new Error('User not found');
 
     return data.avatar_url;
+  }
+
+  /**
+   * Reset password using recovery key
+   * Re-encrypts user keys and files with new password-derived key
+   */
+  async resetPasswordWithRecovery(resetData) {
+    const {
+      userId,
+      email,
+      newPassword,
+      oldDerivedKey,
+      newDerivedKey,
+      newSalt,
+      recovery_key_encrypted,
+      recovery_key_nonce,
+      oldNonce,
+      reencryptedFiles = [], // Array of re-encrypted files from frontend
+    } = resetData;
+
+    try {
+      // 1. Fetch user to verify they exist
+      const { data: user, error: fetchError } = await supabase
+        .from("users")
+        .select("*")
+        .eq("id", userId)
+        .eq("email", email)
+        .single();
+
+      if (fetchError || !user) {
+        throw new Error("User not found");
+      }
+
+      // 2. Hash the new password
+      const newsalt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(newPassword, newsalt);
+
+      // 3. Fetch encrypted keys from vault
+      const VaultController = require("../controllers/vaultController");
+      const vault = new VaultController();
+
+      const keyBundleResult = await vault.retrieveKeyBundle(userId);
+
+      if (!keyBundleResult || !keyBundleResult.data) {
+        throw new Error("Failed to retrieve key bundle from vault");
+      }
+
+      const {
+        ik_private_key: encryptedIkPrivate,
+        spk_private_key: spkPrivate,
+        opks_private: encryptedOpks,
+      } = keyBundleResult.data?.data;
+
+      // 4. Decrypt keys with old derived key (from recovery)
+      // Note: Keys are base64 encoded in vault, need to decode
+      const sodium = require("libsodium-wrappers");
+      await sodium.ready;
+
+      const oldDerivedKeyBytes = sodium.from_base64(oldDerivedKey);
+      const oldNonceBytes = sodium.from_base64(oldNonce);
+
+      // Decrypt identity key
+      const decryptedIkPrivate = sodium.crypto_secretbox_open_easy(
+        sodium.from_base64(encryptedIkPrivate),
+        oldNonceBytes,
+        oldDerivedKeyBytes
+      );
+
+      if (!decryptedIkPrivate) {
+        throw new Error("Failed to decrypt identity key with old derived key");
+      }
+
+      // Decrypt OPKs
+      const decryptedOpks = encryptedOpks.map((opk) => {
+        const decrypted = sodium.crypto_secretbox_open_easy(
+          sodium.from_base64(opk.private_key),
+          oldNonceBytes,
+          oldDerivedKeyBytes
+        );
+        if (!decrypted) {
+          throw new Error(`Failed to decrypt OPK ${opk.opk_id}`);
+        }
+        return {
+          opk_id: opk.opk_id,
+          private_key: decrypted,
+        };
+      });
+
+      // 5. Re-encrypt keys with new derived key
+      const newDerivedKeyBytes = sodium.from_base64(newDerivedKey);
+      const newNonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
+
+      const newEncryptedIkPrivate = sodium.crypto_secretbox_easy(
+        decryptedIkPrivate,
+        newNonce,
+        newDerivedKeyBytes
+      );
+
+      const newEncryptedOpks = decryptedOpks.map((opk) => ({
+        opk_id: opk.opk_id,
+        private_key: sodium.to_base64(
+          sodium.crypto_secretbox_easy(opk.private_key, newNonce, newDerivedKeyBytes)
+        ),
+      }));
+
+      // 6. Update database with new password and recovery data
+      const { error: updateError } = await supabase
+        .from("users")
+        .update({
+          password: hashedPassword,
+          salt: newSalt,
+          nonce: sodium.to_base64(newNonce),
+          recovery_key_encrypted,
+          recovery_key_nonce,
+          resetPasswordPIN: null, // Clear any existing reset PIN
+        })
+        .eq("id", userId);
+
+      if (updateError) {
+        throw new Error("Failed to update user: " + updateError.message);
+      }
+
+      // 7. Update vault with re-encrypted keys
+      await vault.storeKeyBundle({
+        encrypted_id: userId,
+        ik_private_key: sodium.to_base64(newEncryptedIkPrivate),
+        spk_private_key: spkPrivate, // SPK doesn't change
+        opks_private: newEncryptedOpks,
+      });
+
+      // 8. Re-upload re-encrypted files to file service
+      const axios = require('axios');
+      const fileServiceUrl = process.env.FILE_SERVICE_URL || "http://localhost:8081";
+
+      let filesUpdated = 0;
+      for (const file of reencryptedFiles) {
+        try {
+          // Update file with new encrypted content and nonce
+          const updateResponse = await axios.post(
+            `${fileServiceUrl}/updateFile`,
+            {
+              userId: userId,
+              fileId: file.fileId,
+              nonce: file.nonce,
+              fileContent: file.encryptedContent,
+            }
+          );
+
+          if (updateResponse.status === 200) {
+            filesUpdated++;
+          }
+        } catch (fileError) {
+          console.error(`Failed to update file ${file.fileId}:`, fileError.message);
+          // Continue with other files even if one fails
+        }
+      }
+
+      console.log(`Password reset: Updated ${filesUpdated}/${reencryptedFiles.length} files`);
+
+      return {
+        success: true,
+        message: "Password reset successfully",
+        filesUpdated,
+        totalFiles: reencryptedFiles.length,
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+        },
+      };
+    } catch (error) {
+      console.error("Password reset error:", error);
+      throw new Error("Password reset failed: " + error.message);
+    }
   }
 }
 
