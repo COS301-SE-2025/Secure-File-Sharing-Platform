@@ -42,7 +42,7 @@ describe('FeatureRotator Component', () => {
 
   it('clicking a dot sets the feature 2', () => {
     cy.mount(<FeatureRotator />);
-    cy.get('[aria-label="Highlight One-Time Download Links"]').click();
-    cy.contains('One-Time Download Links').should('exist');
+    cy.get('[aria-label="Highlight File Organization"]').click();
+    cy.contains('File Organization').should('exist');
   });
 });
