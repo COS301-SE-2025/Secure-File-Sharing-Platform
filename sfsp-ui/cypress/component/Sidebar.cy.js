@@ -24,18 +24,34 @@ describe('<Sidebar />', () => {
     });
 
     it('renders correctly', () => {
+        const mockSetExpanded = cy.stub();
+        const mockSetIsHovered = cy.stub();
+
         cy.mount(
             <AppRouterMockProvider>
-                <Sidebar />
+                <Sidebar
+                    expanded={false}
+                    setExpanded={mockSetExpanded}
+                    isHovered={false}
+                    setIsHovered={mockSetIsHovered}
+                />
             </AppRouterMockProvider>
         );
         cy.get('[data-testid="sidebar"]').should('be.visible');
     });
 
     it('displays navigation links', () => {
+        const mockSetExpanded = cy.stub();
+        const mockSetIsHovered = cy.stub();
+
         cy.mount(
             <AppRouterMockProvider>
-                <Sidebar />
+                <Sidebar
+                    expanded={false}
+                    setExpanded={mockSetExpanded}
+                    isHovered={false}
+                    setIsHovered={mockSetIsHovered}
+                />
             </AppRouterMockProvider>
         );
         cy.get('[data-testid="sidebar"]').within(() => {

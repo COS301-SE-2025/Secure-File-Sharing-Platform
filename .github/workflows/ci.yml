@@ -45,31 +45,29 @@ jobs:
         run: |
           xvfb-run -a npx cypress run --component
 
- # sfsp-api:
- #   name: SFSP API
- #   runs-on: ubuntu-latest
- #   # needs: build
- #   container:
- #     image: node:18
- #   steps:
- #     - name: Checkout code
- #       uses: actions/checkout@v4
-#
- #     - name: Install API dependencies
- #       working-directory: ./sfsp-api
- #       run: npm ci
-#
- #     - name: Run API Tests with Coverage
- #       working-directory: ./sfsp-api
- #       run: npm test -- --coverage
-#
- #     - name: Upload API Coverage to Codecov
- #       uses: codecov/codecov-action@v3
- #       with:
- #         directory: ./sfsp-api/coverage/
- #         flags: unittests,api
- #         name: api-coverage
- #         override_branch: main
+  sfsp-api:
+    name: SFSP API
+    runs-on: ubuntu-latest
+    container:
+      image: node:18
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Install API dependencies
+        working-directory: ./sfsp-api
+        run: npm ci
+
+      - name: Run API Tests with Coverage
+        working-directory: ./sfsp-api
+        run: npm test -- --coverage
+
+      - name: Upload API Coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          directory: ./sfsp-api/coverage/
+          flags: unittests,api
+          name: api-coverage
+          override_branch: main
 
   sfsp-goservice:
     name: SFSP Go Service
