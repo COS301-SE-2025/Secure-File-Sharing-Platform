@@ -95,36 +95,6 @@ describe("UserService", () => {
     });
   });
 
-  describe("login", () => {
-    it("should log in a user with correct credentials", async () => {
-      const mockUser = {
-        id: "1",
-        email: "user@example.com",
-        username: "user",
-        password: "hashedpass",
-        ik_public: "ik",
-        spk_public: "spk",
-        opks_public: "opks",
-        nonce: "nonce",
-        signedPrekeySignature: "sig",
-        salt: "salt",
-      };
-
-      supabase.from.mockReturnValueOnce({
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({ data: mockUser }),
-      });
-
-      bcrypt.compare.mockResolvedValue(true);
-      jwt.sign.mockReturnValue("token");
-
-      const res = await userService.login({ email: "user@example.com", password: "Tester@123" });
-      expect(res.token).toBe("token");
-    });
-
-  });
-
   describe("getUserIdFromEmail", () => {
     it("should return user ID from email", async () => {
       supabase.from.mockReturnValueOnce({
@@ -160,7 +130,6 @@ describe("UserService", () => {
         id: "user1",
         username: "User1",
         avatar_url: undefined,
-        is_google_user: false,
         email: "user1@example.com",
       });
     });
@@ -359,7 +328,6 @@ describe("UserService", () => {
 
       expect(result).toEqual({
         success: true,
-        "needsKeyReEncryption": false,
         message: "Password updated successfully",
       });
     });

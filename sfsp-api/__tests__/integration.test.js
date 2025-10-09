@@ -1,4 +1,36 @@
 /* global describe, it, expect, beforeEach, afterEach, jest */
+
+// Create mock functions before they're used
+const mockStoreKeyBundle = jest.fn();
+const mockRetrieveKeyBundle = jest.fn();
+
+jest.mock('../services/userService', () => ({
+    register: jest.fn(),
+    login: jest.fn(),
+    verifyToken: jest.fn(),
+    getProfile: jest.fn(),
+    refreshToken: jest.fn(),
+    deleteProfile: jest.fn(),
+}));
+
+jest.mock('../config/database', () => {
+    const mockSupabase = {
+        from: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: null, error: null }),
+    };
+    return { supabase: mockSupabase };
+});
+
+jest.mock('../controllers/vaultController', () => {
+    return jest.fn().mockImplementation(() => ({
+        storeKeyBundle: mockStoreKeyBundle,
+        retrieveKeyBundle: mockRetrieveKeyBundle,
+    }));
+});
+
+// Now require the modules
 const request = require('supertest');
 const express = require('express');
 const UserController = require('../controllers/userController');
@@ -13,40 +45,29 @@ app.get('/profile', UserController.getProfile);
 app.post('/refresh-token', UserController.refreshToken);
 app.delete('/profile', UserController.deleteProfile);
 
-jest.mock('../services/userService');
-const VaultController = require('../controllers/vaultController');
-
-jest.mock('../config/database', () => {
-    const mockSupabase = {
-        from: jest.fn().mockReturnThis(),
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({ data: null, error: null }),
-    };
-    return { supabase: mockSupabase };
-});
-
-jest.mock('../services/userService', () => ({
-    register: jest.fn(),
-    login: jest.fn(),
-    verifyToken: jest.fn(),
-    getProfile: jest.fn(),
-    refreshToken: jest.fn(),
-    deleteProfile: jest.fn(),
-}));
-jest.mock('../controllers/vaultController', () => ({
-    storeKeyBundle: jest.fn(),
-    retrieveKeyBundle: jest.fn(),
-}));
+// Export for use in tests
+global.mockVaultController = {
+    storeKeyBundle: mockStoreKeyBundle,
+    retrieveKeyBundle: mockRetrieveKeyBundle,
+};
 
 describe('UserController Integration Tests', () => {
+    let VaultController;
+
     beforeEach(() => {
         jest.clearAllMocks();
+
+        // Get the mocked VaultController constructor
+        const VaultControllerClass = require('../controllers/vaultController');
+        VaultController = new VaultControllerClass();
+
         jest.spyOn(console, 'error').mockImplementation(() => {});
+        jest.spyOn(console, 'log').mockImplementation(() => {});
     });
 
     afterEach(() => {
         console.error.mockRestore();
+        console.log.mockRestore();
     });
 
     describe('POST /register', () => {
@@ -61,6 +82,9 @@ describe('UserController Integration Tests', () => {
                 nonce: 'nonce_value',
                 signedPrekeySignature: 'signature',
                 salt: 'salt_value',
+                recovery_key_encrypted: 'recovery_key_encrypted_value',
+                recovery_key_nonce: 'recovery_key_nonce_value',
+                recovery_salt: 'recovery_salt_value',
                 ik_private_key: 'ik_private_key',
                 spk_private_key: 'spk_private_key',
                 opks_private: ['opk_private1', 'opk_private2'],
@@ -76,7 +100,7 @@ describe('UserController Integration Tests', () => {
             };
 
             userService.register.mockResolvedValue(mockResponse);
-            VaultController.storeKeyBundle.mockResolvedValue({ success: true });
+            global.mockVaultController.storeKeyBundle.mockResolvedValue({ success: true });
 
             const response = await request(app)
                 .post('/register')
@@ -99,8 +123,11 @@ describe('UserController Integration Tests', () => {
                 nonce: 'nonce_value',
                 signedPrekeySignature: 'signature',
                 salt: 'salt_value',
+                recovery_key_encrypted: 'recovery_key_encrypted_value',
+                recovery_key_nonce: 'recovery_key_nonce_value',
+                recovery_salt: 'recovery_salt_value',
             });
-            expect(VaultController.storeKeyBundle).toHaveBeenCalledWith({
+            expect(global.mockVaultController.storeKeyBundle).toHaveBeenCalledWith({
                 encrypted_id: 1,
                 ik_private_key: 'ik_private_key',
                 spk_private_key: 'spk_private_key',
@@ -138,6 +165,9 @@ describe('UserController Integration Tests', () => {
             nonce: 'nonce_value',
             signedPrekeySignature: 'signature',
             salt: 'salt_value',
+            recovery_key_encrypted: 'recovery_key_encrypted_value',
+            recovery_key_nonce: 'recovery_key_nonce_value',
+            recovery_salt: 'recovery_salt_value',
             ik_private_key: 'ik_private_key',
             spk_private_key: 'spk_private_key',
             opks_private: ['opk_private1', 'opk_private2'],
@@ -165,8 +195,11 @@ describe('UserController Integration Tests', () => {
             nonce: 'nonce_value',
             signedPrekeySignature: 'signature',
             salt: 'salt_value',
+            recovery_key_encrypted: 'recovery_key_encrypted_value',
+            recovery_key_nonce: 'recovery_key_nonce_value',
+            recovery_salt: 'recovery_salt_value',
         });
-        expect(VaultController.storeKeyBundle).not.toHaveBeenCalled();
+        expect(global.mockVaultController.storeKeyBundle).not.toHaveBeenCalled();
         });
     });
 
@@ -187,27 +220,31 @@ describe('UserController Integration Tests', () => {
             };
 
             const mockKeyBundle = {
-                ik_private_key: 'ik_private_key',
-                spk_private_key: 'spk_private_key',
-                opks_private: ['opk_private1'],
+                data: {
+                    data: {
+                        ik_private_key: 'ik_private_key',
+                        spk_private_key: 'spk_private_key',
+                        opks_private: ['opk_private1'],
+                    }
+                }
             };
 
             userService.login.mockResolvedValue(mockResponse);
-            VaultController.retrieveKeyBundle.mockResolvedValue(mockKeyBundle);
+            global.mockVaultController.retrieveKeyBundle.mockResolvedValue(mockKeyBundle);
 
             const response = await request(app)
                 .post('/login')
                 .send(loginData)
                 .expect(200);
 
-            expect(response.body).toEqual({
-                success: true,
-                message: 'Login successful',
-                data: { ...mockResponse, keyBundle: mockKeyBundle },
-            });
+            expect(response.body.success).toBe(true);
+            expect(response.body.message).toBe('Login successful');
+            expect(response.body.data.user).toEqual(mockResponse.user);
+            expect(response.body.data.token).toBe(mockResponse.token);
+            expect(response.body.data.keyBundle).toEqual(mockKeyBundle.data.data);
 
             expect(userService.login).toHaveBeenCalledWith(loginData);
-            expect(VaultController.retrieveKeyBundle).toHaveBeenCalledWith(1);
+            expect(global.mockVaultController.retrieveKeyBundle).toHaveBeenCalledWith(1);
         });
 
         it('should return validation error for missing credentials', async () => {
