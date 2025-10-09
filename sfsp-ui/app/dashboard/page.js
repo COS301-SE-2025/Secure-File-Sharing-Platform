@@ -302,8 +302,8 @@ const formatTimestamp = (timestamp) => {
 export default function DashboardHomePage() {
   const [files, setFiles] = useState([]);
   const [fileCount, setFileCount] = useState(0);
-  const [trashedFilesCount, setTrashedFilesCount] = useState([]);
-  const [receivedFilesCount, setReceivedFilesCount] = useState([]);
+  const [trashedFilesCount, setTrashedFilesCount] = useState(0);
+  const [receivedFilesCount, setReceivedFilesCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [showExpanded, setShowExpanded] = useState(true); // New state for expanded view
@@ -341,6 +341,7 @@ export default function DashboardHomePage() {
       const filesOnly = data.filter(
         (file) => getFileType(file.fileType || "", file.fileName) !== "folder"
       );
+     if (data != null){
       const sortedFiles = filesOnly.sort(
         (a, b) => new Date(b.date) - new Date(a.date)
       );
@@ -366,6 +367,7 @@ export default function DashboardHomePage() {
         }));
       setFiles(formatted);
       return formatted;
+     }
     } catch (err) {
       console.error("Failed to fetch files:", err);
       return [];
@@ -662,6 +664,7 @@ export default function DashboardHomePage() {
         body: JSON.stringify({ userId }),
       });
       const data = await res.json();
+     if (data != null){
       const activeFiles = data.filter((file) => {
         const tags = parseTagString(file.tags);
         const type = getFileType(file.fileType || "", file.fileName);
@@ -678,7 +681,8 @@ export default function DashboardHomePage() {
       setFileCount(activeFiles.length);
       setTrashedFilesCount(deletedFiles.length);
       setReceivedFilesCount(receivedFiles.length);
-    } catch (error) {
+     } 
+    }catch (error) {
       console.error("Failed to fetch files metadata:", error);
     } finally {
       setLoading(false);
