@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Upload, FolderPlus, Grid, List, Route } from "lucide-react";
+import { Upload, FolderPlus, Grid, List, Route, ChevronDown } from "lucide-react";
 import { ShareDialog } from "./shareDialog";
 import { UploadDialog } from "./uploadDialog";
 import { FileDetailsDialog } from "./fileDetailsDialog";
