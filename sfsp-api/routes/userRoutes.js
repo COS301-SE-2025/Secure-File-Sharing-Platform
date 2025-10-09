@@ -8,6 +8,7 @@ router.post('/register', userController.register);
 router.post('/login', userController.login);
 router.post('/logout', authMiddleware, userController.logout);
 router.post('/google-auth', userController.googleAuth);
+router.post('/reset-password-with-recovery', userController.resetPasswordWithRecovery);
 
 router.get('/profile', authMiddleware, userController.getProfile);
 router.delete('/profile', authMiddleware, userController.deleteProfile);

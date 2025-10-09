@@ -344,6 +344,7 @@ export default function MyFiles() {
   const [viewerContent, setViewerContent] = useState(null);
   const [showSortOptions, setShowSortOptions] = useState(false);
   const [toast, setToast] = useState(null);
+  const [user, setUser] = useState(null);
 
   const showToast = (message, type = "info", duration = 3000) => {
     setToast({ message, type });
@@ -600,51 +601,244 @@ export default function MyFiles() {
   };
 
   // Preview
-  const handlePreview = async (file) => {
-    const result = await handleLoadFile(file);
-    if (!result) return;
+  const handlePreview = async (rawFile) => {
+    // Ensure this only runs on the client side
+    if (typeof window === "undefined") return;
 
-    let contentUrl = null;
-    let textSnippet = null;
+    const username = user?.username;
+    const file = {
+      ...rawFile,
+      type: getFileType(
+        rawFile.fileType || rawFile.type || "",
+        rawFile.fileName || rawFile.name
+      ),
+      name: rawFile.fileName || rawFile.name,
+      size: formatFileSize(rawFile.fileSize || rawFile.size || 0),
+    };
 
-    if (
-      file.type.startsWith("image") ||
-      file.type.startsWith("video") ||
-      file.type.startsWith("audio")
-    ) {
-      contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
-    } else if (file.type === "pdf") {
-      contentUrl = URL.createObjectURL(
-        new Blob([result.decrypted], { type: "application/pdf" })
-      );
-    } else if (["txt", "json", "csv"].some((ext) => file.type.includes(ext))) {
-      textSnippet = new TextDecoder().decode(result.decrypted).slice(0, 1000);
-    }
-
-    setPreviewContent({ url: contentUrl, text: textSnippet });
-    setPreviewFile(file);
-  };
-
-  // Full view
-  const handleOpenFullView = async (file) => {
     const result = await handleLoadFile(file);
     if (!result) return;
 
     let contentUrl = null;
     let textFull = null;
 
-    if (
-      file.type.startsWith("image") ||
-      file.type.startsWith("video") ||
-      file.type.startsWith("audio")
-    ) {
-      contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
+    if (file.type === "image") {
+      if (typeof window === "undefined") return;
+
+      const imgBlob = new Blob([result.decrypted], { type: file.type });
+      const imgBitmap = await createImageBitmap(imgBlob);
+
+      const canvas = document.createElement("canvas");
+      canvas.width = imgBitmap.width;
+      canvas.height = imgBitmap.height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(imgBitmap, 0, 0);
+
+      const fontSize = Math.floor(imgBitmap.width / 20);
+      ctx.font = `${fontSize}px Arial`;
+      ctx.fillStyle = "rgba(255, 0, 0, 0.7)";
+      ctx.textAlign = "center";
+      ctx.fillText(username, imgBitmap.width / 2, imgBitmap.height / 2);
+
+      contentUrl = canvas.toDataURL(file.type);
     } else if (file.type === "pdf") {
       contentUrl = URL.createObjectURL(
         new Blob([result.decrypted], { type: "application/pdf" })
       );
-    } else if (["txt", "json", "csv"].some((ext) => file.type.includes(ext))) {
+    } else if (file.type === "video" || file.type === "audio") {
+      contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
+    } else if (
+      [
+        "txt",
+        "json",
+        "csv",
+        "xml",
+        "yaml",
+        "yml",
+        "html",
+        "css",
+        "js",
+        "jsx",
+        "ts",
+        "tsx",
+        "py",
+        "java",
+        "cpp",
+        "c",
+        "php",
+        "rb",
+        "go",
+        "rs",
+        "sql",
+        "log",
+        "ini",
+        "cfg",
+        "conf",
+      ].includes(file.type)
+    ) {
       textFull = new TextDecoder().decode(result.decrypted);
+
+      //Add watermark comment for code files
+      if (
+        [
+          "js",
+          "jsx",
+          "ts",
+          "tsx",
+          "py",
+          "java",
+          "cpp",
+          "c",
+          "php",
+          "rb",
+          "go",
+          "rs",
+        ].includes(file.type)
+      ) {
+        const watermarkComment = getWatermarkComment(file.type, username);
+        textFull = watermarkComment + "\n" + textFull;
+      }
+    }
+
+    //Markdown files, render this bitch as an html
+    else if (file.type === "markdown" || file.type === "md") {
+      const markdownText = new TextDecoder().decode(result.decrypted);
+
+      //Add watermark to markdown
+      const watermarkMarkdown = `> **Viewed by: ${username}**\n\n`;
+      textFull = watermarkMarkdown + markdownText;
+    }
+
+    setPreviewContent({ url: contentUrl, text: textFull });
+    setPreviewFile(file);
+  };
+
+  //Helper function to get appropriate comment syntax for watermarking code files
+  const getWatermarkComment = (fileType, username) => {
+    const timestamp = new Date().toLocaleString();
+
+    const commentStyles = {
+      js: `/* Viewed by: ${username} on ${timestamp} */`,
+      jsx: `/* Viewed by: ${username} on ${timestamp} */`,
+      ts: `/* Viewed by: ${username} on ${timestamp} */`,
+      tsx: `/* Viewed by: ${username} on ${timestamp} */`,
+      java: `/* Viewed by: ${username} on ${timestamp} */`,
+      cpp: `/* Viewed by: ${username} on ${timestamp} */`,
+      c: `/* Viewed by: ${username} on ${timestamp} */`,
+      css: `/* Viewed by: ${username} on ${timestamp} */`,
+
+      py: `# Viewed by: ${username} on ${timestamp}`,
+      rb: `# Viewed by: ${username} on ${timestamp}`,
+      sql: `-- Viewed by: ${username} on ${timestamp}`,
+
+      php: `<?php /* Viewed by: ${username} on ${timestamp} */ ?>`,
+      html: `<!-- Viewed by: ${username} on ${timestamp} -->`,
+      go: `// Viewed by: ${username} on ${timestamp}`,
+      rs: `// Viewed by: ${username} on ${timestamp}`,
+    };
+
+    return (
+      commentStyles[fileType] || `// Viewed by: ${username} on ${timestamp}`
+    );
+  };
+
+  const handleOpenFullView = async (file) => {
+    const username = user?.username;
+
+    if (file.type === "folder") {
+      setPreviewContent({
+        url: null,
+        text: "This is a folder. Double-click to open.",
+      });
+      setPreviewFile(file);
+      return;
+    }
+
+    const result = await handleLoadFile(file);
+    if (!result) return;
+
+    let contentUrl = null;
+    let textFull = null;
+
+    if (file.type === "image") {
+      if (typeof window === "undefined") return;
+
+      const imgBlob = new Blob([result.decrypted], { type: file.type });
+      const imgBitmap = await createImageBitmap(imgBlob);
+
+      const canvas = document.createElement("canvas");
+      canvas.width = imgBitmap.width;
+      canvas.height = imgBitmap.height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(imgBitmap, 0, 0);
+
+      const fontSize = Math.floor(imgBitmap.width / 20);
+      ctx.font = `${fontSize}px Arial`;
+      ctx.fillStyle = "rgba(255, 0, 0, 0.7)";
+      ctx.textAlign = "center";
+      ctx.fillText(username, imgBitmap.width / 2, imgBitmap.height / 2);
+
+      contentUrl = canvas.toDataURL(file.type);
+    } else if (file.type === "pdf") {
+      contentUrl = URL.createObjectURL(
+        new Blob([result.decrypted], { type: "application/pdf" })
+      );
+    } else if (file.type === "video" || file.type === "audio") {
+      contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
+    } else if (
+      [
+        "txt",
+        "json",
+        "csv",
+        "xml",
+        "yaml",
+        "yml",
+        "html",
+        "css",
+        "js",
+        "jsx",
+        "ts",
+        "tsx",
+        "py",
+        "java",
+        "cpp",
+        "c",
+        "php",
+        "rb",
+        "go",
+        "rs",
+        "sql",
+        "log",
+        "ini",
+        "cfg",
+        "conf",
+      ].includes(file.type)
+    ) {
+      textFull = new TextDecoder().decode(result.decrypted);
+
+      if (
+        [
+          "js",
+          "jsx",
+          "ts",
+          "tsx",
+          "py",
+          "java",
+          "cpp",
+          "c",
+          "php",
+          "rb",
+          "go",
+          "rs",
+        ].includes(file.type)
+      ) {
+        const watermarkComment = getWatermarkComment(file.type, username);
+        textFull = watermarkComment + "\n" + textFull;
+      }
+    } else if (file.type === "markdown" || file.type === "md") {
+      const markdownText = new TextDecoder().decode(result.decrypted);
+      const watermarkMarkdown = `> **Viewed by: ${username}**\n\n`;
+      textFull = watermarkMarkdown + markdownText;
     }
 
     setViewerContent({ url: contentUrl, text: textFull });
