@@ -8,7 +8,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 const fileServiceAxios = axios.create({
   baseURL: process.env.FILE_SERVICE_URL || "http://localhost:8081",
-  timeout: 1800000, // 30 minutes (1800000ms)
+  timeout: 1800000,
   maxBodyLength: Infinity,
   maxContentLength: Infinity,
 });
@@ -22,7 +22,6 @@ exports.downloadFile = async (req, res) => {
   }
 
   try {
-    // 🔹 Request Go service with streaming
     const response = await fileServiceAxios({
       method: "post",
       url: `${
@@ -30,7 +29,7 @@ exports.downloadFile = async (req, res) => {
       }/download`,
       data: { userId, fileId },
       headers: { "Content-Type": "application/json" },
-      responseType: "stream", // ✅ Stream instead of arraybuffer
+      responseType: "stream", 
     });
 
     const fileName = response.headers["x-file-name"];
@@ -50,7 +49,6 @@ exports.downloadFile = async (req, res) => {
       "size unknown until complete"
     );
 
-    // 🔹 Pass headers to browser for filename + metadata
     res.set({
       "Access-Control-Expose-Headers": "X-File-Name, X-Nonce",
       "Content-Type": "application/octet-stream",
@@ -58,22 +56,19 @@ exports.downloadFile = async (req, res) => {
       "X-Nonce": nonce,
     });
 
-    // 🔹 Pipe stream from Go directly to client
     response.data.pipe(res);
 
-    // Optional: handle stream errors
     response.data.on("error", (err) => {
       console.error("Stream error from Go service:", err);
-      res.end(); // close client connection
+      res.end(); 
     });
 
-    // Optional: log when finished
     response.data.on("end", () => {
-      console.log("✅ File streamed to client successfully:", fileName);
+      console.log("File streamed to client successfully:", fileName);
     });
 
   } catch (err) {
-    console.error("❌ Download error:", err.message);
+    console.error("Download error:", err.message);
     return res.status(500).send("Download failed");
   }
 };
@@ -164,7 +159,7 @@ exports.uploadChunk = async (req, res) => {
       fileTags,
       chunkIndex,
       totalChunks,
-      fileId,          // ✅ New
+      fileId,         
       path: folderPath,
     } = req.body;
 
@@ -191,7 +186,7 @@ exports.uploadChunk = async (req, res) => {
     }
 
     const formData = new FormData();
-    formData.append("fileId", fileId);                     // ✅ Include fileId
+    formData.append("fileId", fileId);                   
     formData.append("fileName", fileName);
     formData.append("fileType", fileType || "application/octet-stream");
     formData.append("userId", userId);
@@ -293,12 +288,11 @@ exports.sendFile = [
         return res.status(400).send("Missing required fields or file chunk");
       }
 
-      // 🔹 Build FormData for Go backend
       const formData = new FormData();
       formData.append("fileid", fileid);
       formData.append("userId", userId);
       formData.append("recipientUserId", recipientUserId);
-      formData.append("metadata", metadata); // JSON string
+      formData.append("metadata", metadata);
       formData.append("chunkIndex", chunkIndex);
       formData.append("totalChunks", totalChunks);
       formData.append("encryptedFile", encryptedFile, {
@@ -306,17 +300,15 @@ exports.sendFile = [
         contentType: "application/octet-stream",
       });
 
-      // 🔹 Send to Go backend
       const goResponse = await fileServiceAxios.post(
         `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/sendFile`,
         formData,
         {
           headers: formData.getHeaders(),
-          maxBodyLength: Infinity, // allow big chunks
+          maxBodyLength: Infinity, 
         }
       );
 
-      // 🔹 Proxy response back to frontend
       res.status(goResponse.status).json(goResponse.data);
     } catch (err) {
       console.error("Error sending file:", err.message);
@@ -414,7 +406,7 @@ exports.softDeleteFile = async (req, res) => {
     res.status(response.status).json(response.data);
   } catch (err) {
     console.error("Soft delete error:", err.message);
-    res.status(500).send("Failed to soft delete file"); // <-- match test expectation
+    res.status(500).send("Failed to soft delete file"); 
   }
 };
 
@@ -465,16 +457,14 @@ exports.downloadSentFile = async (req, res) => {
   }
 
   try {
-    // 🔹 1. Request Go service with streaming
     const response = await fileServiceAxios({
       method: "post",
       url: `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/downloadSentFile`,
       data: { filePath: filepath },
       headers: { "Content-Type": "application/json" },
-      responseType: "stream", // ⭐ Stream instead of buffering
+      responseType: "stream", 
     });
 
-    // 🔹 2. Forward headers
     res.set({
       "Content-Type": "application/octet-stream",
       "Access-Control-Expose-Headers": "Content-Disposition",
@@ -594,7 +584,6 @@ exports.sendByView = [
           .send("Missing file id, user ids, metadata, or encrypted file chunk");
       }
 
-      // 🔹 Build FormData to forward to Go
       const formData = new FormData();
       formData.append("fileid", fileid);
       formData.append("userId", userId);
@@ -607,13 +596,12 @@ exports.sendByView = [
         contentType: "application/octet-stream",
       });
 
-      // 🔹 Forward to Go service
       const response = await fileServiceAxios.post(
         `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/sendByView`,
         formData,
         {
           headers: formData.getHeaders(),
-          maxBodyLength: Infinity, // allow large chunks
+          maxBodyLength: Infinity, 
         }
       );
 
@@ -621,7 +609,6 @@ exports.sendByView = [
         return res.status(response.status).send("Error from Go service");
       }
 
-      // Forward the shareId from the Go service response
       const { shareId, message } = response.data;
 
       res.status(200).json({
@@ -840,3 +827,34 @@ exports.getUsersWithFileAccess = async (req, res) => {
     res.status(500).send("Error getting users with file access");
   }
 };
+
+exports.deleteFolder = async (req,res) => {
+  const {folderId, parentPath,recursive,tags} = req.body;
+
+  if(!folderId){
+    return res.status(400).send("Missing folderId");
+  }
+  if(!parentPath){
+    return res.status(400).send("Missing parentPath");
+  }
+  if(!tags){
+    return res.status(400).send("Missing tags");
+  }
+
+  try{
+    const response =  await fileServiceAxios.post(
+      `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/deleteFolder`,
+      {folderId, parentPath, recursive,tags},
+      {headers: {"Content-Type": "application/json"}}
+    );
+
+    if(response.status !== 200){
+      return res.status(response.status).send("Error deleting folder");
+    }
+    res.status(200).send("Folder deleted successfully");
+  }
+  catch(err){
+    console.error("Error deleting folder:", err.message);
+    res.status(500).send("Error deleting folder");
+  }
+}
