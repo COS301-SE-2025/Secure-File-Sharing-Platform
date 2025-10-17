@@ -600,6 +600,8 @@ export default function DashboardHomePage() {
     setUploadFiles([]);
     setUploadProgress(0);
     fetchFiles();
+    fetchFilesMetadata();
+    fetchRecentAccessLogs();
   };
 
   const fetchFiles = async () => {
@@ -1269,7 +1271,7 @@ export default function DashboardHomePage() {
           {/* Recent Files */}
           <div className="flex-1 p-4 bg-gray-200 dark:bg-gray-800 rounded-lg shadow-md overflow-hidden flex flex-col">
             <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">
-              Recent Files
+              Last Added Files
             </h2>
             <ul className="flex-1 bg-white dark:bg-gray-800 rounded-lg divide-y divide-gray-200 dark:divide-gray-700 overflow-y-auto text-sm">
               {recentFiles.length === 0 ? (
