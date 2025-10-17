@@ -828,7 +828,7 @@ exports.getUsersWithFileAccess = async (req, res) => {
   }
 };
 
-exports.deleteFile = async (req,res) => {
+exports.deleteFolder = async (req,res) => {
   const {folderId, parentPath,recursive,tags} = req.body;
 
   if(!folderId){

@@ -568,7 +568,7 @@ func AddTagsHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func deleteFolderHandler(w http.ResponseWriter, r *http.Request) {
+func DeleteFolderHandler(w http.ResponseWriter, r *http.Request) {
 	type DeleteFolderRequest struct {
 		FolderID   string   `json:"folderId"`
 		ParentPath string   `json:"parentPath"`
@@ -597,10 +597,11 @@ func deleteFolderHandler(w http.ResponseWriter, r *http.Request) {
 	defer tx.Rollback()
 
 	if req.Recursive {
-		var folderPath string
+		// Get the folder's CID to find all descendants
+		var folderCID string
 		err := tx.QueryRow(`
-			SELECT path FROM files WHERE id = $1 AND is_folder = true
-		`, req.FolderID).Scan(&folderPath)
+			SELECT cid FROM files WHERE id = $1 AND is_folder = true
+		`, req.FolderID).Scan(&folderCID)
 		
 		if err != nil {
 			log.Println("Failed to fetch folder:", err)
@@ -608,17 +609,12 @@ func deleteFolderHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		fullPath := folderPath
-		if req.ParentPath != "" {
-			fullPath = req.ParentPath + "/" + folderPath
-		}
-
 		if len(req.Tags) > 0 {
 			_, err = tx.Exec(`
 				UPDATE files
 				SET tags = array_cat(COALESCE(tags, '{}'), $1::text[])
-				WHERE path LIKE $2 || '%'
-			`, pq.Array(req.Tags), fullPath)
+				WHERE cid LIKE 'files/' || $2 || '/%'
+			`, pq.Array(req.Tags), folderCID)
 			
 			if err != nil {
 				log.Println("Failed to add tags to descendants:", err)
@@ -628,6 +624,7 @@ func deleteFolderHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Add tags to the folder itself if provided
 	if len(req.Tags) > 0 {
 		_, err = tx.Exec(`
 			UPDATE files
@@ -642,6 +639,7 @@ func deleteFolderHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Commit the transaction
 	if err = tx.Commit(); err != nil {
 		log.Println("Failed to commit transaction:", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
