@@ -568,6 +568,92 @@ func AddTagsHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func deleteFolderHandler(w http.ResponseWriter, r *http.Request) {
+	type DeleteFolderRequest struct {
+		FolderID   string   `json:"folderId"`
+		ParentPath string   `json:"parentPath"`
+		Recursive  bool     `json:"recursive"`
+		Tags       []string `json:"tags"`
+	}
+
+	var req DeleteFolderRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Println("Failed to parse JSON:", err)
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	if req.FolderID == "" {
+		http.Error(w, "Missing folderId", http.StatusBadRequest)
+		return
+	}
+
+	tx, err := DB.Begin()
+	if err != nil {
+		log.Println("Failed to start transaction:", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	defer tx.Rollback()
+
+	if req.Recursive {
+		var folderPath string
+		err := tx.QueryRow(`
+			SELECT path FROM files WHERE id = $1 AND is_folder = true
+		`, req.FolderID).Scan(&folderPath)
+		
+		if err != nil {
+			log.Println("Failed to fetch folder:", err)
+			http.Error(w, "Folder not found", http.StatusNotFound)
+			return
+		}
+
+		fullPath := folderPath
+		if req.ParentPath != "" {
+			fullPath = req.ParentPath + "/" + folderPath
+		}
+
+		if len(req.Tags) > 0 {
+			_, err = tx.Exec(`
+				UPDATE files
+				SET tags = array_cat(COALESCE(tags, '{}'), $1::text[])
+				WHERE path LIKE $2 || '%'
+			`, pq.Array(req.Tags), fullPath)
+			
+			if err != nil {
+				log.Println("Failed to add tags to descendants:", err)
+				http.Error(w, "Internal server error", http.StatusInternalServerError)
+				return
+			}
+		}
+	}
+
+	if len(req.Tags) > 0 {
+		_, err = tx.Exec(`
+			UPDATE files
+			SET tags = array_cat(COALESCE(tags, '{}'), $1::text[])
+			WHERE id = $2
+		`, pq.Array(req.Tags), req.FolderID)
+		
+		if err != nil {
+			log.Println("Failed to add tags to folder:", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	if err = tx.Commit(); err != nil {
+		log.Println("Failed to commit transaction:", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Folder deleted successfully",
+	})
+}
+
 func AddUserHandler(w http.ResponseWriter, r *http.Request) {
 	var req MetadataQueryRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

@@ -61,8 +61,13 @@ const Label = ({ htmlFor, children }) => (
   </label>
 );
 
-export function CreateFolderDialog({ open, onOpenChange, currentPath,onFolderCreated }) {
-  const [folderName, setFolderName] = useState("");
+export function CreateFolderDialog({
+  open,
+  onOpenChange,
+  currentPath,
+  onFolderCreated,
+}) {
+  const [newName, setFolderName] = useState("");
 
   const createFolder = async () => {
     if (!folderName.trim()) return;
@@ -74,14 +79,49 @@ export function CreateFolderDialog({ open, onOpenChange, currentPath,onFolderCre
         return;
       }
 
-      const fullPath = currentPath ? `${currentPath}/${folderName}` : folderName;
+      //sanitize the folder
+
+      function isSafePath(name) {
+        return (
+          !name.includes("..") && !name.includes("/") && !name.includes("\\")
+        );
+      }
+
+      const reserved = ["CON", "PRN", "AUX", "NUL", "COM1", "LPT1", "LPT9"];
+      function isReserved(name) {
+        return reserved.includes(name.toUpperCase());
+      }
+
+      function truncate(name, maxLength = 100) {
+        return name.length > maxLength ? name.slice(0, maxLength) : name;
+      }
+
+      function cleanFolderName(input) {
+        const name = input
+          .normalize("NFC")
+          .replace(/[^a-zA-Z0-9-_ ]/g, "")
+          .trim()
+          .replace(/\s+/g, "_");
+
+        if (!isSafePath(name) || isReserved(name)) {
+          throw new Error("Unsafe or reserved folder name");
+        }
+
+        return truncate(name);
+      }
+
+      const newName = cleanFolderName(folderName);
+
+      const fullPath = currentPath
+        ? `${currentPath}/${newName}`
+        : newName;
 
       const res = await fetch(getFileApiUrl("/createFolder"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId,
-          folderName,
+          folderName: newName,
           parentPath: currentPath || "",
           description: "",
         }),
@@ -116,7 +156,7 @@ export function CreateFolderDialog({ open, onOpenChange, currentPath,onFolderCre
             <Label htmlFor="folder-name">Folder Name</Label>
             <Input
               id="folder-name"
-              value={folderName}
+              value={newName}
               onChange={(e) => setFolderName(e.target.value)}
               placeholder="Enter folder name"
               onKeyPress={(e) => e.key === "Enter" && createFolder()}
@@ -127,7 +167,7 @@ export function CreateFolderDialog({ open, onOpenChange, currentPath,onFolderCre
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button onClick={createFolder} disabled={!folderName.trim()}>
+            <Button onClick={createFolder} disabled={!newName.trim()}>
               Create Folder
             </Button>
           </div>

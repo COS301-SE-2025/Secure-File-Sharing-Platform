@@ -104,7 +104,8 @@ func main() {
 	http.HandleFunc("/addUser", metadata.AddUserHandler)
 	http.HandleFunc("/removeTags", metadata.RemoveTagsFromFileHandler)
 	http.HandleFunc("/downloadSentFile", fileHandler.DownloadSentFile)
-
+	http.HandleFunc("/deleteFolder", fileHandler.DeleteFolderHandler)
+	
 	// view files endpoints newly added
 	http.HandleFunc("/sendByView", fileHandler.SendByViewHandler)
 	http.HandleFunc("/revokeViewAccess", fileHandler.RevokeViewAccessHandler)
