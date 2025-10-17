@@ -597,10 +597,9 @@ func DeleteFolderHandler(w http.ResponseWriter, r *http.Request) {
 	defer tx.Rollback()
 
 	if req.Recursive {
-		// Get the folder's CID to find all descendants
 		var folderCID string
 		err := tx.QueryRow(`
-			SELECT cid FROM files WHERE id = $1 AND is_folder = true
+			SELECT cid FROM files WHERE id = $1
 		`, req.FolderID).Scan(&folderCID)
 		
 		if err != nil {
@@ -622,9 +621,34 @@ func DeleteFolderHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
+
+		_, err = tx.Exec(`
+			UPDATE files
+			SET cid = 'files/' || id
+			WHERE cid LIKE 'files/' || $1 || '/%'
+			AND NOT ('folder' = ANY(tags))
+		`, folderCID)
+		
+		if err != nil {
+			log.Println("Failed to move files to root:", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		_, err = tx.Exec(`
+			UPDATE files
+			SET cid = regexp_replace(cid, '^files/' || $1 || '/(.+?)(/.*)?$', '\1')
+			WHERE cid LIKE 'files/' || $1 || '/%'
+			AND 'folder' = ANY(tags)
+		`, folderCID)
+		
+		if err != nil {
+			log.Println("Failed to move folders to root:", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
 	}
 
-	// Add tags to the folder itself if provided
 	if len(req.Tags) > 0 {
 		_, err = tx.Exec(`
 			UPDATE files
@@ -639,7 +663,6 @@ func DeleteFolderHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Commit the transaction
 	if err = tx.Commit(); err != nil {
 		log.Println("Failed to commit transaction:", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)

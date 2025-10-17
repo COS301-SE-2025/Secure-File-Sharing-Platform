@@ -291,15 +291,15 @@ export function FileList({
     const tags = ["deleted", `deleted_time:${timestamp}`];
 
     try {
-      // If the file is a folder, delete it and all its contents
+
       if (file.type === "folder") {
         const res = await fetch(getFileApiUrl("/deleteFolder"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             folderId: file.id,
-            parentPath: file.path || "" || file.cid, // Provide the folder's path if needed
-            recursive: true, // Indicate recursive deletion
+            parentPath: file.path || "" || file.cid, 
+            recursive: true, 
             tags,
           }),
         });
