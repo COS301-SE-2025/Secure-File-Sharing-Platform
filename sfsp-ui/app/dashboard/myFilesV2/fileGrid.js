@@ -344,17 +344,39 @@ export function FileGrid({
     const tags = ["deleted", `deleted_time:${timestamp}`];
 
     try {
-      const res = await fetch(getFileApiUrl("/addTags"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fileId: file.id, tags }),
-      });
 
-      if (!res.ok) {
-        throw new Error("Failed to tag file as deleted");
+      if (file.type === "folder") {
+        const res = await fetch(getFileApiUrl("/deleteFolder"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            folderId: file.id,
+            parentPath: file.path || "" || file.cid, 
+            recursive: true, 
+            tags,
+          }),
+        });
+
+        if (!res.ok) {
+          throw new Error("Failed to delete folder and its contents");
+        }
+
+        console.log(`Folder ${file.name} and its contents deleted`);
+
+        onEnterFolder?.(""); 
+      } else {
+        const res = await fetch(getFileApiUrl("/addTags"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fileId: file.id, tags }),
+        });
+
+        if (!res.ok) {
+          throw new Error("Failed to tag file as deleted");
+        }
+
+        console.log(`File ${file.name} marked as deleted`);
       }
-
-      console.log(`File ${file.name} marked as deleted`);
 
       const token = localStorage.getItem("token");
       if (!token) return;
@@ -375,11 +397,16 @@ export function FileGrid({
             file_id: file.id,
             user_id: profileResult.data.id,
             action: "deleted",
-            message: `User ${profileResult.data.email} deleted the file.`,
+            message: `User ${profileResult.data.email} deleted the ${
+              file.type === "folder" ? "folder and its contents" : "file"
+            }.`,
           }),
         });
       } catch (err) {
-        console.error("Failed to fetch user profile:", err.message);
+        console.error(
+          "Failed to fetch user profile or log action:",
+          err.message
+        );
       }
 
       if (onDelete) {
@@ -387,7 +414,9 @@ export function FileGrid({
       }
     } catch (err) {
       console.error("Delete failed:", err);
-      showToast("Failed to delete file");
+      showToast(
+        `Failed to delete ${file.type === "folder" ? "folder" : "file"}`
+      );
     } finally {
       setMenuFile(null);
     }

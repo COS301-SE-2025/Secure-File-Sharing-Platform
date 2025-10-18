@@ -232,7 +232,7 @@ export default function NotificationDropdown() {
                         e.stopPropagation();
                         clearNotification(notification.id);
                       }}
-                      className="h-6 w-6 p-0 flex items-center justify-center rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+                      className="h-6 w-6 p-0 dark:text-gray-600  flex items-center justify-center rounded hover:bg-gray-200 dark:hover:text-gray-100 dark:hover:bg-gray-700"
                     >
                       <X className="h-3 w-3" />
                     </button>

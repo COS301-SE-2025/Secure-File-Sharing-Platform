@@ -36,5 +36,6 @@ router.post('/sendByView', fileController.sendByView);
 router.post('/getViewAccesslogs', fileController.getViewFileAccessLogs);
 router.post('/downloadViewFile', fileController.downloadViewFile);
 router.post('/changeShareMethod', fileController.changeShareMethod);
+router.post('/deleteFolder', fileController.deleteFolder);
 
 module.exports = router;

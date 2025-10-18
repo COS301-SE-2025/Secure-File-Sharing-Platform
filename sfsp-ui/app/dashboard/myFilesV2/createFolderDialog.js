@@ -31,11 +31,10 @@ const Button = ({ children, onClick, variant = "primary", disabled }) => (
   <button
     onClick={onClick}
     disabled={disabled}
-    className={`px-4 py-2 rounded-md ${
-      variant === "outline"
+    className={`px-4 py-2 rounded-md ${variant === "outline"
         ? "border border-gray-300 text-gray-700 dark:bg-gray-300 dark:font-bold "
         : "bg-blue-600 text-white hover:bg-blue-700 "
-    } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
+      } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
   >
     {children}
   </button>
@@ -61,7 +60,7 @@ const Label = ({ htmlFor, children }) => (
   </label>
 );
 
-export function CreateFolderDialog({ open, onOpenChange, currentPath,onFolderCreated }) {
+export function CreateFolderDialog({ open, onOpenChange, currentPath, onFolderCreated }) {
   const [folderName, setFolderName] = useState("");
 
   const createFolder = async () => {

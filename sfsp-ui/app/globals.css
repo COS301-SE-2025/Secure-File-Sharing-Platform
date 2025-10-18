@@ -75,3 +75,29 @@ body {
 .rotate-y-180 {
   transform: rotateY(180deg);
 }
+
+.custom-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-scroll::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 8px;
+}
+
+.custom-scroll::-webkit-scrollbar-thumb {
+  background: #b0b0b0;
+  border-radius: 8px;
+}
+
+.custom-scroll::-webkit-scrollbar-thumb:hover {
+  background: #888;
+}
+
+.dark .custom-scroll::-webkit-scrollbar-track {
+  background: #333;
+}
+
+.dark .custom-scroll::-webkit-scrollbar-thumb {
+  background: #666;
+}

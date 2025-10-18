@@ -1308,7 +1308,8 @@ export default function MyFiles() {
   };
 
   return (
-     <div className="bg-gray-50 p-6 dark:bg-gray-900">
+     <div className="bg-gray-50/0 p-6 dark:bg-gray-900">
+      {/* <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow"> */}
       <div className="">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
@@ -1559,6 +1560,7 @@ export default function MyFiles() {
           />
         )}
       </div>
+      {/* </div> */}
     </div>
   );
 }
