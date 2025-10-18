@@ -446,7 +446,7 @@ export function UploadDialog({
           </div>
 
           {uploadFiles.length > 0 && (
-            <div className="space-y-2 max-h-48 overflow-y-auto">
+            <div className="space-y-2 max-h-48 overflow-y-auto pl-2 pr-2 custom-scroll">
               {uploadFiles.map((file, i) => (
                 <div
                   key={i}

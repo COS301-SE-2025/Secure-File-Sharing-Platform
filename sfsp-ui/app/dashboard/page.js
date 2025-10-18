@@ -1208,7 +1208,7 @@ export default function DashboardHomePage() {
               </div>
             </div>
             {uploadFiles.length > 0 && (
-              <div className="space-y-2 max-h-48 overflow-y-auto mt-4">
+              <div className="space-y-2 max-h-48 overflow-y-auto mt-4 pl-2 pr-1 custom-scroll">
                 {uploadFiles.map((file, i) => (
                   <div
                     key={i}
