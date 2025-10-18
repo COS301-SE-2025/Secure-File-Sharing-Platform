@@ -79,7 +79,13 @@ export async function resetPasswordWithRecovery(email, recoveryKey, newPassword,
 
     let userFiles = [];
     if (metadataResponse.ok) {
-      userFiles = await metadataResponse.json();
+      const data = await metadataResponse.json();
+      userFiles = Array.isArray(data) ? data : [];
+    }
+
+    // If user has no files, skip re-encryption step
+    if (userFiles.length === 0) {
+      console.log('No files to re-encrypt for this user');
     }
 
     reportProgress(3, 6, 'Generating new encryption key...');
@@ -95,7 +101,11 @@ export async function resetPasswordWithRecovery(email, recoveryKey, newPassword,
       sodium.crypto_pwhash_ALG_DEFAULT
     );
 
-    reportProgress(4, 6, `Re-encrypting ${userFiles.length} file(s)...`);
+    if (userFiles.length > 0) {
+      reportProgress(4, 6, `Re-encrypting ${userFiles.length} file(s)...`);
+    } else {
+      reportProgress(4, 6, 'No files to re-encrypt...');
+    }
 
     // 6. Re-encrypt all files with the new derived key
     const reencryptedFiles = [];

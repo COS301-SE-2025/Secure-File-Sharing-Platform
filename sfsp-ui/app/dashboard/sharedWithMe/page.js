@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Grid, List } from "lucide-react";
+import { Grid, List, ChevronDown } from "lucide-react";
 import { ShareDialog } from "../myFilesV2/shareDialog";
 import { FileDetailsDialog } from "../myFilesV2/fileDetailsDialog";
 import { ActivityLogsDialog } from "../myFilesV2/activityLogsDialog";
@@ -419,29 +419,22 @@ export default function MyFiles() {
     fetchFiles();
   }, []);
 
-  const sortFilesBasedOnDate = () => {
-    setFiles(
-      [...files].sort(
-        (a, b) => new Date(b.modifiedRaw) - new Date(a.modifiedRaw)
-      )
-    );
-  };
-
-  const sortFilesBasedOnName = () => {
-    setFiles([...files].sort((a, b) => a.name.localeCompare(b.name)));
-  };
-
-  const sortFilesBasedOnSize = () => {
-    setFiles([...files].sort((a, b) => a.sizeBytes - b.sizeBytes));
-  };
-
-  const handleAscendingSort = () => {
-    setFiles([...files].reverse());
-  };
-
-  const handleDescendingSort = () => {
-    setFiles([...files].reverse());
-  };
+    const sortFilesBasedOnDate = () => {
+      setFiles([...files].sort((a, b) => new Date(b.modifiedRaw) - new Date(a.modifiedRaw)));
+    };
+  
+    const sortFilesBasedOnName = () => {
+      setFiles([...files].sort((a, b) => a.name.localeCompare(b.name)));
+    };
+  
+    const sortFilesBasedOnSize = () => {
+      setFiles([...files].sort((a, b) => a.size - b.size));
+    }
+  
+    const reverseSort = () => {
+      setFiles([...files].reverse());	
+    };
+  
 
   const handleUpdateDescription = async (fileId, description) => {
     try {
@@ -914,45 +907,93 @@ export default function MyFiles() {
 
   return (
     <div className="bg-gray-50 p-6 dark:bg-gray-900">
-      <div>
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-2xl font-semibold text-blue-500">
-              Shared with me
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400">
-              Files that have been shared with you
-            </p>
-          </div>
+    <div>
+      {/* Header */}
+      <header className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="text-2xl font-semibold text-blue-500">Shared with me</h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            Files that have been shared with you
+          </p>
+        </div>
 
-          <div className="flex items-center gap-4">
-            {/* View Toggle */}
-            <div className="flex items-center bg-white rounded-lg border p-1 dark:bg-gray-200">
+        {/* View + Sort Toggle */}
+        <div className="flex items-center gap-4 relative">
+          <div className="flex items-center bg-white rounded-lg border p-1 dark:bg-gray-200 relative z-50">
+            {/* Grid Button */}
+            <button
+              className={`px-3 py-1 rounded ${
+                viewMode === "grid"
+                  ? "bg-blue-500 text-white"
+                  : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
+              }`}
+              onClick={() => setViewMode("grid")}
+            >
+              <Grid className="h-4 w-4" />
+            </button>
+
+            {/* List Button */}
+            <button
+              className={`px-3 py-1 rounded ${
+                viewMode === "list"
+                  ? "bg-blue-500 text-white"
+                  : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
+              }`}
+              onClick={() => setViewMode("list")}
+            >
+              <List className="h-4 w-4" />
+            </button>
+
+            {/* Sort Button with Dropdown */}
+            <div className="relative">
               <button
-                className={`px-3 py-1 rounded ${
-                  viewMode === "grid"
-                    ? "bg-blue-500 text-white"
-                    : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
-                }`}
-                onClick={() => setViewMode("grid")}
+                className="px-3 py-1 rounded flex items-center gap-1 text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
+                onClick={() => setShowSortOptions((prev) => !prev)}
               >
-                <Grid className="h-4 w-4" />
+                Sort
+                <ChevronDown className="h-3 w-3" />
               </button>
-              <button
-                className={`px-3 py-1 rounded ${
-                  viewMode === "list"
-                    ? "bg-blue-500 text-white"
-                    : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
-                }`}
-                onClick={() => setViewMode("list")}
-              >
-                <List className="h-4 w-4" />
-              </button>
+
+              {showSortOptions && (
+                <div className="absolute right-0 top-full mt-2 w-48 bg-white border rounded-lg shadow-lg z-50 dark:bg-gray-100">
+                  <button
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700 dark:text-black"
+                    onClick={() => { sortFilesBasedOnDate(); setShowSortOptions(false); }}
+                  >
+                    Sort by Date
+                  </button>
+                  <button
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700 dark:text-black"
+                    onClick={() => { sortFilesBasedOnName(); setShowSortOptions(false); }}
+                  >
+                    Sort by Name
+                  </button>
+                  <button
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700 dark:text-black"
+                    onClick={() => { sortFilesBasedOnSize(); setShowSortOptions(false); }}
+                  >
+                    Sort by Size
+                  </button>
+                  <hr className="border-gray-200 dark:border-gray-400" />
+                  <button
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700 dark:text-black"
+                    onClick={() => { reverseSort(); setShowSortOptions(false); }}
+                  >
+                    Ascending
+                  </button>
+                  <button
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700 dark:text-black"
+                    onClick={() => { reverseSort(); setShowSortOptions(false); }}
+                  >
+                    Descending
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
-
+      </header>
+      
         {/* File List */}
         {filteredVisibleFiles.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-96 text-center text-gray-700 dark:text-gray-400 rounded-lg p-10">

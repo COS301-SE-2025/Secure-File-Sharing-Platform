@@ -22,8 +22,8 @@ const features = [
     link: "/logs",
   },
   {
-    title: "One-Time Download Links",
-    description: "Generate links that expire after a single use for added security.",
+    title: "File Organization",
+    description: "With folder creation, sorting and shortcuts we offer a flexible file interactions.",
     img: "/img/one-time.png",
     link: "/one-time-links",
   },

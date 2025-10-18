@@ -16,7 +16,8 @@ import {
   storeDerivedKeyEncrypted,
 } from "../SecureKeyStorage";
 import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
-import {logout} from "../lib/auth";
+import { logout } from "../lib/auth";
+import jsPDF from 'jspdf';
 
 
 export default function AuthPage() {
@@ -50,7 +51,7 @@ export default function AuthPage() {
   const [recoveryKey, setRecoveryKey] = useState("");
 
   useEffect(() => {
-    logout(); 
+    logout();
     const urlParams = new URLSearchParams(window.location.search);
     const error = urlParams.get('error');
 
@@ -1095,30 +1096,25 @@ export default function AuthPage() {
         </div>
       )}
 
-      {/* 🔑 Recovery Key Modal */}
+      {/* Recovery Key Modal */}
       {showRecoveryKeyModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[10000] p-4">
-          <div className="bg-white rounded-lg shadow-2xl max-w-2xl w-full p-8 animate-fade-in">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[10000] p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl max-w-2xl w-full p-8 animate-fade-in">
             <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
-              </div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-2">Save Your Recovery Key</h2>
-              <p className="text-gray-600">
+              <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">Save Your Recovery Key</h2>
+              <p className="text-gray-600 dark:text-gray-400">
                 This is your only chance to save your recovery key. You&apos;ll need it to reset your password if you forget it.
               </p>
             </div>
 
-            <div className="bg-gray-50 border-2 border-yellow-300 rounded-lg p-4 mb-6">
+            <div className="bg-gray-50 dark:bg-gray-700 border-2 border-blue-300 dark:border-blue-600 rounded-lg p-4 mb-6">
               <div className="flex items-start mb-2">
-                <svg className="w-5 h-5 text-yellow-600 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                 </svg>
-                <p className="text-sm font-semibold text-gray-800">Important: Store this key securely!</p>
+                <p className="text-sm font-semibold text-gray-800 dark:text-white">Important: Store this key securely!</p>
               </div>
-              <div className="bg-white p-4 rounded border border-gray-200 mb-3 font-mono text-sm break-all select-all">
+              <div className="bg-white dark:bg-gray-600 p-4 rounded border border-gray-400 dark:border-gray-500 mb-3 font-mono text-sm break-all select-all text-gray-900 dark:text-white">
                 {recoveryKey}
               </div>
               <button
@@ -1126,48 +1122,89 @@ export default function AuthPage() {
                   navigator.clipboard.writeText(recoveryKey);
                   showToast("Recovery key copied to clipboard!", "success");
                 }}
-                className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center justify-center"
               >
                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                 </svg>
-                Copy Recovery Key
+                Copy
               </button>
             </div>
 
             <div className="space-y-3 mb-6">
               <div className="flex items-start">
-                <svg className="w-5 h-5 text-green-600 mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-green-600 dark:text-green-400 mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <p className="text-sm text-gray-700">Save this key in a secure password manager</p>
+                <p className="text-sm text-gray-700 dark:text-gray-300">Save this key somewhere safe.</p>
               </div>
               <div className="flex items-start">
-                <svg className="w-5 h-5 text-green-600 mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <p className="text-sm text-gray-700">Write it down and store it in a safe place</p>
-              </div>
-              <div className="flex items-start">
-                <svg className="w-5 h-5 text-red-600 mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-red-600 dark:text-red-400 mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
-                <p className="text-sm text-gray-700">Never share this key with anyone</p>
+                <p className="text-sm text-gray-700 dark:text-gray-300">Avoid sharing your key.</p>
               </div>
             </div>
 
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-              <p className="text-sm text-red-800">
+            <div className="bg-red-200 dark:bg-red-500 border border-red-200 dark:border-red-700 rounded-lg p-4 mb-6">
+              <p className="text-sm text-red-800 dark:text-red-200">
                 <strong>Warning:</strong> Without this recovery key, you will not be able to reset your password or access your files if you forget your password.
               </p>
             </div>
 
-            <button
-              onClick={handleRecoveryKeyConfirmed}
-              className="w-full bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-semibold"
-            >
-              I&apos;ve Saved My Recovery Key - Continue
-            </button>
+            <div className="space-y-4">
+              <button
+                onClick={async () => {
+                  const doc = new jsPDF();
+                  
+                  doc.setFontSize(20);
+                  doc.setTextColor(0, 0, 139);
+                  doc.text('Account Recovery Key Document', 55, 30);
+                  
+                  doc.setFontSize(12);
+                  doc.setTextColor(255, 0, 0);
+                  doc.text('IMPORTANT: Keep this document in a secure location!', 20, 50);
+                  
+                  doc.setTextColor(0, 0, 0);
+                  doc.text([
+                    '• This recovery key is required to reset your password if you forget it.',
+                    '• Store this document offline in a secure location.',
+                    '• Do not share this key with anyone.',
+                    '• You cannot recover your account without this key.'
+                  ], 20, 70);
+                  
+                  doc.setFontSize(14);
+                  doc.text('Your Recovery Key:', 20, 110);
+                  doc.setFontSize(12);
+                  
+                  const keyWords = recoveryKey.split(' ');
+                  let y = 120;
+                  for (let i = 0; i < keyWords.length; i += 6) {
+                    doc.text(keyWords.slice(i, i + 6).join(' '), 20, y);
+                    y += 10;
+                  }
+                  
+                  doc.setFontSize(10);
+                  doc.text('Generated on: ' + new Date().toLocaleString(), 20, 280);
+                  
+                  doc.save('SFSP-Recovery-Key.pdf');
+                  showToast("Recovery key PDF downloaded successfully!", "success");
+                }}
+                className="w-full bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg transition-colors font-semibold flex items-center justify-center"
+              >
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Download Recovery Key (PDF)
+              </button>
+              
+              <button
+                onClick={handleRecoveryKeyConfirmed}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors font-semibold"
+              >
+                I&apos;ve Saved My Recovery Key - Continue
+              </button>
+            </div>
           </div>
         </div>
       )}
