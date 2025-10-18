@@ -932,14 +932,39 @@ export default function MyFiles() {
       canvas.width = imgBitmap.width;
       canvas.height = imgBitmap.height;
       const ctx = canvas.getContext("2d");
+
       ctx.drawImage(imgBitmap, 0, 0);
 
+      //watermark text
       const fontSize = Math.floor(imgBitmap.width / 20);
       ctx.font = `${fontSize}px Arial`;
-      ctx.fillStyle = "rgba(255, 0, 0, 0.7)";
+      ctx.fillStyle = "rgba(255, 0, 0, 0.4)";
       ctx.textAlign = "center";
       ctx.fillText(username, imgBitmap.width / 2, imgBitmap.height / 2);
+      
+      //watermark logo 
+      const logo = new window.Image();
+      logo.src = "/img/secureshare-logo.png"; 
 
+      await new Promise((resolve) => {
+        logo.onload = () => {
+          const logoWidth = imgBitmap.width / 5;
+          const logoHeight = (logo.height / logo.width) * logoWidth;
+          const x = (imgBitmap.width - logoWidth)/2
+          const y = (imgBitmap.height - logoHeight)/2
+
+          ctx.globalAlpha = 0.7;
+          ctx.drawImage(logo, x, y, logoWidth, logoHeight);
+          ctx.globalAlpha = 1.0;
+
+          resolve();
+        };
+
+        logo.onerror = () => {
+          console.warn("Failed to load logo");
+          resolve();
+        };
+      });
       contentUrl = canvas.toDataURL(file.type);
     } else if (file.type === "pdf") {
       contentUrl = URL.createObjectURL(
@@ -1060,7 +1085,7 @@ export default function MyFiles() {
     let contentUrl = null;
     let textFull = null;
 
-    if (file.type === "image") {
+     if (file.type === "image") {
       if (typeof window === "undefined") return;
 
       const imgBlob = new Blob([result.decrypted], { type: file.type });
@@ -1070,14 +1095,39 @@ export default function MyFiles() {
       canvas.width = imgBitmap.width;
       canvas.height = imgBitmap.height;
       const ctx = canvas.getContext("2d");
+
       ctx.drawImage(imgBitmap, 0, 0);
 
+      //watermark text
       const fontSize = Math.floor(imgBitmap.width / 20);
       ctx.font = `${fontSize}px Arial`;
-      ctx.fillStyle = "rgba(255, 0, 0, 0.7)";
+      ctx.fillStyle = "rgba(255, 0, 0, 0.4)";
       ctx.textAlign = "center";
       ctx.fillText(username, imgBitmap.width / 2, imgBitmap.height / 2);
+      
+      //watermark logo 
+      const logo = new window.Image();
+      logo.src = "/img/secureshare-logo.png"; 
 
+      await new Promise((resolve) => {
+        logo.onload = () => {
+          const logoWidth = imgBitmap.width / 5;
+          const logoHeight = (logo.height / logo.width) * logoWidth;
+          const x = (imgBitmap.width - logoWidth)/2
+          const y = (imgBitmap.height - logoHeight)/2
+
+          ctx.globalAlpha = 0.7;
+          ctx.drawImage(logo, x, y, logoWidth, logoHeight);
+          ctx.globalAlpha = 1.0;
+
+          resolve();
+        };
+
+        logo.onerror = () => {
+          console.warn("Failed to load logo");
+          resolve();
+        };
+      });
       contentUrl = canvas.toDataURL(file.type);
     } else if (file.type === "pdf") {
       contentUrl = URL.createObjectURL(
