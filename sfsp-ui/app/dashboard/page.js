@@ -22,6 +22,8 @@ import useDrivePicker from "react-google-drive-picker";
 import dynamic from "next/dynamic";
 import { PreviewDrawer } from "./myFilesV2/previewDrawer";
 
+
+
 const FullViewModal = dynamic(
   () =>
     import("./myFilesV2/fullViewModal").then((mod) => ({
@@ -743,26 +745,59 @@ export default function DashboardHomePage() {
     if (!result) return;
     let contentUrl = null;
     let textFull = null;
-    if (file.type === "image") {
-      if (typeof window === "undefined") return;
-      const imgBlob = new Blob([result.decrypted], { type: file.type });
-      const imgBitmap = await createImageBitmap(imgBlob);
-      const canvas = document.createElement("canvas");
-      canvas.width = imgBitmap.width;
-      canvas.height = imgBitmap.height;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(imgBitmap, 0, 0);
-      const fontSize = Math.floor(imgBitmap.width / 20);
-      ctx.font = `${fontSize}px Arial`;
-      ctx.fillStyle = "rgb(255, 0, 0, 0.4)";
-      ctx.textAlign = "center";
-      ctx.fillText(username, imgBitmap.width / 2, imgBitmap.height / 2);
-      contentUrl = canvas.toDataURL(file.type);
-    } else if (file.type === "pdf") {
+    
+  if (file.type === "image") {
+  if (typeof window === "undefined") return;
+
+  const imgBlob = new Blob([result.decrypted], { type: file.type });
+  const imgBitmap = await createImageBitmap(imgBlob);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = imgBitmap.width;
+  canvas.height = imgBitmap.height;
+  const ctx = canvas.getContext("2d");
+
+  
+  ctx.drawImage(imgBitmap, 0, 0);
+
+  // watermark text
+  const fontSize = Math.floor(imgBitmap.width / 20);
+  ctx.font = `${fontSize}px Arial`;
+  ctx.fillStyle = "rgba(255, 0, 0, 0.4)";
+  ctx.textAlign = "center";
+  ctx.fillText(username, imgBitmap.width / 2, imgBitmap.height / 2);
+  
+  //watermark logo 
+  const logo = new window.Image();
+  logo.src = "/img/secureshare-logo.png"; 
+
+  await new Promise((resolve) => {
+    logo.onload = () => {
+      const logoWidth = imgBitmap.width / 5;
+      const logoHeight = (logo.height / logo.width) * logoWidth;
+      const x = (imgBitmap.width - logoWidth)/2
+      const y = (imgBitmap.height - logoHeight)/2
+
+      ctx.globalAlpha = 0.7;
+      ctx.drawImage(logo, x, y, logoWidth, logoHeight);
+      ctx.globalAlpha = 1.0;
+
+      resolve();
+    };
+
+    logo.onerror = () => {
+      console.warn("Failed to load logo");
+      resolve();
+    };
+  });
+
+  contentUrl = canvas.toDataURL(file.type);
+}
+ else if (file.type === "pdf") {
       contentUrl = URL.createObjectURL(
         new Blob([result.decrypted], { type: "application/pdf" })
       );
-    } else if (file.type === "video" || file.type === "audio") {
+    }else if (file.type === "video" || file.type === "audio"){
       contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
     } else if (["txt", "json", "csv"].includes(file.type)) {
       textFull = new TextDecoder().decode(result.decrypted);
@@ -777,21 +812,53 @@ export default function DashboardHomePage() {
     if (!result) return;
     let contentUrl = null;
     let textFull = null;
+
     if (file.type === "image") {
       if (typeof window === "undefined") return;
+
       const imgBlob = new Blob([result.decrypted], { type: file.type });
       const imgBitmap = await createImageBitmap(imgBlob);
+
       const canvas = document.createElement("canvas");
       canvas.width = imgBitmap.width;
       canvas.height = imgBitmap.height;
       const ctx = canvas.getContext("2d");
+
       ctx.drawImage(imgBitmap, 0, 0);
+
       const fontSize = Math.floor(imgBitmap.width / 20);
       ctx.font = `${fontSize}px Arial`;
       ctx.fillStyle = "rgb(255, 0, 0, 1)";
       ctx.textAlign = "center";
       ctx.fillText(username, imgBitmap.width / 2, imgBitmap.height / 2);
+
+        //watermark logo 
+      const logo = new window.Image();
+      logo.src = "/img/secureshare-logo.png"; 
+
+      await new Promise((resolve) => {
+        logo.onload = () => {
+          const logoWidth = imgBitmap.width / 5;
+          const logoHeight = (logo.height / logo.width) * logoWidth;
+          const x = (imgBitmap.width - logoWidth)/2
+          const y = (imgBitmap.height - logoHeight)/2
+
+          ctx.globalAlpha = 0.7;
+          ctx.drawImage(logo, x, y, logoWidth, logoHeight);
+          ctx.globalAlpha = 1.0;
+
+          resolve();
+        };
+
+        logo.onerror = () => {
+          console.warn("Failed to load logo");
+          resolve();
+        };
+      });
+
       contentUrl = canvas.toDataURL(file.type);
+
+
     } else if (file.type === "pdf") {
       contentUrl = URL.createObjectURL(
         new Blob([result.decrypted], { type: "application/pdf" })
