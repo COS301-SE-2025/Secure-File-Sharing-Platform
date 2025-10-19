@@ -83,12 +83,12 @@ export function FileDetailsDialog({ open, onOpenChange, file }) {
         <div>
           <p className="text-sm font-medium mb-1">Location</p>
           <p className="text-sm text-gray-600">
-            My Files / {file.path
+            My Files / {file.category || (file.path
               ? file.path
                 .replace(/^.*?\//, '')
                 .replace(/\/[^/]*$/, '')
                 .replace(/\//g, ' / ')
-              : "Unknown"}
+              : "Unknown")}
           </p>
 
         </div>
