@@ -1,6 +1,6 @@
 # SFSP Admin Dashboard Application
 
-The Secure File Sharing Platform (SFSP) Admin Dashboard is a cross-platform Electron application that allows system administrators to monitor, manage, and configure the secure file-sharing environment. It provides real-time visibility into user activities, file transfers, and security logs.
+The Secure File Sharing Platform (SFSP) Admin Dashboard is a cross-platform Electron application that allows system administrators to monitor, manage the secure file sharing platform.
 
 ---
 
