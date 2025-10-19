@@ -168,7 +168,7 @@ export function UploadDialog({
     setUploadFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const chunkSize = 10 * 1024 * 1024;
+  const chunkSize = 5 * 1024 * 1024;
 
   const uploadFilesHandler = async () => {
     if (uploadFiles.length === 0) return;

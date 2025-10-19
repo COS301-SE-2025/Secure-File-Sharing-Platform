@@ -43,7 +43,7 @@ function ed25519PubToCurve(pubEd25519, sodium) {
 
 
 export async function SendFile(recipientUserId, fileid, isViewOnly = false) {
-  const chunkSize = 10 * 1024 * 1024; // 10 MB per chunk
+  const chunkSize = 5 * 1024 * 1024; // 10 MB per chunk
   const sodium = await getSodium();
   const { userId, encryptionKey } = useEncryptionStore.getState();
 
