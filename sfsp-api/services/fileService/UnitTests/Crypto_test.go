@@ -74,8 +74,8 @@ func TestDecryptStream_FailedToReadIV(t *testing.T) {
 
 	encryptedData = *bytes.NewBuffer(corruptedData)
 	_, err = en.DecryptStream(&encryptedData, key)
+	require.Error(t, err)
 }
-
 
 func TestDecryptStream_FailedToCreateCipher(t *testing.T) {
 	plaintext := []byte("This is some test data to encrypt!")

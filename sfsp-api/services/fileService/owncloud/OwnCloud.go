@@ -92,16 +92,20 @@ var CreateFileStream = func(path, filename string) (io.WriteCloser, error) {
     pr, pw := io.Pipe()
 
     // Launch goroutine to stream to WebDAV
-    go func() {
-        defer pr.Close()
-        err := client.WriteStream(fullPath, pr, 0644)
-        if err != nil {
-            log.Println("❌ Stream write failed:", err)
-            pr.CloseWithError(err)
-            return
-        }
-        log.Println("✅ Finished streaming to OwnCloud:", fullPath)
-    }()
+	go func() {
+		defer func() {
+			if err := pr.Close(); err != nil {
+				log.Println("error closing pipe reader:", err)
+			}
+		}()
+		err := client.WriteStream(fullPath, pr, 0644)
+		if err != nil {
+			log.Println("❌ Stream write failed:", err)
+			pr.CloseWithError(err)
+			return
+		}
+		log.Println("✅ Finished streaming to OwnCloud:", fullPath)
+	}()
 
     // Return the writer side to caller
     return pw, nil

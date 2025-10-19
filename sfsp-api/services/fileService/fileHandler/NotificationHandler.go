@@ -24,29 +24,35 @@ type Notification struct {
 func NotificationHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"error":   "Method not allowed",
-		})
+		}); err != nil {
+			log.Println("Failed to encode response:", err)
+		}
 		return
 	}
 
 	userID := r.URL.Query().Get("id")
 	if userID == "" {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"error":   "Missing user ID",
-		})
+		}); err != nil {
+			log.Println("Failed to encode response:", err)
+		}
 		return
 	}
 
 	if DB == nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"error":   "Database not initialized",
-		})
+		}); err != nil {
+			log.Println("Failed to encode response:", err)
+		}
 		return
 	}
 
@@ -55,13 +61,19 @@ func NotificationHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("Error querying notifications: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"error":   "Failed to fetch notifications",
-		})
+		}); err != nil {
+			log.Println("Failed to encode response:", err)
+		}
 		return
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Println("error closing rows:", err)
+		}
+	}()
 
 	notifications := []Notification{}
 	for rows.Next() {
@@ -74,19 +86,23 @@ func NotificationHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"success":       true,
 		"notifications": notifications,
-	})
+	}); err != nil {
+		log.Println("Failed to encode response:", err)
+	}
 }
 
 func MarkAsReadHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"error":   "Method not allowed",
-		})
+		}); err != nil {
+			log.Println("Failed to encode response:", err)
+		}
 		return
 	}
 
@@ -96,28 +112,34 @@ func MarkAsReadHandler(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"error":   "Invalid request body",
-		})
+		}); err != nil {
+			log.Println("Failed to encode response:", err)
+		}
 		return
 	}
 
 	if req.ID == "" {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"error":   "Missing notification ID",
-		})
+		}); err != nil {
+			log.Println("Failed to encode response:", err)
+		}
 		return
 	}
 
 	if DB == nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"error":   "Database not initialized",
-		})
+		}); err != nil {
+			log.Println("Failed to encode response:", err)
+		}
 		return
 	}
 
@@ -125,37 +147,45 @@ func MarkAsReadHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("Error updating notification read status: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"error":   "Failed to update notification",
-		})
+		}); err != nil {
+			log.Println("Failed to encode response:", err)
+		}
 		return
 	}
 
 	rowsAffected, _ := result.RowsAffected()
 	if rowsAffected == 0 {
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"error":   "Notification not found",
-		})
+		}); err != nil {
+			log.Println("Failed to encode response:", err)
+		}
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
 		"message": "Notification marked as read",
-	})
+	}); err != nil {
+		log.Println("Failed to encode response:", err)
+	}
 }
 
 func RespondToShareRequestHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"error":   "Method not allowed",
-		})
+		}); err != nil {
+			log.Println("Failed to encode response:", err)
+		}
 		return
 	}
 
@@ -166,37 +196,45 @@ func RespondToShareRequestHandler(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"error":   "Invalid request body",
-		})
+		}); err != nil {
+			log.Println("Failed to encode response:", err)
+		}
 		return
 	}
 
 	if req.ID == "" || req.Status == "" {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"error":   "Missing ID or status",
-		})
+		}); err != nil {
+			log.Println("Failed to encode response:", err)
+		}
 		return
 	}
 
 	if req.Status != "accepted" && req.Status != "declined" && req.Status != "pending" {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"error":   "Invalid status. Must be 'accepted' or 'declined' or 'pending'",
-		})
+		}); err != nil {
+			log.Println("Failed to encode response:", err)
+		}
 		return
 	}
 
 	if DB == nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"error":   "Database not initialized",
-		})
+		}); err != nil {
+			log.Println("Failed to encode response:", err)
+		}
 		return
 	}
 
@@ -205,20 +243,24 @@ func RespondToShareRequestHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("Error updating notification status: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"error":   "Failed to update notification",
-		})
+		}); err != nil {
+			log.Println("Failed to encode response:", err)
+		}
 		return
 	}
 
 	rowsAffected, _ := result.RowsAffected()
 	if rowsAffected == 0 {
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"error":   "Notification not found",
-		})
+		}); err != nil {
+			log.Println("Failed to encode response:", err)
+		}
 		return
 	}
 
@@ -238,10 +280,12 @@ func RespondToShareRequestHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Printf("Error fetching notification info: %v", err)
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			if err := json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": false,
 				"error":   "Failed to retrieve notification info",
-			})
+			}); err != nil {
+				log.Println("Failed to encode response:", err)
+			}
 			return
 		}
 
@@ -263,10 +307,12 @@ func RespondToShareRequestHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Printf("Error fetching received file metadata: %v", err)
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			if err := json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": false,
 				"error":   "Failed to retrieve file metadata",
-			})
+			}); err != nil {
+				log.Println("Failed to encode response:", err)
+			}
 			return
 		}
 
@@ -283,15 +329,17 @@ func RespondToShareRequestHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Printf("Error fetching file details: %v", err)
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			if err := json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": false,
 				"error":   "Failed to retrieve file details",
-			})
+			}); err != nil {
+				log.Println("Failed to encode response:", err)
+			}
 			return
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": true,
 			"message": "Notification status updated",
 			"fileData": map[string]interface{}{
@@ -305,7 +353,9 @@ func RespondToShareRequestHandler(w http.ResponseWriter, r *http.Request) {
 				"metadata":     metadata,
 				"viewOnly":     isViewOnly,
 			},
-		})
+		}); err != nil {
+			log.Println("Failed to encode response:", err)
+		}
 		return
 	}
 }
@@ -313,10 +363,12 @@ func RespondToShareRequestHandler(w http.ResponseWriter, r *http.Request) {
 func ClearNotificationHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"error":   "Method not allowed",
-		})
+		}); err != nil {
+			log.Println("Failed to encode response:", err)
+		}
 		return
 	}
 
@@ -325,28 +377,34 @@ func ClearNotificationHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"error":   "Invalid request body",
-		})
+		}); err != nil {
+			log.Println("Failed to encode response:", err)
+		}
 		return
 	}
 
 	if req.ID == "" {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"error":   "Missing notification ID",
-		})
+		}); err != nil {
+			log.Println("Failed to encode response:", err)
+		}
 		return
 	}
 
 	if DB == nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"error":   "Database not initialized",
-		})
+		}); err != nil {
+			log.Println("Failed to encode response:", err)
+		}
 		return
 	}
 
@@ -354,37 +412,45 @@ func ClearNotificationHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("Error deleting notification: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"error":   "Failed to delete notification",
-		})
+		}); err != nil {
+			log.Println("Failed to encode response:", err)
+		}
 		return
 	}
 
 	rowsAffected, _ := result.RowsAffected()
 	if rowsAffected == 0 {
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"error":   "Notification not found",
-		})
+		}); err != nil {
+			log.Println("Failed to encode response:", err)
+		}
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
 		"message": "Notification deleted",
-	})
+	}); err != nil {
+		log.Println("Failed to encode response:", err)
+	}
 }
 
 func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"error":   "Method not allowed",
-		})
+		}); err != nil {
+			log.Println("Failed to encode response:", err)
+		}
 		return
 	}
 
@@ -401,30 +467,36 @@ func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewDecoder(r.Body).Decode(&notification); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"error":   "Invalid request body",
-		})
+		}); err != nil {
+			log.Println("Failed to encode response:", err)
+		}
 		return
 	}
 
 	if notification.Type == "" || notification.From == "" || notification.To == "" ||
 		notification.FileName == "" || notification.FileID == "" {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"error":   "Missing required fields",
-		})
+		}); err != nil {
+			log.Println("Failed to encode response:", err)
+		}
 		fmt.Println("Notification details:", notification)
 		return
 	}
 
 	if DB == nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"error":   "Database not initialized",
-		})
+		}); err != nil {
+			log.Println("Failed to encode response:", err)
+		}
 		return
 	}
 
@@ -448,17 +520,21 @@ func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("Error adding notification: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"error":   "Failed to add notification",
-		})
+		}); err != nil {
+			log.Println("Failed to encode response:", err)
+		}
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
 		"message": "Notification added",
 		"id":      notificationID,
-	})
+	}); err != nil {
+		log.Println("Failed to encode response:", err)
+	}
 }

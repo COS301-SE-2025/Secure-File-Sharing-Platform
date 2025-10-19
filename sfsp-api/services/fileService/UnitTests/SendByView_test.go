@@ -4,17 +4,17 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path"
 	"strings"
 	"sync"
 	"testing"
 	"time"
-	"errors"
-	"os"
 
 	fh "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/fileHandler"
 	oc "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/owncloud"
@@ -26,11 +26,11 @@ import (
 type webdavStub struct {
 	mu       sync.Mutex
 	mkdirs   []string
-	writes   map[string]string    
-	readMap  map[string]string        
+	writes   map[string]string
+	readMap  map[string]string
 	removals []string
-	writeErr map[string]error  
-	mkdirErr map[string]error       
+	writeErr map[string]error
+	mkdirErr map[string]error
 }
 
 func newWebdavStub() *webdavStub {
@@ -42,8 +42,7 @@ func newWebdavStub() *webdavStub {
 	}
 }
 
-func clean(p string) string { return strings.TrimLeft(p, "/") }
-func norm(p string) string  { return strings.TrimLeft(path.Clean("/"+p), "/") }
+func norm(p string) string { return strings.TrimLeft(path.Clean("/"+p), "/") }
 
 func (s *webdavStub) MkdirAll(p string, _ os.FileMode) error {
 	key := norm(p)
@@ -64,7 +63,9 @@ func (s *webdavStub) WriteStream(name string, r io.Reader, _ os.FileMode) error 
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		if e, ok := s.writeErr[key]; ok {
-			go io.Copy(io.Discard, r)
+			go func() {
+				_, _ = io.Copy(io.Discard, r)
+			}()
 			return e
 		}
 		return nil
@@ -72,7 +73,7 @@ func (s *webdavStub) WriteStream(name string, r io.Reader, _ os.FileMode) error 
 		return err
 	}
 
-	b, _ := io.ReadAll(r) 
+	b, _ := io.ReadAll(r)
 	s.mu.Lock()
 	s.writes[key] = string(b)
 	if strings.HasPrefix(key, "temp/") {
@@ -101,8 +102,6 @@ func (s *webdavStub) Remove(p string) error {
 	s.mu.Unlock()
 	return nil
 }
-
-type fsFileMode = uint32
 
 func setDB(t *testing.T) (sqlmock.Sqlmock, func()) {
 	db, mock, err := sqlmock.New()
@@ -155,12 +154,12 @@ func TestSendByViewHandler_Success_NonLastChunk(t *testing.T) {
 	stub := newWebdavStub()
 	defer setOC(t, stub)()
 	req := mpReq(t, "/sendByView", map[string]string{
-		"fileid":         "F1",
-		"userId":         "U1",
-		"recipientUserId":"R1",
-		"metadata":       `{"name":"doc"}`,
-		"chunkIndex":     "0",
-		"totalChunks":    "2",
+		"fileid":          "F1",
+		"userId":          "U1",
+		"recipientUserId": "R1",
+		"metadata":        `{"name":"doc"}`,
+		"chunkIndex":      "0",
+		"totalChunks":     "2",
 	}, "encryptedFile", "c0.bin", []byte("AAA"))
 
 	rr := httptest.NewRecorder()
@@ -203,12 +202,12 @@ func TestSendByViewHandler_Success_LastChunk_MergeAndStore(t *testing.T) {
 	defer setOC(t, stub)()
 
 	req := mpReq(t, "/sendByView", map[string]string{
-		"fileid":         "F2",
-		"userId":         "U2",
-		"recipientUserId":"R2",
-		"metadata":       `{"name":"doc2"}`,
-		"chunkIndex":     "1",
-		"totalChunks":    "2",
+		"fileid":          "F2",
+		"userId":          "U2",
+		"recipientUserId": "R2",
+		"metadata":        `{"name":"doc2"}`,
+		"chunkIndex":      "1",
+		"totalChunks":     "2",
 	}, "encryptedFile", "c1.bin", []byte("222"))
 
 	rr := httptest.NewRecorder()
@@ -233,12 +232,12 @@ func TestSendByViewHandler_Rejects_NotOwner(t *testing.T) {
 	defer setOC(t, stub)()
 
 	req := mpReq(t, "/sendByView", map[string]string{
-		"fileid":         "F3",
-		"userId":         "U3",
-		"recipientUserId":"R3",
-		"metadata":       `{}`,
-		"chunkIndex":     "0",
-		"totalChunks":    "1",
+		"fileid":          "F3",
+		"userId":          "U3",
+		"recipientUserId": "R3",
+		"metadata":        `{}`,
+		"chunkIndex":      "0",
+		"totalChunks":     "1",
 	}, "encryptedFile", "c.bin", []byte("x"))
 
 	rr := httptest.NewRecorder()
@@ -334,7 +333,6 @@ func TestGetSharedViewFilesHandler_Success(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
-
 func TestGetViewFileAccessLogs_Success(t *testing.T) {
 	mock, cleanupDB := setDB(t)
 	defer cleanupDB()
@@ -361,12 +359,11 @@ func TestGetViewFileAccessLogs_Success(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
-
 func TestDownloadViewFileHandler_Success(t *testing.T) {
 	mock, cleanupDB := setDB(t)
 	defer cleanupDB()
 
-	exp := time.Now().Add(1 * time.Hour) 
+	exp := time.Now().Add(1 * time.Hour)
 	mock.ExpectQuery(`SELECT id, sender_id, metadata, revoked, expires_at FROM shared_files_view .*`).
 		WithArgs("U8", "F8").
 		WillReturnRows(sqlmock.NewRows([]string{"id", "sender_id", "metadata", "revoked", "expires_at"}).
@@ -412,7 +409,8 @@ func TestDownloadViewFileHandler_Expired(t *testing.T) {
 }
 
 func TestSendByViewHandler_ParseMultipartError(t *testing.T) {
-	_, cleanupDB := setDB(t); defer cleanupDB()
+	_, cleanupDB := setDB(t)
+	defer cleanupDB()
 	req := httptest.NewRequest(http.MethodPost, "/sendByView", strings.NewReader(`{"not":"multipart"}`))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
@@ -423,7 +421,8 @@ func TestSendByViewHandler_ParseMultipartError(t *testing.T) {
 }
 
 func TestSendByViewHandler_InvalidChunkIndex(t *testing.T) {
-	_, cleanupDB := setDB(t); defer cleanupDB()
+	_, cleanupDB := setDB(t)
+	defer cleanupDB()
 	req := mpReq(t, "/sendByView", map[string]string{
 		"fileid": "F0", "userId": "U0", "recipientUserId": "R0",
 		"metadata": "{}", "chunkIndex": "bad", "totalChunks": "2",
@@ -435,7 +434,8 @@ func TestSendByViewHandler_InvalidChunkIndex(t *testing.T) {
 }
 
 func TestSendByViewHandler_InvalidTotalChunks(t *testing.T) {
-	_, cleanupDB := setDB(t); defer cleanupDB()
+	_, cleanupDB := setDB(t)
+	defer cleanupDB()
 	req := mpReq(t, "/sendByView", map[string]string{
 		"fileid": "F0", "userId": "U0", "recipientUserId": "R0",
 		"metadata": "{}", "chunkIndex": "0", "totalChunks": "bad",
@@ -447,13 +447,14 @@ func TestSendByViewHandler_InvalidTotalChunks(t *testing.T) {
 }
 
 func TestSendByViewHandler_FileNotFound(t *testing.T) {
-	mock, cleanupDB := setDB(t); defer cleanupDB()
+	mock, cleanupDB := setDB(t)
+	defer cleanupDB()
 	mock.ExpectQuery(`SELECT owner_id FROM files WHERE id = \$1`).
 		WithArgs("F404").WillReturnError(sql.ErrNoRows)
 
 	req := mpReq(t, "/sendByView", map[string]string{
-		"fileid":"F404","userId":"U","recipientUserId":"R","metadata":"{}",
-		"chunkIndex":"0","totalChunks":"1",
+		"fileid": "F404", "userId": "U", "recipientUserId": "R", "metadata": "{}",
+		"chunkIndex": "0", "totalChunks": "1",
 	}, "", "", nil)
 
 	rr := httptest.NewRecorder()
@@ -463,13 +464,14 @@ func TestSendByViewHandler_FileNotFound(t *testing.T) {
 }
 
 func TestSendByViewHandler_DBErrorOnOwnerLookup(t *testing.T) {
-	mock, cleanupDB := setDB(t); defer cleanupDB()
+	mock, cleanupDB := setDB(t)
+	defer cleanupDB()
 	mock.ExpectQuery(`SELECT owner_id FROM files WHERE id = \$1`).
 		WithArgs("FERR").WillReturnError(sql.ErrConnDone)
 
 	req := mpReq(t, "/sendByView", map[string]string{
-		"fileid":"FERR","userId":"U","recipientUserId":"R","metadata":"{}",
-		"chunkIndex":"0","totalChunks":"1",
+		"fileid": "FERR", "userId": "U", "recipientUserId": "R", "metadata": "{}",
+		"chunkIndex": "0", "totalChunks": "1",
 	}, "", "", nil)
 
 	rr := httptest.NewRecorder()
@@ -479,15 +481,17 @@ func TestSendByViewHandler_DBErrorOnOwnerLookup(t *testing.T) {
 }
 
 func TestSendByViewHandler_MissingEncryptedFile(t *testing.T) {
-	mock, cleanupDB := setDB(t); defer cleanupDB()
+	mock, cleanupDB := setDB(t)
+	defer cleanupDB()
 	mock.ExpectQuery(`SELECT owner_id FROM files WHERE id = \$1`).
 		WithArgs("F10").WillReturnRows(sqlmock.NewRows([]string{"owner_id"}).AddRow("U10"))
 
-	stub := newWebdavStub(); defer setOC(t, stub)()
+	stub := newWebdavStub()
+	defer setOC(t, stub)()
 
 	req := mpReq(t, "/sendByView", map[string]string{
-		"fileid":"F10","userId":"U10","recipientUserId":"R10","metadata":"{}",
-		"chunkIndex":"0","totalChunks":"2",
+		"fileid": "F10", "userId": "U10", "recipientUserId": "R10", "metadata": "{}",
+		"chunkIndex": "0", "totalChunks": "2",
 	}, "", "", nil)
 
 	rr := httptest.NewRecorder()
@@ -497,7 +501,8 @@ func TestSendByViewHandler_MissingEncryptedFile(t *testing.T) {
 }
 
 func TestSendByViewHandler_TempUploadFails(t *testing.T) {
-	mock, cleanupDB := setDB(t); defer cleanupDB()
+	mock, cleanupDB := setDB(t)
+	defer cleanupDB()
 	mock.ExpectQuery(`SELECT owner_id FROM files WHERE id = \$1`).
 		WithArgs("F11").WillReturnRows(sqlmock.NewRows([]string{"owner_id"}).AddRow("U11"))
 
@@ -507,8 +512,8 @@ func TestSendByViewHandler_TempUploadFails(t *testing.T) {
 	defer setOC(t, stub)()
 
 	req := mpReq(t, "/sendByView", map[string]string{
-		"fileid":"F11","userId":"U11","recipientUserId":"R11","metadata":"{}",
-		"chunkIndex":"0","totalChunks":"2",
+		"fileid": "F11", "userId": "U11", "recipientUserId": "R11", "metadata": "{}",
+		"chunkIndex": "0", "totalChunks": "2",
 	}, "encryptedFile", "c0.bin", []byte("AAA"))
 
 	rr := httptest.NewRecorder()
@@ -516,7 +521,8 @@ func TestSendByViewHandler_TempUploadFails(t *testing.T) {
 }
 
 func TestSendByViewHandler_FinalUploadFails(t *testing.T) {
-	mock, cleanupDB := setDB(t); defer cleanupDB()
+	mock, cleanupDB := setDB(t)
+	defer cleanupDB()
 	mock.ExpectQuery(`SELECT owner_id FROM files WHERE id = \$1`).
 		WithArgs("F12").WillReturnRows(sqlmock.NewRows([]string{"owner_id"}).AddRow("U12"))
 
@@ -526,8 +532,8 @@ func TestSendByViewHandler_FinalUploadFails(t *testing.T) {
 	defer setOC(t, stub)()
 
 	req := mpReq(t, "/sendByView", map[string]string{
-		"fileid":"F12","userId":"U12","recipientUserId":"R12","metadata":"{}",
-		"chunkIndex":"1","totalChunks":"2",
+		"fileid": "F12", "userId": "U12", "recipientUserId": "R12", "metadata": "{}",
+		"chunkIndex": "1", "totalChunks": "2",
 	}, "encryptedFile", "c1.bin", []byte("222"))
 
 	rr := httptest.NewRecorder()
@@ -535,7 +541,8 @@ func TestSendByViewHandler_FinalUploadFails(t *testing.T) {
 }
 
 func TestSendByViewHandler_ExistingShareUpdated(t *testing.T) {
-	mock, cleanupDB := setDB(t); defer cleanupDB()
+	mock, cleanupDB := setDB(t)
+	defer cleanupDB()
 	mock.ExpectQuery(`SELECT owner_id FROM files WHERE id = \$1`).
 		WithArgs("F13").WillReturnRows(sqlmock.NewRows([]string{"owner_id"}).AddRow("U13"))
 
@@ -558,8 +565,8 @@ func TestSendByViewHandler_ExistingShareUpdated(t *testing.T) {
 		WillReturnResult(sqlmock.NewResult(0, 1))
 
 	req := mpReq(t, "/sendByView", map[string]string{
-		"fileid":"F13","userId":"U13","recipientUserId":"R13","metadata":`{"k":1}`,
-		"chunkIndex":"1","totalChunks":"2",
+		"fileid": "F13", "userId": "U13", "recipientUserId": "R13", "metadata": `{"k":1}`,
+		"chunkIndex": "1", "totalChunks": "2",
 	}, "encryptedFile", "c1.bin", []byte("222"))
 
 	rr := httptest.NewRecorder()
@@ -567,7 +574,8 @@ func TestSendByViewHandler_ExistingShareUpdated(t *testing.T) {
 }
 
 func TestSendByViewHandler_UpdateExistingShare_DBError(t *testing.T) {
-	mock, cleanupDB := setDB(t); defer cleanupDB()
+	mock, cleanupDB := setDB(t)
+	defer cleanupDB()
 	mock.ExpectQuery(`SELECT owner_id FROM files WHERE id = \$1`).
 		WithArgs("F14").WillReturnRows(sqlmock.NewRows([]string{"owner_id"}).AddRow("U14"))
 
@@ -584,8 +592,8 @@ func TestSendByViewHandler_UpdateExistingShare_DBError(t *testing.T) {
 		WillReturnError(sql.ErrConnDone)
 
 	req := mpReq(t, "/sendByView", map[string]string{
-		"fileid":"F14","userId":"U14","recipientUserId":"R14","metadata":`{"m":true}`,
-		"chunkIndex":"1","totalChunks":"2",
+		"fileid": "F14", "userId": "U14", "recipientUserId": "R14", "metadata": `{"m":true}`,
+		"chunkIndex": "1", "totalChunks": "2",
 	}, "encryptedFile", "c1.bin", []byte("x"))
 
 	rr := httptest.NewRecorder()
@@ -593,7 +601,8 @@ func TestSendByViewHandler_UpdateExistingShare_DBError(t *testing.T) {
 }
 
 func TestSendByViewHandler_InsertShare_DBError(t *testing.T) {
-	mock, cleanupDB := setDB(t); defer cleanupDB()
+	mock, cleanupDB := setDB(t)
+	defer cleanupDB()
 	mock.ExpectQuery(`SELECT owner_id FROM files WHERE id = \$1`).
 		WithArgs("F15").WillReturnRows(sqlmock.NewRows([]string{"owner_id"}).AddRow("U15"))
 
@@ -610,8 +619,8 @@ func TestSendByViewHandler_InsertShare_DBError(t *testing.T) {
 		WillReturnError(sql.ErrConnDone)
 
 	req := mpReq(t, "/sendByView", map[string]string{
-		"fileid":"F15","userId":"U15","recipientUserId":"R15","metadata":`{"a":1}`,
-		"chunkIndex":"1","totalChunks":"2",
+		"fileid": "F15", "userId": "U15", "recipientUserId": "R15", "metadata": `{"a":1}`,
+		"chunkIndex": "1", "totalChunks": "2",
 	}, "encryptedFile", "c1.bin", []byte("x"))
 
 	rr := httptest.NewRecorder()

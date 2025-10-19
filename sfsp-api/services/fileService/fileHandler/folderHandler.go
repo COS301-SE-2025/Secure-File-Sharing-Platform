@@ -70,8 +70,10 @@ func CreateFolderHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	if err := json.NewEncoder(w).Encode(map[string]string{
 		"folderId": folderID,
 		"cid":      fullCID,
-	})
+	}); err != nil {
+		log.Println("Failed to encode response:", err)
+	}
 }

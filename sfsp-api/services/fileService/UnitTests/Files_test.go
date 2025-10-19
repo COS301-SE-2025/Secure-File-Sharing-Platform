@@ -1,5 +1,7 @@
 package unitTests
+
 import (
+	"log"
 	"regexp"
 	"testing"
 	"time"
@@ -13,7 +15,11 @@ import (
 func TestSaveMetadata_Success(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Println("error closing db:", err)
+		}
+	}()
 
 	meta := database.FileMetadata{
 		UserID:      "user-123",
@@ -43,7 +49,11 @@ func TestSaveMetadata_Success(t *testing.T) {
 func TestSaveMetadata_DBError(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Println("error closing db:", err)
+		}
+	}()
 
 	meta := database.FileMetadata{
 		UserID:      "user-123",

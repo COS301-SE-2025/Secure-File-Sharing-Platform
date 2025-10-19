@@ -1,4 +1,4 @@
-//sendByViewHandler
+// sendByViewHandler
 package fileHandler
 
 import (
@@ -72,7 +72,11 @@ func SendByViewHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Missing encrypted file chunk", http.StatusBadRequest)
 		return
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Println("error closing file:", err)
+		}
+	}()
 
 	tempChunkName := fmt.Sprintf("%s_chunk_%d", fileID, chunkIndex)
 	if err := owncloud.UploadFileStream("temp", tempChunkName, file); err != nil {
@@ -83,10 +87,12 @@ func SendByViewHandler(w http.ResponseWriter, r *http.Request) {
 
 	if chunkIndex != totalChunks-1 {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{
+		if err := json.NewEncoder(w).Encode(map[string]string{
 			"message": fmt.Sprintf("Chunk %d uploaded", chunkIndex),
 			"fileId":  fileID,
-		})
+		}); err != nil {
+			log.Println("Failed to encode response:", err)
+		}
 		return
 	}
 
@@ -96,7 +102,11 @@ func SendByViewHandler(w http.ResponseWriter, r *http.Request) {
 
 	finalReader, finalWriter := io.Pipe()
 	go func() {
-		defer finalWriter.Close()
+		defer func() {
+			if err := finalWriter.Close(); err != nil {
+				log.Println("error closing final writer:", err)
+			}
+		}()
 
 		for i := 0; i < totalChunks; i++ {
 			chunkPath := fmt.Sprintf("temp/%s_chunk_%d", fileID, i)
@@ -109,12 +119,18 @@ func SendByViewHandler(w http.ResponseWriter, r *http.Request) {
 
 			if _, err := io.Copy(finalWriter, reader); err != nil {
 				log.Println("Failed to copy chunk to final writer:", err)
-				reader.Close()
+				if err := reader.Close(); err != nil {
+					log.Println("error closing reader:", err)
+				}
 				finalWriter.CloseWithError(err)
 				return
 			}
-			reader.Close()
-			owncloud.DeleteFileTemp(chunkPath)
+			if err := reader.Close(); err != nil {
+				log.Println("error closing reader:", err)
+			}
+			if err := owncloud.DeleteFileTemp(chunkPath); err != nil {
+				log.Println("Failed to cleanup chunk:", err)
+			}
 		}
 
 		log.Println("Finished merging chunks for view-only share:", sharedFileKey)
@@ -178,10 +194,12 @@ func SendByViewHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	if err := json.NewEncoder(w).Encode(map[string]string{
 		"message": "File shared for view-only access successfully",
 		"shareId": shareID,
-	})
+	}); err != nil {
+		log.Println("Failed to encode response:", err)
+	}
 	log.Println("File shared for view-only access successfully, shareId:", shareID)
 }
 
@@ -274,9 +292,11 @@ func RevokeViewAccessHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	if err := json.NewEncoder(w).Encode(map[string]string{
 		"message": "View access revoked successfully",
-	})
+	}); err != nil {
+		log.Println("Failed to encode response:", err)
+	}
 }
 
 func GetSharedViewFilesHandler(w http.ResponseWriter, r *http.Request) {
@@ -311,16 +331,20 @@ func GetSharedViewFilesHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Println("error closing rows:", err)
+		}
+	}()
 
 	var files []map[string]interface{}
 	for rows.Next() {
 		var (
 			shareID, senderID, recipientID, fileID, fileName, fileType, description string
-			fileSize                                                                 int64
-			metadata                                                                 string
-			sharedAt                                                                 time.Time
-			expiresAtPtr                                                             *time.Time
+			fileSize                                                                int64
+			metadata                                                                string
+			sharedAt                                                                time.Time
+			expiresAtPtr                                                            *time.Time
 		)
 		err := rows.Scan(
 			&shareID, &senderID, &recipientID, &fileID, &metadata,
@@ -333,17 +357,17 @@ func GetSharedViewFilesHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		file := map[string]interface{}{
-			"share_id":    shareID,
-			"sender_id":   senderID,
+			"share_id":     shareID,
+			"sender_id":    senderID,
 			"recipient_id": recipientID,
-			"file_id":     fileID,
-			"metadata":    metadata,
-			"shared_at":   sharedAt,
-			"file_name":   fileName,
-			"file_type":   fileType,
-			"file_size":   fileSize,
-			"description": description,
-			"view_only":   true,
+			"file_id":      fileID,
+			"metadata":     metadata,
+			"shared_at":    sharedAt,
+			"file_name":    fileName,
+			"file_type":    fileType,
+			"file_size":    fileSize,
+			"description":  description,
+			"view_only":    true,
 		}
 		if expiresAtPtr != nil {
 			file["expires_at"] = *expiresAtPtr
@@ -353,9 +377,10 @@ func GetSharedViewFilesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(files)
+	if err := json.NewEncoder(w).Encode(files); err != nil {
+		log.Println("Failed to encode response:", err)
+	}
 }
-
 
 func GetViewFileAccessLogs(w http.ResponseWriter, r *http.Request) {
 	var req struct {
@@ -380,7 +405,11 @@ func GetViewFileAccessLogs(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Database Error", http.StatusInternalServerError)
 		return
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Println("error closing rows:", err)
+		}
+	}()
 
 	var logs []map[string]interface{}
 	for rows.Next() {
@@ -401,7 +430,9 @@ func GetViewFileAccessLogs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(logs)
+	if err := json.NewEncoder(w).Encode(logs); err != nil {
+		log.Println("Failed to encode response:", err)
+	}
 }
 
 func DownloadViewFileHandler(w http.ResponseWriter, r *http.Request) {
@@ -461,7 +492,11 @@ func DownloadViewFileHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to retrieve view file", http.StatusInternalServerError)
 		return
 	}
-	defer stream.Close()
+	defer func() {
+		if err := stream.Close(); err != nil {
+			log.Println("error closing stream:", err)
+		}
+	}()
 
 	_, err = DB.Exec(`
         INSERT INTO access_logs (file_id, user_id, action, message, view_only)

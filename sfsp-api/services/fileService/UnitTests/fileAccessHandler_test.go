@@ -32,7 +32,11 @@ func TestAddAccesslogHandler(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create mock database: %v", err)
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Println("error closing db:", err)
+		}
+	}()
 
 	fileHandler.DB = db
 
@@ -115,7 +119,11 @@ func TestGetAccesslogHandler(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create mock database: %v", err)
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Println("error closing db:", err)
+		}
+	}()
 	fileHandler.DB = db
 
 	t.Run("Get logs with file_id filter", func(t *testing.T) {
