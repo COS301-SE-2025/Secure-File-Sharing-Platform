@@ -12,8 +12,8 @@ You can download the application from the following:
 
 Alternative you can create your own executables by running:
 
-|Windows|`npm run dist:win`|
-|Mac|`npm run dist:mac`|
-|Linux|`npm run dist:linux`|
+- Windows <`npm run dist:win`>
+- Mac <`npm run dist:mac`>
+- Linux <`npm run dist:linux`>
 
 you can refer to the technical installation manual for more information.
