@@ -1,0 +1,111 @@
+name: Lint
+
+on:
+  push:
+    branches: ["main", "dev*"]
+  pull_request:
+    branches: ["main", "dev*"]
+
+jobs:
+  lint-ui:
+    name: Lint UI (JavaScript/Next.js)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: ./sfsp-ui/package-lock.json
+
+      - name: Install UI dependencies
+        working-directory: ./sfsp-ui
+        run: npm ci
+
+      - name: Run ESLint on UI
+        working-directory: ./sfsp-ui
+        run: npm run lint
+
+  lint-api:
+    name: Lint API (JavaScript/Node.js)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: ./sfsp-api/package-lock.json
+
+      - name: Install API dependencies
+        working-directory: ./sfsp-api
+        run: npm ci
+
+      - name: Run ESLint on API
+        working-directory: ./sfsp-api
+        run: npm run lint
+
+  lint-goservice:
+    name: Lint Go Service
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22.x"
+          cache: true
+          cache-dependency-path: ./sfsp-api/services/fileService/go.sum
+
+      - name: Install golangci-lint
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.62.2
+
+      - name: Run golangci-lint
+        working-directory: ./sfsp-api/services/fileService
+        run: $(go env GOPATH)/bin/golangci-lint run --timeout=5m
+
+  lint-keyservice:
+    name: Lint Key Service (Python)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+          cache: "pip"
+          cache-dependency-path: ./sfsp-api/services/keyservice/requirements.txt
+
+      - name: Install Python dependencies
+        working-directory: ./sfsp-api/services/keyservice
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install flake8 pylint black isort
+
+      - name: Run flake8
+        working-directory: ./sfsp-api/services/keyservice
+        run: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics --exclude=venv,__pycache__,.pytest_cache
+
+      - name: Run pylint
+        working-directory: ./sfsp-api/services/keyservice
+        run: pylint **/*.py --disable=C0111,R0903 --exit-zero || true
+
+      - name: Check code formatting with black
+        working-directory: ./sfsp-api/services/keyservice
+        run: black --check . --exclude="venv|__pycache__|.pytest_cache" || true
+
+      - name: Check import sorting with isort
+        working-directory: ./sfsp-api/services/keyservice
+        run: isort . --check-only --profile=black --skip venv --skip __pycache__ || true

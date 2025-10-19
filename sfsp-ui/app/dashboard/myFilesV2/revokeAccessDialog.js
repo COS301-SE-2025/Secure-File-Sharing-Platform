@@ -2,7 +2,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { X, User, Trash2, Loader } from "lucide-react";
 import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 
@@ -37,13 +37,9 @@ export function RevokeAccessDialog({ open, onOpenChange, file }) {
     setTimeout(() => setToast(null), duration);
   };
 
-  useEffect(() => {
-    if (open && file) {
-      fetchUsersWithAccess();
-    }
-  }, [open, file]);
+  const fetchUsersWithAccess = useCallback(async () => {
+    if (!file) return;
 
-  const fetchUsersWithAccess = async () => {
     setLoading(true);
     try {
       const accessRes = await fetch(
@@ -97,7 +93,13 @@ export function RevokeAccessDialog({ open, onOpenChange, file }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [file]);
+
+  useEffect(() => {
+    if (open && file) {
+      fetchUsersWithAccess();
+    }
+  }, [open, file, fetchUsersWithAccess]);
 
   const handleRevokeAccess = async (userId) => {
     setRevoking(userId);

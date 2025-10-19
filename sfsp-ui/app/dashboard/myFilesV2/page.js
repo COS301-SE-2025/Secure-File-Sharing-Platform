@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Upload, FolderPlus, Grid, List, Route, ChevronDown } from "lucide-react";
 import { ShareDialog } from "./shareDialog";
 import { UploadDialog } from "./uploadDialog";
@@ -415,7 +415,34 @@ export default function MyFiles() {
     return tags.includes("view-only") || file.viewOnly;
   };
 
-  const fetchFiles = async () => {
+  const applySort = useCallback((filesToSort) => {
+    let sortedFiles = [...filesToSort];
+
+    // Apply sort by type
+    if (sortOptions.byDate) {
+      sortedFiles.sort((a, b) => new Date(b.modifiedRaw) - new Date(a.modifiedRaw));
+    } else if (sortOptions.byName) {
+      sortedFiles.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+    } else if (sortOptions.bySize) {
+      sortedFiles.sort((a, b) => a.size - b.size);
+    }
+
+    // Apply folder priority
+    sortedFiles.sort((a, b) => {
+      if (a.isFolder && !b.isFolder) return -1;
+      if (!a.isFolder && b.isFolder) return 1;
+      return 0;
+    });
+
+    // Apply ascending/descending
+    if (!sortOptions.ascending) {
+      sortedFiles.reverse();
+    }
+
+    return sortedFiles;
+  }, [sortOptions]);
+
+  const fetchFiles = useCallback(async () => {
     try {
       const userId = useEncryptionStore.getState().userId;
       if (!userId) {
@@ -478,34 +505,7 @@ export default function MyFiles() {
     } catch (err) {
       console.error("Failed to fetch files:", err);
     }
-  };
-
-  const applySort = (filesToSort) => {
-    let sortedFiles = [...filesToSort];
-
-    // Apply sort by type
-    if (sortOptions.byDate) {
-      sortedFiles.sort((a, b) => new Date(b.modifiedRaw) - new Date(a.modifiedRaw));
-    } else if (sortOptions.byName) {
-      sortedFiles.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
-    } else if (sortOptions.bySize) {
-      sortedFiles.sort((a, b) => a.size - b.size);
-    }
-
-    // Apply folder priority
-    sortedFiles.sort((a, b) => {
-      if (a.isFolder && !b.isFolder) return -1;
-      if (!a.isFolder && b.isFolder) return 1;
-      return 0;
-    });
-
-    // Apply ascending/descending
-    if (!sortOptions.ascending) {
-      sortedFiles.reverse();
-    }
-
-    return sortedFiles;
-  };
+  }, [applySort]);
 
   const handleSortChange = (option) => {
     setSortOptions((prev) => {
@@ -536,7 +536,7 @@ export default function MyFiles() {
 
   useEffect(() => {
     fetchFiles();
-  }, []);
+  }, [fetchFiles]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -709,7 +709,7 @@ export default function MyFiles() {
       console.log("Keyboard shortcuts unmounted");
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [selectedFile, clipboard, currentPath]);
+  }, [selectedFile, clipboard, currentPath, fetchFiles, handleMoveFile, handlePreview]);
 
   const handleDelete = async (file) => {
     const timestamp = new Date().toISOString();
@@ -808,7 +808,7 @@ export default function MyFiles() {
     }
   };
 
-  const handleLoadFile = async (file) => {
+  const handleLoadFile = useCallback(async (file) => {
     const { encryptionKey, userId } = useEncryptionStore.getState();
     if (!encryptionKey) {
       showToast("Missing encryption key", "error");
@@ -878,7 +878,7 @@ export default function MyFiles() {
       console.error("Load file error:", err);
       return null;
     }
-  };
+  }, []);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -901,7 +901,7 @@ export default function MyFiles() {
     fetchProfile();
   }, []);
 
-  const handlePreview = async (rawFile) => {
+  const handlePreview = useCallback(async (rawFile) => {
     // Ensure this only runs on the client side
     if (typeof window === "undefined") return;
 
@@ -1011,7 +1011,7 @@ export default function MyFiles() {
 
     setPreviewContent({ url: contentUrl, text: textFull });
     setPreviewFile(file);
-  };
+  }, [user, handleLoadFile]);
 
   //Helper function to get appropriate comment syntax for watermarking code files
   const getWatermarkComment = (fileType, username) => {
@@ -1166,7 +1166,7 @@ export default function MyFiles() {
     }
   };
 
-  const handleMoveFile = async (file, destinationFolderPath) => {
+  const handleMoveFile = useCallback(async (file, destinationFolderPath) => {
     const fullPath = destinationFolderPath
       ? `files/${destinationFolderPath}/${file.name}`
       : `files/${file.name}`;
@@ -1184,7 +1184,7 @@ export default function MyFiles() {
     } else {
       showToast("Failed to move file", "error");
     }
-  };
+  }, [fetchFiles]);
 
   const openShareDialog = (file) => {
     setSelectedFile(file);

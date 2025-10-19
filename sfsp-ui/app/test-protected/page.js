@@ -3,6 +3,7 @@
 import { useEncryptionStore } from '@/app/SecureKeyStorage';
 import { isAuthenticated } from '@/app/lib/auth';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 
 export default function TestProtectedPage() {
   const [authState, setAuthState] = useState({});
@@ -70,9 +71,9 @@ export default function TestProtectedPage() {
           </p>
 
           <div className="mt-4 space-x-4">
-            <a href="/auth" className="text-blue-600 hover:underline">Go to Auth Page</a>
-            <a href="/dashboard" className="text-blue-600 hover:underline">Go to Dashboard</a>
-            <a href="/" className="text-blue-600 hover:underline">Go to Home</a>
+            <Link href="/auth" className="text-blue-600 hover:underline">Go to Auth Page</Link>
+            <Link href="/dashboard" className="text-blue-600 hover:underline">Go to Dashboard</Link>
+            <Link href="/" className="text-blue-600 hover:underline">Go to Home</Link>
           </div>
         </div>
       </div>

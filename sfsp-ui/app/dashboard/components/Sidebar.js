@@ -86,7 +86,7 @@ export default function Sidebar({ expanded, setExpanded, isHovered, setIsHovered
     setDropdownOpen(false);
     setSettingsOpen(false);
     if (!expanded) setIsHovered(false);
-  }, [pathname]);
+  }, [pathname, expanded, setIsHovered]);
 
   const navigationItems = [
     { href: '/dashboard', icon: Grid3X3, label: 'Dashboard' },

@@ -1,11 +1,9 @@
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
-import { useEncryptionStore } from "@/app/SecureKeyStorage";
-import { getSodium } from "@/app/lib/sodium";
-import pako from "pako";
 import { UserAvatar } from "@/app/lib/avatarUtils";
-import { getApiUrl, getFileApiUrl } from "@/lib/api-config";  
+import { getApiUrl, getFileApiUrl } from "@/lib/api-config"; 
+import Image from "next/image"; 
 
 export function PreviewDrawer({
   file,
@@ -194,12 +192,16 @@ export function PreviewDrawer({
               switch (file?.type) {
                 case "image":
                   return content?.url ? (
-                    <div className="relative w-full max-h-64">
-                      <img
-                        src={content.url}
-                        alt="Preview"
-                        className="w-full max-h-64 object-cover rounded"
-                      />
+                    <div className="relative w-full h-64">
+                      <div className="relative w-full h-64">
+                        <Image
+                          src={content.url}
+                          alt="Preview"
+                          fill
+                          className="rounded object-cover"
+                          unoptimized
+                        />
+                      </div>
                       <canvas
                         className="absolute inset-0 w-full h-full rounded"
                         onContextMenu={(e) => e.preventDefault()}

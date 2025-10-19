@@ -3,6 +3,7 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
+import Image from "next/image";
 
 //import "react-pdf/dist/esm/Page/AnnotationLayer.css";
 //import "react-pdf/dist/esm/Page/TextLayer.css";
@@ -57,11 +58,15 @@ export function FullViewModal({ file, content, onClose }) {
                   case "image":
                     return content?.url ? (
                       <div className="relative flex justify-center">
-                        <img
-                          src={content.url}
-                          alt="Full view"
-                          className="max-w-full max-h-[75vh] rounded select-none pointer-events-none object-contain"
-                        />
+                        <div className="relative w-full h-[75vh] flex justify-center">
+                          <Image
+                            src={content.url}
+                            alt="Full view"
+                            fill
+                            className="rounded select-none pointer-events-none object-contain"
+                            unoptimized
+                          />
+                        </div>
                         <canvas
                           className="absolute inset-0 w-full h-full rounded"
                           onContextMenu={(e) => e.preventDefault()}
@@ -300,7 +305,7 @@ export function FullViewModal({ file, content, onClose }) {
                           Cannot Preview This File Type
                         </div>
                         <div className="text-sm text-gray-500 mb-4">
-                          File type "{file?.type}" is not supported for preview
+                          File type &quot;{file?.type}&quot; is not supported for preview
                         </div>
                         <div className="text-xs text-gray-400">
                           Supported: Images, Videos, Audio, PDF, Text, Code, and Data files

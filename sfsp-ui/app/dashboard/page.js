@@ -604,7 +604,7 @@ export default function DashboardHomePage() {
     fetchRecentAccessLogs();
   };
 
-  const fetchFiles = async () => {
+  const fetchFiles = useCallback(async () => {
     try {
       if (!userId) {
         console.error("Cannot fetch files: Missing userId in store.");
@@ -657,11 +657,11 @@ export default function DashboardHomePage() {
       console.error("Failed to fetch files:", err);
       return [];
     }
-  };
+  }, [userId]);
 
   useEffect(() => {
     fetchFiles();
-  }, [userId]);
+  }, [fetchFiles]);
 
   const handleLoadFile = async (file) => {
     if (!file?.fileName) {
@@ -986,7 +986,7 @@ export default function DashboardHomePage() {
       fetchNotifications();
       fetchRecentAccessLogs();
     }
-  }, [userId, fetchFilesMetadata, actionFilter]);
+  }, [userId, fetchFilesMetadata, fetchFiles, actionFilter]);
 
   const stats = [
     {
