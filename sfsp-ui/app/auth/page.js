@@ -17,6 +17,7 @@ import {
 } from "../SecureKeyStorage";
 import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 import { logout } from "../lib/auth";
+import { setAuthToken } from "@/app/lib/auth";
 import jsPDF from 'jspdf';
 
 
