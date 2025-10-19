@@ -1,5 +1,3 @@
-// app/dashboard/sharedWithMe/fileList.js
-
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
@@ -49,9 +47,8 @@ function Toast({ message, type = "info", onClose }) {
       className={`fixed inset-0 flex items-center justify-center z-50 pointer-events-none`}
     >
       <div
-        className={`bg-red-300 border ${
-          type === "error" ? "border-red-300" : "border-blue-500"
-        } text-gray-900 rounded shadow-lg px-6 py-3 pointer-events-auto`}
+        className={`bg-red-300 border ${type === "error" ? "border-red-300" : "border-blue-500"
+          } text-gray-900 rounded shadow-lg px-6 py-3 pointer-events-auto`}
       >
         <span>{message}</span>
         <button onClick={onClose} className="ml-4 font-bold">
@@ -101,10 +98,7 @@ export function FileList({
   }
 
   const iconMap = {
-    //Folders
     folder: <Folder className="h-5 w-5 text-blue-500" />,
-
-    //Audio Files
     audio: <Music className="h-5 w-5 text-pink-500" />,
     podcast: <Headphones className="h-5 w-5 text-pink-500" />,
     mp3: <Music className="h-5 w-5 text-pink-500" />,
@@ -114,8 +108,6 @@ export function FileList({
     ogg: <Music className="h-5 w-5 text-pink-500" />,
     wma: <Music className="h-5 w-5 text-pink-500" />,
     m4a: <Music className="h-5 w-5 text-pink-500" />,
-
-    //Video Files
     video: <Video className="h-5 w-5 text-purple-500" />,
     mp4: <Video className="h-5 w-5 text-purple-500" />,
     mov: <Video className="h-5 w-5 text-purple-500" />,
@@ -126,8 +118,6 @@ export function FileList({
     wmv: <Video className="h-5 w-5 text-purple-500" />,
     m4v: <Video className="h-5 w-5 text-purple-500" />,
     "3gp": <Video className="h-5 w-5 text-purple-500" />,
-
-    //Image Files
     image: <Image className="h-5 w-5 text-green-500" />,
     png: <Image className="h-5 w-5 text-green-500" />,
     jpg: <Image className="h-5 w-5 text-green-500" />,
@@ -141,8 +131,6 @@ export function FileList({
     ico: <Image className="h-5 w-5 text-green-500" />,
     heic: <Image className="h-5 w-5 text-green-500" />,
     raw: <Image className="h-5 w-5 text-green-500" />,
-
-    //Document Files
     pdf: <FileText className="h-5 w-5 text-red-500" />,
     doc: <FileText className="h-5 w-5 text-blue-600" />,
     docx: <FileText className="h-5 w-5 text-blue-600" />,
@@ -150,45 +138,31 @@ export function FileList({
     document: <FileText className="h-5 w-5 text-blue-600" />,
     rtf: <FileText className="h-5 w-5 text-blue-600" />,
     odt: <FileText className="h-5 w-5 text-blue-600" />,
-
-    //Spreadsheet Files
     csv: <FileSpreadsheet className="h-5 w-5 text-green-600" />,
     xls: <FileSpreadsheet className="h-5 w-5 text-green-600" />,
     xlsx: <FileSpreadsheet className="h-5 w-5 text-green-600" />,
     excel: <FileSpreadsheet className="h-5 w-5 text-green-600" />,
     ods: <FileSpreadsheet className="h-5 w-5 text-green-600" />,
-
-    //Presentation Files
     ppt: <Monitor className="h-5 w-5 text-orange-500" />,
     pptx: <Monitor className="h-5 w-5 text-orange-500" />,
     odp: <Monitor className="h-5 w-5 text-orange-500" />,
     key: <Monitor className="h-5 w-5 text-orange-500" />,
-
-    //Text Files
     txt: <FileText className="h-5 w-5 text-gray-400" />,
     log: <FileText className="h-5 w-5 text-gray-400" />,
     readme: <Book className="h-5 w-5 text-blue-400" />,
-
-    //Markdown Files
     md: <FileCode className="h-5 w-5 text-cyan-600" />,
     markdown: <FileCode className="h-5 w-5 text-cyan-600" />,
-
-    //Web Files
     html: <Globe className="h-5 w-5 text-orange-400" />,
     htm: <Globe className="h-5 w-5 text-orange-400" />,
     css: <Palette className="h-5 w-5 text-blue-500" />,
     scss: <Palette className="h-5 w-5 text-pink-400" />,
     sass: <Palette className="h-5 w-5 text-pink-400" />,
     less: <Palette className="h-5 w-5 text-blue-400" />,
-
-    //JavaScript Files
     js: <FileCode className="h-5 w-5 text-yellow-400" />,
     jsx: <FileCode className="h-5 w-5 text-yellow-400" />,
     ts: <FileCode className="h-5 w-5 text-blue-400" />,
     tsx: <FileCode className="h-5 w-5 text-blue-400" />,
     mjs: <FileCode className="h-5 w-5 text-yellow-400" />,
-
-    //Programming Languages
     code: <Code className="h-5 w-5 text-gray-600" />,
     py: <FileCode className="h-5 w-5 text-green-400" />,
     java: <FileCode className="h-5 w-5 text-red-400" />,
@@ -207,8 +181,6 @@ export function FileList({
     matlab: <FileCode className="h-5 w-5 text-orange-500" />,
     pl: <FileCode className="h-5 w-5 text-blue-500" />,
     lua: <FileCode className="h-5 w-5 text-blue-400" />,
-
-    //Data Files
     json: <FileCode className="h-5 w-5 text-lime-500" />,
     xml: <FileCode className="h-5 w-5 text-orange-500" />,
     yaml: <FileCode className="h-5 w-5 text-red-400" />,
@@ -217,14 +189,10 @@ export function FileList({
     ini: <Settings className="h-5 w-5 text-gray-500" />,
     cfg: <Settings className="h-5 w-5 text-gray-500" />,
     conf: <Settings className="h-5 w-5 text-gray-500" />,
-
-    //Database Files
     sql: <Database className="h-5 w-5 text-blue-500" />,
     db: <Database className="h-5 w-5 text-gray-600" />,
     sqlite: <Database className="h-5 w-5 text-blue-400" />,
     mdb: <Database className="h-5 w-5 text-blue-600" />,
-
-    //Archive Files
     archive: <Archive className="h-5 w-5 text-yellow-500" />,
     zip: <Archive className="h-5 w-5 text-yellow-500" />,
     rar: <Archive className="h-5 w-5 text-yellow-500" />,
@@ -233,8 +201,6 @@ export function FileList({
     gz: <Archive className="h-5 w-5 text-yellow-600" />,
     bz2: <Archive className="h-5 w-5 text-yellow-600" />,
     xz: <Archive className="h-5 w-5 text-yellow-600" />,
-
-    //System Files
     exe: <Zap className="h-5 w-5 text-red-500" />,
     msi: <Download className="h-5 w-5 text-blue-500" />,
     deb: <Download className="h-5 w-5 text-orange-500" />,
@@ -242,42 +208,26 @@ export function FileList({
     dmg: <HardDrive className="h-5 w-5 text-gray-500" />,
     iso: <HardDrive className="h-5 w-5 text-orange-500" />,
     img: <HardDrive className="h-5 w-5 text-gray-500" />,
-
-    //Font Files
     ttf: <FileText className="h-5 w-5 text-gray-600" />,
     otf: <FileText className="h-5 w-5 text-gray-600" />,
     woff: <FileText className="h-5 w-5 text-gray-600" />,
     woff2: <FileText className="h-5 w-5 text-gray-600" />,
-
-    //Security/Certificate Files
     key: <Key className="h-5 w-5 text-yellow-600" />,
     pem: <Shield className="h-5 w-5 text-green-600" />,
     crt: <Shield className="h-5 w-5 text-green-600" />,
     cert: <Shield className="h-5 w-5 text-green-600" />,
-
-    //Email Files
     eml: <Mail className="h-5 w-5 text-blue-500" />,
     msg: <Mail className="h-5 w-5 text-blue-500" />,
-
-    //Calendar Files
     ics: <Calendar className="h-5 w-5 text-blue-500" />,
-
-    //Adobe Files
     psd: <Palette className="h-5 w-5 text-blue-600" />,
     ai: <Palette className="h-5 w-5 text-orange-600" />,
     eps: <Palette className="h-5 w-5 text-red-600" />,
     indd: <FileText className="h-5 w-5 text-purple-600" />,
-
-    //CAD Files
     dwg: <FileText className="h-5 w-5 text-red-600" />,
     dxf: <FileText className="h-5 w-5 text-blue-600" />,
-
-    //3D Model Files
     obj: <FileText className="h-5 w-5 text-gray-600" />,
     fbx: <FileText className="h-5 w-5 text-gray-600" />,
     blend: <FileText className="h-5 w-5 text-orange-500" />,
-
-    //Generic Fallbacks
     application: <FileText className="h-5 w-5 text-gray-500" />,
     unknown: <FileX className="h-5 w-5 text-gray-300" />,
     file: <FileText className="h-5 w-5 text-gray-400" />,
@@ -288,7 +238,26 @@ export function FileList({
 
   const handleContextMenu = (e, file) => {
     e.preventDefault();
-    setMenuPosition({ x: e.pageX, y: e.pageY });
+    const menuWidth = 192; // Approximate width of the menu (w-48 = 192px)
+    const menuHeight = file.type === "folder" ? 60 : 300; // Approximate height based on menu items
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    let x = e.pageX;
+    let y = e.pageY;
+
+    if (x + menuWidth > viewportWidth) {
+      x = viewportWidth - menuWidth - 10;
+    }
+
+    if (y + menuHeight > viewportHeight) {
+      y = viewportHeight - menuHeight - 10;
+    }
+
+    x = Math.max(10, x); // Prevent menu from going too far left
+    y = Math.max(10, y); // Prevent menu from going too far up
+
+    setMenuPosition({ x, y });
     setMenuFile(file);
   };
 
@@ -390,11 +359,10 @@ export function FileList({
               <td className="p-2">{file.modified}</td>
               <td className="p-2">
                 <span
-                  className={`px-2 py-1 rounded-full text-xs ${
-                    isViewOnly(file)
+                  className={`px-2 py-1 rounded-full text-xs ${isViewOnly(file)
                       ? "bg-blue-100 text-blue-800 dark:bg-blue-200"
                       : "bg-green-100 text-green-800 dark:bg-green-200"
-                  }`}
+                    }`}
                 >
                   {isViewOnly(file) ? "View Only" : "Full Access"}
                 </span>
@@ -458,16 +426,14 @@ export function FileList({
               if (!isViewOnly(menuFile)) onShare(menuFile);
               setMenuFile(null);
             }}
-            className={`w-full text-left px-4 py-2 flex items-center gap-2 ${
-              isViewOnly(menuFile)
+            className={`w-full text-left px-4 py-2 flex items-center gap-2 ${isViewOnly(menuFile)
                 ? "opacity-50 cursor-not-allowed"
                 : "hover:bg-gray-100 dark:hover:bg-blue-200"
-            }`}
+              }`}
             disabled={isViewOnly(menuFile)}
           >
             <Share className="h-4 w-4" /> Share
           </button>
-
           <button
             onClick={() => {
               if (!isViewOnly(menuFile)) {
@@ -475,18 +441,15 @@ export function FileList({
               }
               setMenuFile(null);
             }}
-            className={`w-full text-left px-4 py-2 flex items-center gap-2 ${
-              isViewOnly(menuFile)
+            className={`w-full text-left px-4 py-2 flex items-center gap-2 ${isViewOnly(menuFile)
                 ? "opacity-50 cursor-not-allowed"
                 : "hover:bg-gray-100 dark:hover:bg-blue-200"
-            }`}
+              }`}
             disabled={isViewOnly(menuFile)}
           >
             <Download className="h-4 w-4" /> Download
           </button>
-
           <hr className="my-1" />
-
           <button
             onClick={() => {
               onClick?.(menuFile);
@@ -496,7 +459,6 @@ export function FileList({
           >
             <Eye className="h-4 w-4" /> Preview
           </button>
-
           <button
             onClick={() => {
               onViewDetails(menuFile);
@@ -506,7 +468,6 @@ export function FileList({
           >
             <FileIcon className="h-4 w-4" /> View Details
           </button>
-
           <button
             onClick={() => {
               onViewActivity(menuFile);
@@ -516,20 +477,6 @@ export function FileList({
           >
             <MoreVertical className="h-4 w-4" /> Activity Logs
           </button>
-          {/* 
-          {(isViewOnly(menuFile) || menuFile.allow_view_sharing) &&
-            onRevokeViewAccess && (
-              <button
-                onClick={() => {
-                  onRevokeViewAccess(menuFile);
-                  setMenuFile(null);
-                }}
-                className="w-full text-left px-4 py-2 hover:bg-orange-50 text-orange-600 flex items-center gap-2 dark:hover:bg-orange-200 dark:text-orange-600"
-              >
-                <EyeOff className="h-4 w-4" /> Revoke View Access
-              </button>
-            )} */}
-
           <button
             onClick={() => handleDelete(menuFile)}
             className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 flex items-center gap-2 dark:hover:bg-red-200 dark:text-red-600"
