@@ -2,7 +2,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { X, User, Download, Eye, Loader, Check } from "lucide-react";
 import { ChangeShareMethod } from "@/app/Transfer";
 import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
@@ -14,13 +14,8 @@ export function ChangeShareMethodDialog({ open, onOpenChange, file }) {
   const [updating, setUpdating] = useState(null);
   const [userShareMethods, setUserShareMethods] = useState({});
 
-  useEffect(() => {
-    if (open && file) {
-      fetchUsersWithAccess();
-    }
-  }, [open, file]);
-
-  const fetchUsersWithAccess = async () => {
+  const fetchUsersWithAccess = useCallback(async () => {
+    if (!file) return;
     setLoading(true);
     try {
       const accessRes = await fetch(getFileApiUrl("/usersWithFileAccess"), {
@@ -75,7 +70,13 @@ export function ChangeShareMethodDialog({ open, onOpenChange, file }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [file]);
+
+  useEffect(() => {
+    if (open) {
+      fetchUsersWithAccess();
+    }
+  }, [open, fetchUsersWithAccess]);
 
   const handleChangeShareMethod = async (userId, newMethod) => {
     setUpdating(userId);

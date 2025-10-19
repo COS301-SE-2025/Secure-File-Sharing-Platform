@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSodium } from "@/app/lib/sodium";
 import { useEncryptionStore, storeUserKeysSecurely, storeDerivedKeyEncrypted,} from "../../../SecureKeyStorage";
@@ -12,77 +12,7 @@ export default function GoogleCallbackPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [loaderMessage, setLoaderMessage] = useState("Processing Google authentication...");
 
-    useEffect(() => {
-        const handleCallback = async () => {
-        try {
-            if (typeof window === "undefined") return;
-
-            const urlParams = new URLSearchParams(window.location.search);
-            const code = urlParams.get("code");
-            const state = urlParams.get("state");
-            const error = urlParams.get("error");
-            const storedState = sessionStorage.getItem("googleOAuthState");
-
-            if (error === "access_denied") {
-            router.push("/auth?error=oauth_cancelled");
-            return;
-            }
-
-            if (error) {
-            router.push(`/auth?error=oauth_error`);
-            return;
-            }
-
-            if (!code) {
-            router.push("/auth?error=no_code");
-            return;
-            }
-
-            if (state !== storedState) {
-            router.push("/auth?error=invalid_state");
-            return;
-            }
-
-            sessionStorage.removeItem("googleOAuthState");
-
-            const response = await fetch(`/api/auth/google?code=${code}`);
-            const data = await response.json();
-
-            if (!response.ok) {
-            router.push("/auth?error=google_auth_failed");
-            return;
-            }
-
-            const googleUser = data.user;
-
-            
-            try {
-            const userExistsResponse = await fetch(getApiUrl(`/users/getUserId/${googleUser.email}`));
-            if (userExistsResponse.ok) {
-                const userIdData = await userExistsResponse.json();
-                await handleExistingUserLogin(googleUser, userIdData.data.userId);
-            } else if (userExistsResponse.status === 404) {
-                await handleNewUserRegistration(googleUser);
-            } else {
-                const errorText = await userExistsResponse.text();
-                console.error('Unexpected error checking user existence:', userExistsResponse.status, errorText);
-                throw new Error(`Failed to check user existence: ${userExistsResponse.status} ${errorText}`);
-            }
-            } catch (fetchError) {
-            console.error('Network error checking user existence:', fetchError);
-            setLoaderMessage("Setting up your account...");
-            await handleNewUserRegistration(googleUser);
-            }
-        } catch (error) {
-            console.error("Google callback error:", error);
-            router.push("/auth?error=callback_failed");
-        }
-        };
-
-        handleCallback();
-    }, [router]);
-
-    const handleExistingUserLogin = async (googleUser, userId) => {
+    const handleExistingUserLogin = useCallback(async (googleUser, userId) => {
         try {
         setLoaderMessage("Signing you in...");
 
@@ -209,9 +139,9 @@ export default function GoogleCallbackPage() {
         console.error("Existing user login error:", error);
         router.push(`/auth?error=authentication_failed`);
         }
-    };
+    }, [router, setLoaderMessage]);
 
-    const handleNewUserRegistration = async (googleUser) => {
+    const handleNewUserRegistration = useCallback(async (googleUser) => {
         try {
         setLoaderMessage("Setting up your secure account...");
 
@@ -326,7 +256,77 @@ export default function GoogleCallbackPage() {
         console.error("New user registration error:", error);
         router.push(`/auth?error=authentication_failed`);
         }
-    };
+    }, [router, setLoaderMessage]);
+
+    useEffect(() => {
+        const handleCallback = async () => {
+        try {
+            if (typeof window === "undefined") return;
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get("code");
+            const state = urlParams.get("state");
+            const error = urlParams.get("error");
+            const storedState = sessionStorage.getItem("googleOAuthState");
+
+            if (error === "access_denied") {
+            router.push("/auth?error=oauth_cancelled");
+            return;
+            }
+
+            if (error) {
+            router.push(`/auth?error=oauth_error`);
+            return;
+            }
+
+            if (!code) {
+            router.push("/auth?error=no_code");
+            return;
+            }
+
+            if (state !== storedState) {
+            router.push("/auth?error=invalid_state");
+            return;
+            }
+
+            sessionStorage.removeItem("googleOAuthState");
+
+            const response = await fetch(`/api/auth/google?code=${code}`);
+            const data = await response.json();
+
+            if (!response.ok) {
+            router.push("/auth?error=google_auth_failed");
+            return;
+            }
+
+            const googleUser = data.user;
+
+
+            try {
+            const userExistsResponse = await fetch(getApiUrl(`/users/getUserId/${googleUser.email}`));
+            if (userExistsResponse.ok) {
+                const userIdData = await userExistsResponse.json();
+                await handleExistingUserLogin(googleUser, userIdData.data.userId);
+            } else if (userExistsResponse.status === 404) {
+                await handleNewUserRegistration(googleUser);
+            } else {
+                const errorText = await userExistsResponse.text();
+                console.error('Unexpected error checking user existence:', userExistsResponse.status, errorText);
+                throw new Error(`Failed to check user existence: ${userExistsResponse.status} ${errorText}`);
+            }
+            } catch (fetchError) {
+            console.error('Network error checking user existence:', fetchError);
+            setLoaderMessage("Setting up your account...");
+            await handleNewUserRegistration(googleUser);
+            }
+        } catch (error) {
+            console.error("Google callback error:", error);
+            router.push("/auth?error=callback_failed");
+        }
+        };
+
+        handleCallback();
+    }, [router, handleExistingUserLogin, handleNewUserRegistration]);
 
     async function GenerateX3DHKeys(password) {
         const sodium = await getSodium();

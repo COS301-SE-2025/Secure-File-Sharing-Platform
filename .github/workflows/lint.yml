@@ -1,0 +1,74 @@
+name: Lint
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  lint-ui:
+    name: Lint UI (JavaScript/Next.js)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: ./sfsp-ui/package-lock.json
+
+      - name: Install UI dependencies
+        working-directory: ./sfsp-ui
+        run: npm ci
+
+      - name: Run ESLint on UI
+        working-directory: ./sfsp-ui
+        run: npm run lint
+
+  #lint-api:
+  #  name: Lint API (JavaScript/Node.js)
+  #  runs-on: ubuntu-latest
+  #  steps:
+  #    - name: Checkout code
+  #      uses: actions/checkout@v4
+#
+  #    - name: Setup Node.js
+  #      uses: actions/setup-node@v4
+  #      with:
+  #        node-version: "20"
+  #        cache: "npm"
+  #        cache-dependency-path: ./sfsp-api/package-lock.json
+#
+  #    - name: Install API dependencies
+  #      working-directory: ./sfsp-api
+  #      run: npm ci
+#
+  #    - name: Run ESLint on API
+  #      working-directory: ./sfsp-api
+  #      run: npm run lint
+
+  lint-goservice:
+    name: Lint Go Service
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22.x"
+          cache: true
+          cache-dependency-path: ./sfsp-api/services/fileService/go.sum
+
+      - name: Install golangci-lint
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.62.2
+
+      - name: Run golangci-lint
+        working-directory: ./sfsp-api/services/fileService
+        run: $(go env GOPATH)/bin/golangci-lint run --timeout=5m

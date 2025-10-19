@@ -13,7 +13,6 @@ import (
 
 var DB *sql.DB
 
-// SetPostgreClient sets the PostgreSQL client in the metadata package
 func SetPostgreClient(db *sql.DB) {
 	// This function is used to set the PostgreSQL client in the metadata package
 	DB = db
@@ -51,7 +50,11 @@ func GetUserFilesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	log.Println("🟢 Query complete")
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Println("error closing rows:", err)
+		}
+	}()
 
 	var files []map[string]interface{}
 	count := 0
@@ -91,7 +94,9 @@ func GetUserFilesHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Returning %d files for user %s\n", count, userID)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(files)
+	if err := json.NewEncoder(w).Encode(files); err != nil {
+		log.Println("Failed to encode response:", err)
+	}
 }
 
 func ListFileMetadataHandler(w http.ResponseWriter, r *http.Request) {
@@ -120,7 +125,11 @@ func ListFileMetadataHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to fetch metadata", http.StatusInternalServerError)
 		return
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Println("error closing rows:", err)
+		}
+	}()
 
 	type FileMetadata struct {
 		FileID      string    `json:"fileId"`
@@ -158,7 +167,9 @@ func ListFileMetadataHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(files)
+	if err := json.NewEncoder(w).Encode(files); err != nil {
+		log.Println("Failed to encode response:", err)
+	}
 }
 
 func GetUserFileCountHandler(w http.ResponseWriter, r *http.Request) {
@@ -181,9 +192,11 @@ func GetUserFileCountHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(map[string]int{
+	if err := json.NewEncoder(w).Encode(map[string]int{
 		"userFileCount": count,
-	})
+	}); err != nil {
+		log.Println("Failed to encode response:", err)
+	}
 }
 
 type AddReceivedFileRequest struct {
@@ -233,9 +246,11 @@ func AddReceivedFileHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]string{
+	if err := json.NewEncoder(w).Encode(map[string]string{
 		"message": "File shared with recipient",
-	})
+	}); err != nil {
+		log.Println("Failed to encode response:", err)
+	}
 }
 
 func GetPendingFilesHandler(w http.ResponseWriter, r *http.Request) {
@@ -261,7 +276,11 @@ func GetPendingFilesHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to fetch pending files", http.StatusInternalServerError)
 		return
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Println("error closing rows:", err)
+		}
+	}()
 
 	var pendingFiles []map[string]interface{}
 
@@ -277,11 +296,10 @@ func GetPendingFilesHandler(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		// Parse metadata JSON string into map
 		var metadata map[string]interface{}
 		if err := json.Unmarshal([]byte(metadataJSON), &metadata); err != nil {
 			log.Println("Failed to parse metadata:", err)
-			metadata = map[string]interface{}{} // fallback
+			metadata = map[string]interface{}{}
 		}
 
 		pendingFiles = append(pendingFiles, map[string]interface{}{
@@ -295,9 +313,11 @@ func GetPendingFilesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"data": pendingFiles,
-	})
+	}); err != nil {
+		log.Println("Failed to encode response:", err)
+	}
 }
 
 func AddSentFileHandler(w http.ResponseWriter, r *http.Request) {
@@ -330,9 +350,11 @@ func AddSentFileHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]string{
+	if err := json.NewEncoder(w).Encode(map[string]string{
 		"message": "File sent successfully",
-	})
+	}); err != nil {
+		log.Println("Failed to encode response:", err)
+	}
 }
 
 func GetSentFilesHandler(w http.ResponseWriter, r *http.Request) {
@@ -357,7 +379,11 @@ func GetSentFilesHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to fetch sent files", http.StatusInternalServerError)
 		return
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Println("error closing rows:", err)
+		}
+	}()
 
 	var sentFiles []map[string]interface{}
 
@@ -384,7 +410,9 @@ func GetSentFilesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(sentFiles)
+	if err := json.NewEncoder(w).Encode(sentFiles); err != nil {
+		log.Println("Failed to encode response:", err)
+	}
 }
 
 var DeleteFileMetadata = func(fileID string) error {
@@ -393,7 +421,11 @@ var DeleteFileMetadata = func(fileID string) error {
 		log.Println("Failed to begin transaction:", err)
 		return err
 	}
-	defer tx.Rollback() // safe rollback on error
+	defer func() {
+		if err := tx.Rollback(); err != nil {
+			log.Println("Rollback error (may be expected if already committed):", err)
+		}
+	}()
 
 	// Delete from received_files (optional, might cascade)
 	_, err = tx.Exec(`DELETE FROM received_files WHERE file_id = $1`, fileID)
@@ -457,9 +489,11 @@ func RemoveTagsFromFileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(map[string]string{
+	if err := json.NewEncoder(w).Encode(map[string]string{
 		"message": "Tags removed successfully",
-	})
+	}); err != nil {
+		log.Println("Failed to encode response:", err)
+	}
 }
 
 func GetRecipientIDFromOPK(opkID string) (string, error) {
@@ -563,9 +597,125 @@ func AddTagsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+
+	if err := json.NewEncoder(w).Encode(map[string]string{
 		"message": "Tags added successfully",
-	})
+	}); err != nil {
+		log.Println("Failed to encode response:", err)
+	}
+}
+
+func DeleteFolderHandler(w http.ResponseWriter, r *http.Request) {
+	type DeleteFolderRequest struct {
+		FolderID   string   `json:"folderId"`
+		ParentPath string   `json:"parentPath"`
+		Recursive  bool     `json:"recursive"`
+		Tags       []string `json:"tags"`
+	}
+
+	var req DeleteFolderRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Println("Failed to parse JSON:", err)
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	if req.FolderID == "" {
+		http.Error(w, "Missing folderId", http.StatusBadRequest)
+		return
+	}
+
+	tx, err := DB.Begin()
+	if err != nil {
+		log.Println("Failed to start transaction:", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	defer func() {
+		if err := tx.Rollback(); err != nil {
+			log.Println("Rollback error (may be expected if already committed):", err)
+		}
+	}()
+
+	if req.Recursive {
+		var folderCID string
+		err := tx.QueryRow(`
+			SELECT cid FROM files WHERE id = $1
+		`, req.FolderID).Scan(&folderCID)
+
+		if err != nil {
+			log.Println("Failed to fetch folder:", err)
+			http.Error(w, "Folder not found", http.StatusNotFound)
+			return
+		}
+
+		if len(req.Tags) > 0 {
+			_, err = tx.Exec(`
+				UPDATE files
+				SET tags = array_cat(COALESCE(tags, '{}'), $1::text[])
+				WHERE cid LIKE 'files/' || $2 || '/%'
+			`, pq.Array(req.Tags), folderCID)
+
+			if err != nil {
+				log.Println("Failed to add tags to descendants:", err)
+				http.Error(w, "Internal server error", http.StatusInternalServerError)
+				return
+			}
+		}
+
+		_, err = tx.Exec(`
+			UPDATE files
+			SET cid = 'files/' || id
+			WHERE cid LIKE 'files/' || $1 || '/%'
+			AND NOT ('folder' = ANY(tags))
+		`, folderCID)
+
+		if err != nil {
+			log.Println("Failed to move files to root:", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		_, err = tx.Exec(`
+			UPDATE files
+			SET cid = regexp_replace(cid, '^files/' || $1 || '/(.+?)(/.*)?$', '\1')
+			WHERE cid LIKE 'files/' || $1 || '/%'
+			AND 'folder' = ANY(tags)
+		`, folderCID)
+
+		if err != nil {
+			log.Println("Failed to move folders to root:", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	if len(req.Tags) > 0 {
+		_, err = tx.Exec(`
+			UPDATE files
+			SET tags = array_cat(COALESCE(tags, '{}'), $1::text[])
+			WHERE id = $2
+		`, pq.Array(req.Tags), req.FolderID)
+
+		if err != nil {
+			log.Println("Failed to add tags to folder:", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	if err = tx.Commit(); err != nil {
+		log.Println("Failed to commit transaction:", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(map[string]string{
+		"message": "Folder deleted successfully",
+	}); err != nil {
+		log.Println("Failed to encode response:", err)
+	}
 }
 
 func AddUserHandler(w http.ResponseWriter, r *http.Request) {
@@ -593,9 +743,12 @@ func AddUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+
+	if err := json.NewEncoder(w).Encode(map[string]string{
 		"message": "User added successfully",
-	})
+	}); err != nil {
+		log.Println("Failed to encode response:", err)
+	}
 }
 
 func AddDescriptionHandler(w http.ResponseWriter, r *http.Request) {
@@ -628,9 +781,12 @@ func AddDescriptionHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+
+	if err := json.NewEncoder(w).Encode(map[string]string{
 		"message": "Description updated successfully",
-	})
+	}); err != nil {
+		log.Println("Failed to encode response:", err)
+	}
 }
 
 func UpdateFilePathHandler(w http.ResponseWriter, r *http.Request) {
@@ -663,7 +819,10 @@ func UpdateFilePathHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+
+	if err := json.NewEncoder(w).Encode(map[string]string{
 		"message": "File path updated successfully",
-	})
+	}); err != nil {
+		log.Println("Failed to encode response:", err)
+	}
 }

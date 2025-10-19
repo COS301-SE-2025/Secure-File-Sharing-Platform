@@ -63,19 +63,15 @@ func TestDecryptStream_InvalidKeyLength(t *testing.T) {
 }
 
 func TestDecryptStream_FailedToReadIV(t *testing.T) {
-	plaintext := []byte("This is some test data to encrypt!")
-	key := "12345678901234567890123456789012" 
+	key := "12345678901234567890123456789012"
 
-	var encryptedData bytes.Buffer
-	err := en.EncryptStream(bytes.NewReader(plaintext), &encryptedData, key)
-	require.NoError(t, err)
-	corruptedData := encryptedData.Bytes()
-	corruptedData[0] = 0 
+	// Create a buffer with insufficient data (less than 16 bytes for IV)
+	insufficientData := bytes.NewBuffer([]byte("short"))
 
-	encryptedData = *bytes.NewBuffer(corruptedData)
-	_, err = en.DecryptStream(&encryptedData, key)
+	_, err := en.DecryptStream(insufficientData, key)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to read IV")
 }
-
 
 func TestDecryptStream_FailedToCreateCipher(t *testing.T) {
 	plaintext := []byte("This is some test data to encrypt!")

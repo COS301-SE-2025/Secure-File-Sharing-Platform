@@ -109,7 +109,11 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Missing encrypted file", http.StatusBadRequest)
 		return
 	}
-	defer srcFile.Close()
+	defer func() {
+		if err := srcFile.Close(); err != nil {
+			log.Println("error closing srcFile:", err)
+		}
+	}()
 	log.Println("✅ Received chunk file:", header.Filename)
 	log.Println("When uploading the nonce is:", nonce)
 
@@ -148,11 +152,13 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 	// 9️⃣ If not last chunk → acknowledge
 	if chunkIndex != totalChunks-1 {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{
+		if err := json.NewEncoder(w).Encode(map[string]string{
 			"message":  fmt.Sprintf("Chunk %d uploaded", chunkIndex),
 			"fileHash": fileHash,
 			"fileId":   fileID,
-		})
+		}); err != nil {
+			log.Println("Failed to encode response:", err)
+		}
 		return
 	}
 
@@ -166,7 +172,11 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "File assembly failed", http.StatusInternalServerError)
 		return
 	}
-	defer writer.Close()
+	defer func() {
+		if err := writer.Close(); err != nil {
+			log.Println("error closing writer:", err)
+		}
+	}()
 
 	hasher := sha256.New()
 	countingWriter := &CountingWriter{w: io.MultiWriter(writer, hasher)}
@@ -183,15 +193,21 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if _, err := io.Copy(countingWriter, reader); err != nil {
-			reader.Close()
+			if err := reader.Close(); err != nil {
+				log.Println("error closing reader:", err)
+			}
 			log.Println("❌ Failed to copy chunk:", err)
 			http.Error(w, "Chunk merge failed", http.StatusInternalServerError)
 			return
 		}
-		reader.Close()
+		if err := reader.Close(); err != nil {
+			log.Println("error closing reader:", err)
+		}
 
 		// Delete temp chunk after successful copy
-		owncloud.DeleteFileTemp(chunkPath)
+		if err := owncloud.DeleteFileTemp(chunkPath); err != nil {
+			log.Println("Failed to cleanup chunk:", err)
+		}
 	}
 
 	fileHashHex := hex.EncodeToString(hasher.Sum(nil))
@@ -238,10 +254,12 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("🎉 File uploaded successfully:", fileID)
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	if err := json.NewEncoder(w).Encode(map[string]string{
 		"message": "File uploaded and metadata stored",
 		"fileId":  fileID,
-	})
+	}); err != nil {
+		log.Println("Failed to encode response:", err)
+	}
 }
 
 type StartUploadRequest struct {
@@ -290,8 +308,10 @@ func StartUploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("✅ Upload started, fileID:", fileID)
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	if err := json.NewEncoder(w).Encode(map[string]string{
 		"message": "Upload session started",
 		"fileId":  fileID,
-	})
+	}); err != nil {
+		log.Println("Failed to encode response:", err)
+	}
 }

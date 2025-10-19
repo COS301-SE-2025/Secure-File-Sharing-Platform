@@ -45,7 +45,9 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Println("Failed to encode response:", err)
+	}
 }
 
 func main() {
@@ -104,7 +106,8 @@ func main() {
 	http.HandleFunc("/addUser", metadata.AddUserHandler)
 	http.HandleFunc("/removeTags", metadata.RemoveTagsFromFileHandler)
 	http.HandleFunc("/downloadSentFile", fileHandler.DownloadSentFile)
-
+	http.HandleFunc("/deleteFolder", metadata.DeleteFolderHandler)
+	
 	// view files endpoints newly added
 	http.HandleFunc("/sendByView", fileHandler.SendByViewHandler)
 	http.HandleFunc("/revokeViewAccess", fileHandler.RevokeViewAccessHandler)

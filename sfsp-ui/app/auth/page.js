@@ -17,6 +17,8 @@ import {
 } from "../SecureKeyStorage";
 import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 import { logout } from "../lib/auth";
+import { setAuthToken } from "@/app/lib/auth";
+import jsPDF from 'jspdf';
 
 
 export default function AuthPage() {
@@ -1116,18 +1118,66 @@ export default function AuthPage() {
               <div className="bg-white dark:bg-gray-600 p-4 rounded border border-gray-400 dark:border-gray-500 mb-3 font-mono text-sm break-all select-all text-gray-900 dark:text-white">
                 {recoveryKey}
               </div>
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(recoveryKey);
-                  showToast("Recovery key copied to clipboard!", "success");
-                }}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center justify-center"
-              >
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                </svg>
-                Copy
-              </button>
+
+              <div className=" flex grid-2 gap-2">
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(recoveryKey);
+                    showToast("Recovery key copied to clipboard!", "success");
+                  }}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center justify-center"
+                >
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  Copy
+                </button>
+
+                <button
+                  onClick={async () => {
+                    const doc = new jsPDF();
+
+                    doc.setFontSize(20);
+                    doc.setTextColor(0, 0, 139);
+                    doc.text('Account Recovery Key Document', 55, 30);
+
+                    doc.setFontSize(12);
+                    doc.setTextColor(255, 0, 0);
+                    doc.text('IMPORTANT: Keep this document in a secure location!', 20, 50);
+
+                    doc.setTextColor(0, 0, 0);
+                    doc.text([
+                      '• This recovery key is required to reset your password if you forget it.',
+                      '• Store this document offline in a secure location.',
+                      '• Do not share this key with anyone.',
+                      '• You cannot recover your account without this key.'
+                    ], 20, 70);
+
+                    doc.setFontSize(14);
+                    doc.text('Your Recovery Key:', 20, 110);
+                    doc.setFontSize(12);
+
+                    const keyWords = recoveryKey.split(' ');
+                    let y = 120;
+                    for (let i = 0; i < keyWords.length; i += 6) {
+                      doc.text(keyWords.slice(i, i + 6).join(' '), 20, y);
+                      y += 10;
+                    }
+
+                    doc.setFontSize(10);
+                    doc.text('Generated on: ' + new Date().toLocaleString(), 20, 280);
+
+                    doc.save('SFSP-Recovery-Key.pdf');
+                    showToast("Recovery key PDF downloaded successfully!", "success");
+                  }}
+                  className="w-full bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg transition-colors font-semibold flex items-center justify-center"
+                >
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Download Recovery Key (PDF)
+                </button>
+              </div>
             </div>
 
             <div className="space-y-3 mb-6">
@@ -1151,12 +1201,13 @@ export default function AuthPage() {
               </p>
             </div>
 
-            <button
-              onClick={handleRecoveryKeyConfirmed}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors font-semibold"
-            >
-              I&apos;ve Saved My Recovery Key - Continue
-            </button>
+              <button
+                onClick={handleRecoveryKeyConfirmed}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors font-semibold"
+              >
+                I&apos;ve Saved My Recovery Key - Continue
+              </button>
+            
           </div>
         </div>
       )}

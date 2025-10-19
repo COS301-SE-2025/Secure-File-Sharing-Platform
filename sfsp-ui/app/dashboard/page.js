@@ -21,6 +21,7 @@ import { UserAvatar } from "@/app/lib/avatarUtils";
 import useDrivePicker from "react-google-drive-picker";
 import dynamic from "next/dynamic";
 import { PreviewDrawer } from "./myFilesV2/previewDrawer";
+import { PDFDocument, rgb } from "pdf-lib";
 
 const FullViewModal = dynamic(
   () =>
@@ -600,9 +601,11 @@ export default function DashboardHomePage() {
     setUploadFiles([]);
     setUploadProgress(0);
     fetchFiles();
+    fetchFilesMetadata();
+    fetchRecentAccessLogs();
   };
 
-  const fetchFiles = async () => {
+  const fetchFiles = useCallback(async () => {
     try {
       if (!userId) {
         console.error("Cannot fetch files: Missing userId in store.");
@@ -629,6 +632,7 @@ export default function DashboardHomePage() {
           (a, b) => new Date(b.date) - new Date(a.date)
         );
         setRecentFiles(sortedFiles.slice(0, 3));
+        
         const formatted = data
           .filter((f) => {
             const tags = f.tags ? f.tags.replace(/[{}]/g, "").split(",") : [];
@@ -655,13 +659,18 @@ export default function DashboardHomePage() {
       console.error("Failed to fetch files:", err);
       return [];
     }
-  };
+  }, [userId]);
 
   useEffect(() => {
     fetchFiles();
-  }, [userId]);
+    // re-fetch every 10 seconds
+  const interval = setInterval(fetchFiles, 10000);
 
-  const handleLoadFile = async (file) => {
+  return () => clearInterval(interval);
+
+  }, [userId, fetchFiles]);
+
+  const handleLoadFile = useCallback(async (file) => {
     if (!file?.fileName) {
       alert("File name missing!");
       return null;
@@ -706,7 +715,7 @@ export default function DashboardHomePage() {
       alert("Failed to load file");
       return null;
     }
-  };
+  }, []);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -726,7 +735,7 @@ export default function DashboardHomePage() {
     fetchProfile();
   }, []);
 
-  const handleOpenPreview = async (rawFile) => {
+  const handleOpenPreview = useCallback(async (rawFile) => {
     const username = user?.username;
     const file = {
       ...rawFile,
@@ -742,20 +751,7 @@ export default function DashboardHomePage() {
     let contentUrl = null;
     let textFull = null;
     if (file.type === "image") {
-      if (typeof window === "undefined") return;
-      const imgBlob = new Blob([result.decrypted], { type: file.type });
-      const imgBitmap = await createImageBitmap(imgBlob);
-      const canvas = document.createElement("canvas");
-      canvas.width = imgBitmap.width;
-      canvas.height = imgBitmap.height;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(imgBitmap, 0, 0);
-      const fontSize = Math.floor(imgBitmap.width / 20);
-      ctx.font = `${fontSize}px Arial`;
-      ctx.fillStyle = "rgb(255, 0, 0, 0.4)";
-      ctx.textAlign = "center";
-      ctx.fillText(username, imgBitmap.width / 2, imgBitmap.height / 2);
-      contentUrl = canvas.toDataURL(file.type);
+      contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
     } else if (file.type === "pdf") {
       contentUrl = URL.createObjectURL(
         new Blob([result.decrypted], { type: "application/pdf" })
@@ -767,29 +763,16 @@ export default function DashboardHomePage() {
     }
     setPreviewContent({ url: contentUrl, text: textFull });
     setPreviewFile(file);
-  };
+  }, [user, handleLoadFile]);
 
-  const handleOpenFullView = async (file) => {
+  const handleOpenFullView = useCallback(async (file) => {
     const username = user?.username;
     const result = await handleLoadFile(file);
     if (!result) return;
     let contentUrl = null;
     let textFull = null;
     if (file.type === "image") {
-      if (typeof window === "undefined") return;
-      const imgBlob = new Blob([result.decrypted], { type: file.type });
-      const imgBitmap = await createImageBitmap(imgBlob);
-      const canvas = document.createElement("canvas");
-      canvas.width = imgBitmap.width;
-      canvas.height = imgBitmap.height;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(imgBitmap, 0, 0);
-      const fontSize = Math.floor(imgBitmap.width / 20);
-      ctx.font = `${fontSize}px Arial`;
-      ctx.fillStyle = "rgb(255, 0, 0, 1)";
-      ctx.textAlign = "center";
-      ctx.fillText(username, imgBitmap.width / 2, imgBitmap.height / 2);
-      contentUrl = canvas.toDataURL(file.type);
+      contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
     } else if (file.type === "pdf") {
       contentUrl = URL.createObjectURL(
         new Blob([result.decrypted], { type: "application/pdf" })
@@ -801,7 +784,7 @@ export default function DashboardHomePage() {
     }
     setViewerContent({ url: contentUrl, text: textFull });
     setViewerFile(file);
-  };
+  }, [user, handleLoadFile]);
 
   const fetchNotifications = async () => {
     const token = localStorage.getItem("token");
@@ -984,7 +967,7 @@ export default function DashboardHomePage() {
       fetchNotifications();
       fetchRecentAccessLogs();
     }
-  }, [userId, fetchFilesMetadata, actionFilter]);
+  }, [userId, fetchFilesMetadata, fetchFiles, actionFilter]);
 
   const stats = [
     {
@@ -1206,7 +1189,7 @@ export default function DashboardHomePage() {
               </div>
             </div>
             {uploadFiles.length > 0 && (
-              <div className="space-y-2 max-h-48 overflow-y-auto mt-4">
+              <div className="space-y-2 max-h-48 overflow-y-auto mt-4 pl-2 pr-1 custom-scroll">
                 {uploadFiles.map((file, i) => (
                   <div
                     key={i}
@@ -1269,7 +1252,7 @@ export default function DashboardHomePage() {
           {/* Recent Files */}
           <div className="flex-1 p-4 bg-gray-200 dark:bg-gray-800 rounded-lg shadow-md overflow-hidden flex flex-col">
             <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">
-              Recent Files
+              Last Added Files
             </h2>
             <ul className="flex-1 bg-white dark:bg-gray-800 rounded-lg divide-y divide-gray-200 dark:divide-gray-700 overflow-y-auto text-sm">
               {recentFiles.length === 0 ? (

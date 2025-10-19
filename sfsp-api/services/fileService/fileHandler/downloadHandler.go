@@ -68,7 +68,11 @@ func DownloadHandler(w http.ResponseWriter, r *http.Request) {
         http.Error(w, "Download failed", http.StatusInternalServerError)
         return
     }
-    defer stream.Close()
+    defer func() {
+        if err := stream.Close(); err != nil {
+            log.Println("error closing stream:", err)
+        }
+    }()
 
     // Hash verification while streaming
     hasher := sha256.New()
@@ -127,7 +131,11 @@ func DownloadSentFile(w http.ResponseWriter, r *http.Request) {
         http.Error(w, "Download failed", http.StatusInternalServerError)
         return
     }
-    defer stream.Close()
+    defer func() {
+        if err := stream.Close(); err != nil {
+            log.Println("error closing stream:", err)
+        }
+    }()
 
     w.Header().Set("Content-Type", "application/octet-stream")
     w.WriteHeader(http.StatusOK)

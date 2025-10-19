@@ -1,4 +1,3 @@
-/* global process */
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
@@ -177,7 +176,7 @@ class UserService {
         let opkArray;
         try {
           opkArray = JSON.parse(opks_public);
-        } catch (e) {
+        } catch {
           throw new Error("OPKs format is invalid JSON");
         }
 
@@ -666,7 +665,7 @@ class UserService {
       this.verifyToken(token);
 
       return true;
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -763,7 +762,7 @@ class UserService {
       }
 
       return data.notification_settings[category]?.[notificationType] || false;
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -784,7 +783,7 @@ class UserService {
 
   /**
    * Reset password using recovery key
-   * Re-encrypts user keys and files with new password-derived key
+   * Re-encrypts user keys immediately and starts background job for files
    */
   async resetPasswordWithRecovery(resetData) {
     const {
@@ -797,7 +796,7 @@ class UserService {
       recovery_key_encrypted,
       recovery_key_nonce,
       oldNonce,
-      reencryptedFiles = [], // Array of re-encrypted files from frontend
+      fileCount = 0, // Number of files to re-encrypt in background
     } = resetData;
 
     try {
@@ -823,7 +822,7 @@ class UserService {
 
       const keyBundleResult = await vault.retrieveKeyBundle(userId);
 
-      if (!keyBundleResult || !keyBundleResult.data) {
+      if (!keyBundleResult || !keyBundleResult.data || !keyBundleResult.data.data) {
         throw new Error("Failed to retrieve key bundle from vault");
       }
 
@@ -831,7 +830,7 @@ class UserService {
         ik_private_key: encryptedIkPrivate,
         spk_private_key: spkPrivate,
         opks_private: encryptedOpks,
-      } = keyBundleResult.data?.data;
+      } = keyBundleResult.data.data;
 
       // 4. Decrypt keys with old derived key (from recovery)
       // Note: Keys are base64 encoded in vault, need to decode
@@ -910,40 +909,22 @@ class UserService {
         opks_private: newEncryptedOpks,
       });
 
-      // 8. Re-upload re-encrypted files to file service
-      const axios = require('axios');
-      const fileServiceUrl = process.env.FILE_SERVICE_URL || "http://localhost:8081";
+      // 8. Start background file re-encryption if user has files
+      if (fileCount > 0) {
+        console.log(`Starting background re-encryption for ${fileCount} files for user ${userId}`);
 
-      let filesUpdated = 0;
-      for (const file of reencryptedFiles) {
-        try {
-          // Update file with new encrypted content and nonce
-          const updateResponse = await axios.post(
-            `${fileServiceUrl}/updateFile`,
-            {
-              userId: userId,
-              fileId: file.fileId,
-              nonce: file.nonce,
-              fileContent: file.encryptedContent,
-            }
-          );
-
-          if (updateResponse.status === 200) {
-            filesUpdated++;
-          }
-        } catch (fileError) {
-          console.error(`Failed to update file ${file.fileId}:`, fileError.message);
-          // Continue with other files even if one fails
-        }
+        // Start background process (non-blocking)
+        this.reencryptFilesInBackground(userId, email, user.username, oldDerivedKey, newDerivedKey, fileCount)
+          .catch(error => {
+            console.error('Background file re-encryption failed:', error);
+          });
       }
-
-      console.log(`Password reset: Updated ${filesUpdated}/${reencryptedFiles.length} files`);
 
       return {
         success: true,
-        message: "Password reset successfully",
-        filesUpdated,
-        totalFiles: reencryptedFiles.length,
+        message: fileCount > 0
+          ? "Password reset successfully. Your files are being re-encrypted in the background."
+          : "Password reset successfully",
         user: {
           id: user.id,
           username: user.username,
@@ -953,6 +934,373 @@ class UserService {
     } catch (error) {
       console.error("Password reset error:", error);
       throw new Error("Password reset failed: " + error.message);
+    }
+  }
+
+  /**
+   * Background process to re-encrypt all user files after password reset
+   * Sends email notification when complete
+   */
+  async reencryptFilesInBackground(userId, email, username, oldDerivedKey, newDerivedKey, expectedFileCount) {
+    const axios = require('axios');
+    const sodium = require("libsodium-wrappers");
+    await sodium.ready;
+
+    const fileServiceUrl = process.env.FILE_SERVICE_URL || "http://localhost:8081";
+    const startTime = Date.now();
+
+    let filesProcessed = 0;
+    let filesSucceeded = 0;
+    let filesFailed = 0;
+    const failedFiles = [];
+
+    try {
+      console.log(`[Background Re-encryption] Starting for user ${userId} (${expectedFileCount} files expected)`);
+
+      // 1. Fetch all user files metadata
+      const metadataResponse = await axios.post(`${fileServiceUrl}/metadata`, {
+        userId: userId,
+      });
+
+      const userFiles = Array.isArray(metadataResponse.data) ? metadataResponse.data : [];
+      console.log(`[Background Re-encryption] Found ${userFiles.length} files to process`);
+
+      if (userFiles.length === 0) {
+        console.log(`[Background Re-encryption] No files found for user ${userId}`);
+        await this.sendFileReencryptionCompleteEmail(email, username, 0, 0, 0, []);
+        return;
+      }
+
+      const oldDerivedKeyBytes = sodium.from_base64(oldDerivedKey);
+      const newDerivedKeyBytes = sodium.from_base64(newDerivedKey);
+
+      // 2. Process each file
+      for (const file of userFiles) {
+        try {
+          filesProcessed++;
+          console.log(`[Background Re-encryption] Processing file ${filesProcessed}/${userFiles.length}: ${file.fileName}`);
+
+          // Download encrypted file
+          const downloadResponse = await axios.post(
+            `${fileServiceUrl}/download`,
+            {
+              userId: userId,
+              fileId: file.fileId,
+            },
+            { responseType: 'arraybuffer' }
+          );
+
+          const encryptedFile = new Uint8Array(downloadResponse.data);
+          const oldNonce = downloadResponse.headers['x-nonce'];
+
+          if (!oldNonce) {
+            throw new Error('Missing nonce header');
+          }
+
+          // Decrypt with old key
+          const decryptedFile = sodium.crypto_secretbox_open_easy(
+            encryptedFile,
+            sodium.from_base64(oldNonce, sodium.base64_variants.ORIGINAL),
+            oldDerivedKeyBytes
+          );
+
+          if (!decryptedFile) {
+            throw new Error('Decryption failed');
+          }
+
+          // Encrypt with new key
+          const newFileNonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
+          const reencryptedFile = sodium.crypto_secretbox_easy(
+            decryptedFile,
+            newFileNonce,
+            newDerivedKeyBytes
+          );
+
+          // Update file in database
+          await axios.post(`${fileServiceUrl}/updateFile`, {
+            userId: userId,
+            fileId: file.fileId,
+            nonce: sodium.to_base64(newFileNonce, sodium.base64_variants.ORIGINAL),
+            fileContent: sodium.to_base64(reencryptedFile, sodium.base64_variants.ORIGINAL),
+          });
+
+          filesSucceeded++;
+          console.log(`[Background Re-encryption] Successfully re-encrypted file ${file.fileName}`);
+
+        } catch (fileError) {
+          filesFailed++;
+          failedFiles.push({
+            fileName: file.fileName,
+            fileId: file.fileId,
+            error: fileError.message,
+          });
+          console.error(`[Background Re-encryption] Failed to re-encrypt file ${file.fileName}:`, fileError.message);
+        }
+      }
+
+      const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+      console.log(`[Background Re-encryption] Completed in ${duration}s - Success: ${filesSucceeded}, Failed: ${filesFailed}`);
+
+      // 3. Send completion email
+      await this.sendFileReencryptionCompleteEmail(email, username, filesProcessed, filesSucceeded, filesFailed, failedFiles);
+
+    } catch (error) {
+      console.error('[Background Re-encryption] Fatal error:', error);
+
+      // Send error notification email
+      try {
+        await this.sendFileReencryptionErrorEmail(email, username, filesProcessed, filesSucceeded, filesFailed, error.message);
+      } catch (emailError) {
+        console.error('[Background Re-encryption] Failed to send error email:', emailError);
+      }
+    }
+  }
+
+  /**
+   * Send email notification when file re-encryption completes successfully
+   */
+  async sendFileReencryptionCompleteEmail(email, username, totalFiles, successCount, failedCount, failedFiles) {
+    try {
+      const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: process.env.SMTP_PORT || 587,
+        secure: false,
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+      });
+
+      const failedFilesList = failedFiles.length > 0
+        ? `<div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px; padding: 15px; margin: 20px 0;">
+             <p style="margin: 0 0 10px 0; color: #856404; font-size: 14px;">
+               ⚠️ <strong>Warning:</strong> ${failedCount} file(s) could not be re-encrypted:
+             </p>
+             <ul style="margin: 0; padding-left: 20px; color: #856404; font-size: 13px;">
+               ${failedFiles.map(f => `<li>${f.fileName}</li>`).join('')}
+             </ul>
+             <p style="margin: 10px 0 0 0; color: #856404; font-size: 13px;">
+               Please contact support if you need assistance with these files.
+             </p>
+           </div>`
+        : '';
+
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>File Re-encryption Complete</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+            <h1 style="color: white; margin: 0; font-size: 28px;">File Re-encryption Complete</h1>
+          </div>
+
+          <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px; border: 1px solid #dee2e6;">
+            <p style="font-size: 18px; margin-bottom: 20px;">Hi <strong>${username}</strong>,</p>
+
+            <p style="margin-bottom: 25px;">Your password reset is complete! We've successfully re-encrypted your files with your new password.</p>
+
+            <div style="background: white; border: 2px solid #667eea; border-radius: 8px; padding: 20px; margin: 25px 0;">
+              <p style="margin: 0; font-size: 14px; color: #666; margin-bottom: 15px; text-align: center;">Re-encryption Summary:</p>
+              <table style="width: 100%; font-size: 15px;">
+                <tr>
+                  <td style="padding: 8px 0; color: #555;">Total Files Processed:</td>
+                  <td style="padding: 8px 0; text-align: right; font-weight: bold; color: #667eea;">${totalFiles}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; color: #555;">Successfully Re-encrypted:</td>
+                  <td style="padding: 8px 0; text-align: right; font-weight: bold; color: #28a745;">${successCount}</td>
+                </tr>
+                ${failedCount > 0 ? `
+                <tr>
+                  <td style="padding: 8px 0; color: #555;">Failed:</td>
+                  <td style="padding: 8px 0; text-align: right; font-weight: bold; color: #dc3545;">${failedCount}</td>
+                </tr>
+                ` : ''}
+              </table>
+            </div>
+
+            ${failedFilesList}
+
+            ${failedCount === 0 ? `
+            <div style="background: #d4edda; border: 1px solid #c3e6cb; border-radius: 5px; padding: 15px; margin: 20px 0; text-align: center;">
+              <p style="margin: 0; color: #155724; font-size: 15px;">
+                ✅ <strong>All your files have been successfully secured with your new password!</strong>
+              </p>
+            </div>
+            ` : ''}
+
+            <p style="margin-bottom: 20px;">You can now access all your files using your new password. Your data remains secure and encrypted.</p>
+
+            <hr style="border: none; border-top: 1px solid #dee2e6; margin: 30px 0;">
+
+            <p style="font-size: 12px; color: #666; text-align: center; margin: 0;">
+              This is an automated message, please do not reply to this email.
+            </p>
+          </div>
+        </body>
+        </html>
+      `;
+
+      const textContent = `
+Hi ${username},
+
+Your password reset is complete! We've successfully re-encrypted your files with your new password.
+
+Re-encryption Summary:
+- Total Files Processed: ${totalFiles}
+- Successfully Re-encrypted: ${successCount}
+${failedCount > 0 ? `- Failed: ${failedCount}` : ''}
+
+${failedFiles.length > 0 ? `
+Files that could not be re-encrypted:
+${failedFiles.map(f => `- ${f.fileName}`).join('\n')}
+
+Please contact support if you need assistance with these files.
+` : 'All your files have been successfully secured with your new password!'}
+
+You can now access all your files using your new password.
+
+---
+This is an automated message, please do not reply to this email.
+      `;
+
+      const mailOptions = {
+        from: {
+          name: process.env.FROM_NAME || "SecureShare",
+          address: process.env.FROM_EMAIL || process.env.SMTP_USER,
+        },
+        to: email,
+        subject: failedCount > 0
+          ? "File Re-encryption Complete (with warnings) - SecureShare"
+          : "File Re-encryption Complete - SecureShare",
+        text: textContent,
+        html: htmlContent,
+      };
+
+      const info = await transporter.sendMail(mailOptions);
+      console.log("File re-encryption completion email sent:", info.messageId);
+
+      return { success: true, messageId: info.messageId };
+    } catch (error) {
+      console.error("Error sending file re-encryption completion email:", error);
+      throw new Error("Failed to send completion email");
+    }
+  }
+
+  /**
+   * Send email notification when file re-encryption encounters a fatal error
+   */
+  async sendFileReencryptionErrorEmail(email, username, filesProcessed, filesSucceeded, filesFailed, errorMessage) {
+    try {
+      const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: process.env.SMTP_PORT || 587,
+        secure: false,
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+      });
+
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>File Re-encryption Error</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+            <h1 style="color: white; margin: 0; font-size: 28px;">File Re-encryption Issue</h1>
+          </div>
+
+          <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px; border: 1px solid #dee2e6;">
+            <p style="font-size: 18px; margin-bottom: 20px;">Hi <strong>${username}</strong>,</p>
+
+            <p style="margin-bottom: 25px;">Your password was successfully reset, but we encountered an issue while re-encrypting your files in the background.</p>
+
+            <div style="background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 5px; padding: 15px; margin: 20px 0;">
+              <p style="margin: 0 0 10px 0; color: #721c24; font-size: 14px;">
+                ❌ <strong>Re-encryption Status:</strong>
+              </p>
+              <ul style="margin: 0; padding-left: 20px; color: #721c24; font-size: 13px;">
+                <li>Files Processed: ${filesProcessed}</li>
+                <li>Successfully Re-encrypted: ${filesSucceeded}</li>
+                <li>Failed: ${filesFailed}</li>
+              </ul>
+            </div>
+
+            <p style="margin-bottom: 20px;"><strong>What this means:</strong></p>
+            <ul style="margin-bottom: 20px;">
+              <li>Your password has been changed successfully</li>
+              <li>You can log in with your new password</li>
+              <li>Some files may still be encrypted with your old password</li>
+            </ul>
+
+            <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px; padding: 15px; margin: 20px 0; text-align: center;">
+              <p style="margin: 0; color: #856404; font-size: 15px;">
+                ⚠️ <strong>Action Required:</strong> Please contact our support team for assistance.
+              </p>
+            </div>
+
+            <p style="margin-bottom: 20px; font-size: 13px; color: #666;">Technical details: ${errorMessage}</p>
+
+            <hr style="border: none; border-top: 1px solid #dee2e6; margin: 30px 0;">
+
+            <p style="font-size: 12px; color: #666; text-align: center; margin: 0;">
+              This is an automated message, please do not reply to this email.
+            </p>
+          </div>
+        </body>
+        </html>
+      `;
+
+      const textContent = `
+Hi ${username},
+
+Your password was successfully reset, but we encountered an issue while re-encrypting your files in the background.
+
+Re-encryption Status:
+- Files Processed: ${filesProcessed}
+- Successfully Re-encrypted: ${filesSucceeded}
+- Failed: ${filesFailed}
+
+What this means:
+- Your password has been changed successfully
+- You can log in with your new password
+- Some files may still be encrypted with your old password
+
+Action Required: Please contact our support team for assistance.
+
+Technical details: ${errorMessage}
+
+---
+This is an automated message, please do not reply to this email.
+      `;
+
+      const mailOptions = {
+        from: {
+          name: process.env.FROM_NAME || "SecureShare",
+          address: process.env.FROM_EMAIL || process.env.SMTP_USER,
+        },
+        to: email,
+        subject: "File Re-encryption Issue - Action Required - SecureShare",
+        text: textContent,
+        html: htmlContent,
+      };
+
+      const info = await transporter.sendMail(mailOptions);
+      console.log("File re-encryption error email sent:", info.messageId);
+
+      return { success: true, messageId: info.messageId };
+    } catch (error) {
+      console.error("Error sending file re-encryption error email:", error);
+      throw new Error("Failed to send error email");
     }
   }
 }

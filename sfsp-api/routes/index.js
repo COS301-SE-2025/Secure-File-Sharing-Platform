@@ -26,7 +26,7 @@ router.get('/health', async (_req, res) => {
         } else {
             services.keyservice = 'disconnected';
         }
-    } catch (error) {
+    } catch {
         services.keyservice = 'disconnected';
     }
 
@@ -37,7 +37,7 @@ router.get('/health', async (_req, res) => {
         } else {
             services.fileservice = 'disconnected';
         }
-    } catch (error) {
+    } catch {
         services.fileservice = 'disconnected';
     }
 

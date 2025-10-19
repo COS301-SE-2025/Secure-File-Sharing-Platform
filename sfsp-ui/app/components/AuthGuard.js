@@ -6,25 +6,25 @@ import { useEncryptionStore } from "@/app/SecureKeyStorage";
 import { isAuthenticated, logout } from "@/app/lib/auth";
 import Loader from "@/app/dashboard/components/Loader";
 
+const protectedRoutes = ["/dashboard", "/Settings", "/test-protected"];
+
+const authRoutes = ["/auth"];
+
+const publicRoutes = [
+  "/",
+  "/Company",
+  "/Support",
+  "/requestReset",
+  "/confirmReset",
+  "/auth/verify-email",
+  "/auth/google",
+];
+
 const AuthGuard = ({ children }) => {
   const router = useRouter();
   const pathname = usePathname();
   const [isChecking, setIsChecking] = useState(true);
   const [isAuthenticatedState, setIsAuthenticatedState] = useState(false);
-
-  const protectedRoutes = ["/dashboard", "/Settings", "/test-protected"];
-
-  const authRoutes = ["/auth"];
-
-  const publicRoutes = [
-    "/",
-    "/Company",
-    "/Support",
-    "/requestReset",
-    "/confirmReset",
-    "/auth/verify-email",
-    "/auth/google",
-  ];
 
   useEffect(() => {
     const checkAuth = async () => {

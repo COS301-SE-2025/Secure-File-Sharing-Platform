@@ -1,0 +1,22 @@
+linters:
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - typecheck
+    - unused
+
+linters-settings:
+  errcheck:
+    # List of functions to exclude from checking
+    exclude-functions:
+      - (io.Closer).Close
+      - (*database/sql.DB).Close
+      - (*database/sql.Rows).Close
+      - (*os.File).Close
+
+run:
+  timeout: 5m
+  tests: true

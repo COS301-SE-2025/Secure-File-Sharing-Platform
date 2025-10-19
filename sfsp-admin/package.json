@@ -1,7 +1,7 @@
 {
   "name": "sfsp-admin",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.6.1",
   "description": "Admin desktop app for SecureShare",
   "author": "CacheME",
   "type": "module",
@@ -17,7 +17,7 @@
     "dist:mac": "npm run clean && npm run build && electron-builder --mac --arm64",
     "dist:win": "npm run clean && npm run build && electron-builder --win --x64",
     "dist:linux": "npm run clean && npm run build && electron-builder --linux --x64",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test": "jest",
     "test:coverage": "jest --coverage"
   },
   "dependencies": {

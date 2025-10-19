@@ -1,4 +1,3 @@
-/* global process */
 const axios = require("axios");
 require("dotenv").config();
 
@@ -8,7 +7,7 @@ function isValidEmail(email) {
 }
 
 function sanitizeEmail(email) {
-    return email.replace(/[<>\"'`\s\n\r\t]/g, '');
+    return email.replace(/[<>"'`\s\n\r\t]/g, '');
 }
 
 exports.getNotifications = async (req, res) => {

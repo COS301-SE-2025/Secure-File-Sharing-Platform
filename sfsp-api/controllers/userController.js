@@ -753,7 +753,7 @@ class UserController {
         }
 
         try {
-          const postgresRes = await axios.post(
+          await axios.post(
             `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/addUser`,
             { userId: user.id },
             { headers: { "Content-Type": "application/json" } }
@@ -815,7 +815,7 @@ class UserController {
         }
 
         try {
-          const postgresRes = await axios.post(
+          await axios.post(
             `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/addUser`,
             { userId: user.id },
             { headers: { "Content-Type": "application/json" } }
@@ -900,6 +900,7 @@ class UserController {
   /**
    * Reset password using recovery key
    * POST /users/reset-password-with-recovery
+   * Files will be re-encrypted in the background
    */
   async resetPasswordWithRecovery(req, res) {
     try {
@@ -913,7 +914,7 @@ class UserController {
         recovery_key_encrypted,
         recovery_key_nonce,
         oldNonce,
-        reencryptedFiles = [], // Re-encrypted files from frontend
+        fileCount = 0, // Number of files to re-encrypt in background
       } = req.body;
 
       // Validation
@@ -934,9 +935,9 @@ class UserController {
         });
       }
 
-      console.log(`Password reset: Re-encrypting ${reencryptedFiles.length} files for user ${userId}`);
+      console.log(`Password reset: User ${userId} has ${fileCount} files to re-encrypt in background`);
 
-      // Call service to reset password
+      // Call service to reset password (files re-encrypted in background)
       const result = await userService.resetPasswordWithRecovery({
         userId,
         email,
@@ -947,7 +948,7 @@ class UserController {
         recovery_key_encrypted,
         recovery_key_nonce,
         oldNonce,
-        reencryptedFiles,
+        fileCount,
       });
 
       return res.status(200).json({

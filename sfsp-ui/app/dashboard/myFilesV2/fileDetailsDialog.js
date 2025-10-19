@@ -65,9 +65,16 @@ export function FileDetailsDialog({ open, onOpenChange, file }) {
             <User className="h-4 w-4 text-gray-500" />
             <div>
               <p className="text-sm font-medium">Owner</p>
-              <p className="text-sm text-gray-600">You</p>
+              <p className="text-sm text-gray-600">
+                {file?.tags?.some(tag =>
+                  ["view-only", "shared", "received"].includes(tag)
+                )
+                  ? "Other"
+                  : "You"}
+              </p>
             </div>
           </div>
+
         </div>
 
         <hr />
@@ -76,8 +83,14 @@ export function FileDetailsDialog({ open, onOpenChange, file }) {
         <div>
           <p className="text-sm font-medium mb-1">Location</p>
           <p className="text-sm text-gray-600">
-            My Files / {file.category ?? "Unknown"}
+            My Files / {file.category || (file.path
+              ? file.path
+                .replace(/^.*?\//, '')
+                .replace(/\/[^/]*$/, '')
+                .replace(/\//g, ' / ')
+              : "Unknown")}
           </p>
+
         </div>
       </div>
     </div>

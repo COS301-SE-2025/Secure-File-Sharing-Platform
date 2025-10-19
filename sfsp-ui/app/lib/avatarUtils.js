@@ -31,22 +31,28 @@ export function generateUserInitials(username) {
 export function UserAvatar({ 
     avatarUrl, 
     username, 
-    size = "w-10 h-10", 
+    size = "w-8 h-8", 
     textSize = "", 
     className = "",
     alt = "Avatar"
 }) {
     return (
-        <div className={`${size} bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-bold overflow-hidden ${textSize} ${className}`}>
+        <div className={`${size} bg-gray-300 rounded-full overflow-hidden ${textSize} ${className}`}>
         {avatarUrl ? (
-            <img
-            src={avatarUrl}
-            alt={alt}
-            className="w-full h-full object-cover"
-            />
+            <div className={`relative ${size} rounded-full overflow-hidden`}>
+                <Image
+                    src={avatarUrl}
+                    alt={alt || username}
+                    fill
+                    className="object-cover"
+                    unoptimized
+                />
+            </div>
         ) : (
             generateUserInitials(username)
         )}
         </div>
     );
 }
+
+import Image from "next/image";

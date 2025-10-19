@@ -91,7 +91,7 @@ class MnemonicCrypto {
   static async validatePassword(password, hash) {
     try {
       return await argon2.verify(hash, password);
-    } catch (error) {
+    } catch {
       return false;
     }
   }

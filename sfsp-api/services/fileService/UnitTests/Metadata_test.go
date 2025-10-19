@@ -3,18 +3,19 @@ package unitTests
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
-	"errors"
 
+	metadata "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/metadata"
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	metadata "github.com/COS301-SE-2025/Secure-File-Sharing-Platform/sfsp-api/services/fileService/metadata"
 )
 
 func SetupMetadataMockDB(t *testing.T) (sqlmock.Sqlmock, func()) {
@@ -108,7 +109,7 @@ func TestGetUserFilesHandler_RowScanError(t *testing.T) {
 	mock, cleanup := SetupMetadataMockDB(t)
 	defer cleanup()
 	rows := sqlmock.NewRows([]string{"id", "file_name", "file_type"}).
-		AddRow("file-123", "test.txt", "text/plain") 
+		AddRow("file-123", "test.txt", "text/plain")
 
 	mock.ExpectQuery(`SELECT id, file_name, file_type, file_size, description, tags, created_at, cid FROM files WHERE owner_id = \$1`).
 		WithArgs("user-1").
@@ -121,7 +122,7 @@ func TestGetUserFilesHandler_RowScanError(t *testing.T) {
 	metadata.GetUserFilesHandler(rr, req)
 
 	require.Equal(t, http.StatusOK, rr.Code)
-	
+
 	var files []map[string]interface{}
 	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &files))
 	assert.Len(t, files, 0)
@@ -270,7 +271,6 @@ func TestGetUserFileCountHandler_DBError(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
-
 func TestAddReceivedFileHandler_Success(t *testing.T) {
 	mock, cleanup := SetupMetadataMockDB(t)
 	defer cleanup()
@@ -321,7 +321,7 @@ func TestAddReceivedFileHandler_MissingFields(t *testing.T) {
 	defer cleanup()
 
 	body := metadata.AddReceivedFileRequest{
-		SenderID:    "", 
+		SenderID:    "",
 		RecipientID: "recipient-1",
 		FileID:      "file-123",
 	}
@@ -378,11 +378,11 @@ func TestGetPendingFilesHandler_Success(t *testing.T) {
 
 	var resp map[string]interface{}
 	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
-	
+
 	data, ok := resp["data"].([]interface{})
 	require.True(t, ok)
 	assert.Len(t, data, 1)
-	
+
 	file := data[0].(map[string]interface{})
 	assert.Equal(t, "pending-123", file["id"])
 	assert.Equal(t, "sender-1", file["senderId"])
@@ -609,7 +609,6 @@ func TestGetPendingFilesHandler_InvalidMetadataJSON(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
-
 func TestAddSentFileHandler_DBError(t *testing.T) {
 	mock, cleanup := SetupMetadataMockDB(t)
 	defer cleanup()
@@ -625,7 +624,6 @@ func TestAddSentFileHandler_DBError(t *testing.T) {
 	require.Equal(t, http.StatusInternalServerError, rr.Code)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
-
 
 func TestGetSentFilesHandler_BadJSON(t *testing.T) {
 	_, cleanup := SetupMetadataMockDB(t)
@@ -687,7 +685,11 @@ func TestDeleteFileMetadata_Success(t *testing.T) {
 func TestDeleteFileMetadata_BeginError(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Println("error closing db:", err)
+		}
+	}()
 	metadata.DB = db
 
 	mock.ExpectBegin().WillReturnError(sql.ErrConnDone)
@@ -820,7 +822,11 @@ func TestGetRecipientIDFromOPK_NoRows(t *testing.T) {
 func TestInsertReceivedFile_Success(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Println("error closing db:", err)
+		}
+	}()
 
 	mock.ExpectQuery(`SELECT EXISTS \(.*users.*\)`).
 		WithArgs("recip").
@@ -830,31 +836,45 @@ func TestInsertReceivedFile_Success(t *testing.T) {
 func TestInsertReceivedFile_RecipientMissing(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Println("error closing db:", err)
+		}
+	}()
 
 	mock.ExpectQuery(`SELECT EXISTS \(.*users.*\)`).
 		WithArgs("recip").
 		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
 
 	_, err = metadata.InsertReceivedFile(db, "recip", "sender", "file1", `{}`, time.Now())
+	require.NoError(t, err)
 }
 
 func TestInsertReceivedFile_CheckError(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Println("error closing db:", err)
+		}
+	}()
 
 	mock.ExpectQuery(`SELECT EXISTS \(.*users.*\)`).
 		WithArgs("recip").
 		WillReturnError(sql.ErrConnDone)
 
 	_, err = metadata.InsertReceivedFile(db, "recip", "sender", "file1", `{}`, time.Now())
+	require.NoError(t, err)
 }
 
 func TestInsertReceivedFile_InsertError(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Println("error closing db:", err)
+		}
+	}()
 
 	mock.ExpectQuery(`SELECT EXISTS \(.*users.*\)`).
 		WithArgs("recip").
@@ -865,44 +885,65 @@ func TestInsertReceivedFile_InsertError(t *testing.T) {
 		WillReturnError(sql.ErrConnDone)
 
 	_, err = metadata.InsertReceivedFile(db, "recip", "sender", "file1", `{}`, time.Now())
+	require.NoError(t, err)
 }
 
 func TestInsertSentFile_Success(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Println("error closing db:", err)
+		}
+	}()
 
 	mock.ExpectExec(`INSERT INTO sent_files`).
 		WithArgs("s", "r", "f", "aes", "ek").
 		WillReturnResult(sqlmock.NewResult(0, 1))
 
 	err = metadata.InsertSentFile(db, "s", "r", "f", `{"encryptedAesKey":"aes","ekPublicKey":"ek"}`)
+	require.NoError(t, err)
 }
 
 func TestInsertSentFile_InvalidJSON(t *testing.T) {
 	db, _, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Println("error closing db:", err)
+		}
+	}()
 
 	err = metadata.InsertSentFile(db, "s", "r", "f", `{not json`)
+	require.NoError(t, err)
 }
 
 func TestInsertSentFile_MissingKeys(t *testing.T) {
 	db, _, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Println("error closing db:", err)
+		}
+	}()
 
 	err = metadata.InsertSentFile(db, "s", "r", "f", `{}`)
+	require.NoError(t, err)
 }
 
 func TestInsertSentFile_DBError(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Println("error closing db:", err)
+		}
+	}()
 
 	mock.ExpectExec(`INSERT INTO sent_files`).WillReturnError(sql.ErrConnDone)
 
 	err = metadata.InsertSentFile(db, "s", "r", "f", `{"encryptedAesKey":"aes","ekPublicKey":"ek"}`)
+	require.NoError(t, err)
 }
 
 func TestAddTagsHandler_Success(t *testing.T) {

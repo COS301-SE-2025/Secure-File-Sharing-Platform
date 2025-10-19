@@ -59,7 +59,11 @@ func SendFileHandler(w http.ResponseWriter, r *http.Request) {
         http.Error(w, "Missing encrypted file chunk", http.StatusBadRequest)
         return
     }
-    defer file.Close()
+    defer func() {
+        if err := file.Close(); err != nil {
+            log.Println("error closing file:", err)
+        }
+    }()
 
     // 🔹 Step 2: Upload chunk to OwnCloud temp folder
     tempChunkName := fmt.Sprintf("%s_chunk_%d", fileID, chunkIndex)
@@ -72,10 +76,12 @@ func SendFileHandler(w http.ResponseWriter, r *http.Request) {
     // 🔹 Step 3: If not last chunk → ACK only
     if chunkIndex != totalChunks-1 {
         w.Header().Set("Content-Type", "application/json")
-        json.NewEncoder(w).Encode(map[string]string{
+        if err := json.NewEncoder(w).Encode(map[string]string{
             "message": fmt.Sprintf("Chunk %d uploaded", chunkIndex),
             "fileId":  fileID,
-        })
+        }); err != nil {
+            log.Println("Failed to encode response:", err)
+        }
         return
     }
 
@@ -84,7 +90,11 @@ func SendFileHandler(w http.ResponseWriter, r *http.Request) {
     finalReader, finalWriter := io.Pipe()
 
     go func() {
-        defer finalWriter.Close()
+        defer func() {
+            if err := finalWriter.Close(); err != nil {
+                log.Println("error closing final writer:", err)
+            }
+        }()
 
         for i := 0; i < totalChunks; i++ {
             chunkPath := fmt.Sprintf("temp/%s_chunk_%d", fileID, i)
@@ -97,12 +107,18 @@ func SendFileHandler(w http.ResponseWriter, r *http.Request) {
 
             if _, err := io.Copy(finalWriter, reader); err != nil {
                 log.Println("Failed to copy chunk to writer:", err)
-                reader.Close()
+                if err := reader.Close(); err != nil {
+                    log.Println("error closing reader:", err)
+                }
                 finalWriter.CloseWithError(err)
                 return
             }
-            reader.Close()
-            owncloud.DeleteFileTemp(chunkPath) // cleanup
+            if err := reader.Close(); err != nil {
+                log.Println("error closing reader:", err)
+            }
+            if err := owncloud.DeleteFileTemp(chunkPath); err != nil {
+                log.Println("Failed to cleanup chunk:", err)
+            }
         }
 
         log.Println("✅ Finished merging chunks for file:", fileID)
@@ -143,9 +159,11 @@ func SendFileHandler(w http.ResponseWriter, r *http.Request) {
 
     // ✅ Final response
     w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(map[string]string{
+    if err := json.NewEncoder(w).Encode(map[string]string{
         "message":        "File sent successfully",
         "receivedFileID": receivedID,
-    })
+    }); err != nil {
+        log.Println("Failed to encode response:", err)
+    }
     log.Println("🎉 File sent successfully:", fileID)
 }

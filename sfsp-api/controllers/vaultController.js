@@ -95,7 +95,7 @@ class VaultController {
         "opks_private",
       ];
       const missingFields = requiredFields.filter(
-        (field) => !keyBundle.hasOwnProperty(field)
+        (field) => !Object.prototype.hasOwnProperty.call(keyBundle, field)
       );
 
       if (missingFields.length > 0) {
@@ -158,7 +158,7 @@ class VaultController {
     try {
       const health = await this.healthCheck();
       return health.data.health.status === "healthy";
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -167,7 +167,7 @@ class VaultController {
     try {
       const health = await this.healthCheck();
       return health.data.health.vault_status;
-    } catch (error) {
+    } catch {
       return "unknown";
     }
   }

@@ -7,21 +7,6 @@ on:
     branches: ["main"]
 
 jobs:
-  # build:
-  #   name: Linting
-  #   runs-on: ubuntu-latest
-
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@v4
-
-  #     - name: Lint Code
-  #       uses: github/super-linter@v5
-  #       env:
-  #         VALIDATE_ALL_CODEBASE: true
-  #         DEFAULT_BRANCH: main
-  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   sfsp-ui:
     name: SFSP UI
     runs-on: ubuntu-latest

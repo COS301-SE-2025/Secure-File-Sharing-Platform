@@ -5,9 +5,14 @@ import HomeRotator from './home_features';
 import Footer from './Footer/footer';
 import Link from 'next/link';
 import AnimatedIcon from './AnimatedIcon';
+import { useState } from 'react';
 import { ShieldCheckIcon, ShieldExclamationIcon, EyeIcon, LinkIcon, ArrowUpOnSquareIcon, LockClosedIcon, DevicePhoneMobileIcon, UserGroupIcon, RocketLaunchIcon, } from '@heroicons/react/24/solid';
 
 export default function Home() {
+  const [activeDiagram, setActiveDiagram] = useState('fileTransfer');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isFPModalOpen, setIsFPModalOpen] = useState(false);
+
   return (
     <div className="grid grid-rows-[auto_1fr_auto] min-h-screen font-sans text-gray-800 dark:text-white dark:bg-gray-900">
       {/* Navbar */}
@@ -477,6 +482,16 @@ export default function Home() {
                 </div>
 
                 <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                    <LinkIcon className="w-3 h-3 text-purple-600" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-900 dark:text-white">Self-Destructing Links</h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Links automatically expire after download or time limit</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
                   <div className="w-6 h-6 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
                     <ShieldExclamationIcon className="w-3 h-3 text-blue-600" />
                   </div>
@@ -489,8 +504,141 @@ export default function Home() {
             </div>
           </div>
 
+          {/* Diagrams Carousel Section */}
+          <div className="mt-16 animate-fade-in-up">
+            <div className="text-center mb-8">
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                Security Flow Diagrams
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400">
+                Interactive diagrams showing our security processes
+              </p>
+            </div>
+
+            {/* Carousel Navigation */}
+            <div className="flex justify-center mb-6">
+              <div className="flex space-x-2 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+                <button
+                  onClick={() => setActiveDiagram('fileTransfer')}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-300 ${activeDiagram === 'fileTransfer'
+                    ? 'bg-blue-600 text-white shadow-md'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                    }`}
+                >
+                  File Transfer Flow
+                </button>
+                <button
+                  onClick={() => setActiveDiagram('passwordReset')}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-300 ${activeDiagram === 'passwordReset'
+                    ? 'bg-blue-600 text-white shadow-md'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                    }`}
+                >
+                  Password Reset Flow
+                </button>
+              </div>
+            </div>
+
+            {/* Carousel Content */}
+            <div className="relative">
+              {/* File Transfer Flow */}
+              <div
+                className={`transition-all duration-500 ease-in-out ${activeDiagram === 'fileTransfer'
+                  ? 'opacity-100 translate-y-0'
+                  : 'opacity-0 absolute translate-y-4 pointer-events-none'
+                  }`}
+              >
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
+                      <span className="text-xl">🔄</span>
+                    </div>
+                    <h4 className="text-lg font-bold text-gray-900 dark:text-white">
+                      File Transfer Flow
+                    </h4>
+                  </div>
+
+                  <div className="bg-gray-100 dark:bg-gray-200 rounded-lg p-4 border border-gray-300 dark:border-gray-600">
+                    <div className="flex justify-center">
+                      <Image
+                        src="/img/File-trans.svg"
+                        alt="File Transfer Flow Diagram"
+                        width={600}
+                        height={400}
+                        className="w-full max-w-2xl h-auto rounded-lg shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+                        onClick={() => setIsModalOpen(true)}
+                      />
+                    </div>
+                    <div className="text-center mt-4">
+                      <button
+                        onClick={() => setIsModalOpen(true)}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                      >
+                        <span>View Full Size</span>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+
+                  <p className="text-gray-600 dark:text-gray-400 text-sm mt-4">
+                    Secure file transfer process showing end-to-end encryption and verification steps
+                  </p>
+                </div>
+              </div>
+
+              {/* Password Reset Flow */}
+              <div
+                className={`transition-all duration-500 ease-in-out ${activeDiagram === 'passwordReset'
+                  ? 'opacity-100 translate-y-0'
+                  : 'opacity-0 absolute translate-y-4 pointer-events-none'
+                  }`}
+              >
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
+                      <span className="text-xl">🗝️</span>
+                    </div>
+                    <h4 className="text-lg font-bold text-gray-900 dark:text-white">
+                      Password Reset Flow
+                    </h4>
+                  </div>
+
+                  <div className="bg-gray-100 dark:bg-gray-200 rounded-lg p-4 border border-gray-300 dark:border-gray-600">
+                    <div className="flex justify-center">
+                      <Image
+                        src="/img/forget-pass.svg"
+                        alt="Password Reset Flow Diagram"
+                        width={600}
+                        height={400}
+                        className="w-full max-w-2xl h-auto rounded-lg shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+                        onClick={() => setIsFPModalOpen(true)}
+                      />
+                    </div>
+                    <div className="text-center mt-4">
+                      <button
+                        onClick={() => setIsFPModalOpen(true)}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                      >
+                        <span>View Full Size</span>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+
+                  <p className="text-gray-600 dark:text-gray-400 text-sm mt-4">
+                    Secure password reset process with email verification and security checks
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Security Reference Link */}
-          <div className="text-center animate-fade-in-up">
+          <div className="text-center mt-12 animate-fade-in-up">
             <Link
               href="/Support/Security"
               className="inline-flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium transition-colors duration-300 group"
@@ -513,7 +661,7 @@ export default function Home() {
       <div className="text-center py-20 text-gray-800 bg-gray-300 dark:text-white dark:bg-gray-300 animate-slide-in-bottom">
         <div className="flex flex-col items-center gap-6">
           <h3 className="text-3xl font-semibold inline-flex items-center text-gray-800">
-            <Typewriter text="Get Sharing" speed={100} loop={true} cursor={true}  />
+            <Typewriter text="Get Sharing" speed={100} loop={true} cursor={true} />
           </h3>
           <a
             href="/auth"
@@ -527,6 +675,61 @@ export default function Home() {
 
       {/* Footer */}
       <Footer />
+      {isModalOpen && (
+        <div
+          className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+          onClick={() => setIsModalOpen(false)}
+        >
+          <div className="relative max-w-7xl max-h-full">
+            <button
+              className="absolute -top-12 right-0 text-white text-2xl hover:text-gray-300 z-10 bg-gray-800 rounded-full w-8 h-8 flex items-center justify-center"
+              onClick={() => setIsModalOpen(false)}
+            >
+              ✕
+            </button>
+            <div className="bg-white rounded-lg overflow-hidden">
+              <Image
+                src="/img/File-trans.svg"
+                alt="File Transfer Flow Diagram - Full Size"
+                width={1400}
+                height={1000}
+                className="max-w-full max-h-[80vh] object-contain"
+              />
+            </div>
+            <div className="text-center mt-2 text-white text-sm">
+              Click anywhere to close
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isFPModalOpen && (
+        <div
+          className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+          onClick={() => setIsFPModalOpen(false)}
+        >
+          <div className="relative max-w-7xl max-h-full">
+            <button
+              className="absolute -top-12 right-0 text-white text-2xl hover:text-gray-300 z-10 bg-gray-800 rounded-full w-8 h-8 flex items-center justify-center"
+              onClick={() => setIsFPModalOpen(false)}
+            >
+              ✕
+            </button>
+            <div className="bg-white rounded-lg overflow-hidden">
+              <Image
+                src="/img/forget-pass.svg"
+                alt="File Transfer Flow Diagram - Full Size"
+                width={1400}
+                height={1000}
+                className="max-w-full max-h-[80vh] object-contain"
+              />
+            </div>
+            <div className="text-center mt-2 text-white text-sm">
+              Click anywhere to close
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* animations */}
       <style jsx>{`

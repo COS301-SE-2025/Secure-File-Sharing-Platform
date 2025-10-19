@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Upload, FolderPlus, Grid, List, Route, ChevronDown } from "lucide-react";
 import { ShareDialog } from "./shareDialog";
 import { UploadDialog } from "./uploadDialog";
@@ -15,6 +15,8 @@ import { getSodium } from "@/app/lib/sodium";
 import { PreviewDrawer } from "./previewDrawer";
 import dynamic from "next/dynamic";
 import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
+import { PDFDocument, rgb } from "pdf-lib";
+
 
 const FullViewModal = dynamic(
   () =>
@@ -366,10 +368,10 @@ export default function MyFiles() {
 
   const [dragOverCrumb, setDragOverCrumb] = useState(null);
 
-  const showToast = (message, type = "info", duration = 3000) => {
+  const showToast = useCallback((message, type = "info", duration = 3000) => {
     setToast({ message, type });
     setTimeout(() => setToast(null), duration);
-  };
+  }, []);
 
   const normalizePath = (path) =>
     path?.startsWith("files/") ? path.slice(6) : path || "";
@@ -415,7 +417,45 @@ export default function MyFiles() {
     return tags.includes("view-only") || file.viewOnly;
   };
 
-  const fetchFiles = async () => {
+  const applySort = useCallback((filesToSort) => {
+    let sortedFiles = [...filesToSort];
+
+    const folders = sortedFiles.filter((f) => f.isFolder);
+    const files = sortedFiles.filter((f) => !f.isFolder);
+
+    const sortArray = (array, sortBy) => {
+      const sorted = [...array];
+      if (sortBy === "byDate") {
+        sorted.sort((a, b) => {
+          const dateA = a.modifiedRaw ? new Date(a.modifiedRaw) : new Date(0);
+          const dateB = b.modifiedRaw ? new Date(b.modifiedRaw) : new Date(0);
+          return sortOptions.ascending ? dateA - dateB : dateB - dateA;
+        });
+      } else if (sortBy === "byName") {
+        sorted.sort((a, b) =>
+          sortOptions.ascending
+            ? a.name.localeCompare(b.name, { sensitivity: "base" })
+            : b.name.localeCompare(a.name, { sensitivity: "base" })
+        );
+      } else if (sortBy === "bySize") {
+        sorted.sort((a, b) =>
+          sortOptions.ascending ? a.size - b.size : b.size - a.size
+        );
+      }
+      return sorted;
+    };
+
+    let activeSort = "byName";
+    if (sortOptions.byDate) activeSort = "byDate";
+    else if (sortOptions.bySize) activeSort = "bySize";
+
+    const sortedFolders = sortArray(folders, activeSort);
+    const sortedf = sortArray(files, activeSort);
+
+    return [...sortedFolders, ...sortedf];
+  }, [sortOptions]);
+
+  const fetchFiles = useCallback(async () => {
     try {
       const userId = useEncryptionStore.getState().userId;
       if (!userId) {
@@ -478,65 +518,45 @@ export default function MyFiles() {
     } catch (err) {
       console.error("Failed to fetch files:", err);
     }
-  };
-
-  const applySort = (filesToSort) => {
-    let sortedFiles = [...filesToSort];
-
-    // Apply sort by type
-    if (sortOptions.byDate) {
-      sortedFiles.sort((a, b) => new Date(b.modifiedRaw) - new Date(a.modifiedRaw));
-    } else if (sortOptions.byName) {
-      sortedFiles.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
-    } else if (sortOptions.bySize) {
-      sortedFiles.sort((a, b) => a.size - b.size);
-    }
-
-    // Apply folder priority
-    sortedFiles.sort((a, b) => {
-      if (a.isFolder && !b.isFolder) return -1;
-      if (!a.isFolder && b.isFolder) return 1;
-      return 0;
-    });
-
-    // Apply ascending/descending
-    if (!sortOptions.ascending) {
-      sortedFiles.reverse();
-    }
-
-    return sortedFiles;
-  };
+  }, [applySort]);
 
   const handleSortChange = (option) => {
     setSortOptions((prev) => {
-      const newOptions = { ...prev };
+      const newOptions = {
+        byDate: false,
+        byName: false,
+        bySize: false,
+        ascending: prev.ascending,
+      };
+
       if (option === "reset") {
-        return {
-          byDate: false,
-          byName: true,
-          bySize: false,
-          ascending: true,
-        };
-      }
-      if (option === "ascending") {
-        newOptions.ascending = !newOptions.ascending;
+        newOptions.byName = true;
+        newOptions.ascending = true;
+      } else if (option === "ascending") {
+        newOptions.ascending = !prev.ascending;
+        newOptions.byDate = prev.byDate;
+        newOptions.byName = prev.byName || (!prev.byDate && !prev.bySize);
+        newOptions.bySize = prev.bySize;
       } else {
-        newOptions.byDate = option === "byDate" ? !newOptions.byDate : false;
-        newOptions.byName = option === "byName" ? !newOptions.byName : false;
-        newOptions.bySize = option === "bySize" ? !newOptions.bySize : false;
-        // Ensure at least one sort option is selected
-        if (!newOptions.byDate && !newOptions.byName && !newOptions.bySize) {
-          newOptions.byName = true;
+        newOptions[option] = true;
+        if (option !== "byName" && !prev.byDate && !prev.byName && !prev.bySize) {
+          newOptions.ascending = true;
         }
       }
+
       return newOptions;
     });
-    setFiles(applySort(files));
+
+    setFiles((prevFiles) => applySort(prevFiles));
   };
 
   useEffect(() => {
+    setFiles((prevFiles) => applySort(prevFiles));
+  }, [sortOptions, applySort]);
+
+  useEffect(() => {
     fetchFiles();
-  }, []);
+  }, [fetchFiles]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -551,6 +571,449 @@ export default function MyFiles() {
     };
   }, []);
 
+  const handleDelete = async (file) => {
+    const timestamp = new Date().toISOString();
+    const tags = ["deleted", `deleted_time:${timestamp}`];
+
+    try {
+      const res = await fetch(getFileApiUrl("/addTags"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileId: file.id, tags }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to tag file as deleted");
+      }
+
+      console.log(`File ${file.name} marked as deleted`);
+      fetchFiles();
+    } catch (err) {
+      console.error("Delete failed:", err);
+    }
+  };
+
+  const handleDownload = async (file) => {
+    if (isViewOnly(file)) {
+      showToast("This file is view-only and cannot be downloaded.", "error");
+      return;
+    }
+
+    const { encryptionKey, userId } = useEncryptionStore.getState();
+    if (!encryptionKey) {
+      showToast("Missing encryption key", "error");
+      return;
+    }
+
+    const sodium = await getSodium();
+
+    try {
+      const res = await fetch(getFileApiUrl("/download"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, fileId: file.id }),
+      });
+
+      if (!res.ok) throw new Error("Download failed");
+
+      const nonceBase64 = res.headers.get("X-Nonce");
+      const fileName = res.headers.get("X-File-Name");
+      if (!nonceBase64 || !fileName)
+        throw new Error("Missing nonce or filename");
+
+      const nonce = sodium.from_base64(
+        nonceBase64,
+        sodium.base64_variants.ORIGINAL
+      );
+
+      // Convert to stream reader
+      const reader = res.body.getReader();
+      const chunks = [];
+      let totalLength = 0;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        chunks.push(value);
+        totalLength += value.length;
+      }
+
+      // Merge chunks into single Uint8Array
+      const encryptedFile = new Uint8Array(totalLength);
+      let offset = 0;
+      for (const chunk of chunks) {
+        encryptedFile.set(chunk, offset);
+        offset += chunk.length;
+      }
+
+      // Decrypt the file
+      const decrypted = sodium.crypto_secretbox_open_easy(
+        encryptedFile,
+        nonce,
+        encryptionKey
+      );
+      if (!decrypted) throw new Error("Decryption failed");
+
+      const blob = new Blob([decrypted]);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Download error:", err);
+      showToast("Download failed", "error");
+    }
+  };
+
+  const handleLoadFile = useCallback(async (file) => {
+    const { encryptionKey, userId } = useEncryptionStore.getState();
+    if (!encryptionKey) {
+      showToast("Missing encryption key", "error");
+      return null;
+    }
+
+    const sodium = await getSodium();
+
+    try {
+      const res = await fetch(getFileApiUrl("/download"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          fileId: file.id,
+        }),
+      });
+
+      if (!res.ok) {
+        if (res.status === 403) {
+          throw new Error("Access has been revoked or expired");
+        }
+        throw new Error("Failed to load file");
+      }
+
+      const nonceBase64 = res.headers.get("X-Nonce");
+      const fileName = res.headers.get("X-File-Name");
+      if (!nonceBase64 || !fileName) {
+        throw new Error("Missing nonce or fileName in response headers");
+      }
+
+      const nonce = sodium.from_base64(
+        nonceBase64,
+        sodium.base64_variants.ORIGINAL
+      );
+
+      // Use streaming reader to reduce memory spikes
+      const reader = res.body.getReader();
+      const chunks = [];
+      let totalLength = 0;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        totalLength += value.length;
+      }
+
+      // Merge all chunks into single Uint8Array
+      const encryptedFile = new Uint8Array(totalLength);
+      let offset = 0;
+      for (const chunk of chunks) {
+        encryptedFile.set(chunk, offset);
+        offset += chunk.length;
+      }
+
+      // Decrypt file
+      const decrypted = sodium.crypto_secretbox_open_easy(
+        encryptedFile,
+        nonce,
+        encryptionKey
+      );
+      if (!decrypted) throw new Error("Decryption failed");
+
+      return { fileName, decrypted };
+    } catch (err) {
+      console.error("Load file error:", err);
+      return null;
+    }
+  }, [showToast]);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const token = localStorage.getItem("token");
+      try {
+        const res = await fetch(getApiUrl("/users/profile"), {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        const result = await res.json();
+        if (!res.ok)
+          throw new Error(result.message || "Failed to fetch profile");
+
+        setUser(result.data);
+      } catch (err) {
+        console.error("Failed to fetch profile:", err.message);
+      }
+    };
+
+    fetchProfile();
+  }, []);
+
+  const handlePreview = useCallback(async (rawFile) => {
+    // Ensure this only runs on the client side
+    if (typeof window === "undefined") return;
+
+    const username = user?.username;
+    const file = {
+      ...rawFile,
+      type: getFileType(
+        rawFile.fileType || rawFile.type || "",
+        rawFile.fileName || rawFile.name
+      ),
+      name: rawFile.fileName || rawFile.name,
+      size: formatFileSize(rawFile.fileSize || rawFile.size || 0),
+    };
+
+    const result = await handleLoadFile(file);
+    if (!result) return;
+
+    let contentUrl = null;
+    let textFull = null;
+    if (typeof window === "undefined") return;
+    if (file.type === "image") {
+      contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
+    } else if (file.type === "pdf") {
+      contentUrl = URL.createObjectURL(
+        new Blob([result.decrypted], { type: "application/pdf" })
+      );
+    } else if (file.type === "video" || file.type === "audio") {
+      contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
+    } else if (
+      [
+        "txt",
+        "json",
+        "csv",
+        "xml",
+        "yaml",
+        "yml",
+        "html",
+        "css",
+        "js",
+        "jsx",
+        "ts",
+        "tsx",
+        "py",
+        "java",
+        "cpp",
+        "c",
+        "php",
+        "rb",
+        "go",
+        "rs",
+        "sql",
+        "log",
+        "ini",
+        "cfg",
+        "conf",
+      ].includes(file.type)
+    ) {
+      textFull = new TextDecoder().decode(result.decrypted);
+
+      //Add watermark comment for code files
+      if (
+        [
+          "js",
+          "jsx",
+          "ts",
+          "tsx",
+          "py",
+          "java",
+          "cpp",
+          "c",
+          "php",
+          "rb",
+          "go",
+          "rs",
+        ].includes(file.type)
+      ) {
+        const watermarkComment = getWatermarkComment(file.type, username);
+        textFull = watermarkComment + "\n" + textFull;
+      }
+    }
+
+    //Markdown files, render this bitch as an html
+    else if (file.type === "markdown" || file.type === "md") {
+      const markdownText = new TextDecoder().decode(result.decrypted);
+
+      //Add watermark to markdown
+      const watermarkMarkdown = `> **Viewed by: ${username}**\n\n`;
+      textFull = watermarkMarkdown + markdownText;
+    }
+
+    setPreviewContent({ url: contentUrl, text: textFull });
+    setPreviewFile(file);
+  }, [user, handleLoadFile]);
+
+  //Helper function to get appropriate comment syntax for watermarking code files
+  const getWatermarkComment = (fileType, username) => {
+    const timestamp = new Date().toLocaleString();
+
+    const commentStyles = {
+      js: `/* Viewed by: ${username} on ${timestamp} */`,
+      jsx: `/* Viewed by: ${username} on ${timestamp} */`,
+      ts: `/* Viewed by: ${username} on ${timestamp} */`,
+      tsx: `/* Viewed by: ${username} on ${timestamp} */`,
+      java: `/* Viewed by: ${username} on ${timestamp} */`,
+      cpp: `/* Viewed by: ${username} on ${timestamp} */`,
+      c: `/* Viewed by: ${username} on ${timestamp} */`,
+      css: `/* Viewed by: ${username} on ${timestamp} */`,
+
+      py: `# Viewed by: ${username} on ${timestamp}`,
+      rb: `# Viewed by: ${username} on ${timestamp}`,
+      sql: `-- Viewed by: ${username} on ${timestamp}`,
+
+      php: `<?php /* Viewed by: ${username} on ${timestamp} */ ?>`,
+      html: `<!-- Viewed by: ${username} on ${timestamp} -->`,
+      go: `// Viewed by: ${username} on ${timestamp}`,
+      rs: `// Viewed by: ${username} on ${timestamp}`,
+    };
+
+    return (
+      commentStyles[fileType] || `// Viewed by: ${username} on ${timestamp}`
+    );
+  };
+
+  const handleOpenFullView = useCallback(async (file) => {
+    const username = user?.username;
+
+    if (file.type === "folder") {
+      setPreviewContent({
+        url: null,
+        text: "This is a folder. Double-click to open.",
+      });
+      setPreviewFile(file);
+      return;
+    }
+
+    const result = await handleLoadFile(file);
+    if (!result) return;
+
+    let contentUrl = null;
+    let textFull = null;
+
+    if (typeof window === "undefined") return;
+    if (file.type === "image") {
+      contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
+    } else if (file.type === "pdf") {
+      contentUrl = URL.createObjectURL(
+        new Blob([result.decrypted], { type: "application/pdf" })
+      );
+    } else if (file.type === "video" || file.type === "audio") {
+      contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
+    } else if (
+      [
+        "txt",
+        "json",
+        "csv",
+        "xml",
+        "yaml",
+        "yml",
+        "html",
+        "css",
+        "js",
+        "jsx",
+        "ts",
+        "tsx",
+        "py",
+        "java",
+        "cpp",
+        "c",
+        "php",
+        "rb",
+        "go",
+        "rs",
+        "sql",
+        "log",
+        "ini",
+        "cfg",
+        "conf",
+      ].includes(file.type)
+    ) {
+      textFull = new TextDecoder().decode(result.decrypted);
+
+      if (
+        [
+          "js",
+          "jsx",
+          "ts",
+          "tsx",
+          "py",
+          "java",
+          "cpp",
+          "c",
+          "php",
+          "rb",
+          "go",
+          "rs",
+        ].includes(file.type)
+      ) {
+        const watermarkComment = getWatermarkComment(file.type, username);
+        textFull = watermarkComment + "\n" + textFull;
+      }
+    } else if (file.type === "markdown" || file.type === "md") {
+      const markdownText = new TextDecoder().decode(result.decrypted);
+      const watermarkMarkdown = `> **Viewed by: ${username}**\n\n`;
+      textFull = watermarkMarkdown + markdownText;
+    }
+
+    setViewerContent({ url: contentUrl, text: textFull });
+    setViewerFile(file);
+  }, [user, handleLoadFile]);
+
+  const handleUpdateDescription = async (fileId, description) => {
+    try {
+      const res = await fetch(getFileApiUrl("/addDescription"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ fileId, description }),
+      });
+      fetchFiles(); // Refresh files after update
+      if (res.status === 200) {
+        console.log("Description updated successfully");
+      }
+      if (!res.ok) {
+        throw new Error("Failed to update description");
+      }
+    } catch (err) {
+      console.error("Error updating description:", err);
+    }
+  };
+
+  const handleMoveFile = useCallback(async (file, destinationFolderPath) => {
+    const fullPath = destinationFolderPath
+      ? `files/${destinationFolderPath}/${file.name}`
+      : `files/${file.name}`;
+
+    const res = await fetch(getFileApiUrl("/updateFilePath"), {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ fileId: file.id, newPath: fullPath }),
+    });
+
+    if (res.ok) {
+      fetchFiles();
+    } else {
+      showToast("Failed to move file", "error");
+    }
+  }, [fetchFiles, showToast]);
+
+  // Keyboard shortcuts effect
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -580,7 +1043,7 @@ export default function MyFiles() {
         console.log("Ctrl+Key detected:", e.key);
 
         switch (e.key.toLowerCase()) {
-          case "c": 
+          case "c":
             e.preventDefault();
             if (selectedFile) {
               setClipboard({ file: selectedFile, operation: "cut" });
@@ -709,482 +1172,7 @@ export default function MyFiles() {
       console.log("Keyboard shortcuts unmounted");
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [selectedFile, clipboard, currentPath]);
-
-  const handleDelete = async (file) => {
-    const timestamp = new Date().toISOString();
-    const tags = ["deleted", `deleted_time:${timestamp}`];
-
-    try {
-      const res = await fetch(getFileApiUrl("/addTags"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fileId: file.id, tags }),
-      });
-
-      if (!res.ok) {
-        throw new Error("Failed to tag file as deleted");
-      }
-
-      console.log(`File ${file.name} marked as deleted`);
-      fetchFiles();
-    } catch (err) {
-      console.error("Delete failed:", err);
-    }
-  };
-
-  const handleDownload = async (file) => {
-    if (isViewOnly(file)) {
-      showToast("This file is view-only and cannot be downloaded.", "error");
-      return;
-    }
-
-    const { encryptionKey, userId } = useEncryptionStore.getState();
-    if (!encryptionKey) {
-      showToast("Missing encryption key", "error");
-      return;
-    }
-
-    const sodium = await getSodium();
-
-    try {
-      const res = await fetch(getFileApiUrl("/download"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, fileId: file.id }),
-      });
-
-      if (!res.ok) throw new Error("Download failed");
-
-      const nonceBase64 = res.headers.get("X-Nonce");
-      const fileName = res.headers.get("X-File-Name");
-      if (!nonceBase64 || !fileName)
-        throw new Error("Missing nonce or filename");
-
-      const nonce = sodium.from_base64(
-        nonceBase64,
-        sodium.base64_variants.ORIGINAL
-      );
-
-      // Convert to stream reader
-      const reader = res.body.getReader();
-      const chunks = [];
-      let totalLength = 0;
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        chunks.push(value);
-        totalLength += value.length;
-      }
-
-      // Merge chunks into single Uint8Array
-      const encryptedFile = new Uint8Array(totalLength);
-      let offset = 0;
-      for (const chunk of chunks) {
-        encryptedFile.set(chunk, offset);
-        offset += chunk.length;
-      }
-
-      // Decrypt the file
-      const decrypted = sodium.crypto_secretbox_open_easy(
-        encryptedFile,
-        nonce,
-        encryptionKey
-      );
-      if (!decrypted) throw new Error("Decryption failed");
-
-      const blob = new Blob([decrypted]);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = fileName;
-      a.click();
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error("Download error:", err);
-      showToast("Download failed", "error");
-    }
-  };
-
-  const handleLoadFile = async (file) => {
-    const { encryptionKey, userId } = useEncryptionStore.getState();
-    if (!encryptionKey) {
-      showToast("Missing encryption key", "error");
-      return null;
-    }
-
-    const sodium = await getSodium();
-
-    try {
-      const res = await fetch(getFileApiUrl("/download"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId,
-          fileId: file.id,
-        }),
-      });
-
-      if (!res.ok) {
-        if (res.status === 403) {
-          throw new Error("Access has been revoked or expired");
-        }
-        throw new Error("Failed to load file");
-      }
-
-      const nonceBase64 = res.headers.get("X-Nonce");
-      const fileName = res.headers.get("X-File-Name");
-      if (!nonceBase64 || !fileName) {
-        throw new Error("Missing nonce or fileName in response headers");
-      }
-
-      const nonce = sodium.from_base64(
-        nonceBase64,
-        sodium.base64_variants.ORIGINAL
-      );
-
-      // Use streaming reader to reduce memory spikes
-      const reader = res.body.getReader();
-      const chunks = [];
-      let totalLength = 0;
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        chunks.push(value);
-        totalLength += value.length;
-      }
-
-      // Merge all chunks into single Uint8Array
-      const encryptedFile = new Uint8Array(totalLength);
-      let offset = 0;
-      for (const chunk of chunks) {
-        encryptedFile.set(chunk, offset);
-        offset += chunk.length;
-      }
-
-      // Decrypt file
-      const decrypted = sodium.crypto_secretbox_open_easy(
-        encryptedFile,
-        nonce,
-        encryptionKey
-      );
-      if (!decrypted) throw new Error("Decryption failed");
-
-      return { fileName, decrypted };
-    } catch (err) {
-      console.error("Load file error:", err);
-      return null;
-    }
-  };
-
-  useEffect(() => {
-    const fetchProfile = async () => {
-      const token = localStorage.getItem("token");
-      try {
-        const res = await fetch(getApiUrl("/users/profile"), {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        const result = await res.json();
-        if (!res.ok)
-          throw new Error(result.message || "Failed to fetch profile");
-
-        setUser(result.data);
-      } catch (err) {
-        console.error("Failed to fetch profile:", err.message);
-      }
-    };
-
-    fetchProfile();
-  }, []);
-
-  const handlePreview = async (rawFile) => {
-    // Ensure this only runs on the client side
-    if (typeof window === "undefined") return;
-
-    const username = user?.username;
-    const file = {
-      ...rawFile,
-      type: getFileType(
-        rawFile.fileType || rawFile.type || "",
-        rawFile.fileName || rawFile.name
-      ),
-      name: rawFile.fileName || rawFile.name,
-      size: formatFileSize(rawFile.fileSize || rawFile.size || 0),
-    };
-
-    const result = await handleLoadFile(file);
-    if (!result) return;
-
-    let contentUrl = null;
-    let textFull = null;
-
-    if (file.type === "image") {
-      if (typeof window === "undefined") return;
-
-      const imgBlob = new Blob([result.decrypted], { type: file.type });
-      const imgBitmap = await createImageBitmap(imgBlob);
-
-      const canvas = document.createElement("canvas");
-      canvas.width = imgBitmap.width;
-      canvas.height = imgBitmap.height;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(imgBitmap, 0, 0);
-
-      const fontSize = Math.floor(imgBitmap.width / 20);
-      ctx.font = `${fontSize}px Arial`;
-      ctx.fillStyle = "rgba(255, 0, 0, 0.7)";
-      ctx.textAlign = "center";
-      ctx.fillText(username, imgBitmap.width / 2, imgBitmap.height / 2);
-
-      contentUrl = canvas.toDataURL(file.type);
-    } else if (file.type === "pdf") {
-      contentUrl = URL.createObjectURL(
-        new Blob([result.decrypted], { type: "application/pdf" })
-      );
-    } else if (file.type === "video" || file.type === "audio") {
-      contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
-    } else if (
-      [
-        "txt",
-        "json",
-        "csv",
-        "xml",
-        "yaml",
-        "yml",
-        "html",
-        "css",
-        "js",
-        "jsx",
-        "ts",
-        "tsx",
-        "py",
-        "java",
-        "cpp",
-        "c",
-        "php",
-        "rb",
-        "go",
-        "rs",
-        "sql",
-        "log",
-        "ini",
-        "cfg",
-        "conf",
-      ].includes(file.type)
-    ) {
-      textFull = new TextDecoder().decode(result.decrypted);
-
-      //Add watermark comment for code files
-      if (
-        [
-          "js",
-          "jsx",
-          "ts",
-          "tsx",
-          "py",
-          "java",
-          "cpp",
-          "c",
-          "php",
-          "rb",
-          "go",
-          "rs",
-        ].includes(file.type)
-      ) {
-        const watermarkComment = getWatermarkComment(file.type, username);
-        textFull = watermarkComment + "\n" + textFull;
-      }
-    }
-
-    //Markdown files, render this bitch as an html
-    else if (file.type === "markdown" || file.type === "md") {
-      const markdownText = new TextDecoder().decode(result.decrypted);
-
-      //Add watermark to markdown
-      const watermarkMarkdown = `> **Viewed by: ${username}**\n\n`;
-      textFull = watermarkMarkdown + markdownText;
-    }
-
-    setPreviewContent({ url: contentUrl, text: textFull });
-    setPreviewFile(file);
-  };
-
-  //Helper function to get appropriate comment syntax for watermarking code files
-  const getWatermarkComment = (fileType, username) => {
-    const timestamp = new Date().toLocaleString();
-
-    const commentStyles = {
-      js: `/* Viewed by: ${username} on ${timestamp} */`,
-      jsx: `/* Viewed by: ${username} on ${timestamp} */`,
-      ts: `/* Viewed by: ${username} on ${timestamp} */`,
-      tsx: `/* Viewed by: ${username} on ${timestamp} */`,
-      java: `/* Viewed by: ${username} on ${timestamp} */`,
-      cpp: `/* Viewed by: ${username} on ${timestamp} */`,
-      c: `/* Viewed by: ${username} on ${timestamp} */`,
-      css: `/* Viewed by: ${username} on ${timestamp} */`,
-
-      py: `# Viewed by: ${username} on ${timestamp}`,
-      rb: `# Viewed by: ${username} on ${timestamp}`,
-      sql: `-- Viewed by: ${username} on ${timestamp}`,
-
-      php: `<?php /* Viewed by: ${username} on ${timestamp} */ ?>`,
-      html: `<!-- Viewed by: ${username} on ${timestamp} -->`,
-      go: `// Viewed by: ${username} on ${timestamp}`,
-      rs: `// Viewed by: ${username} on ${timestamp}`,
-    };
-
-    return (
-      commentStyles[fileType] || `// Viewed by: ${username} on ${timestamp}`
-    );
-  };
-
-  const handleOpenFullView = async (file) => {
-    const username = user?.username;
-
-    if (file.type === "folder") {
-      setPreviewContent({
-        url: null,
-        text: "This is a folder. Double-click to open.",
-      });
-      setPreviewFile(file);
-      return;
-    }
-
-    const result = await handleLoadFile(file);
-    if (!result) return;
-
-    let contentUrl = null;
-    let textFull = null;
-
-    if (file.type === "image") {
-      if (typeof window === "undefined") return;
-
-      const imgBlob = new Blob([result.decrypted], { type: file.type });
-      const imgBitmap = await createImageBitmap(imgBlob);
-
-      const canvas = document.createElement("canvas");
-      canvas.width = imgBitmap.width;
-      canvas.height = imgBitmap.height;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(imgBitmap, 0, 0);
-
-      const fontSize = Math.floor(imgBitmap.width / 20);
-      ctx.font = `${fontSize}px Arial`;
-      ctx.fillStyle = "rgba(255, 0, 0, 0.7)";
-      ctx.textAlign = "center";
-      ctx.fillText(username, imgBitmap.width / 2, imgBitmap.height / 2);
-
-      contentUrl = canvas.toDataURL(file.type);
-    } else if (file.type === "pdf") {
-      contentUrl = URL.createObjectURL(
-        new Blob([result.decrypted], { type: "application/pdf" })
-      );
-    } else if (file.type === "video" || file.type === "audio") {
-      contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
-    } else if (
-      [
-        "txt",
-        "json",
-        "csv",
-        "xml",
-        "yaml",
-        "yml",
-        "html",
-        "css",
-        "js",
-        "jsx",
-        "ts",
-        "tsx",
-        "py",
-        "java",
-        "cpp",
-        "c",
-        "php",
-        "rb",
-        "go",
-        "rs",
-        "sql",
-        "log",
-        "ini",
-        "cfg",
-        "conf",
-      ].includes(file.type)
-    ) {
-      textFull = new TextDecoder().decode(result.decrypted);
-
-      if (
-        [
-          "js",
-          "jsx",
-          "ts",
-          "tsx",
-          "py",
-          "java",
-          "cpp",
-          "c",
-          "php",
-          "rb",
-          "go",
-          "rs",
-        ].includes(file.type)
-      ) {
-        const watermarkComment = getWatermarkComment(file.type, username);
-        textFull = watermarkComment + "\n" + textFull;
-      }
-    } else if (file.type === "markdown" || file.type === "md") {
-      const markdownText = new TextDecoder().decode(result.decrypted);
-      const watermarkMarkdown = `> **Viewed by: ${username}**\n\n`;
-      textFull = watermarkMarkdown + markdownText;
-    }
-
-    setViewerContent({ url: contentUrl, text: textFull });
-    setViewerFile(file);
-  };
-
-  const handleUpdateDescription = async (fileId, description) => {
-    try {
-      const res = await fetch(getFileApiUrl("/addDescription"), {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ fileId, description }),
-      });
-      fetchFiles(); // Refresh files after update
-      if (res.status === 200) {
-        console.log("Description updated successfully");
-      }
-      if (!res.ok) {
-        throw new Error("Failed to update description");
-      }
-    } catch (err) {
-      console.error("Error updating description:", err);
-    }
-  };
-
-  const handleMoveFile = async (file, destinationFolderPath) => {
-    const fullPath = destinationFolderPath
-      ? `files/${destinationFolderPath}/${file.name}`
-      : `files/${file.name}`;
-
-    const res = await fetch(getFileApiUrl("/updateFilePath"), {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ fileId: file.id, newPath: fullPath }),
-    });
-
-    if (res.ok) {
-      fetchFiles();
-    } else {
-      showToast("Failed to move file", "error");
-    }
-  };
+  }, [selectedFile, clipboard, currentPath, fetchFiles, handleMoveFile, handlePreview, showToast]);
 
   const openShareDialog = (file) => {
     setSelectedFile(file);
@@ -1284,11 +1272,10 @@ export default function MyFiles() {
                 onDragOver={(e) => handleDragOver(e, crumb.path)}
                 onDragLeave={handleDragLeave}
                 onDrop={(e) => handleDrop(e, crumb.path)}
-                className={`hover:underline hover:text-blue-600 transition-colors px-2 py-1 rounded ${
-                  dragOverCrumb === crumb.path
-                    ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 font-semibold"
-                    : ""
-                }`}
+                className={`hover:underline hover:text-blue-600 transition-colors px-2 py-1 rounded ${dragOverCrumb === crumb.path
+                  ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 font-semibold"
+                  : ""
+                  }`}
               >
                 {crumb.name || "All files"}
               </button>
@@ -1308,7 +1295,8 @@ export default function MyFiles() {
   };
 
   return (
-     <div className="bg-gray-50 p-6 dark:bg-gray-900">
+    <div className="bg-gray-50/0 p-6 dark:bg-gray-900">
+      {/* <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow"> */}
       <div className="">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
@@ -1316,7 +1304,7 @@ export default function MyFiles() {
             <h1 className="text-2xl font-semibold text-blue-500">My Files</h1>
             <p className="text-gray-600 dark:text-gray-400">
               Manage and organize your files
-            </p>            
+            </p>
           </div>
 
           {/* View + Sort Toggle */}
@@ -1324,11 +1312,10 @@ export default function MyFiles() {
             <div className="flex items-center bg-white rounded-lg border p-1 dark:bg-gray-200 relative z-50">
               {/* Grid Button */}
               <button
-                className={`px-3 py-1 rounded ${
-                  viewMode === "grid"
-                    ? "bg-blue-500 text-white"
-                    : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
-                }`}
+                className={`px-3 py-1 rounded ${viewMode === "grid"
+                  ? "bg-blue-500 text-white"
+                  : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
+                  }`}
                 onClick={() => setViewMode("grid")}
               >
                 <Grid className="h-4 w-4" />
@@ -1336,11 +1323,10 @@ export default function MyFiles() {
 
               {/* List Button */}
               <button
-                className={`px-3 py-1 rounded ${
-                  viewMode === "list"
-                    ? "bg-blue-500 text-white"
-                    : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
-                }`}
+                className={`px-3 py-1 rounded ${viewMode === "list"
+                  ? "bg-blue-500 text-white"
+                  : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
+                  }`}
                 onClick={() => setViewMode("list")}
               >
                 <List className="h-4 w-4" />
@@ -1559,6 +1545,7 @@ export default function MyFiles() {
           />
         )}
       </div>
+      {/* </div> */}
     </div>
   );
 }

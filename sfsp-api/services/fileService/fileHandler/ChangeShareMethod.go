@@ -37,7 +37,11 @@ func ChangeShareMethodHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Missing encrypted file", http.StatusBadRequest)
 		return
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Println("error closing file:", err)
+		}
+	}()
 
 	if NewShareMethod != "view" && NewShareMethod != "download" {
 		http.Error(w, "Invalid share method. Use 'view' or 'download'", http.StatusBadRequest)
@@ -106,11 +110,13 @@ func ChangeShareMethodHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	if err := json.NewEncoder(w).Encode(map[string]string{
 		"message":        responseMessage,
 		"previousMethod": currentMethod,
 		"newMethod":      NewShareMethod,
-	})
+	}); err != nil {
+		log.Println("Failed to encode response:", err)
+	}
 }
 
 func getCurrentShareMethod(fileID, userID, recipientID string) (string, error) {
@@ -147,14 +153,22 @@ func convertToViewShare(fileID, userID, recipientID, metadataJSON string) error 
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() {
+		if err := tx.Rollback(); err != nil {
+			log.Println("Rollback error (may be expected if already committed):", err)
+		}
+	}()
 
 	sourcePath := fmt.Sprintf("files/%s/sent/%s", userID, fileID)
 	stream, err := owncloud.DownloadSentFileStream(sourcePath)
 	if err != nil {
 		return fmt.Errorf("failed to download file for conversion: %w", err)
 	}
-	defer stream.Close()
+	defer func() {
+		if err := stream.Close(); err != nil {
+			log.Println("error closing stream:", err)
+		}
+	}()
 
 	targetPath := fmt.Sprintf("files/%s/shared_view", userID)
 	sharedFileKey := fmt.Sprintf("%s_%s", fileID, recipientID)
@@ -199,14 +213,22 @@ func convertToDownloadShare(fileID, userID, recipientID, metadataJSON string) er
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() {
+		if err := tx.Rollback(); err != nil {
+			log.Println("Rollback error (may be expected if already committed):", err)
+		}
+	}()
 
 	sourcePath := fmt.Sprintf("files/%s/shared_view/%s_%s", userID, fileID, recipientID)
 	stream, err := owncloud.DownloadSentFileStream(sourcePath)
 	if err != nil {
 		return fmt.Errorf("failed to download file for conversion: %w", err)
 	}
-	defer stream.Close()
+	defer func() {
+		if err := stream.Close(); err != nil {
+			log.Println("error closing stream:", err)
+		}
+	}()
 
 	targetPath := fmt.Sprintf("files/%s/sent", userID)
 	if err := owncloud.UploadFileStream(targetPath, fileID, stream); err != nil {
@@ -294,9 +316,11 @@ func GetShareMethodHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	if err := json.NewEncoder(w).Encode(map[string]string{
 		"fileId":      req.FileID,
 		"shareMethod": currentMethod,
 		"canConvert":  "true",
-	})
+	}); err != nil {
+		log.Println("Failed to encode response:", err)
+	}
 }

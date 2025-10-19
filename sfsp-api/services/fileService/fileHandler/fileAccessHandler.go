@@ -33,7 +33,9 @@ func AddAccesslogHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusCreated)
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"message": "Access log added successfully"})
+	if err := json.NewEncoder(w).Encode(map[string]string{"message": "Access log added successfully"}); err != nil {
+		log.Println("Failed to encode response:", err)
+	}
 }
 
 func GetAccesslogHandler(w http.ResponseWriter, r *http.Request) {
@@ -50,7 +52,11 @@ func GetAccesslogHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to get access logs", http.StatusInternalServerError)
 		return
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Println("error closing rows:", err)
+		}
+	}()
 	logs := []map[string]any{}
 	for rows.Next() {
 		var id, fileID, userID, action, message string
@@ -69,7 +75,9 @@ func GetAccesslogHandler(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(logs)
+	if err := json.NewEncoder(w).Encode(logs); err != nil {
+		log.Println("Failed to encode response:", err)
+	}
 }
 
 func GetUsersWithFileAccessHandler(w http.ResponseWriter, r *http.Request) {
@@ -93,7 +101,11 @@ func GetUsersWithFileAccessHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to get users with file access", http.StatusInternalServerError)
 		return
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Println("error closing rows:", err)
+		}
+	}()
 
 	users := []string{}
 	for rows.Next() {
@@ -112,5 +124,7 @@ func GetUsersWithFileAccessHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Println("Failed to encode response:", err)
+	}
 }
