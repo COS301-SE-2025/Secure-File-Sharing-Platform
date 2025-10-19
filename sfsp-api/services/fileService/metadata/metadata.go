@@ -631,14 +631,18 @@ func DeleteFolderHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
-	defer tx.Rollback()
+	defer func() {
+		if err := tx.Rollback(); err != nil {
+			log.Println("Rollback error (may be expected if already committed):", err)
+		}
+	}()
 
 	if req.Recursive {
 		var folderCID string
 		err := tx.QueryRow(`
 			SELECT cid FROM files WHERE id = $1
 		`, req.FolderID).Scan(&folderCID)
-		
+
 		if err != nil {
 			log.Println("Failed to fetch folder:", err)
 			http.Error(w, "Folder not found", http.StatusNotFound)
@@ -651,7 +655,7 @@ func DeleteFolderHandler(w http.ResponseWriter, r *http.Request) {
 				SET tags = array_cat(COALESCE(tags, '{}'), $1::text[])
 				WHERE cid LIKE 'files/' || $2 || '/%'
 			`, pq.Array(req.Tags), folderCID)
-			
+
 			if err != nil {
 				log.Println("Failed to add tags to descendants:", err)
 				http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -665,7 +669,7 @@ func DeleteFolderHandler(w http.ResponseWriter, r *http.Request) {
 			WHERE cid LIKE 'files/' || $1 || '/%'
 			AND NOT ('folder' = ANY(tags))
 		`, folderCID)
-		
+
 		if err != nil {
 			log.Println("Failed to move files to root:", err)
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -678,7 +682,7 @@ func DeleteFolderHandler(w http.ResponseWriter, r *http.Request) {
 			WHERE cid LIKE 'files/' || $1 || '/%'
 			AND 'folder' = ANY(tags)
 		`, folderCID)
-		
+
 		if err != nil {
 			log.Println("Failed to move folders to root:", err)
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -692,7 +696,7 @@ func DeleteFolderHandler(w http.ResponseWriter, r *http.Request) {
 			SET tags = array_cat(COALESCE(tags, '{}'), $1::text[])
 			WHERE id = $2
 		`, pq.Array(req.Tags), req.FolderID)
-		
+
 		if err != nil {
 			log.Println("Failed to add tags to folder:", err)
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -707,9 +711,11 @@ func DeleteFolderHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	if err := json.NewEncoder(w).Encode(map[string]string{
 		"message": "Folder deleted successfully",
-	})
+	}); err != nil {
+		log.Println("Failed to encode response:", err)
+	}
 }
 
 func AddUserHandler(w http.ResponseWriter, r *http.Request) {
