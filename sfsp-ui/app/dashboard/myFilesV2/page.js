@@ -368,10 +368,10 @@ export default function MyFiles() {
 
   const [dragOverCrumb, setDragOverCrumb] = useState(null);
 
-  const showToast = (message, type = "info", duration = 3000) => {
+  const showToast = useCallback((message, type = "info", duration = 3000) => {
     setToast({ message, type });
     setTimeout(() => setToast(null), duration);
-  };
+  }, []);
 
   const normalizePath = (path) =>
     path?.startsWith("files/") ? path.slice(6) : path || "";
@@ -571,166 +571,6 @@ export default function MyFiles() {
     };
   }, []);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const handleKeyDown = (e) => {
-      console.log(
-        "Key pressed:",
-        e.key,
-        "Ctrl:",
-        e.ctrlKey || e.metaKey,
-        "Target:",
-        e.target.tagName
-      );
-
-      if (
-        e.target.tagName === "INPUT" ||
-        e.target.tagName === "TEXTAREA" ||
-        e.target.contentEditable === "true" ||
-        e.target.isContentEditable
-      ) {
-        console.log("Ignoring - user is in input field");
-        return;
-      }
-
-      const ctrlPressed = e.ctrlKey || e.metaKey;
-
-      if (ctrlPressed) {
-        console.log("Ctrl+Key detected:", e.key);
-
-        switch (e.key.toLowerCase()) {
-          case "c":
-            e.preventDefault();
-            if (selectedFile) {
-              setClipboard({ file: selectedFile, operation: "cut" });
-            } else {
-              console.log("No file selected to cut");
-            }
-            break;
-
-          case "v":
-            e.preventDefault();
-            if (clipboard?.file) {
-              const fileToMove = clipboard.file;
-              const destinationPath = currentPath;
-
-              handleMoveFile(fileToMove, destinationPath)
-                .then(() => {
-                  setClipboard(null);
-                  fetchFiles();
-                })
-                .catch((error) => {
-                  console.error("Paste error:", error);
-                  showToast("Failed to move file", "error", 2000);
-                });
-            } else {
-              console.log("Nothing in clipboard to paste");
-              showToast("Nothing to paste", "info", 1500);
-            }
-            break;
-
-          case "d":
-            e.preventDefault();
-            setIsCreateFolderOpen(true);
-            break;
-
-          case "u":
-            e.preventDefault();
-            setIsUploadOpen(true);
-            break;
-
-          case "1":
-            e.preventDefault();
-            setViewMode("grid");
-            break;
-
-          case "2":
-            e.preventDefault();
-            setViewMode("list");
-            break;
-
-          default:
-            break;
-        }
-      } else {
-        switch (e.key) {
-          case "Delete":
-            e.preventDefault();
-            if (selectedFile) {
-              const fileToDelete = selectedFile;
-              const timestamp = new Date().toISOString();
-              const tags = ["deleted", `deleted_time:${timestamp}`];
-
-              fetch(getFileApiUrl("/addTags"), {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ fileId: fileToDelete.id, tags }),
-              })
-                .then((res) => {
-                  if (!res.ok) throw new Error("Failed to tag file as deleted");
-                  console.log("File deleted successfully");
-                  setSelectedFile(null);
-                  fetchFiles();
-                })
-                .catch((err) => {
-                  console.error("Delete failed:", err);
-                  showToast("Failed to delete file", "error", 2000);
-                });
-            } else {
-              console.log("No file selected to delete");
-            }
-            break;
-
-          case "Enter":
-            e.preventDefault();
-            console.log("Enter pressed, selected file:", selectedFile);
-            if (selectedFile) {
-              if (selectedFile.type === "folder" || selectedFile.isFolder) {
-                const newPath = currentPath
-                  ? `${currentPath}/${selectedFile.name}`
-                  : selectedFile.name;
-                setCurrentPath(newPath);
-                setSelectedFile(null);
-              } else {
-                handlePreview(selectedFile);
-              }
-            } else {
-              console.log("No file selected to open");
-            }
-            break;
-
-          case "Backspace":
-            if (currentPath) {
-              e.preventDefault();
-              const parentPath = currentPath.split("/").slice(0, -1).join("/");
-              setCurrentPath(parentPath);
-              setSelectedFile(null);
-            }
-            break;
-
-          case "Escape":
-            e.preventDefault();
-            setSelectedFile(null);
-            setPreviewFile(null);
-            setViewerFile(null);
-            break;
-
-          default:
-            break;
-        }
-      }
-    };
-
-    console.log("Keyboard shortcuts mounted");
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      console.log("Keyboard shortcuts unmounted");
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [selectedFile, clipboard, currentPath, fetchFiles, handleMoveFile, handlePreview]);
-
   const handleDelete = async (file) => {
     const timestamp = new Date().toISOString();
     const tags = ["deleted", `deleted_time:${timestamp}`];
@@ -898,7 +738,7 @@ export default function MyFiles() {
       console.error("Load file error:", err);
       return null;
     }
-  }, []);
+  }, [showToast]);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -941,19 +781,16 @@ export default function MyFiles() {
 
     let contentUrl = null;
     let textFull = null;
-  if (typeof window === "undefined") return;
+    if (typeof window === "undefined") return;
     if (file.type === "image") {
-        contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
+      contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
     } else if (file.type === "pdf") {
       contentUrl = URL.createObjectURL(
         new Blob([result.decrypted], { type: "application/pdf" })
       );
-       } 
-
-else if (file.type === "video" || file.type === "audio") {
+    } else if (file.type === "video" || file.type === "audio") {
       contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
-    }
- else if (
+    } else if (
       [
         "txt",
         "json",
@@ -1048,7 +885,7 @@ else if (file.type === "video" || file.type === "audio") {
     );
   };
 
-  const handleOpenFullView = async (file) => {
+  const handleOpenFullView = useCallback(async (file) => {
     const username = user?.username;
 
     if (file.type === "folder") {
@@ -1068,7 +905,7 @@ else if (file.type === "video" || file.type === "audio") {
 
     if (typeof window === "undefined") return;
     if (file.type === "image") {
-        contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
+      contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
     } else if (file.type === "pdf") {
       contentUrl = URL.createObjectURL(
         new Blob([result.decrypted], { type: "application/pdf" })
@@ -1133,7 +970,7 @@ else if (file.type === "video" || file.type === "audio") {
 
     setViewerContent({ url: contentUrl, text: textFull });
     setViewerFile(file);
-  };
+  }, [user, handleLoadFile]);
 
   const handleUpdateDescription = async (fileId, description) => {
     try {
@@ -1174,7 +1011,168 @@ else if (file.type === "video" || file.type === "audio") {
     } else {
       showToast("Failed to move file", "error");
     }
-  }, [fetchFiles]);
+  }, [fetchFiles, showToast]);
+
+  // Keyboard shortcuts effect
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handleKeyDown = (e) => {
+      console.log(
+        "Key pressed:",
+        e.key,
+        "Ctrl:",
+        e.ctrlKey || e.metaKey,
+        "Target:",
+        e.target.tagName
+      );
+
+      if (
+        e.target.tagName === "INPUT" ||
+        e.target.tagName === "TEXTAREA" ||
+        e.target.contentEditable === "true" ||
+        e.target.isContentEditable
+      ) {
+        console.log("Ignoring - user is in input field");
+        return;
+      }
+
+      const ctrlPressed = e.ctrlKey || e.metaKey;
+
+      if (ctrlPressed) {
+        console.log("Ctrl+Key detected:", e.key);
+
+        switch (e.key.toLowerCase()) {
+          case "c":
+            e.preventDefault();
+            if (selectedFile) {
+              setClipboard({ file: selectedFile, operation: "cut" });
+            } else {
+              console.log("No file selected to cut");
+            }
+            break;
+
+          case "v":
+            e.preventDefault();
+            if (clipboard?.file) {
+              const fileToMove = clipboard.file;
+              const destinationPath = currentPath;
+
+              handleMoveFile(fileToMove, destinationPath)
+                .then(() => {
+                  setClipboard(null);
+                  fetchFiles();
+                })
+                .catch((error) => {
+                  console.error("Paste error:", error);
+                  showToast("Failed to move file", "error", 2000);
+                });
+            } else {
+              console.log("Nothing in clipboard to paste");
+              showToast("Nothing to paste", "info", 1500);
+            }
+            break;
+
+          case "d":
+            e.preventDefault();
+            setIsCreateFolderOpen(true);
+            break;
+
+          case "u":
+            e.preventDefault();
+            setIsUploadOpen(true);
+            break;
+
+          case "1":
+            e.preventDefault();
+            setViewMode("grid");
+            break;
+
+          case "2":
+            e.preventDefault();
+            setViewMode("list");
+            break;
+
+          default:
+            break;
+        }
+      } else {
+        switch (e.key) {
+          case "Delete":
+            e.preventDefault();
+            if (selectedFile) {
+              const fileToDelete = selectedFile;
+              const timestamp = new Date().toISOString();
+              const tags = ["deleted", `deleted_time:${timestamp}`];
+
+              fetch(getFileApiUrl("/addTags"), {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ fileId: fileToDelete.id, tags }),
+              })
+                .then((res) => {
+                  if (!res.ok) throw new Error("Failed to tag file as deleted");
+                  console.log("File deleted successfully");
+                  setSelectedFile(null);
+                  fetchFiles();
+                })
+                .catch((err) => {
+                  console.error("Delete failed:", err);
+                  showToast("Failed to delete file", "error", 2000);
+                });
+            } else {
+              console.log("No file selected to delete");
+            }
+            break;
+
+          case "Enter":
+            e.preventDefault();
+            console.log("Enter pressed, selected file:", selectedFile);
+            if (selectedFile) {
+              if (selectedFile.type === "folder" || selectedFile.isFolder) {
+                const newPath = currentPath
+                  ? `${currentPath}/${selectedFile.name}`
+                  : selectedFile.name;
+                setCurrentPath(newPath);
+                setSelectedFile(null);
+              } else {
+                handlePreview(selectedFile);
+              }
+            } else {
+              console.log("No file selected to open");
+            }
+            break;
+
+          case "Backspace":
+            if (currentPath) {
+              e.preventDefault();
+              const parentPath = currentPath.split("/").slice(0, -1).join("/");
+              setCurrentPath(parentPath);
+              setSelectedFile(null);
+            }
+            break;
+
+          case "Escape":
+            e.preventDefault();
+            setSelectedFile(null);
+            setPreviewFile(null);
+            setViewerFile(null);
+            break;
+
+          default:
+            break;
+        }
+      }
+    };
+
+    console.log("Keyboard shortcuts mounted");
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      console.log("Keyboard shortcuts unmounted");
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [selectedFile, clipboard, currentPath, fetchFiles, handleMoveFile, handlePreview, showToast]);
 
   const openShareDialog = (file) => {
     setSelectedFile(file);

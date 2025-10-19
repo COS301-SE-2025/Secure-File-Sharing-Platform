@@ -667,10 +667,10 @@ export default function DashboardHomePage() {
   const interval = setInterval(fetchFiles, 10000);
 
   return () => clearInterval(interval);
-    
-  }, [userId]);
 
-  const handleLoadFile = async (file) => {
+  }, [userId, fetchFiles]);
+
+  const handleLoadFile = useCallback(async (file) => {
     if (!file?.fileName) {
       alert("File name missing!");
       return null;
@@ -715,7 +715,7 @@ export default function DashboardHomePage() {
       alert("Failed to load file");
       return null;
     }
-  };
+  }, []);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -735,7 +735,7 @@ export default function DashboardHomePage() {
     fetchProfile();
   }, []);
 
-  const handleOpenPreview = async (rawFile) => {
+  const handleOpenPreview = useCallback(async (rawFile) => {
     const username = user?.username;
     const file = {
       ...rawFile,
@@ -750,9 +750,9 @@ export default function DashboardHomePage() {
     if (!result) return;
     let contentUrl = null;
     let textFull = null;
-   if (file.type === "image") {
-     contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
-    }else if (file.type === "pdf") {
+    if (file.type === "image") {
+      contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
+    } else if (file.type === "pdf") {
       contentUrl = URL.createObjectURL(
         new Blob([result.decrypted], { type: "application/pdf" })
       );
@@ -763,17 +763,17 @@ export default function DashboardHomePage() {
     }
     setPreviewContent({ url: contentUrl, text: textFull });
     setPreviewFile(file);
-  };
+  }, [user, handleLoadFile]);
 
-  const handleOpenFullView = async (file) => {
+  const handleOpenFullView = useCallback(async (file) => {
     const username = user?.username;
     const result = await handleLoadFile(file);
     if (!result) return;
     let contentUrl = null;
     let textFull = null;
-   if (file.type === "image") {
-     contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
-    }else if (file.type === "pdf") {
+    if (file.type === "image") {
+      contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
+    } else if (file.type === "pdf") {
       contentUrl = URL.createObjectURL(
         new Blob([result.decrypted], { type: "application/pdf" })
       );
@@ -784,7 +784,7 @@ export default function DashboardHomePage() {
     }
     setViewerContent({ url: contentUrl, text: textFull });
     setViewerFile(file);
-  };
+  }, [user, handleLoadFile]);
 
   const fetchNotifications = async () => {
     const token = localStorage.getItem("token");

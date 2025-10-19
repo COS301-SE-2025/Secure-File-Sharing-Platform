@@ -14,12 +14,6 @@ export function ChangeShareMethodDialog({ open, onOpenChange, file }) {
   const [updating, setUpdating] = useState(null);
   const [userShareMethods, setUserShareMethods] = useState({});
 
-  useEffect(() => {
-    if (open) {
-      fetchUsersWithAccess();
-    }
-  }, [open, fetchUsersWithAccess]);
-
   const fetchUsersWithAccess = useCallback(async () => {
     if (!file) return;
     setLoading(true);
@@ -77,6 +71,12 @@ export function ChangeShareMethodDialog({ open, onOpenChange, file }) {
       setLoading(false);
     }
   }, [file]);
+
+  useEffect(() => {
+    if (open) {
+      fetchUsersWithAccess();
+    }
+  }, [open, fetchUsersWithAccess]);
 
   const handleChangeShareMethod = async (userId, newMethod) => {
     setUpdating(userId);

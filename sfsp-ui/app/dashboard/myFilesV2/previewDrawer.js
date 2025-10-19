@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { UserAvatar } from "@/app/lib/avatarUtils";
 import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 import { Document, Page, pdfjs } from "react-pdf";
@@ -43,13 +43,7 @@ export function PreviewDrawer({
     };
   }, [onClose]);
 
-  useEffect(() => {
-    setDescription(file?.description || "");
-    setIsEditing(false);
-    if (file) fetchAccessList(file);
-  }, [file]);
-
-  const fetchAccessList = async (file) => {
+  const fetchAccessList = useCallback(async (file) => {
     setLoadingAccess(true);
     try {
       const token = localStorage.getItem("token");
@@ -115,7 +109,13 @@ export function PreviewDrawer({
     } finally {
       setLoadingAccess(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    setDescription(file?.description || "");
+    setIsEditing(false);
+    if (file) fetchAccessList(file);
+  }, [file, fetchAccessList]);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -228,16 +228,15 @@ export function PreviewDrawer({
                       className="relative w-full max-h-64"
                       onContextMenu={(e) => e.preventDefault()}
                     >
-                      {" "}
-                      // Disable right-click
-                      <Image
+                      {/* Disable right-click */}
+                      <img
                         src={content.url}
                         alt="Preview"
                         className="w-full max-h-64 rounded"
                       />
                       {/* Watermark overlay */}
                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                        <Image
+                        <img
                           src="/img/secureshare-logo.png"
                           className="opacity-70 w-1/5"
                           alt="Watermark"

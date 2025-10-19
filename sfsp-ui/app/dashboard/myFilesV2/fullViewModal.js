@@ -4,7 +4,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { getApiUrl, getFileApiUrl } from "@/lib/api-config";  
 import { Document, Page, pdfjs } from "react-pdf";
-import Image from "next/image";
 
 //import "react-pdf/dist/esm/Page/AnnotationLayer.css";
 //import "react-pdf/dist/esm/Page/TextLayer.css";
@@ -86,7 +85,7 @@ export function FullViewModal({ file, content, onClose }) {
 		      className="relative flex justify-center items-center w-full max-w-3xl mx-auto"
 		      onContextMenu={(e) => e.preventDefault()}
 		    >
-		      <Image
+		      <img
 			src={content.url}
 			alt="Preview"
 			className="w-full h-auto rounded shadow-lg object-contain max-h-[80vh]"
