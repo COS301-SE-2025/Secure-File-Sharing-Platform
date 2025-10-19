@@ -480,59 +480,78 @@ export default function MyFiles() {
     }
   };
 
+
   const applySort = (filesToSort) => {
     let sortedFiles = [...filesToSort];
 
-    // Apply sort by type
-    if (sortOptions.byDate) {
-      sortedFiles.sort((a, b) => new Date(b.modifiedRaw) - new Date(a.modifiedRaw));
-    } else if (sortOptions.byName) {
-      sortedFiles.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
-    } else if (sortOptions.bySize) {
-      sortedFiles.sort((a, b) => a.size - b.size);
-    }
+    const folders = sortedFiles.filter((f) => f.isFolder);
+    const files = sortedFiles.filter((f) => !f.isFolder);
 
-    // Apply folder priority
-    sortedFiles.sort((a, b) => {
-      if (a.isFolder && !b.isFolder) return -1;
-      if (!a.isFolder && b.isFolder) return 1;
-      return 0;
-    });
+    const sortArray = (array, sortBy) => {
+      const sorted = [...array];
+      if (sortBy === "byDate") {
+        sorted.sort((a, b) => {
+          const dateA = a.modifiedRaw ? new Date(a.modifiedRaw) : new Date(0);
+          const dateB = b.modifiedRaw ? new Date(b.modifiedRaw) : new Date(0);
+          return sortOptions.ascending ? dateA - dateB : dateB - dateA;
+        });
+      } else if (sortBy === "byName") {
+        sorted.sort((a, b) =>
+          sortOptions.ascending
+            ? a.name.localeCompare(b.name, { sensitivity: "base" })
+            : b.name.localeCompare(a.name, { sensitivity: "base" })
+        );
+      } else if (sortBy === "bySize") {
+        sorted.sort((a, b) =>
+          sortOptions.ascending ? a.size - b.size : b.size - a.size
+        );
+      }
+      return sorted;
+    };
 
-    // Apply ascending/descending
-    if (!sortOptions.ascending) {
-      sortedFiles.reverse();
-    }
+    let activeSort = "byName";
+    if (sortOptions.byDate) activeSort = "byDate";
+    else if (sortOptions.bySize) activeSort = "bySize";
 
-    return sortedFiles;
+    const sortedFolders = sortArray(folders, activeSort);
+    const sortedf = sortArray(files, activeSort);
+
+    return [...sortedFolders, ...sortedf];
   };
 
   const handleSortChange = (option) => {
     setSortOptions((prev) => {
-      const newOptions = { ...prev };
+      const newOptions = {
+        byDate: false,
+        byName: false,
+        bySize: false,
+        ascending: prev.ascending,
+      };
+
       if (option === "reset") {
-        return {
-          byDate: false,
-          byName: true,
-          bySize: false,
-          ascending: true,
-        };
-      }
-      if (option === "ascending") {
-        newOptions.ascending = !newOptions.ascending;
+        newOptions.byName = true;
+        newOptions.ascending = true;
+      } else if (option === "ascending") {
+        newOptions.ascending = !prev.ascending;
+        newOptions.byDate = prev.byDate;
+        newOptions.byName = prev.byName || (!prev.byDate && !prev.bySize);
+        newOptions.bySize = prev.bySize;
       } else {
-        newOptions.byDate = option === "byDate" ? !newOptions.byDate : false;
-        newOptions.byName = option === "byName" ? !newOptions.byName : false;
-        newOptions.bySize = option === "bySize" ? !newOptions.bySize : false;
-        // Ensure at least one sort option is selected
-        if (!newOptions.byDate && !newOptions.byName && !newOptions.bySize) {
-          newOptions.byName = true;
+        newOptions[option] = true;
+        if (option !== "byName" && !prev.byDate && !prev.byName && !prev.bySize) {
+          newOptions.ascending = true;
         }
       }
+
       return newOptions;
     });
-    setFiles(applySort(files));
+
+    setFiles((prevFiles) => applySort(prevFiles));
   };
+
+  useEffect(() => {
+    setFiles((prevFiles) => applySort(prevFiles));
+  }, [sortOptions]);
 
   useEffect(() => {
     fetchFiles();
@@ -580,7 +599,7 @@ export default function MyFiles() {
         console.log("Ctrl+Key detected:", e.key);
 
         switch (e.key.toLowerCase()) {
-          case "c": 
+          case "c":
             e.preventDefault();
             if (selectedFile) {
               setClipboard({ file: selectedFile, operation: "cut" });
@@ -941,17 +960,17 @@ export default function MyFiles() {
       ctx.fillStyle = "rgba(255, 0, 0, 0.4)";
       ctx.textAlign = "center";
       ctx.fillText(username, imgBitmap.width / 2, imgBitmap.height / 2);
-      
+
       //watermark logo 
       const logo = new window.Image();
-      logo.src = "/img/secureshare-logo.png"; 
+      logo.src = "/img/secureshare-logo.png";
 
       await new Promise((resolve) => {
         logo.onload = () => {
           const logoWidth = imgBitmap.width / 5;
           const logoHeight = (logo.height / logo.width) * logoWidth;
-          const x = (imgBitmap.width - logoWidth)/2
-          const y = (imgBitmap.height - logoHeight)/2
+          const x = (imgBitmap.width - logoWidth) / 2
+          const y = (imgBitmap.height - logoHeight) / 2
 
           ctx.globalAlpha = 0.7;
           ctx.drawImage(logo, x, y, logoWidth, logoHeight);
@@ -1085,7 +1104,7 @@ export default function MyFiles() {
     let contentUrl = null;
     let textFull = null;
 
-     if (file.type === "image") {
+    if (file.type === "image") {
       if (typeof window === "undefined") return;
 
       const imgBlob = new Blob([result.decrypted], { type: file.type });
@@ -1104,17 +1123,17 @@ export default function MyFiles() {
       ctx.fillStyle = "rgba(255, 0, 0, 0.4)";
       ctx.textAlign = "center";
       ctx.fillText(username, imgBitmap.width / 2, imgBitmap.height / 2);
-      
+
       //watermark logo 
       const logo = new window.Image();
-      logo.src = "/img/secureshare-logo.png"; 
+      logo.src = "/img/secureshare-logo.png";
 
       await new Promise((resolve) => {
         logo.onload = () => {
           const logoWidth = imgBitmap.width / 5;
           const logoHeight = (logo.height / logo.width) * logoWidth;
-          const x = (imgBitmap.width - logoWidth)/2
-          const y = (imgBitmap.height - logoHeight)/2
+          const x = (imgBitmap.width - logoWidth) / 2
+          const y = (imgBitmap.height - logoHeight) / 2
 
           ctx.globalAlpha = 0.7;
           ctx.drawImage(logo, x, y, logoWidth, logoHeight);
@@ -1334,11 +1353,10 @@ export default function MyFiles() {
                 onDragOver={(e) => handleDragOver(e, crumb.path)}
                 onDragLeave={handleDragLeave}
                 onDrop={(e) => handleDrop(e, crumb.path)}
-                className={`hover:underline hover:text-blue-600 transition-colors px-2 py-1 rounded ${
-                  dragOverCrumb === crumb.path
-                    ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 font-semibold"
-                    : ""
-                }`}
+                className={`hover:underline hover:text-blue-600 transition-colors px-2 py-1 rounded ${dragOverCrumb === crumb.path
+                  ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 font-semibold"
+                  : ""
+                  }`}
               >
                 {crumb.name || "All files"}
               </button>
@@ -1358,7 +1376,7 @@ export default function MyFiles() {
   };
 
   return (
-     <div className="bg-gray-50/0 p-6 dark:bg-gray-900">
+    <div className="bg-gray-50/0 p-6 dark:bg-gray-900">
       {/* <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow"> */}
       <div className="">
         {/* Header */}
@@ -1367,7 +1385,7 @@ export default function MyFiles() {
             <h1 className="text-2xl font-semibold text-blue-500">My Files</h1>
             <p className="text-gray-600 dark:text-gray-400">
               Manage and organize your files
-            </p>            
+            </p>
           </div>
 
           {/* View + Sort Toggle */}
@@ -1375,11 +1393,10 @@ export default function MyFiles() {
             <div className="flex items-center bg-white rounded-lg border p-1 dark:bg-gray-200 relative z-50">
               {/* Grid Button */}
               <button
-                className={`px-3 py-1 rounded ${
-                  viewMode === "grid"
-                    ? "bg-blue-500 text-white"
-                    : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
-                }`}
+                className={`px-3 py-1 rounded ${viewMode === "grid"
+                  ? "bg-blue-500 text-white"
+                  : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
+                  }`}
                 onClick={() => setViewMode("grid")}
               >
                 <Grid className="h-4 w-4" />
@@ -1387,11 +1404,10 @@ export default function MyFiles() {
 
               {/* List Button */}
               <button
-                className={`px-3 py-1 rounded ${
-                  viewMode === "list"
-                    ? "bg-blue-500 text-white"
-                    : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
-                }`}
+                className={`px-3 py-1 rounded ${viewMode === "list"
+                  ? "bg-blue-500 text-white"
+                  : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
+                  }`}
                 onClick={() => setViewMode("list")}
               >
                 <List className="h-4 w-4" />
