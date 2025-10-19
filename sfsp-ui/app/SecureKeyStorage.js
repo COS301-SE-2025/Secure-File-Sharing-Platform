@@ -16,6 +16,9 @@ export const useEncryptionStore = create(
 
       userKeys: null,
       setUserKeys: (keys) => set({ userKeys: keys }),
+
+      token: null,
+      setToken: (token) => set({ token }),
     }),
     {
       name: 'encryption-store',
