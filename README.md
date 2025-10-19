@@ -251,4 +251,8 @@ For admin privileges, please contact the team.
 
 ## Stakeholders
 
-[![Southern Cross Solutions](https://drive.google.com/uc?export=view&id=1PiVCeNkddODLSkdydn8UgeS9wehtjnIp)](https://www.southerncross.solutions/)
+<p align="center">
+  <a href="https://www.southerncross.solutions/">
+    <img src="https://drive.google.com/uc?export=view&id=1PiVCeNkddODLSkdydn8UgeS9wehtjnIp" alt="Southern Cross Solutions" width="220"/>
+  </a>
+</p>
