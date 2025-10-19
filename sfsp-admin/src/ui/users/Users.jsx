@@ -197,7 +197,7 @@ const Users = () => {
             }
         } catch (err) {
             console.error("Failed to create admin:", err);
-            setToastMessage("Failed to create admin");
+            setToastMessage("Failed to create admin",err.Error);
             setTimeout(() => setToastMessage(""), 3000);
             setIsAdminDialogOpen(false);
             setNewAdminUsername("");
