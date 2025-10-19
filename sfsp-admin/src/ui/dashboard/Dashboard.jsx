@@ -89,7 +89,7 @@ function Dashboard() {
 
   const handleDeleteAnnouncement = async (id) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/admin/announcements/${id}`, {
+      const res = await adminFetch(`/announcements/${id}`, {
         method: "DELETE"
       });
       const data = res;
