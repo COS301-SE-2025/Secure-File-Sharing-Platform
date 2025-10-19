@@ -9,7 +9,7 @@ import { getSodium } from "@/app/lib/sodium";
 import Image from "next/image";
 import { gzip } from "pako";
 import { getFileApiUrl, getApiUrl } from "@/lib/api-config";
-import useDrivePicker from "react-google-drive-picker"
+import useDrivePicker from "react-google-drive-picker";
 
 export function UploadDialog({
   open,
@@ -31,11 +31,8 @@ export function UploadDialog({
       const appKey = process.env.NEXT_PUBLIC_DROPBOX_APP_KEY;
       if (appKey) {
         setDropboxLoading(true);
-
-        // Pre-create the script tag with proper attributes
         const scriptEl = document.createElement("script");
 
-        // Set the onload and onerror handlers first
         scriptEl.onload = () => {
           setDropboxLoading(false);
           console.log("Dropbox script loaded successfully");
@@ -61,7 +58,7 @@ export function UploadDialog({
 
   const showToast = (message, type = "info") => {
     setToast({ message, type });
-    setTimeout(() => setToast(null), 4000); // auto-hide after 4s
+    setTimeout(() => setToast(null), 4000);
   };
 
   const closeToast = () => setToast(null);
@@ -171,7 +168,7 @@ export function UploadDialog({
     setUploadFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const chunkSize = 10 * 1024 * 1024; // 5MB per chunk
+  const chunkSize = 10 * 1024 * 1024;
 
   const uploadFilesHandler = async () => {
     if (uploadFiles.length === 0) return;
@@ -184,143 +181,154 @@ export function UploadDialog({
       setUploading(false);
       return;
     }
-    console.log("Starting to upload a file");
+
+    console.log("Starting to upload files");
     const sodium = await getSodium();
-    const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
 
-    await Promise.all(
-      uploadFiles.map(async (file) => {
-        try {
-          if (file.dropboxLink) {
-            const response = await fetch(file.dropboxLink);
-            if (!response.ok)
-              throw new Error("Failed to download from Dropbox");
-            const blob = await response.blob();
-            file = new File([blob], file.name, { type: file.type });
-          }
+    for (let fileIndex = 0; fileIndex < uploadFiles.length; fileIndex++) {
+      let file = uploadFiles[fileIndex];
 
-          if (file.googleId) {
-            const token = authResponse?.access_token;
-            if (!token)
-              throw new Error(
-                "Google API token missing. User may need to re-authenticate."
-              );
+      try {
+        console.log(
+          `Uploading file ${fileIndex + 1}/${uploadFiles.length}: ${
+            file.name
+          }`
+        );
 
-            const response = await fetch(
-              `https://www.googleapis.com/drive/v3/files/${file.googleId}?alt=media`,
-              {
-                headers: { Authorization: `Bearer ${token}` },
-              }
+        // Generate unique nonce per file
+        const nonce = sodium.randombytes_buf(
+          sodium.crypto_secretbox_NONCEBYTES
+        );
+
+        // Handle Dropbox files
+        if (file.dropboxLink) {
+          const response = await fetch(file.dropboxLink);
+          if (!response.ok) throw new Error("Failed to download from Dropbox");
+          const blob = await response.blob();
+          file = new File([blob], file.name, { type: file.type });
+        }
+
+        // Handle Google Drive files
+        if (file.googleId) {
+          const token = authResponse?.access_token;
+          if (!token) {
+            throw new Error(
+              "Google API token missing. User may need to re-authenticate."
             );
-
-            if (!response.ok)
-              throw new Error("Failed to fetch file from Google Drive");
-            const blob = await response.blob();
-            file = new File([blob], file.name, { type: file.type });
           }
 
-          // 1️⃣ Call startUpload to get fileId
-          const startRes = await fetch(getFileApiUrl("/startUpload"), {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              fileName: file.name,
-              fileType: file.type,
-              userId,
-              nonce: sodium.to_base64(nonce, sodium.base64_variants.ORIGINAL),
-              fileDescription: "",
-              fileTags: ["personal"],
-              path: currentFolderPath || "files",
-            }),
-          });
-
-          if (!startRes.ok) throw new Error("Failed to start upload");
-          const { fileId } = await startRes.json();
-
-          //Skip compression as it doesn't actually help much, with videos at least
-          const fileBuffer = new Uint8Array(await file.arrayBuffer());
-          //const compressed = gzip(fileBuffer, { level: 9 });
-
-          // 3️⃣ Encrypt entire compressed file
-          //nonce is up there
-          const ciphertext = sodium.crypto_secretbox_easy(
-            fileBuffer,
-            nonce,
-            encryptionKey
-          );
-
-          // 4️⃣ Compute SHA-256 hash of encrypted file
-          const hashBuffer = await crypto.subtle.digest(
-            "SHA-256",
-            ciphertext.buffer
-          );
-          const fileHash = Array.from(new Uint8Array(hashBuffer))
-            .map((b) => b.toString(16).padStart(2, "0"))
-            .join("");
-
-          // 5️⃣ Chunk encrypted file
-          const totalChunks = Math.ceil(ciphertext.length / chunkSize);
-          let uploadedChunks = 0;
-
-          // 6️⃣ Upload all chunks in parallel
-          const chunkUploadPromises = Array.from(
-            { length: totalChunks },
-            (_, chunkIndex) => {
-              const start = chunkIndex * chunkSize;
-              const end = Math.min(start + chunkSize, ciphertext.length);
-              const chunk = ciphertext.slice(start, end);
-
-              const formData = new FormData();
-              formData.append("fileId", fileId);
-              formData.append("userId", userId);
-              formData.append("fileName", file.name);
-              formData.append(
-                "fileType",
-                file.type || "application/octet-stream"
-              );
-              formData.append("fileDescription", "");
-              formData.append("fileTags", JSON.stringify(["personal use"]));
-              formData.append("path", currentFolderPath || "files");
-              formData.append("fileHash", fileHash);
-              formData.append(
-                "nonce",
-                sodium.to_base64(nonce, sodium.base64_variants.ORIGINAL)
-              );
-              formData.append("chunkIndex", chunkIndex.toString());
-              formData.append("totalChunks", totalChunks.toString());
-              formData.append("encryptedFile", new Blob([chunk]), file.name);
-
-              return fetch(getFileApiUrl("/upload"), {
-                method: "POST",
-                body: formData,
-              })
-                .then((res) => {
-                  if (!res.ok) throw new Error(`Chunk ${chunkIndex} failed`);
-                  return res.json();
-                })
-                .then(() => {
-                  uploadedChunks++;
-                  setUploadProgress(
-                    Math.round((uploadedChunks / totalChunks) * 100)
-                  );
-                });
+          const response = await fetch(
+            `https://www.googleapis.com/drive/v3/files/${file.googleId}?alt=media`,
+            {
+              headers: { Authorization: `Bearer ${token}` },
             }
           );
 
-          await Promise.all(chunkUploadPromises);
-          console.log(`${file.name} uploaded successfully`);
+          if (!response.ok)
+            throw new Error("Failed to fetch file from Google Drive");
+          const blob = await response.blob();
+          file = new File([blob], file.name, { type: file.type });
+        }
 
-          //add access log
-          const token = localStorage.getItem("token");
+        //Call startUpload to get fileId
+        const startRes = await fetch(getFileApiUrl("/startUpload"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fileName: file.name,
+            fileType: file.type,
+            userId,
+            nonce: sodium.to_base64(nonce, sodium.base64_variants.ORIGINAL),
+            fileDescription: "",
+            fileTags: ["personal"],
+            path: currentFolderPath || "files",
+          }),
+        });
 
-          const res = await fetch(getApiUrl("/users/profile"), {
-            headers: { Authorization: `Bearer ${token}` },
+        if (!startRes.ok) throw new Error("Failed to start upload");
+        const { fileId } = await startRes.json();
+        console.log(`Started upload for ${file.name}, fileId: ${fileId}`);
+
+        //Encrypt entire file
+        const fileBuffer = new Uint8Array(await file.arrayBuffer());
+        const ciphertext = sodium.crypto_secretbox_easy(
+          fileBuffer,
+          nonce,
+          encryptionKey
+        );
+
+        //Compute SHA-256 hash of encrypted file
+        const hashBuffer = await crypto.subtle.digest(
+          "SHA-256",
+          ciphertext.buffer
+        );
+        const fileHash = Array.from(new Uint8Array(hashBuffer))
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join("");
+
+        const totalChunks = Math.ceil(ciphertext.length / chunkSize);
+        console.log(`📦 File split into ${totalChunks} chunks`);
+
+        //Ok to fix the race conditions I am using a noraml for loop here
+        for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+          const start = chunkIndex * chunkSize;
+          const end = Math.min(start + chunkSize, ciphertext.length);
+          const chunk = ciphertext.slice(start, end);
+
+          console.log(
+            `Uploading chunk ${chunkIndex + 1}/${totalChunks} (${
+              chunk.length
+            } bytes)`
+          );
+
+          const formData = new FormData();
+          formData.append("fileId", fileId);
+          formData.append("userId", userId);
+          formData.append("fileName", file.name);
+          formData.append("fileType", file.type || "application/octet-stream");
+          formData.append("fileDescription", "");
+          formData.append("fileTags", JSON.stringify(["personal use"]));
+          formData.append("path", currentFolderPath || "files");
+          formData.append("fileHash", fileHash);
+          formData.append(
+            "nonce",
+            sodium.to_base64(nonce, sodium.base64_variants.ORIGINAL)
+          );
+          formData.append("chunkIndex", chunkIndex.toString());
+          formData.append("totalChunks", totalChunks.toString());
+          formData.append("encryptedFile", new Blob([chunk]), file.name);
+
+          const chunkRes = await fetch(getFileApiUrl("/upload"), {
+            method: "POST",
+            body: formData,
           });
 
-          const result = await res.json();
-          if (!res.ok)
-            throw new Error(result.message || "Failed to fetch profile");
+          if (!chunkRes.ok) {
+            const errorText = await chunkRes.text();
+            throw new Error(`Chunk ${chunkIndex} failed: ${errorText}`);
+          }
 
+          await chunkRes.json();
+          console.log(
+            `Chunk ${chunkIndex + 1}/${totalChunks} uploaded successfully`
+          );
+
+          const fileProgress = ((chunkIndex + 1) / totalChunks) * 100;
+          const overallProgress =
+            ((fileIndex + fileProgress / 100) / uploadFiles.length) * 100;
+          setUploadProgress(Math.round(overallProgress));
+        }
+
+        console.log(`${file.name} uploaded successfully`);
+
+        // Add access log
+        const token = localStorage.getItem("token");
+        const res = await fetch(getApiUrl("/users/profile"), {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        const result = await res.json();
+        if (res.ok) {
           await fetch(getFileApiUrl("/addAccesslog"), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -331,18 +339,19 @@ export function UploadDialog({
               message: `User ${result.data.email} uploaded the file.`,
             }),
           });
-        } catch (err) {
-          console.error(`Upload failed for ${file.name}:`, err);
-          showToast(`Upload failed for ${file.name}`, "error");
         }
-      })
-    );
+      } catch (err) {
+        console.error(`❌ Upload failed for ${file.name}:`, err);
+        showToast(`Upload failed for ${file.name}: ${err.message}`, "error");
+      }
+    }
 
     setUploading(false);
     setUploadFiles([]);
     setUploadProgress(0);
     onOpenChange(false);
     onUploadSuccess?.();
+    showToast("All files processed!", "success");
   };
 
   const compressFile = async (file) => {
