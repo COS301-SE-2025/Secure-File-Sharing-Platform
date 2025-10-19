@@ -422,49 +422,68 @@ export default function MyFiles() {
   const applySort = (filesToSort) => {
     let sortedFiles = [...filesToSort];
 
-    // Apply sort by type
-    if (sortOptions.byDate) {
-      sortedFiles.sort((a, b) => new Date(b.modifiedRaw) - new Date(a.modifiedRaw));
-    } else if (sortOptions.byName) {
-      sortedFiles.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
-    } else if (sortOptions.bySize) {
-      sortedFiles.sort((a, b) => a.size - b.size);
-    }
+    const sortArray = (array, sortBy) => {
+      const sorted = [...array];
+      if (sortBy === "byDate") {
+        sorted.sort((a, b) => {
+          const dateA = a.modifiedRaw ? new Date(a.modifiedRaw) : new Date(0);
+          const dateB = b.modifiedRaw ? new Date(b.modifiedRaw) : new Date(0);
+          return sortOptions.ascending ? dateA - dateB : dateB - dateA;
+        });
+      } else if (sortBy === "byName") {
+        sorted.sort((a, b) =>
+          sortOptions.ascending
+            ? a.name.localeCompare(b.name, { sensitivity: "base" })
+            : b.name.localeCompare(a.name, { sensitivity: "base" })
+        );
+      } else if (sortBy === "bySize") {
+        sorted.sort((a, b) =>
+          sortOptions.ascending ? a.size - b.size : b.size - a.size
+        );
+      }
+      return sorted;
+    };
 
-    // Apply ascending/descending
-    if (!sortOptions.ascending) {
-      sortedFiles.reverse();
-    }
+    let activeSort = "byName"; 
+    if (sortOptions.byDate) activeSort = "byDate";
+    else if (sortOptions.bySize) activeSort = "bySize";
 
-    return sortedFiles;
+    return sortArray(sortedFiles, activeSort);
   };
 
   const handleSortChange = (option) => {
     setSortOptions((prev) => {
-      const newOptions = { ...prev };
+      const newOptions = {
+        byDate: false,
+        byName: false,
+        bySize: false,
+        ascending: prev.ascending,
+      };
+
       if (option === "reset") {
-        return {
-          byDate: false,
-          byName: true,
-          bySize: false,
-          ascending: true,
-        };
-      }
-      if (option === "ascending") {
-        newOptions.ascending = !newOptions.ascending;
+        newOptions.byName = true;
+        newOptions.ascending = true;
+      } else if (option === "ascending") {
+        newOptions.ascending = !prev.ascending;
+        newOptions.byDate = prev.byDate;
+        newOptions.byName = prev.byName || (!prev.byDate && !prev.bySize);
+        newOptions.bySize = prev.bySize;
       } else {
-        newOptions.byDate = option === "byDate" ? !newOptions.byDate : false;
-        newOptions.byName = option === "byName" ? !newOptions.byName : false;
-        newOptions.bySize = option === "bySize" ? !newOptions.bySize : false;
-        // Ensure at least one sort option is selected
-        if (!newOptions.byDate && !newOptions.byName && !newOptions.bySize) {
-          newOptions.byName = true;
+        newOptions[option] = true; 
+        if (option !== "byName" && !prev.byDate && !prev.byName && !prev.bySize) {
+          newOptions.ascending = true; 
         }
       }
+
       return newOptions;
     });
-    setFiles(applySort(files));
+
+    setFiles((prevFiles) => applySort(prevFiles));
   };
+
+  useEffect(() => {
+    setFiles((prevFiles) => applySort(prevFiles));
+  }, [sortOptions]);
 
   useEffect(() => {
     fetchFiles();
@@ -639,28 +658,28 @@ export default function MyFiles() {
       return null;
     }
   };
-  
-    useEffect(() => {
-      const fetchProfile = async () => {
-        const token = localStorage.getItem("token");
-        try {
-          const res = await fetch(getApiUrl("/users/profile"), {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-  
-          const result = await res.json();
-          if (!res.ok)
-            throw new Error(result.message || "Failed to fetch profile");
-  
-          setUser(result.data);
-        } catch (err) {
-          console.error("Failed to fetch profile:", err.message);
-        }
-      };
-  
-      fetchProfile();
-    }, []);
-  
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const token = localStorage.getItem("token");
+      try {
+        const res = await fetch(getApiUrl("/users/profile"), {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        const result = await res.json();
+        if (!res.ok)
+          throw new Error(result.message || "Failed to fetch profile");
+
+        setUser(result.data);
+      } catch (err) {
+        console.error("Failed to fetch profile:", err.message);
+      }
+    };
+
+    fetchProfile();
+  }, []);
+
 
   const handlePreview = async (rawFile) => {
     if (typeof window === "undefined") return;
@@ -946,8 +965,8 @@ export default function MyFiles() {
               {/* Grid Button */}
               <button
                 className={`px-3 py-1 rounded ${viewMode === "grid"
-                    ? "bg-blue-500 text-white"
-                    : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
+                  ? "bg-blue-500 text-white"
+                  : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
                   }`}
                 onClick={() => setViewMode("grid")}
               >
@@ -957,8 +976,8 @@ export default function MyFiles() {
               {/* List Button */}
               <button
                 className={`px-3 py-1 rounded ${viewMode === "list"
-                    ? "bg-blue-500 text-white"
-                    : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
+                  ? "bg-blue-500 text-white"
+                  : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
                   }`}
                 onClick={() => setViewMode("list")}
               >
