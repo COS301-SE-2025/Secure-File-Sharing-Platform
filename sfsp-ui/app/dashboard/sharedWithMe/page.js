@@ -1,8 +1,6 @@
-//app/dashboard/sharedWithMe/page.js
-
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Grid, List, ChevronDown } from "lucide-react";
 import { ShareDialog } from "../myFilesV2/shareDialog";
 import { FileDetailsDialog } from "../myFilesV2/fileDetailsDialog";
@@ -14,6 +12,9 @@ import { useEncryptionStore } from "@/app/SecureKeyStorage";
 import { getSodium } from "@/app/lib/sodium";
 import { PreviewDrawer } from "../myFilesV2/previewDrawer";
 import dynamic from "next/dynamic";
+import pako from "pako";
+import { formatDate } from "../../../lib/dateUtils";
+import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 
 const FullViewModal = dynamic(
   () =>
@@ -25,9 +26,6 @@ const FullViewModal = dynamic(
     loading: () => <div>Loading...</div>,
   }
 );
-import pako from "pako";
-import { formatDate } from "../../../lib/dateUtils";
-import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
 
 function Toast({ message, type = "info", onClose }) {
   return (
@@ -35,9 +33,8 @@ function Toast({ message, type = "info", onClose }) {
       className={`fixed inset-0 flex items-center justify-center z-50 pointer-events-none`}
     >
       <div
-        className={`bg-red-300 border ${
-          type === "error" ? "border-red-300" : "border-blue-500"
-        } text-gray-900 rounded shadow-lg px-6 py-3 pointer-events-auto`}
+        className={`bg-red-300 border ${type === "error" ? "border-red-300" : "border-blue-500"
+          } text-gray-900 rounded shadow-lg px-6 py-3 pointer-events-auto`}
       >
         <span>{message}</span>
         <button onClick={onClose} className="ml-4 font-bold">
@@ -332,12 +329,10 @@ export default function MyFiles() {
   const [viewMode, setViewMode] = useState("grid");
   const [selectedFile, setSelectedFile] = useState(null);
   const { search } = useDashboardSearch();
-
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isActivityOpen, setIsActivityOpen] = useState(false);
-
   const [previewContent, setPreviewContent] = useState(null);
   const [previewFile, setPreviewFile] = useState(null);
   const [viewerFile, setViewerFile] = useState(null);
@@ -345,6 +340,13 @@ export default function MyFiles() {
   const [showSortOptions, setShowSortOptions] = useState(false);
   const [toast, setToast] = useState(null);
   const [user, setUser] = useState(null);
+  const [sortOptions, setSortOptions] = useState({
+    byDate: false,
+    byName: true, // Default sort
+    bySize: false,
+    ascending: true,
+  });
+  const sortDropdownRef = useRef(null);
 
   const showToast = (message, type = "info", duration = 3000) => {
     setToast({ message, type });
@@ -402,6 +404,7 @@ export default function MyFiles() {
             description: f.description || "",
             path: f.cid || "",
             modified: f.createdAt ? formatDate(f.createdAt) : "",
+            modifiedRaw: f.createdAt || "",
             starred: false,
             viewOnly: tags.includes("view-only"),
             tags,
@@ -409,32 +412,95 @@ export default function MyFiles() {
           };
         });
 
-      setFiles(formatted);
+      const sorted = applySort(formatted);
+      setFiles(sorted);
     } catch (err) {
       console.error("Failed to fetch files:", err);
     }
   };
 
+  const applySort = (filesToSort) => {
+    let sortedFiles = [...filesToSort];
+
+    const sortArray = (array, sortBy) => {
+      const sorted = [...array];
+      if (sortBy === "byDate") {
+        sorted.sort((a, b) => {
+          const dateA = a.modifiedRaw ? new Date(a.modifiedRaw) : new Date(0);
+          const dateB = b.modifiedRaw ? new Date(b.modifiedRaw) : new Date(0);
+          return sortOptions.ascending ? dateA - dateB : dateB - dateA;
+        });
+      } else if (sortBy === "byName") {
+        sorted.sort((a, b) =>
+          sortOptions.ascending
+            ? a.name.localeCompare(b.name, { sensitivity: "base" })
+            : b.name.localeCompare(a.name, { sensitivity: "base" })
+        );
+      } else if (sortBy === "bySize") {
+        sorted.sort((a, b) =>
+          sortOptions.ascending ? a.size - b.size : b.size - a.size
+        );
+      }
+      return sorted;
+    };
+
+    let activeSort = "byName"; 
+    if (sortOptions.byDate) activeSort = "byDate";
+    else if (sortOptions.bySize) activeSort = "bySize";
+
+    return sortArray(sortedFiles, activeSort);
+  };
+
+  const handleSortChange = (option) => {
+    setSortOptions((prev) => {
+      const newOptions = {
+        byDate: false,
+        byName: false,
+        bySize: false,
+        ascending: prev.ascending,
+      };
+
+      if (option === "reset") {
+        newOptions.byName = true;
+        newOptions.ascending = true;
+      } else if (option === "ascending") {
+        newOptions.ascending = !prev.ascending;
+        newOptions.byDate = prev.byDate;
+        newOptions.byName = prev.byName || (!prev.byDate && !prev.bySize);
+        newOptions.bySize = prev.bySize;
+      } else {
+        newOptions[option] = true; 
+        if (option !== "byName" && !prev.byDate && !prev.byName && !prev.bySize) {
+          newOptions.ascending = true; 
+        }
+      }
+
+      return newOptions;
+    });
+
+    setFiles((prevFiles) => applySort(prevFiles));
+  };
+
+  useEffect(() => {
+    setFiles((prevFiles) => applySort(prevFiles));
+  }, [sortOptions]);
+
   useEffect(() => {
     fetchFiles();
   }, []);
 
-    const sortFilesBasedOnDate = () => {
-      setFiles([...files].sort((a, b) => new Date(b.modifiedRaw) - new Date(a.modifiedRaw)));
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target)) {
+        setShowSortOptions(false);
+      }
     };
-  
-    const sortFilesBasedOnName = () => {
-      setFiles([...files].sort((a, b) => a.name.localeCompare(b.name)));
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
     };
-  
-    const sortFilesBasedOnSize = () => {
-      setFiles([...files].sort((a, b) => a.size - b.size));
-    }
-  
-    const reverseSort = () => {
-      setFiles([...files].reverse());	
-    };
-  
+  }, []);
 
   const handleUpdateDescription = async (fileId, description) => {
     try {
@@ -593,9 +659,29 @@ export default function MyFiles() {
     }
   };
 
-  // Preview
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const token = localStorage.getItem("token");
+      try {
+        const res = await fetch(getApiUrl("/users/profile"), {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        const result = await res.json();
+        if (!res.ok)
+          throw new Error(result.message || "Failed to fetch profile");
+
+        setUser(result.data);
+      } catch (err) {
+        console.error("Failed to fetch profile:", err.message);
+      }
+    };
+
+    fetchProfile();
+  }, []);
+
+
   const handlePreview = async (rawFile) => {
-    // Ensure this only runs on the client side
     if (typeof window === "undefined") return;
 
     const username = user?.username;
@@ -614,27 +700,11 @@ export default function MyFiles() {
 
     let contentUrl = null;
     let textFull = null;
-
-    if (file.type === "image") {
-      if (typeof window === "undefined") return;
-
-      const imgBlob = new Blob([result.decrypted], { type: file.type });
-      const imgBitmap = await createImageBitmap(imgBlob);
-
-      const canvas = document.createElement("canvas");
-      canvas.width = imgBitmap.width;
-      canvas.height = imgBitmap.height;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(imgBitmap, 0, 0);
-
-      const fontSize = Math.floor(imgBitmap.width / 20);
-      ctx.font = `${fontSize}px Arial`;
-      ctx.fillStyle = "rgba(255, 0, 0, 0.7)";
-      ctx.textAlign = "center";
-      ctx.fillText(username, imgBitmap.width / 2, imgBitmap.height / 2);
-
-      contentUrl = canvas.toDataURL(file.type);
-    } else if (file.type === "pdf") {
+    
+ if (typeof window === "undefined") return;
+     if (file.type === "image") {
+   		contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
+    }else if (file.type === "pdf") {
       contentUrl = URL.createObjectURL(
         new Blob([result.decrypted], { type: "application/pdf" })
       );
@@ -671,7 +741,6 @@ export default function MyFiles() {
     ) {
       textFull = new TextDecoder().decode(result.decrypted);
 
-      //Add watermark comment for code files
       if (
         [
           "js",
@@ -691,13 +760,8 @@ export default function MyFiles() {
         const watermarkComment = getWatermarkComment(file.type, username);
         textFull = watermarkComment + "\n" + textFull;
       }
-    }
-
-    //Markdown files, render this bitch as an html
-    else if (file.type === "markdown" || file.type === "md") {
+    } else if (file.type === "markdown" || file.type === "md") {
       const markdownText = new TextDecoder().decode(result.decrypted);
-
-      //Add watermark to markdown
       const watermarkMarkdown = `> **Viewed by: ${username}**\n\n`;
       textFull = watermarkMarkdown + markdownText;
     }
@@ -706,7 +770,6 @@ export default function MyFiles() {
     setPreviewFile(file);
   };
 
-  //Helper function to get appropriate comment syntax for watermarking code files
   const getWatermarkComment = (fileType, username) => {
     const timestamp = new Date().toLocaleString();
 
@@ -719,11 +782,9 @@ export default function MyFiles() {
       cpp: `/* Viewed by: ${username} on ${timestamp} */`,
       c: `/* Viewed by: ${username} on ${timestamp} */`,
       css: `/* Viewed by: ${username} on ${timestamp} */`,
-
       py: `# Viewed by: ${username} on ${timestamp}`,
       rb: `# Viewed by: ${username} on ${timestamp}`,
       sql: `-- Viewed by: ${username} on ${timestamp}`,
-
       php: `<?php /* Viewed by: ${username} on ${timestamp} */ ?>`,
       html: `<!-- Viewed by: ${username} on ${timestamp} -->`,
       go: `// Viewed by: ${username} on ${timestamp}`,
@@ -754,25 +815,8 @@ export default function MyFiles() {
     let textFull = null;
 
     if (file.type === "image") {
-      if (typeof window === "undefined") return;
-
-      const imgBlob = new Blob([result.decrypted], { type: file.type });
-      const imgBitmap = await createImageBitmap(imgBlob);
-
-      const canvas = document.createElement("canvas");
-      canvas.width = imgBitmap.width;
-      canvas.height = imgBitmap.height;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(imgBitmap, 0, 0);
-
-      const fontSize = Math.floor(imgBitmap.width / 20);
-      ctx.font = `${fontSize}px Arial`;
-      ctx.fillStyle = "rgba(255, 0, 0, 0.7)";
-      ctx.textAlign = "center";
-      ctx.fillText(username, imgBitmap.width / 2, imgBitmap.height / 2);
-
-      contentUrl = canvas.toDataURL(file.type);
-    } else if (file.type === "pdf") {
+     contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
+    }else if (file.type === "pdf") {
       contentUrl = URL.createObjectURL(
         new Blob([result.decrypted], { type: "application/pdf" })
       );
@@ -838,7 +882,6 @@ export default function MyFiles() {
     setViewerFile(file);
   };
 
-  // Dialogs
   const openShareDialog = (file) => {
     setSelectedFile(file);
     setIsShareOpen(true);
@@ -852,7 +895,6 @@ export default function MyFiles() {
     setIsActivityOpen(true);
   };
 
-  // Revoke view access
   const handleRevokeViewAccess = async (file) => {
     try {
       const profileRes = await fetch(getApiUrl("/users/profile"));
@@ -906,94 +948,104 @@ export default function MyFiles() {
   };
 
   return (
-    <div className="bg-gray-50 p-6 dark:bg-gray-900">
-    <div>
-      {/* Header */}
-      <header className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-2xl font-semibold text-blue-500">Shared with me</h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Files that have been shared with you
-          </p>
-        </div>
+    <div className="bg-gray-50/0 p-6 dark:bg-gray-900">
+      <div>
+        {/* Header */}
+        <header className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-2xl font-semibold text-blue-500">Shared with me</h1>
+            <p className="text-gray-600 dark:text-gray-400">
+              Files that have been shared with you
+            </p>
+          </div>
 
-        {/* View + Sort Toggle */}
-        <div className="flex items-center gap-4 relative">
-          <div className="flex items-center bg-white rounded-lg border p-1 dark:bg-gray-200 relative z-50">
-            {/* Grid Button */}
-            <button
-              className={`px-3 py-1 rounded ${
-                viewMode === "grid"
-                  ? "bg-blue-500 text-white"
-                  : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
-              }`}
-              onClick={() => setViewMode("grid")}
-            >
-              <Grid className="h-4 w-4" />
-            </button>
-
-            {/* List Button */}
-            <button
-              className={`px-3 py-1 rounded ${
-                viewMode === "list"
-                  ? "bg-blue-500 text-white"
-                  : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
-              }`}
-              onClick={() => setViewMode("list")}
-            >
-              <List className="h-4 w-4" />
-            </button>
-
-            {/* Sort Button with Dropdown */}
-            <div className="relative">
+          {/* View + Sort Toggle */}
+          <div className="flex items-center gap-4 relative">
+            <div className="flex items-center bg-white rounded-lg border p-1 dark:bg-gray-200 relative z-10">
+              {/* Grid Button */}
               <button
-                className="px-3 py-1 rounded flex items-center gap-1 text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
-                onClick={() => setShowSortOptions((prev) => !prev)}
+                className={`px-3 py-1 rounded ${viewMode === "grid"
+                  ? "bg-blue-500 text-white"
+                  : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
+                  }`}
+                onClick={() => setViewMode("grid")}
               >
-                Sort
-                <ChevronDown className="h-3 w-3" />
+                <Grid className="h-4 w-4" />
               </button>
 
-              {showSortOptions && (
-                <div className="absolute right-0 top-full mt-2 w-48 bg-white border rounded-lg shadow-lg z-50 dark:bg-gray-100">
-                  <button
-                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700 dark:text-black"
-                    onClick={() => { sortFilesBasedOnDate(); setShowSortOptions(false); }}
-                  >
-                    Sort by Date
-                  </button>
-                  <button
-                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700 dark:text-black"
-                    onClick={() => { sortFilesBasedOnName(); setShowSortOptions(false); }}
-                  >
-                    Sort by Name
-                  </button>
-                  <button
-                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700 dark:text-black"
-                    onClick={() => { sortFilesBasedOnSize(); setShowSortOptions(false); }}
-                  >
-                    Sort by Size
-                  </button>
-                  <hr className="border-gray-200 dark:border-gray-400" />
-                  <button
-                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700 dark:text-black"
-                    onClick={() => { reverseSort(); setShowSortOptions(false); }}
-                  >
-                    Ascending
-                  </button>
-                  <button
-                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700 dark:text-black"
-                    onClick={() => { reverseSort(); setShowSortOptions(false); }}
-                  >
-                    Descending
-                  </button>
-                </div>
-              )}
+              {/* List Button */}
+              <button
+                className={`px-3 py-1 rounded ${viewMode === "list"
+                  ? "bg-blue-500 text-white"
+                  : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
+                  }`}
+                onClick={() => setViewMode("list")}
+              >
+                <List className="h-4 w-4" />
+              </button>
+
+              {/* Sort Button with Dropdown */}
+              <div className="relative" ref={sortDropdownRef}>
+                <button
+                  className="px-3 py-1 rounded flex items-center gap-1 text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
+                  onClick={() => setShowSortOptions((prev) => !prev)}
+                >
+                  Sort
+                  <ChevronDown className="h-3 w-3" />
+                </button>
+
+                {showSortOptions && (
+                  <div className="absolute right-0 top-full mt-2 w-48 bg-white border rounded-lg shadow-lg z-50 dark:bg-gray-100 p-2">
+                    <label className="flex items-center px-4 py-2 hover:bg-gray-100 text-gray-700 dark:text-black">
+                      <input
+                        type="checkbox"
+                        checked={sortOptions.byDate}
+                        onChange={() => handleSortChange("byDate")}
+                        className="mr-2 appearance-none h-4 w-4 border border-gray-400 rounded-sm checked:bg-blue-500 checked:border-blue-600 checked:ring-1 checked:ring-gray-600"
+                      />
+                      Sort by Date
+                    </label>
+                    <label className="flex items-center px-4 py-2 hover:bg-gray-100 text-gray-700 dark:text-black">
+                      <input
+                        type="checkbox"
+                        checked={sortOptions.byName}
+                        onChange={() => handleSortChange("byName")}
+                        className="mr-2 appearance-none h-4 w-4 border border-gray-400 rounded-sm checked:bg-blue-500 checked:border-blue-600 checked:ring-1 checked:ring-gray-600"
+                      />
+                      Sort by Name
+                    </label>
+                    <label className="flex items-center px-4 py-2 hover:bg-gray-100 text-gray-700 dark:text-black">
+                      <input
+                        type="checkbox"
+                        checked={sortOptions.bySize}
+                        onChange={() => handleSortChange("bySize")}
+                        className="mr-2 appearance-none h-4 w-4 border border-gray-400 rounded-sm checked:bg-blue-500 checked:border-blue-600 checked:ring-1 checked:ring-gray-600"
+                      />
+                      Sort by Size
+                    </label>
+                    <hr className="border-gray-200 dark:border-gray-400 my-1" />
+                    <label className="flex items-center px-4 py-2 hover:bg-gray-100 text-gray-700 dark:text-black">
+                      <input
+                        type="checkbox"
+                        checked={sortOptions.ascending}
+                        onChange={() => handleSortChange("ascending")}
+                        className="mr-2 appearance-none h-4 w-4 border border-gray-400 rounded-sm checked:bg-blue-500 checked:border-blue-600 checked:ring-1 checked:ring-gray-600"
+                      />
+                      Ascending
+                    </label>
+                    <button
+                      className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700 dark:text-black"
+                      onClick={() => handleSortChange("reset")}
+                    >
+                      Reset to Default
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      </header>
-      
+        </header>
+
         {/* File List */}
         {filteredVisibleFiles.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-96 text-center text-gray-700 dark:text-gray-400 rounded-lg p-10">

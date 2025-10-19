@@ -15,6 +15,8 @@ import { getSodium } from "@/app/lib/sodium";
 import { PreviewDrawer } from "./previewDrawer";
 import dynamic from "next/dynamic";
 import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
+import { PDFDocument, rgb } from "pdf-lib";
+
 
 const FullViewModal = dynamic(
   () =>
@@ -418,28 +420,39 @@ export default function MyFiles() {
   const applySort = useCallback((filesToSort) => {
     let sortedFiles = [...filesToSort];
 
-    // Apply sort by type
-    if (sortOptions.byDate) {
-      sortedFiles.sort((a, b) => new Date(b.modifiedRaw) - new Date(a.modifiedRaw));
-    } else if (sortOptions.byName) {
-      sortedFiles.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
-    } else if (sortOptions.bySize) {
-      sortedFiles.sort((a, b) => a.size - b.size);
-    }
+    const folders = sortedFiles.filter((f) => f.isFolder);
+    const files = sortedFiles.filter((f) => !f.isFolder);
 
-    // Apply folder priority
-    sortedFiles.sort((a, b) => {
-      if (a.isFolder && !b.isFolder) return -1;
-      if (!a.isFolder && b.isFolder) return 1;
-      return 0;
-    });
+    const sortArray = (array, sortBy) => {
+      const sorted = [...array];
+      if (sortBy === "byDate") {
+        sorted.sort((a, b) => {
+          const dateA = a.modifiedRaw ? new Date(a.modifiedRaw) : new Date(0);
+          const dateB = b.modifiedRaw ? new Date(b.modifiedRaw) : new Date(0);
+          return sortOptions.ascending ? dateA - dateB : dateB - dateA;
+        });
+      } else if (sortBy === "byName") {
+        sorted.sort((a, b) =>
+          sortOptions.ascending
+            ? a.name.localeCompare(b.name, { sensitivity: "base" })
+            : b.name.localeCompare(a.name, { sensitivity: "base" })
+        );
+      } else if (sortBy === "bySize") {
+        sorted.sort((a, b) =>
+          sortOptions.ascending ? a.size - b.size : b.size - a.size
+        );
+      }
+      return sorted;
+    };
 
-    // Apply ascending/descending
-    if (!sortOptions.ascending) {
-      sortedFiles.reverse();
-    }
+    let activeSort = "byName";
+    if (sortOptions.byDate) activeSort = "byDate";
+    else if (sortOptions.bySize) activeSort = "bySize";
 
-    return sortedFiles;
+    const sortedFolders = sortArray(folders, activeSort);
+    const sortedf = sortArray(files, activeSort);
+
+    return [...sortedFolders, ...sortedf];
   }, [sortOptions]);
 
   const fetchFiles = useCallback(async () => {
@@ -509,30 +522,37 @@ export default function MyFiles() {
 
   const handleSortChange = (option) => {
     setSortOptions((prev) => {
-      const newOptions = { ...prev };
+      const newOptions = {
+        byDate: false,
+        byName: false,
+        bySize: false,
+        ascending: prev.ascending,
+      };
+
       if (option === "reset") {
-        return {
-          byDate: false,
-          byName: true,
-          bySize: false,
-          ascending: true,
-        };
-      }
-      if (option === "ascending") {
-        newOptions.ascending = !newOptions.ascending;
+        newOptions.byName = true;
+        newOptions.ascending = true;
+      } else if (option === "ascending") {
+        newOptions.ascending = !prev.ascending;
+        newOptions.byDate = prev.byDate;
+        newOptions.byName = prev.byName || (!prev.byDate && !prev.bySize);
+        newOptions.bySize = prev.bySize;
       } else {
-        newOptions.byDate = option === "byDate" ? !newOptions.byDate : false;
-        newOptions.byName = option === "byName" ? !newOptions.byName : false;
-        newOptions.bySize = option === "bySize" ? !newOptions.bySize : false;
-        // Ensure at least one sort option is selected
-        if (!newOptions.byDate && !newOptions.byName && !newOptions.bySize) {
-          newOptions.byName = true;
+        newOptions[option] = true;
+        if (option !== "byName" && !prev.byDate && !prev.byName && !prev.bySize) {
+          newOptions.ascending = true;
         }
       }
+
       return newOptions;
     });
-    setFiles(applySort(files));
+
+    setFiles((prevFiles) => applySort(prevFiles));
   };
+
+  useEffect(() => {
+    setFiles((prevFiles) => applySort(prevFiles));
+  }, [sortOptions, applySort]);
 
   useEffect(() => {
     fetchFiles();
@@ -580,7 +600,7 @@ export default function MyFiles() {
         console.log("Ctrl+Key detected:", e.key);
 
         switch (e.key.toLowerCase()) {
-          case "c": 
+          case "c":
             e.preventDefault();
             if (selectedFile) {
               setClipboard({ file: selectedFile, operation: "cut" });
@@ -921,33 +941,19 @@ export default function MyFiles() {
 
     let contentUrl = null;
     let textFull = null;
-
+  if (typeof window === "undefined") return;
     if (file.type === "image") {
-      if (typeof window === "undefined") return;
-
-      const imgBlob = new Blob([result.decrypted], { type: file.type });
-      const imgBitmap = await createImageBitmap(imgBlob);
-
-      const canvas = document.createElement("canvas");
-      canvas.width = imgBitmap.width;
-      canvas.height = imgBitmap.height;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(imgBitmap, 0, 0);
-
-      const fontSize = Math.floor(imgBitmap.width / 20);
-      ctx.font = `${fontSize}px Arial`;
-      ctx.fillStyle = "rgba(255, 0, 0, 0.7)";
-      ctx.textAlign = "center";
-      ctx.fillText(username, imgBitmap.width / 2, imgBitmap.height / 2);
-
-      contentUrl = canvas.toDataURL(file.type);
+        contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
     } else if (file.type === "pdf") {
       contentUrl = URL.createObjectURL(
         new Blob([result.decrypted], { type: "application/pdf" })
       );
-    } else if (file.type === "video" || file.type === "audio") {
+       } 
+
+else if (file.type === "video" || file.type === "audio") {
       contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
-    } else if (
+    }
+ else if (
       [
         "txt",
         "json",
@@ -1060,25 +1066,9 @@ export default function MyFiles() {
     let contentUrl = null;
     let textFull = null;
 
+    if (typeof window === "undefined") return;
     if (file.type === "image") {
-      if (typeof window === "undefined") return;
-
-      const imgBlob = new Blob([result.decrypted], { type: file.type });
-      const imgBitmap = await createImageBitmap(imgBlob);
-
-      const canvas = document.createElement("canvas");
-      canvas.width = imgBitmap.width;
-      canvas.height = imgBitmap.height;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(imgBitmap, 0, 0);
-
-      const fontSize = Math.floor(imgBitmap.width / 20);
-      ctx.font = `${fontSize}px Arial`;
-      ctx.fillStyle = "rgba(255, 0, 0, 0.7)";
-      ctx.textAlign = "center";
-      ctx.fillText(username, imgBitmap.width / 2, imgBitmap.height / 2);
-
-      contentUrl = canvas.toDataURL(file.type);
+        contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
     } else if (file.type === "pdf") {
       contentUrl = URL.createObjectURL(
         new Blob([result.decrypted], { type: "application/pdf" })
@@ -1284,11 +1274,10 @@ export default function MyFiles() {
                 onDragOver={(e) => handleDragOver(e, crumb.path)}
                 onDragLeave={handleDragLeave}
                 onDrop={(e) => handleDrop(e, crumb.path)}
-                className={`hover:underline hover:text-blue-600 transition-colors px-2 py-1 rounded ${
-                  dragOverCrumb === crumb.path
-                    ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 font-semibold"
-                    : ""
-                }`}
+                className={`hover:underline hover:text-blue-600 transition-colors px-2 py-1 rounded ${dragOverCrumb === crumb.path
+                  ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 font-semibold"
+                  : ""
+                  }`}
               >
                 {crumb.name || "All files"}
               </button>
@@ -1308,7 +1297,8 @@ export default function MyFiles() {
   };
 
   return (
-     <div className="bg-gray-50 p-6 dark:bg-gray-900">
+    <div className="bg-gray-50/0 p-6 dark:bg-gray-900">
+      {/* <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow"> */}
       <div className="">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
@@ -1316,7 +1306,7 @@ export default function MyFiles() {
             <h1 className="text-2xl font-semibold text-blue-500">My Files</h1>
             <p className="text-gray-600 dark:text-gray-400">
               Manage and organize your files
-            </p>            
+            </p>
           </div>
 
           {/* View + Sort Toggle */}
@@ -1324,11 +1314,10 @@ export default function MyFiles() {
             <div className="flex items-center bg-white rounded-lg border p-1 dark:bg-gray-200 relative z-50">
               {/* Grid Button */}
               <button
-                className={`px-3 py-1 rounded ${
-                  viewMode === "grid"
-                    ? "bg-blue-500 text-white"
-                    : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
-                }`}
+                className={`px-3 py-1 rounded ${viewMode === "grid"
+                  ? "bg-blue-500 text-white"
+                  : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
+                  }`}
                 onClick={() => setViewMode("grid")}
               >
                 <Grid className="h-4 w-4" />
@@ -1336,11 +1325,10 @@ export default function MyFiles() {
 
               {/* List Button */}
               <button
-                className={`px-3 py-1 rounded ${
-                  viewMode === "list"
-                    ? "bg-blue-500 text-white"
-                    : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
-                }`}
+                className={`px-3 py-1 rounded ${viewMode === "list"
+                  ? "bg-blue-500 text-white"
+                  : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-300"
+                  }`}
                 onClick={() => setViewMode("list")}
               >
                 <List className="h-4 w-4" />
@@ -1559,6 +1547,7 @@ export default function MyFiles() {
           />
         )}
       </div>
+      {/* </div> */}
     </div>
   );
 }

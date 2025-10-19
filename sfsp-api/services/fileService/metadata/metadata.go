@@ -605,6 +605,113 @@ func AddTagsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func DeleteFolderHandler(w http.ResponseWriter, r *http.Request) {
+	type DeleteFolderRequest struct {
+		FolderID   string   `json:"folderId"`
+		ParentPath string   `json:"parentPath"`
+		Recursive  bool     `json:"recursive"`
+		Tags       []string `json:"tags"`
+	}
+
+	var req DeleteFolderRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Println("Failed to parse JSON:", err)
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	if req.FolderID == "" {
+		http.Error(w, "Missing folderId", http.StatusBadRequest)
+		return
+	}
+
+	tx, err := DB.Begin()
+	if err != nil {
+		log.Println("Failed to start transaction:", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	defer tx.Rollback()
+
+	if req.Recursive {
+		var folderCID string
+		err := tx.QueryRow(`
+			SELECT cid FROM files WHERE id = $1
+		`, req.FolderID).Scan(&folderCID)
+		
+		if err != nil {
+			log.Println("Failed to fetch folder:", err)
+			http.Error(w, "Folder not found", http.StatusNotFound)
+			return
+		}
+
+		if len(req.Tags) > 0 {
+			_, err = tx.Exec(`
+				UPDATE files
+				SET tags = array_cat(COALESCE(tags, '{}'), $1::text[])
+				WHERE cid LIKE 'files/' || $2 || '/%'
+			`, pq.Array(req.Tags), folderCID)
+			
+			if err != nil {
+				log.Println("Failed to add tags to descendants:", err)
+				http.Error(w, "Internal server error", http.StatusInternalServerError)
+				return
+			}
+		}
+
+		_, err = tx.Exec(`
+			UPDATE files
+			SET cid = 'files/' || id
+			WHERE cid LIKE 'files/' || $1 || '/%'
+			AND NOT ('folder' = ANY(tags))
+		`, folderCID)
+		
+		if err != nil {
+			log.Println("Failed to move files to root:", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		_, err = tx.Exec(`
+			UPDATE files
+			SET cid = regexp_replace(cid, '^files/' || $1 || '/(.+?)(/.*)?$', '\1')
+			WHERE cid LIKE 'files/' || $1 || '/%'
+			AND 'folder' = ANY(tags)
+		`, folderCID)
+		
+		if err != nil {
+			log.Println("Failed to move folders to root:", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	if len(req.Tags) > 0 {
+		_, err = tx.Exec(`
+			UPDATE files
+			SET tags = array_cat(COALESCE(tags, '{}'), $1::text[])
+			WHERE id = $2
+		`, pq.Array(req.Tags), req.FolderID)
+		
+		if err != nil {
+			log.Println("Failed to add tags to folder:", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	if err = tx.Commit(); err != nil {
+		log.Println("Failed to commit transaction:", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Folder deleted successfully",
+	})
+}
+
 func AddUserHandler(w http.ResponseWriter, r *http.Request) {
 	var req MetadataQueryRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

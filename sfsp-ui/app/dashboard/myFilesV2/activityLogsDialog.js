@@ -72,7 +72,7 @@ export function ActivityLogsDialog({ open, onOpenChange, file }) {
   );
 
   const ScrollArea = ({ children }) => (
-    <div className="h-96 overflow-y-auto pr-2">{children}</div>
+    <div className="h-96 overflow-y-auto pr-2 custom-scroll">{children}</div>
   );
 
   return (

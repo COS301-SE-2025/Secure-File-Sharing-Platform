@@ -2,6 +2,7 @@
 
 
 import React, { useEffect, useState, useRef } from "react";
+import { getApiUrl, getFileApiUrl } from "@/lib/api-config";  
 import { Document, Page, pdfjs } from "react-pdf";
 import Image from "next/image";
 
@@ -15,8 +16,32 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 ).toString();
 
 
+
 export function FullViewModal({ file, content, onClose }) {
 	const [numPages, setNumPages] = useState(null);
+	const [user, setUser] = useState(null);
+
+  
+    useEffect(() => {
+    const fetchProfile = async () => {
+      const token = localStorage.getItem("token");
+      try {
+        const res = await fetch(getApiUrl("/users/profile"), {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        const result = await res.json();
+        if (!res.ok)
+          throw new Error(result.message || "Failed to fetch profile");
+
+        setUser(result.data);
+      } catch (err) {
+        console.error("Failed to fetch profile:", err.message);
+      }
+    };
+
+    fetchProfile();
+  }, []);
 
 
   return (
@@ -56,60 +81,109 @@ export function FullViewModal({ file, content, onClose }) {
               {(() => {
                 switch (file?.type) {
                   case "image":
-                    return content?.url ? (
-                      <div className="relative flex justify-center">
-                        <div className="relative w-full h-[75vh] flex justify-center">
-                          <Image
-                            src={content.url}
-                            alt="Full view"
-                            fill
-                            className="rounded select-none pointer-events-none object-contain"
-                            unoptimized
-                          />
-                        </div>
-                        <canvas
-                          className="absolute inset-0 w-full h-full rounded"
-                          onContextMenu={(e) => e.preventDefault()}
-                        />
-                      </div>
-                    ) : null;
+		  return content?.url ? (
+		    <div
+		      className="relative flex justify-center items-center w-full max-w-3xl mx-auto"
+		      onContextMenu={(e) => e.preventDefault()}
+		    >
+		      <Image
+			src={content.url}
+			alt="Preview"
+			className="w-full h-auto rounded shadow-lg object-contain max-h-[80vh]"
+		      />
+		      {/* Watermark overlay */}
+		      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+			<img
+			  src="/img/secureshare-logo.png"
+			  className="opacity-50 w-1/3 max-w-[250px]"
+			  alt="Watermark"
+			/>
+			<span className="absolute text-red-500 text-4xl font-bold opacity-40">
+			  {user?.username}
+			</span>
+		      </div>
+		    </div>
+		  ) : null;
 
-                  case "video":
-                    return content?.url ? (
-                      <div className="relative flex justify-center">
-                        <video
-                          controls
-                          src={content.url}
-                          className="w-full max-h-[75vh] rounded select-none"
-                        />
-                        <canvas
-                          className="absolute inset-0 w-full h-full rounded opacity-0 pointer-events-none"
-                          onContextMenu={(e) => e.preventDefault()}
-                        />
-                      </div>
-                    ) : null;
+		case "video":
+		  return content?.url ? (
+		    <div
+		      className="relative w-full max-w-3xl mx-auto flex justify-center"
+		      onContextMenu={(e) => e.preventDefault()}
+		    >
+		      <video
+			src={content.url}
+			 controlsList="nodownload" 
+			controls
+			className="w-full h-auto rounded shadow-lg object-contain max-h-[80vh]"
+		      />
+		      {/* Watermark overlay */}
+		      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+			<img
+			  src="/img/secureshare-logo.png"
+			  className="opacity-50 w-1/3 max-w-[250px]"
+			  alt="Watermark"
+			/>
+			<span className="absolute text-red-500 text-4xl font-bold opacity-40">
+			  {user?.username}
+			</span>
+		      </div>
+		    </div>
+		  ) : null;
 
-                  case "pdf":
-                    return content?.url ? (
-                      <div className="relative flex justify-center">
-                        <iframe
-                          src={content.url}
-                          className="w-full h-[80vh] rounded border"
-                        ></iframe>
-                      </div>
-                    ) : null;
 
                   case "audio":
-                    return content?.url ? (
-                      <div className="flex flex-col items-center space-y-4 p-8">
-                        <div className="text-6xl">🎵</div>
-                        <h3 className="text-lg font-medium">{file?.name}</h3>
-                        <audio controls className="w-full max-w-md">
-                          <source src={content.url} />
-                          Your browser does not support the audio element.
-                        </audio>
-                      </div>
-                    ) : null;
+                  return content?.url ? (
+                      <audio id="audio-element" controlsList="nodownload" controls className="w-full rounded-lg p-2 bg-gray-200 border border-gray-400">
+		      <source
+			src={content.url}
+			type="audio/mpeg"
+		      />
+		      Your browser does not support the audio element.
+		    </audio>
+                  ) : null;
+          case "pdf":
+  return content?.url ? (
+    <div
+      className="relative flex justify-center items-center w-full h-full overflow-y-auto border rounded bg-gray-100 p-4"
+      onContextMenu={(e) => e.preventDefault()}
+    >
+      <Document
+        file={content.url}
+        onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+        onLoadError={(err) => console.error("PDF load error:", err)}
+        loading={<div className="p-4 text-sm text-gray-500">Loading PDF…</div>}
+        className="flex flex-col items-center"
+      >
+        {Array.from(new Array(numPages), (_, index) => (
+          <div key={`page_${index + 1}`} className="relative mb-6 flex justify-center">
+            <Page
+              pageNumber={index + 1}
+              renderAnnotationLayer={false}
+              renderTextLayer={false}
+              width={Math.min(window.innerWidth * 0.9, 900)} // adaptive to screen size
+            />
+            {/* Watermark overlay */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+              {/* Logo */}
+              <img
+                src="/img/secureshare-logo.png"
+                className="opacity-50 w-1/4 max-w-[200px] mb-4"
+                alt="Watermark"
+              />
+
+              {/* Username */}
+              {user?.username && (
+                <span className="text-red-500 opacity-40 text-4xl font-bold rotate-45">
+                  {user.username}
+                </span>
+              )}
+            </div>
+          </div>
+        ))}
+      </Document>
+    </div>
+  ) : null;
 
                   // Code files with syntax highlighting container
                   case "js":

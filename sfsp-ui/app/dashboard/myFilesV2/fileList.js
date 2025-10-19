@@ -47,9 +47,8 @@ function Toast({ message, type = "info", onClose }) {
       className={`fixed inset-0 flex items-center justify-center z-50 pointer-events-none`}
     >
       <div
-        className={`bg-red-300 border ${
-          type === "error" ? "border-red-300" : "border-blue-500"
-        } text-gray-900 rounded shadow-lg px-6 py-3 pointer-events-auto`}
+        className={`bg-red-300 border ${type === "error" ? "border-red-300" : "border-blue-500"
+          } text-gray-900 rounded shadow-lg px-6 py-3 pointer-events-auto`}
       >
         <span>{message}</span>
         <button onClick={onClose} className="ml-4 font-bold">
@@ -271,7 +270,27 @@ export function FileList({
 
   const handleContextMenu = (e, file) => {
     e.preventDefault();
-    setMenuPosition({ x: e.pageX, y: e.pageY });
+
+    const menuWidth = 192; 
+    const menuHeight = file.type === "folder" ? 60 : 300; 
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    let x = e.pageX;
+    let y = e.pageY;
+
+    if (x + menuWidth > viewportWidth) {
+      x = viewportWidth - menuWidth - 15; 
+    }
+
+    if (y + menuHeight > viewportHeight) {
+      y = viewportHeight - menuHeight - 10; 
+    }
+
+    x = Math.max(10, x);
+    y = Math.max(10, y); 
+
+    setMenuPosition({ x, y });
     setMenuFile(file);
   };
 
@@ -291,17 +310,37 @@ export function FileList({
     const tags = ["deleted", `deleted_time:${timestamp}`];
 
     try {
-      const res = await fetch(getFileApiUrl("/addTags"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fileId: file.id, tags }),
-      });
+      if (file.type === "folder") {
+        const res = await fetch(getFileApiUrl("/deleteFolder"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            folderId: file.id,
+            parentPath: file.path || "" || file.cid,
+            recursive: true,
+            tags,
+          }),
+        });
 
-      if (!res.ok) {
-        throw new Error("Failed to tag file as deleted");
+        if (!res.ok) {
+          throw new Error("Failed to delete folder and its contents");
+        }
+
+        console.log(`Folder ${file.name} and its contents deleted`);
+        onEnterFolder?.("");
+      } else {
+        const res = await fetch(getFileApiUrl("/addTags"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fileId: file.id, tags }),
+        });
+
+        if (!res.ok) {
+          throw new Error("Failed to tag file as deleted");
+        }
+
+        console.log(`File ${file.name} marked as deleted`);
       }
-
-      console.log(`File ${file.name} marked as deleted`);
 
       const token = localStorage.getItem("token");
       if (!token) return;
@@ -322,11 +361,15 @@ export function FileList({
             file_id: file.id,
             user_id: profileResult.data.id,
             action: "deleted",
-            message: `User ${profileResult.data.email} deleted the file.`,
+            message: `User ${profileResult.data.email} deleted the ${file.type === "folder" ? "folder and its contents" : "file"
+              }.`,
           }),
         });
       } catch (err) {
-        console.error("Failed to fetch user profile:", err.message);
+        console.error(
+          "Failed to fetch user profile or log action:",
+          err.message
+        );
       }
 
       if (onDelete) {
@@ -334,7 +377,9 @@ export function FileList({
       }
     } catch (err) {
       console.error("Delete failed:", err);
-      showToast("Failed to delete file");
+      showToast(
+        `Failed to delete ${file.type === "folder" ? "folder" : "file"}`
+      );
     } finally {
       setMenuFile(null);
     }
@@ -377,9 +422,6 @@ export function FileList({
     onSelectFile(file);
     if (file.type !== "folder") {
       onClick?.(file);
-    }
-    if (onClick) {
-      onClick(file);
     }
   };
 
@@ -426,11 +468,7 @@ export function FileList({
               onDoubleClick={(e) => handleRowDoubleClick(e, file)}
               onContextMenu={(e) => handleContextMenu(e, file)}
               className={`hover:bg-gray-200 cursor-pointer dark:hover:bg-blue-100
-                ${
-                  selectedFile?.id === file.id
-                    ? ""
-                    : ""
-                }`}
+                ${selectedFile?.id === file.id ? "" : ""}`}
             >
               <td className="p-2 flex items-center gap-2">
                 {getIcon(file)}
@@ -448,11 +486,10 @@ export function FileList({
               <td className="p-2">{file.modified}</td>
               <td className="p-2">
                 <span
-                  className={`px-2 py-1 rounded-full text-xs ${
-                    isViewOnly(file)
-                      ? "bg-blue-100 text-blue-800 dark:bg-blue-200"
-                      : "bg-green-100 text-green-800 dark:bg-green-200"
-                  }`}
+                  className={`px-2 py-1 rounded-full text-xs ${isViewOnly(file)
+                    ? "bg-blue-100 text-blue-800 dark:bg-blue-200"
+                    : "bg-green-100 text-green-800 dark:bg-green-200"
+                    }`}
                 >
                   {isViewOnly(file) ? "View Only" : "Full Access"}
                 </span>
@@ -502,16 +539,14 @@ export function FileList({
                   if (!isViewOnly(menuFile)) onShare(menuFile);
                   setMenuFile(null);
                 }}
-                className={`w-full text-left px-4 py-2 flex items-center gap-2 ${
-                  isViewOnly(menuFile)
-                    ? "opacity-50 cursor-not-allowed"
-                    : "hover:bg-gray-100 dark:hover:bg-blue-200"
-                }`}
+                className={`w-full text-left px-4 py-2 flex items-center gap-2 ${isViewOnly(menuFile)
+                  ? "opacity-50 cursor-not-allowed"
+                  : "hover:bg-gray-100 dark:hover:bg-blue-200"
+                  }`}
                 disabled={isViewOnly(menuFile)}
               >
                 <Share className="h-4 w-4" /> Share
               </button>
-
               <button
                 onClick={() => {
                   if (!isViewOnly(menuFile)) {
@@ -519,18 +554,15 @@ export function FileList({
                   }
                   setMenuFile(null);
                 }}
-                className={`w-full text-left px-4 py-2 flex items-center gap-2 ${
-                  isViewOnly(menuFile)
-                    ? "opacity-50 cursor-not-allowed"
-                    : "hover:bg-gray-100 dark:hover:bg-blue-200"
-                }`}
+                className={`w-full text-left px-4 py-2 flex items-center gap-2 ${isViewOnly(menuFile)
+                  ? "opacity-50 cursor-not-allowed"
+                  : "hover:bg-gray-100 dark:hover:bg-blue-200"
+                  }`}
                 disabled={isViewOnly(menuFile)}
               >
                 <Download className="h-4 w-4" /> Download
               </button>
-
               <hr className="my-1" />
-
               <button
                 onClick={() => {
                   onClick?.(menuFile);
@@ -540,7 +572,6 @@ export function FileList({
               >
                 <Eye className="h-4 w-4" /> Preview
               </button>
-
               <button
                 onClick={() => {
                   onViewDetails(menuFile);
@@ -550,7 +581,6 @@ export function FileList({
               >
                 <FileIcon className="h-4 w-4" /> View Details
               </button>
-
               <button
                 onClick={() => {
                   onViewActivity(menuFile);
@@ -560,9 +590,7 @@ export function FileList({
               >
                 <MoreVertical className="h-4 w-4" /> Activity Logs
               </button>
-
               <hr className="my-1" />
-
               {isOwner(menuFile) && (
                 <button
                   onClick={() => {
@@ -576,7 +604,6 @@ export function FileList({
               )}
             </>
           )}
-
           <button
             onClick={() => handleDelete(menuFile)}
             className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 flex items-center gap-2 dark:hover:bg-red-200 dark:text-red-600"

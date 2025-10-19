@@ -2,8 +2,17 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import { UserAvatar } from "@/app/lib/avatarUtils";
-import { getApiUrl, getFileApiUrl } from "@/lib/api-config"; 
-import Image from "next/image"; 
+import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
+import { Document, Page, pdfjs } from "react-pdf";
+
+//import "react-pdf/dist/esm/Page/AnnotationLayer.css";
+//import "react-pdf/dist/esm/Page/TextLayer.css";
+
+// Use pdfjs-dist's worker build
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  "pdfjs-dist/build/pdf.worker.min.mjs",
+  import.meta.url
+).toString();
 
 export function PreviewDrawer({
   file,
@@ -19,6 +28,7 @@ export function PreviewDrawer({
   const [loadingAccess, setLoadingAccess] = useState(false);
   const [openMenuUserId, setOpenMenuUserId] = useState(null);
   const [numPages, setNumPages] = useState(null);
+  const [user, setUser] = useState(null);
   const drawerRef = useRef(null);
 
   useEffect(() => {
@@ -54,57 +64,79 @@ export function PreviewDrawer({
       if (!userId) return;
 
       // Get files shared for view-only access
-      const sharedFilesRes = await fetch(
-        getFileApiUrl("/getViewAccess"),
-        {
+      const sharedFilesRes = await fetch(getFileApiUrl("/getViewAccess"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId }),
-        }
-      );
+      });
       const sharedFiles = await sharedFilesRes.json();
-      const fileShares = sharedFiles.filter((share) => share.file_id === file.id);
+      const fileShares = sharedFiles.filter(
+        (share) => share.file_id === file.id
+      );
 
-        // Enrich each share with recipient info
-        const enrichedShares = await Promise.all(
-          fileShares.map(async (share) => {
-            let userName = "Unknown User";
-            let email = "";
-            let avatar = "";
-            try {
-            const res = await fetch(getApiUrl(`/users/getUserInfo/${share.recipient_id}`));
-              if (res.ok) {
-                const data = await res.json();
-                if (data?.data) {
-                  userName = data.data.username || userName;
-                  email = data.data.email || "";
-                  avatar = data.data.avatar_url || "";
-                }
+      // Enrich each share with recipient info
+      const enrichedShares = await Promise.all(
+        fileShares.map(async (share) => {
+          let userName = "Unknown User";
+          let email = "";
+          let avatar = "";
+          try {
+            const res = await fetch(
+              getApiUrl(`/users/getUserInfo/${share.recipient_id}`)
+            );
+            if (res.ok) {
+              const data = await res.json();
+              if (data?.data) {
+                userName = data.data.username || userName;
+                email = data.data.email || "";
+                avatar = data.data.avatar_url || "";
               }
-            } catch (err) {
-              console.error(
-                `Failed to fetch user info for ${share.recipient_id}:`,
-                err
-              );
             }
+          } catch (err) {
+            console.error(
+              `Failed to fetch user info for ${share.recipient_id}:`,
+              err
+            );
+          }
 
-            return {
-              ...share,
-              recipient_name: userName,
-              recipient_email: email,
-              recipient_avatar: avatar,
-            };
-          })
-        );
+          return {
+            ...share,
+            recipient_name: userName,
+            recipient_email: email,
+            recipient_avatar: avatar,
+          };
+        })
+      );
 
-        console.log(enrichedShares);
-        setSharedWith(enrichedShares || []);
+      console.log(enrichedShares);
+      setSharedWith(enrichedShares || []);
     } catch (err) {
       console.error("Failed to fetch access list:", err);
     } finally {
       setLoadingAccess(false);
     }
   };
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const token = localStorage.getItem("token");
+      try {
+        const res = await fetch(getApiUrl("/users/profile"), {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        const result = await res.json();
+        if (!res.ok)
+          throw new Error(result.message || "Failed to fetch profile");
+
+        setUser(result.data);
+      } catch (err) {
+        console.error("Failed to fetch profile:", err.message);
+      }
+    };
+
+    fetchProfile();
+  }, []);
 
   const handleRevokeAccess = async (recipientId) => {
     try {
@@ -192,49 +224,118 @@ export function PreviewDrawer({
               switch (file?.type) {
                 case "image":
                   return content?.url ? (
-                    <div className="relative w-full h-64">
-                      <div className="relative w-full h-64">
-                        <Image
-                          src={content.url}
-                          alt="Preview"
-                          fill
-                          className="rounded object-cover"
-                          unoptimized
-                        />
-                      </div>
-                      <canvas
-                        className="absolute inset-0 w-full h-full rounded"
-                        onContextMenu={(e) => e.preventDefault()}
+                    <div
+                      className="relative w-full max-h-64"
+                      onContextMenu={(e) => e.preventDefault()}
+                    >
+                      {" "}
+                      // Disable right-click
+                      <Image
+                        src={content.url}
+                        alt="Preview"
+                        className="w-full max-h-64 rounded"
                       />
+                      {/* Watermark overlay */}
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <Image
+                          src="/img/secureshare-logo.png"
+                          className="opacity-70 w-1/5"
+                          alt="Watermark"
+                        />
+                        <span className="absolute text-red-500 text-2xl opacity-50">
+                          {user?.username}
+                        </span>
+                      </div>
                     </div>
                   ) : null;
 
                 case "video":
                   return content?.url ? (
-                    <div className="relative w-full max-h-64">
+                    <div
+                      className="relative w-full max-h-64"
+                      onContextMenu={(e) => e.preventDefault()}
+                    >
                       <video
                         src={content.url}
+                        controlsList="nodownload"
                         controls
                         className="w-full max-h-64 rounded"
                       />
-                      <canvas
-                        className="absolute inset-0 w-full h-full rounded"
-                        onContextMenu={(e) => e.preventDefault()}
-                      />
+                      {/* Watermark overlay */}
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <img
+                          src="/img/secureshare-logo.png"
+                          className="opacity-70 w-1/5"
+                          alt="Watermark"
+                        />
+                        <span className="absolute text-red-500 text-2xl opacity-50">
+                          {user?.username}
+                        </span>
+                      </div>
                     </div>
                   ) : null;
 
                 case "audio":
                   return content?.url ? (
-                    <audio controls src={content.url} className="w-full mt-2" />
+                    <audio
+                      id="audio-element"
+                      controlsList="nodownload"
+                      controls
+                      className="w-full rounded-lg p-2 bg-gray-200 border border-gray-400"
+                    >
+                      <source src={content.url} type="audio/mpeg" />
+                      Your browser does not support the audio element.
+                    </audio>
                   ) : null;
 
                 case "pdf":
                   return content?.url ? (
-                    <iframe src={content.url} className="w-full h-64 rounded" />
+                    <div
+                      className="relative w-full max-h-64 overflow-y-auto border rounded bg-gray-100 p-2"
+                      onContextMenu={(e) => e.preventDefault()}
+                    >
+                      <Document
+                        file={content.url}
+                        onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+                        onLoadError={(err) =>
+                          console.error("PDF load error:", err)
+                        }
+                        loading={
+                          <div className="p-4 text-sm text-gray-500">
+                            Loading PDF…
+                          </div>
+                        }
+                      >
+                        {Array.from(new Array(numPages), (_, index) => (
+                          <div key={`page_${index + 1}`} className="relative">
+                            <Page
+                              pageNumber={index + 1}
+                              width={320}
+                              renderAnnotationLayer={false}
+                              renderTextLayer={false}
+                            />
+                            {/* Overlay watermark */}
+                            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                              {/* Logo */}
+                              <img
+                                src="/img/secureshare-logo.png"
+                                className="opacity-70 w-1/5 mb-2"
+                                alt="Watermark"
+                              />
+
+                              {/* Username */}
+                              {user?.username && (
+                                <span className="text-red-500 opacity-40 text-2xl rotate-45">
+                                  {user.username}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </Document>
+                    </div>
                   ) : null;
 
-                //Text-based files with syntax highlighting potential
                 case "md":
                 case "markdown":
                   return content?.text ? (
