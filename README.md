@@ -10,20 +10,20 @@
 [![codecov](https://codecov.io/gh/COS301-SE-2025/Secure-File-Sharing-Platform/graph/badge.svg?token=JTZ22LJTCE)](https://codecov.io/gh/COS301-SE-2025/Secure-File-Sharing-Platform)
 ![Uptime status](https://img.shields.io/uptimerobot/status/m797015486-75c486778a8f87b141372bd7)
 
-[![Next.js](https://img.shields.io/badge/Frontend-Next.js-blue)]()
-[![Tailwind CSS](https://img.shields.io/badge/Styling-TailwindCSS-38BDF8)]()
-[![Express.js](https://img.shields.io/badge/Backend-Express.js-000000)]()
-[![Node.js](https://img.shields.io/badge/Runtime-Node.js-339933)]()
-[![Go](https://img.shields.io/badge/Service-Golang-00ADD8)]()
+![Next.js](https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=next.js&logoColor=white)
+![TailwindCSS](https://img.shields.io/badge/TailwindCSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-43853D?style=for-the-badge&logo=node.js&logoColor=white)
+![Go](https://img.shields.io/badge/Go-00ADD8?style=for-the-badge&logo=go&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-3FCF8E?style=for-the-badge&logo=supabase&logoColor=white)
+![Electron](https://img.shields.io/badge/Electron-47848F?style=for-the-badge&logo=electron&logoColor=white)
+![HashiCorp Vault](https://img.shields.io/badge/HashiCorp%20Vault-000000?style=for-the-badge&logo=vault&logoColor=white)
+![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-2088FF?style=for-the-badge&logo=github-actions&logoColor=white)
+![ownCloud](https://img.shields.io/badge/ownCloud-041E42?style=for-the-badge&logo=owncloud&logoColor=white)
+![Cypress](https://img.shields.io/badge/Cypress-17202C?style=for-the-badge&logo=cypress&logoColor=white)
+![Pytest](https://img.shields.io/badge/Pytest-0A9EDC?style=for-the-badge&logo=pytest&logoColor=white)
+![Jest](https://img.shields.io/badge/Jest-C21325?style=for-the-badge&logo=jest&logoColor=white)
 
-
-## 📚 Table of Contents
-
-- [Project Description](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform#-project-description)
-- [Meet CacheME](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform#-meet-cacheme--keeping-it-in-memory-so-you-dont-have-to)
-- [Documentation](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform#-documentation)
-- [Project Management](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform#-project-management)
-- [Demo](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform#-demo)
 
 ## 📋 Project Description
 
@@ -39,6 +39,19 @@ advanced technologies to solve real-world problems in digital communication. It 
 designed not just for businesses that require safe document transfers, but also for 
 journalists, developers, and everyday users who value the privacy of their personal or 
 professional data. 
+
+## 📄 Documentation
+
+| DOCUMENT     | DESCRIPTION  |  LINK                             |
+|------------------|-----------------------------------|-----------------------------------|
+| Requirements (SRS)   | Software Requirement Specification  | [Open](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/blob/main/assets/SRSv5.pdf)|
+| Coding Standards Documentation | Description of our conventions and styles| [Open](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/blob/main/assets/CodingStandardsv4.pdf)|
+| Testing Policy Document|Testing strategies and findings|[Open](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/blob/main/assets/TestingPolicyDocumentv2.pdf)|
+|Project Management |Github Board & Git structure, oraginzation and management|[Board](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/projects) , [Doc](./assets/documentation/git.md)|
+| User Manual Document|A guide on how to use our system/platform|[Open](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/blob/main/assets/UserManualv3.pdf)|
+| Technical Installation Manual| Instructions for system configuration |[Open](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/blob/main/assets/TechnicalInstallationManualv3.pdf)|
+| Security Document| Outlines the security design of the system |[Open](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/blob/main/assets/Security%20Document.pdf)|
+
 
 ## 🔍 Meet CacheME — Keeping It in Memory So You Don’t Have To
 
@@ -222,31 +235,19 @@ professional data.
 </table>
 </details>
 
-## 📄 Documentation
+## 💡 Project Demo Video
 
-| DOCUMENT     | DESCRIPTION  |  LINK                             |
-|------------------|-----------------------------------|-----------------------------------|
-| Requirements (SRS)   | Software Requirement Specification  | [Open](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/blob/main/assets/SRS.pdf)|
-| Coding Standards Documentation | Description of our conventions and styles| [Open](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/blob/main/assets/Coding%20Standards.pdf)|
-| User Manual Document|A guide on how to use our system/platform|[Open](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/blob/main/assets/User%20Manual.pdf)|
-| Security Document| Outlines the security design of the system |[Open](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/blob/main/assets/Security%20Document.pdf)|
-| Technical Installation Manual| Instructions for system configuration |[Open](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/blob/main/assets/Technical%20Installation%20Manual.pdf)|
-| Testing Policy Document|Testing strategies and findings|[Open](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/blob/main/assets/Testing%20Policy%20Document.pdf)|
-|Service Contracts|A document recording how services work|[Open](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/blob/main/assets/Service%20Contracts.pdf)|
 
-## 📌 Project Management
+For demo videos relating to prior demos, make reference to the [demo documentation](./assets/Demo.md).
 
-- [Github Board](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/projects)
-- [Git structure, oraginzation and management](./assets/documentation/git.md)
+## 🌐 Access the Project
 
-## 💡 Demo
+| Component | Description | Link |
+|------------|--------------|------|
+|**Main Platform** | Access the Secure File Sharing Platform  | [Open SFSP Web App](www.secureshare.co.za) |
+|**Admin Dashboard** | Download the admin dashboard | [Download Admin Dashboard (.exe (Windows))](https://secureshare-admin.netlify.app/) |
 
-| DEMO             |PRESENTATION   |VIDEOS                         |
-|-|-|-|
-| Demo 1    |[Slides 1](https://docs.google.com/presentation/d/1NYigzK_orVRTq1-xzFEi3_q4I8YFSjS2/edit?usp=sharing&ouid=115159733836506972614&rtpof=true&sd=true) |[Video 1](https://drive.google.com/file/d/1VWgY5ylgEroEz-dKcx-yiCANAm-9K6k6/view?usp=sharing)    | 
-| Demo 2    | [Slide 2](https://www.canva.com/design/DAGrfR50GOI/xcjBb7SHhIwkfGc55R_gOg/edit?utm_content=DAGrfR50GOI&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton) |[Video 2]( https://drive.google.com/file/d/1ySAkgAScgtPaQGUHeoMJCuogmPiSj4Eb/view?usp=sharing)  | 
-| Demo 3   |  [Slide 3](https://www.canva.com/design/DAGwV2vrLAg/CouSUxZNz-PbT-EjuHAkLQ/edit?utm_content=DAGwV2vrLAg&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton) |[Video 3](https://drive.google.com/file/d/1mWyc3AtpFqCj9dUFpTf7yRWjGNGelovv/view?usp=sharing)          | 
-| Demo 4   |  [Slide 4](https://www.canva.com/design/DAGz5TrR2bU/4jlBc83_PlRu3_CxcEtnyw/edit?utm_content=DAGz5TrR2bU&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton)   |[Video 4](https://drive.google.com/file/d/1pz00VEXeH07XEQMaXShGCELIm2UcbFSM/view?usp=sharing)           | 
+For admin privileges, please contact the team. 
 
 ## Stakeholders
 
