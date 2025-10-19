@@ -90,7 +90,7 @@ export async function resetPasswordWithRecovery(email, recoveryKey, newPassword,
 
     reportProgress(3, 6, 'Generating new encryption key...');
 
-    // 5. Generate new salt and derive new key from new password (do this BEFORE re-encrypting files)
+    // 5. Generate new salt and derive new key from new password
     const newSalt = sodium.randombytes_buf(sodium.crypto_pwhash_SALTBYTES);
     const newDerivedKey = sodium.crypto_pwhash(
       32,
@@ -102,71 +102,15 @@ export async function resetPasswordWithRecovery(email, recoveryKey, newPassword,
     );
 
     if (userFiles.length > 0) {
-      reportProgress(4, 6, `Re-encrypting ${userFiles.length} file(s)...`);
+      reportProgress(4, 6, `You have ${userFiles.length} file(s) that will be re-encrypted in the background...`);
     } else {
       reportProgress(4, 6, 'No files to re-encrypt...');
     }
 
-    // 6. Re-encrypt all files with the new derived key
-    const reencryptedFiles = [];
-    for (let i = 0; i < userFiles.length; i++) {
-      const file = userFiles[i];
-      reportProgress(4, 6, `Re-encrypting file ${i + 1}/${userFiles.length}: ${file.fileName}`);
+    // Note: File re-encryption will happen in the background on the backend
+    // The user will receive an email when the process completes
 
-      try {
-        // Download encrypted file
-        const downloadUrl = getFileApiUrl('/download');
-        const downloadResponse = await fetch(downloadUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId: user.id,
-            fileId: file.fileId,
-          }),
-        });
-
-        if (!downloadResponse.ok) {
-          console.error(`Failed to download file ${file.fileId}`);
-          continue;
-        }
-
-        const buffer = await downloadResponse.arrayBuffer();
-        const encryptedFile = new Uint8Array(buffer);
-        const oldNonce = downloadResponse.headers.get('x-nonce');
-
-        // Decrypt with old key
-        const decryptedFile = sodium.crypto_secretbox_open_easy(
-          encryptedFile,
-          sodium.from_base64(oldNonce, sodium.base64_variants.ORIGINAL),
-          oldDerivedKey
-        );
-
-        if (!decryptedFile) {
-          console.error(`Failed to decrypt file ${file.fileId}`);
-          continue;
-        }
-
-        // Encrypt with new derived key
-        const newFileNonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
-        const reencryptedFile = sodium.crypto_secretbox_easy(
-          decryptedFile,
-          newFileNonce,
-          newDerivedKey
-        );
-
-        reencryptedFiles.push({
-          fileId: file.fileId,
-          fileName: file.fileName,
-          fileType: file.fileType,
-          nonce: sodium.to_base64(newFileNonce, sodium.base64_variants.ORIGINAL),
-          encryptedContent: sodium.to_base64(reencryptedFile, sodium.base64_variants.ORIGINAL),
-        });
-      } catch (error) {
-        console.error(`Error re-encrypting file ${file.fileId}:`, error);
-      }
-    }
-
-    // 7. Create new recovery backup with same recovery key
+    // 6. Create new recovery backup with same recovery key
     const newRecoveryNonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
     const recoveryKeyBytes = sodium.from_base64(recoveryKey.trim());
     const newRecoveryEncrypted = sodium.crypto_secretbox_easy(
@@ -177,7 +121,8 @@ export async function resetPasswordWithRecovery(email, recoveryKey, newPassword,
 
     reportProgress(5, 6, 'Updating your account...');
 
-    // 8. Call backend API to update password, re-encrypt X3DH keys, and update files
+    // 7. Call backend API to update password and re-encrypt X3DH keys
+    // Files will be re-encrypted in the background
     const resetUrl = getApiUrl('/users/reset-password-with-recovery');
 
     const response = await fetch(resetUrl, {
@@ -193,7 +138,7 @@ export async function resetPasswordWithRecovery(email, recoveryKey, newPassword,
         recovery_key_encrypted: sodium.to_base64(newRecoveryEncrypted),
         recovery_key_nonce: sodium.to_base64(newRecoveryNonce),
         oldNonce: user.nonce,
-        reencryptedFiles, // Send re-encrypted files to backend
+        fileCount: userFiles.length, // Send file count for background processing
       }),
     });
 
@@ -208,9 +153,15 @@ export async function resetPasswordWithRecovery(email, recoveryKey, newPassword,
 
     reportProgress(6, 6, 'Password reset complete!');
 
+    // Build appropriate success message based on file count
+    let successMessage = 'Password reset successfully! You can now log in with your new password.';
+    if (userFiles.length > 0) {
+      successMessage += ` Your ${userFiles.length} file(s) are being re-encrypted in the background. You will receive an email confirmation when the process completes.`;
+    }
+
     return {
       success: true,
-      message: 'Password reset successfully! All your files have been re-encrypted. You can now log in with your new password.',
+      message: successMessage,
       data: result.data,
     };
 
