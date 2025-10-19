@@ -753,7 +753,7 @@ class UserController {
         }
 
         try {
-          const postgresRes = await axios.post(
+          await axios.post(
             `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/addUser`,
             { userId: user.id },
             { headers: { "Content-Type": "application/json" } }
@@ -815,7 +815,7 @@ class UserController {
         }
 
         try {
-          const postgresRes = await axios.post(
+          await axios.post(
             `${process.env.FILE_SERVICE_URL || "http://localhost:8081"}/addUser`,
             { userId: user.id },
             { headers: { "Content-Type": "application/json" } }

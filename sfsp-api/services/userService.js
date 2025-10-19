@@ -1,4 +1,3 @@
-/* global process */
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
@@ -177,7 +176,7 @@ class UserService {
         let opkArray;
         try {
           opkArray = JSON.parse(opks_public);
-        } catch (e) {
+        } catch {
           throw new Error("OPKs format is invalid JSON");
         }
 
@@ -666,7 +665,7 @@ class UserService {
       this.verifyToken(token);
 
       return true;
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -763,7 +762,7 @@ class UserService {
       }
 
       return data.notification_settings[category]?.[notificationType] || false;
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -823,7 +822,7 @@ class UserService {
 
       const keyBundleResult = await vault.retrieveKeyBundle(userId);
 
-      if (!keyBundleResult || !keyBundleResult.data) {
+      if (!keyBundleResult || !keyBundleResult.data || !keyBundleResult.data.data) {
         throw new Error("Failed to retrieve key bundle from vault");
       }
 
@@ -831,7 +830,7 @@ class UserService {
         ik_private_key: encryptedIkPrivate,
         spk_private_key: spkPrivate,
         opks_private: encryptedOpks,
-      } = keyBundleResult.data?.data;
+      } = keyBundleResult.data.data;
 
       // 4. Decrypt keys with old derived key (from recovery)
       // Note: Keys are base64 encoded in vault, need to decode

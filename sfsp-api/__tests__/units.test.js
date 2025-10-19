@@ -1,6 +1,3 @@
-/* global describe, it, expect, beforeEach, afterEach, jest */
-
-// Create mock functions before they're used
 const mockStoreKeyBundle = jest.fn();
 const mockRetrieveKeyBundle = jest.fn();
 
@@ -41,14 +38,12 @@ global.mockVaultController = {
 
 describe('UserController Unit Tests', () => {
     let req, res;
-    let VaultController;
 
     beforeEach(() => {
         jest.clearAllMocks();
 
         // Get the mocked VaultController constructor
-        const VaultControllerClass = require('../controllers/vaultController');
-        VaultController = new VaultControllerClass();
+        require('../controllers/vaultController');
 
         req = {
             body: {},
