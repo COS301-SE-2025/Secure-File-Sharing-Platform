@@ -21,7 +21,7 @@ function App() {
   const [toast, setToast] = useState({ message: "", type: "" });
 
 
-  const [token, setToken] = useState(null);
+  const [setToken] = useState(null);
 
   const focusInput = (index) => {
     const input = inputRefs.current[index];

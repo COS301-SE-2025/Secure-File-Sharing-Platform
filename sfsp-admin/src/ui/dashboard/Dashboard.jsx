@@ -4,13 +4,6 @@ import { useNavigate } from "react-router-dom";
 import { Users, UserX, AlertTriangle, ExternalLink, Activity, Shield, Trash2 } from "lucide-react";
 import { adminFetch } from '../../api/api_config.js';
 
-// const navigationItems = [
-//   { title: "Dashboard", url: "/dashboard" },
-//   { title: "Users", url: "/users" },
-//   { title: "Blocked Users", url: "/blocked-users" },
-//   { title: "Reports", url: "/reports" },
-// ];
-
 function Dashboard() {
   const [stats, setStats] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
