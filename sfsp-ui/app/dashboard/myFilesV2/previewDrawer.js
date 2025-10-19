@@ -250,27 +250,35 @@ export function PreviewDrawer({
 
 
                 case "video":
-  return content?.url ? (
-     <div className="relative w-full max-h-64" onContextMenu={(e) => e.preventDefault()}> 
-      <video src={content.url} controls className="w-full max-h-64 rounded" />
-      {/* Watermark overlay */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <img
-          src="/img/secureshare-logo.png"
-          className="opacity-70 w-1/5"
-          alt="Watermark"
-        />
-        <span className="absolute text-red-500 text-2xl opacity-50">
-          {user?.username}
-        </span>
-      </div>
-    </div>
-  ) : null;
+		  return content?.url ? (
+		     <div className="relative w-full max-h-64" onContextMenu={(e) => e.preventDefault()}> 
+		      <video src={content.url} controlsList="nodownload" controls  className="w-full max-h-64 rounded" />
+		      {/* Watermark overlay */}
+		      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+			<img
+			  src="/img/secureshare-logo.png"
+			  className="opacity-70 w-1/5"
+			  alt="Watermark"
+			/>
+			<span className="absolute text-red-500 text-2xl opacity-50">
+			  {user?.username}
+			</span>
+		      </div>
+		    </div>
+		  ) : null;
 
                 case "audio":
                   return content?.url ? (
-                    <audio controls src={content.url} className="w-full mt-2" />
+                      <audio id="audio-element" controlsList="nodownload" controls className="w-full rounded-lg p-2 bg-gray-200 border border-gray-400">
+		      <source
+			src={content.url}
+			type="audio/mpeg"
+		      />
+		      Your browser does not support the audio element.
+		    </audio>
                   ) : null;
+                  
+       
 
                 case "pdf":
   return content?.url ? (

@@ -80,61 +80,67 @@ export function FullViewModal({ file, content, onClose }) {
               {(() => {
                 switch (file?.type) {
                   case "image":
-  return content?.url ? (
-    <div
-      className="relative flex justify-center items-center w-full max-w-3xl mx-auto"
-      onContextMenu={(e) => e.preventDefault()}
-    >
-      <img
-        src={content.url}
-        alt="Preview"
-        className="w-full h-auto rounded shadow-lg object-contain max-h-[80vh]"
-      />
-      {/* Watermark overlay */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <img
-          src="/img/secureshare-logo.png"
-          className="opacity-50 w-1/3 max-w-[250px]"
-          alt="Watermark"
-        />
-        <span className="absolute text-red-500 text-4xl font-bold opacity-40">
-          {user?.username}
-        </span>
-      </div>
-    </div>
-  ) : null;
+		  return content?.url ? (
+		    <div
+		      className="relative flex justify-center items-center w-full max-w-3xl mx-auto"
+		      onContextMenu={(e) => e.preventDefault()}
+		    >
+		      <img
+			src={content.url}
+			alt="Preview"
+			className="w-full h-auto rounded shadow-lg object-contain max-h-[80vh]"
+		      />
+		      {/* Watermark overlay */}
+		      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+			<img
+			  src="/img/secureshare-logo.png"
+			  className="opacity-50 w-1/3 max-w-[250px]"
+			  alt="Watermark"
+			/>
+			<span className="absolute text-red-500 text-4xl font-bold opacity-40">
+			  {user?.username}
+			</span>
+		      </div>
+		    </div>
+		  ) : null;
 
-case "video":
-  return content?.url ? (
-    <div
-      className="relative w-full max-w-3xl mx-auto flex justify-center"
-      onContextMenu={(e) => e.preventDefault()}
-    >
-      <video
-        src={content.url}
-        controls
-        className="w-full h-auto rounded shadow-lg object-contain max-h-[80vh]"
-      />
-      {/* Watermark overlay */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <img
-          src="/img/secureshare-logo.png"
-          className="opacity-50 w-1/3 max-w-[250px]"
-          alt="Watermark"
-        />
-        <span className="absolute text-red-500 text-4xl font-bold opacity-40">
-          {user?.username}
-        </span>
-      </div>
-    </div>
-  ) : null;
+		case "video":
+		  return content?.url ? (
+		    <div
+		      className="relative w-full max-w-3xl mx-auto flex justify-center"
+		      onContextMenu={(e) => e.preventDefault()}
+		    >
+		      <video
+			src={content.url}
+			 controlsList="nodownload" 
+			controls
+			className="w-full h-auto rounded shadow-lg object-contain max-h-[80vh]"
+		      />
+		      {/* Watermark overlay */}
+		      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+			<img
+			  src="/img/secureshare-logo.png"
+			  className="opacity-50 w-1/3 max-w-[250px]"
+			  alt="Watermark"
+			/>
+			<span className="absolute text-red-500 text-4xl font-bold opacity-40">
+			  {user?.username}
+			</span>
+		      </div>
+		    </div>
+		  ) : null;
 
 
-                case "audio":
+                  case "audio":
                   return content?.url ? (
-                    <audio controls src={content.url} className="w-full mt-2" />
+                      <audio id="audio-element" controlsList="nodownload" controls className="w-full rounded-lg p-2 bg-gray-200 border border-gray-400">
+		      <source
+			src={content.url}
+			type="audio/mpeg"
+		      />
+		      Your browser does not support the audio element.
+		    </audio>
                   ) : null;
-
           case "pdf":
   return content?.url ? (
     <div
