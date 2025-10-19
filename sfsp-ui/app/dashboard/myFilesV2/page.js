@@ -15,6 +15,8 @@ import { getSodium } from "@/app/lib/sodium";
 import { PreviewDrawer } from "./previewDrawer";
 import dynamic from "next/dynamic";
 import { getApiUrl, getFileApiUrl } from "@/lib/api-config";
+import { PDFDocument, rgb } from "pdf-lib";
+
 
 const FullViewModal = dynamic(
   () =>
@@ -923,56 +925,17 @@ export default function MyFiles() {
     let textFull = null;
 
     if (file.type === "image") {
-      if (typeof window === "undefined") return;
-
-      const imgBlob = new Blob([result.decrypted], { type: file.type });
-      const imgBitmap = await createImageBitmap(imgBlob);
-
-      const canvas = document.createElement("canvas");
-      canvas.width = imgBitmap.width;
-      canvas.height = imgBitmap.height;
-      const ctx = canvas.getContext("2d");
-
-      ctx.drawImage(imgBitmap, 0, 0);
-
-      //watermark text
-      const fontSize = Math.floor(imgBitmap.width / 20);
-      ctx.font = `${fontSize}px Arial`;
-      ctx.fillStyle = "rgba(255, 0, 0, 0.4)";
-      ctx.textAlign = "center";
-      ctx.fillText(username, imgBitmap.width / 2, imgBitmap.height / 2);
-      
-      //watermark logo 
-      const logo = new window.Image();
-      logo.src = "/img/secureshare-logo.png"; 
-
-      await new Promise((resolve) => {
-        logo.onload = () => {
-          const logoWidth = imgBitmap.width / 5;
-          const logoHeight = (logo.height / logo.width) * logoWidth;
-          const x = (imgBitmap.width - logoWidth)/2
-          const y = (imgBitmap.height - logoHeight)/2
-
-          ctx.globalAlpha = 0.7;
-          ctx.drawImage(logo, x, y, logoWidth, logoHeight);
-          ctx.globalAlpha = 1.0;
-
-          resolve();
-        };
-
-        logo.onerror = () => {
-          console.warn("Failed to load logo");
-          resolve();
-        };
-      });
-      contentUrl = canvas.toDataURL(file.type);
+        contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
     } else if (file.type === "pdf") {
       contentUrl = URL.createObjectURL(
         new Blob([result.decrypted], { type: "application/pdf" })
       );
-    } else if (file.type === "video" || file.type === "audio") {
+       } 
+
+else if (file.type === "video" || file.type === "audio") {
       contentUrl = URL.createObjectURL(new Blob([result.decrypted]));
-    } else if (
+    }
+ else if (
       [
         "txt",
         "json",
@@ -1101,7 +1064,7 @@ export default function MyFiles() {
       //watermark text
       const fontSize = Math.floor(imgBitmap.width / 20);
       ctx.font = `${fontSize}px Arial`;
-      ctx.fillStyle = "rgba(255, 0, 0, 0.4)";
+      ctx.fillStyle = "rgb(255, 0, 0, 0.4)";
       ctx.textAlign = "center";
       ctx.fillText(username, imgBitmap.width / 2, imgBitmap.height / 2);
       
