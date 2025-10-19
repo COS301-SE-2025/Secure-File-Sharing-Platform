@@ -8,7 +8,8 @@
 [![GitHub issues](https://img.shields.io/github/issues/COS301-SE-2025/Secure-File-Sharing-Platform)](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/issues)
 [![Build Status](https://img.shields.io/badge/Build_Status-GitHub_Actions-brightgreen)](https://github.com/COS301-SE-2025/Secure-File-Sharing-Platform/actions)
 [![codecov](https://codecov.io/gh/COS301-SE-2025/Secure-File-Sharing-Platform/graph/badge.svg?token=JTZ22LJTCE)](https://codecov.io/gh/COS301-SE-2025/Secure-File-Sharing-Platform)
-![Uptime status](https://img.shields.io/uptimerobot/status/m797015486-75c486778a8f87b141372bd7)
+[![Uptime Status](https://img.shields.io/uptimerobot/status/m801472639-cd73e8a4c126b8eb9502d685?apikey=ur3121569-f27f1e8d99d95924effc922d)](https://stats.uptimerobot.com/F3krGOgds1)
+
 
 ![Next.js](https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=next.js&logoColor=white)
 ![TailwindCSS](https://img.shields.io/badge/TailwindCSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
