@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { setAuthToken } from "@/app/lib/auth";
 import Loader from "@/app/dashboard/components/Loader";
 import Image from "next/image";
 
@@ -102,7 +103,8 @@ function VerifyEmailInner() {
 
                 if (jwtResponse.ok) {
                     const { token } = await jwtResponse.json();
-                    localStorage.setItem("token", token.replace(/^Bearer\s/, ""));
+                    setAuthToken(token.replace(/^Bearer\s/, ""));
+                    // localStorage.setItem("token", token.replace(/^Bearer\s/, "")); previous line
 
                     // Clear the pending verification flag
                     sessionStorage.removeItem("pendingVerification");
@@ -243,7 +245,8 @@ function VerifyEmailInner() {
             });
 
             const rawToken = token.replace(/^Bearer\s/, "");
-            localStorage.setItem("token", rawToken);
+            setAuthToken(token.replace(/^Bearer\s/, ""));
+            // localStorage.setItem("token", rawToken); previous line
 
             // Clean up pending login data
             sessionStorage.removeItem("pendingLogin");

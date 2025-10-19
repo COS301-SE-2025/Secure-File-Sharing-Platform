@@ -16,6 +16,7 @@ export const logout = () => {
     store.setEncryptionKey(null);
     store.setUserId(null);
     store.setUserKeys(null);
+    store.setToken(null);
   } catch (error) {
     console.error("Error during logout:", error);
   }
@@ -27,7 +28,8 @@ export const isAuthenticated = () => {
       return false;
     }
 
-    const token = localStorage.getItem("token");
+    // const token = localStorage.getItem("token"); previous line
+    const token = getAuthToken();
     const userId = useEncryptionStore.getState().userId;
     const userKeys = useEncryptionStore.getState().userKeys;
     console.log("isAuthenticated check:", { token, userId, userKeys });
@@ -41,9 +43,20 @@ export const isAuthenticated = () => {
 
 export const getAuthToken = () => {
   try {
-    return localStorage.getItem("token");
+    const token = useEncryptionStore.getState().token;
+    return token || localStorage.getItem("token");
   } catch (error) {
     console.error("Error getting auth token:", error);
     return null;
+  }
+};
+
+// newly added function to assist with setting token
+export const setAuthToken = (token) => {
+  try {
+    useEncryptionStore.getState().setToken(token);
+    localStorage.setItem("token", token);
+  } catch (error) {
+    console.error("Error setting auth token:", error);
   }
 };
