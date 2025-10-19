@@ -1,89 +1,80 @@
-import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
-import { BrowserRouter } from "react-router-dom";
-import Dashboard from "../ui/dashboard/Dashboard";
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { BrowserRouter } from 'react-router-dom';
+import Dashboard from '../ui/dashboard/Dashboard';
 
-// Mock fetch globally
-beforeAll(() => {
-  global.fetch = jest.fn();
-});
-
-afterAll(() => {
-  global.fetch.mockRestore();
-});
+// Mock adminFetch
+jest.mock('../api/api_config', () => ({
+  adminFetch: jest.fn(),
+}));
 
 beforeEach(() => {
-  localStorage.setItem(
-    "user",
-    JSON.stringify({ email: "testuser@example.com" })
-  );
-  global.fetch = jest.fn((url) =>
-    Promise.resolve({
-      json: () => {
-        if (url.includes("announcements")) {
-          return Promise.resolve({
-            success: true,
-            announcements: [
-              {
-                id: 1,
-                title: "Announcement 1",
-                content: "Details",
-                user: "testuser@example.com",
-                severity: "success",
-                created_at: "2023-10-01T12:00:00Z",
-              },
-              {
-                id: 2,
-                title: "Announcement 2",
-                content: "Warning",
-                user: "testuser@example.com",
-                severity: "medium",
-                created_at: "2023-10-02T12:00:00Z",
-              },
-              {
-                id: 3,
-                title: "Announcement 3",
-                content: "Danger",
-                user: "otheruser@example.com",
-                severity: "high",
-                created_at: "2023-10-03T12:00:00Z",
-              },
-            ],
-          });
-        } else if (url.includes("stats")) {
-          return Promise.resolve({
-            success: true,
-            stats: { totalUsers: 10, blockedUsers: 2, pendingReports: 1 },
-          });
-        }
-      },
-    })
-  );
+  localStorage.setItem('user', JSON.stringify({ email: 'testuser@example.com' }));
+  jest.clearAllMocks();
+  jest.mocked(require('../api/api_config').adminFetch).mockImplementation((url, options = {}) => {
+    if (url.includes('/dashboard/stats')) {
+      return Promise.resolve({
+        success: true,
+        stats: { totalUsers: 10, blockedUsers: 2, pendingReports: 1 },
+      });
+    }
+    if (url.includes('/announcements') && !options.method) {
+      return Promise.resolve({
+        success: true,
+        announcements: [
+          {
+            id: 1,
+            action: 'Announcement 1',
+            info: 'Details',
+            user: 'testuser@example.com',
+            severity: 'success',
+            created_at: '2023-10-01T12:00:00Z',
+          },
+          {
+            id: 2,
+            action: 'Announcement 2',
+            info: 'Warning',
+            user: 'testuser@example.com',
+            severity: 'medium',
+            created_at: '2023-10-02T12:00:00Z',
+          },
+          {
+            id: 3,
+            action: 'Announcement 3',
+            info: 'Danger',
+            user: 'otheruser@example.com',
+            severity: 'high',
+            created_at: '2023-10-03T12:00:00Z',
+          },
+        ],
+      });
+    }
+    if (url.includes('/announcements') && options.method === 'POST') {
+      return Promise.resolve({
+        success: true,
+        announcement: {
+          id: 4,
+          action: options.body.action,
+          info: options.body.info || 'No details',
+          user: 'testuser@example.com',
+          severity: options.body.severity,
+          created_at: '2023-10-04T12:00:00Z',
+        },
+      });
+    }
+    if (url.includes('/announcements') && options.method === 'DELETE') {
+      return Promise.resolve({ success: true });
+    }
+    return Promise.resolve({ success: true, announcements: [] });
+  });
 });
 
 afterEach(() => {
-  jest.restoreAllMocks();
+  jest.resetAllMocks();
   localStorage.clear();
 });
 
-describe("Dashboard Component", () => {
-  test("renders stats correctly", async () => {
-    await act(async () => {
-      render(
-        <BrowserRouter>
-          <Dashboard />
-        </BrowserRouter>
-      );
-    });
-
-    expect(await screen.findByText("Active Users")).toBeInTheDocument();
-    expect(screen.getByText("Blocked Users")).toBeInTheDocument();
-    expect(screen.getByText("Pending Reports")).toBeInTheDocument();
-    expect(screen.getByText("10")).toBeInTheDocument();
-    expect(screen.getByText("2")).toBeInTheDocument();
-    expect(screen.getByText("1")).toBeInTheDocument();
-  });
-
-  test("renders announcements with correct severity colors", async () => {
+describe('Dashboard Component', () => {
+  test('renders header and open website button', async () => {
     await act(async () => {
       render(
         <BrowserRouter>
@@ -93,38 +84,62 @@ describe("Dashboard Component", () => {
     });
 
     await waitFor(() => {
-      const activityItems = document.querySelectorAll(".activity-item");
+      expect(screen.getByText('Dashboard')).toBeInTheDocument();
+      expect(screen.getByText('Secure file sharing administration portal')).toBeInTheDocument();
+      expect(screen.getByText('Open Website')).toBeInTheDocument();
+    });
+  });
+
+  test('renders stats correctly', async () => {
+    await act(async () => {
+      render(
+        <BrowserRouter>
+          <Dashboard />
+        </BrowserRouter>
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Active Users')).toBeInTheDocument();
+      expect(screen.getByText('Blocked Users')).toBeInTheDocument();
+      expect(screen.getByText('Pending Reports')).toBeInTheDocument();
+      expect(screen.getByText('10')).toBeInTheDocument();
+      expect(screen.getByText('2')).toBeInTheDocument();
+      expect(screen.getByText('1')).toBeInTheDocument();
+    });
+  });
+
+  test('renders announcements with correct severity colors', async () => {
+    await act(async () => {
+      render(
+        <BrowserRouter>
+          <Dashboard />
+        </BrowserRouter>
+      );
+    });
+
+    await waitFor(() => {
+      const activityItems = document.querySelectorAll('.activity-item');
       expect(activityItems.length).toBe(3);
-      expect(activityItems[0].querySelector(".dot.success")).toBeInTheDocument();
-      expect(activityItems[1].querySelector(".dot.warning")).toBeInTheDocument();
-      expect(activityItems[2].querySelector(".dot.danger")).toBeInTheDocument();
+      expect(activityItems[0].querySelector('.dot.success')).toBeInTheDocument();
+      expect(activityItems[1].querySelector('.dot.warning')).toBeInTheDocument();
+      expect(activityItems[2].querySelector('.dot.danger')).toBeInTheDocument();
+      expect(screen.getByText('Announcement 1')).toBeInTheDocument();
+      expect(screen.getByText('Announcement 2')).toBeInTheDocument();
+      expect(screen.getByText('Announcement 3')).toBeInTheDocument();
     });
   });
 
-  // test("handles failed fetch stats", async () => {
-  //   fetch.mockRejectedValueOnce(new Error("Network error"));
-
-  //   await act(async () => {
-  //     render(
-  //       <BrowserRouter>
-  //         <Dashboard />
-  //       </BrowserRouter>
-  //     );
-  //   });
-
-  //   expect(fetch).toHaveBeenCalledWith("http://localhost:5000/api/admin/dashboard/stats");
-  //   expect(screen.getByText("0")).toBeInTheDocument(); // Fallback value
-  // });
-
-  test("handles failed fetch announcements", async () => {
-    fetch
-      .mockResolvedValueOnce({
-        json: async () => ({
-          success: true,
-          stats: { totalUsers: 10, blockedUsers: 2, pendingReports: 1 },
-        }),
-      })
-      .mockRejectedValueOnce(new Error("Network error"));
+  test('handles failed fetch stats', async () => {
+    jest.mocked(require('../api/api_config').adminFetch).mockImplementation((url) => {
+      if (url.includes('/dashboard/stats')) {
+        throw new Error('Network error');
+      }
+      return Promise.resolve({
+        success: true,
+        announcements: [],
+      });
+    });
 
     await act(async () => {
       render(
@@ -134,105 +149,15 @@ describe("Dashboard Component", () => {
       );
     });
 
-    expect(fetch).toHaveBeenCalledWith("http://localhost:5000/api/admin/announcements");
-    expect(document.querySelectorAll(".activity-item").length).toBe(0);
+    await waitFor(() => {
+      expect(screen.getByText('Active Users')).toBeInTheDocument();
+      expect(screen.getByText('Blocked Users')).toBeInTheDocument();
+      expect(screen.getByText('Pending Reports')).toBeInTheDocument();
+      expect(screen.getAllByText('0').length).toBe(3);
+    });
   });
 
-  // test("quick actions navigate to correct pages", async () => {
-  //   const mockNavigate = jest.fn();
-  //   jest.spyOn(require("react-router-dom"), "useNavigate").mockReturnValue(mockNavigate);
-
-  //   await act(async () => {
-  //     render(
-  //       <BrowserRouter>
-  //         <Dashboard />
-  //       </BrowserRouter>
-  //     );
-  //   });
-
-  //   const viewAllUsersBtn = screen.getByText(/View All Users/i);
-  //   const manageBlockedBtn = screen.getByText(/Manage Blocked Users/i);
-  //   const reviewReportsBtn = screen.getByText(/Review Reports/i);
-
-  //   fireEvent.click(viewAllUsersBtn);
-  //   fireEvent.click(manageBlockedBtn);
-  //   fireEvent.click(reviewReportsBtn);
-
-  //   expect(mockNavigate).toHaveBeenCalledWith("/users");
-  //   expect(mockNavigate).toHaveBeenCalledWith("/blocked-users");
-  //   expect(mockNavigate).toHaveBeenCalledWith("/reports");
-  // });
-
-  // test("opens and closes announcement info modal", async () => {
-  //   await act(async () => {
-  //     render(
-  //       <BrowserRouter>
-  //         <Dashboard />
-  //       </BrowserRouter>
-  //     );
-  //   });
-
-  //   const infoBtn = await screen.findAllByText("i")[0];
-  //   fireEvent.click(infoBtn);
-
-  //   await waitFor(() => {
-  //     expect(screen.getByText("Announcement Details")).toBeInTheDocument();
-  //     expect(screen.getByText("Announcement 1")).toBeInTheDocument();
-  //   });
-
-  //   const closeBtn = screen.getByText("Close");
-  //   fireEvent.click(closeBtn);
-
-  //   await waitFor(() => {
-  //     expect(screen.queryByText("Announcement Details")).not.toBeInTheDocument();
-  //   });
-  // });
-
-  // test("adds new announcement", async () => {
-  //   fetch.mockResolvedValueOnce({
-  //     json: async () => ({
-  //       success: true,
-  //       announcement: {
-  //         id: 4,
-  //         action: "New Action",
-  //         info: "New Info",
-  //         user: "testuser@example.com",
-  //         severity: "success",
-  //         created_at: "2023-10-04T12:00:00Z",
-  //       },
-  //     }),
-  //   });
-
-  //   await act(async () => {
-  //     render(
-  //       <BrowserRouter>
-  //         <Dashboard />
-  //       </BrowserRouter>
-  //     );
-  //   });
-
-  //   const addBtn = screen.getByText("+");
-  //   fireEvent.click(addBtn);
-
-  //   const actionInput = screen.getByPlaceholderText("Action");
-  //   const infoInput = screen.getByPlaceholderText("Info");
-  //   const severitySelect = screen.getByRole("combobox");
-
-  //   fireEvent.change(actionInput, { target: { value: "New Action" } });
-  //   fireEvent.change(infoInput, { target: { value: "New Info" } });
-  //   fireEvent.change(severitySelect, { target: { value: "success" } });
-
-  //   const addButton = screen.getByText("Add");
-  //   await act(async () => {
-  //     fireEvent.click(addButton);
-  //   });
-
-  //   await waitFor(() => {
-  //     expect(screen.getByText("New Action")).toBeInTheDocument();
-  //   });
-  // });
-
-  test("handles add announcement with missing action", async () => {
+  test('handles add announcement with missing action', async () => {
     await act(async () => {
       render(
         <BrowserRouter>
@@ -241,41 +166,48 @@ describe("Dashboard Component", () => {
       );
     });
 
-    const addBtn = screen.getByText("+");
+    const addBtn = screen.getByText('+');
     fireEvent.click(addBtn);
 
-    const addButton = screen.getByText("Add");
+    const addButton = screen.getByText('Add');
     await act(async () => {
       fireEvent.click(addButton);
     });
 
-    expect(screen.getByText("Add Announcement")).toBeInTheDocument(); // Modal stays open
+    await waitFor(() => {
+      expect(screen.getByText('Add Announcement')).toBeInTheDocument();
+    });
   });
 
-  test("handles add announcement network error", async () => {
-    fetch
-      .mockResolvedValueOnce({
-        json: async () => ({
+
+  test('handles add announcement network error', async () => {
+    jest.mocked(require('../api/api_config').adminFetch).mockImplementation((url, options = {}) => {
+      if (url.includes('/dashboard/stats')) {
+        return Promise.resolve({
           success: true,
           stats: { totalUsers: 10, blockedUsers: 2, pendingReports: 1 },
-        }),
-      })
-      .mockResolvedValueOnce({
-        json: async () => ({
+        });
+      }
+      if (url.includes('/announcements') && !options.method) {
+        return Promise.resolve({
           success: true,
           announcements: [
             {
               id: 1,
-              title: "Announcement 1",
-              content: "Details",
-              user: "testuser@example.com",
-              severity: "success",
-              created_at: "2023-10-01T12:00:00Z",
+              action: 'Announcement 1',
+              info: 'Details',
+              user: 'testuser@example.com',
+              severity: 'success',
+              created_at: '2023-10-01T12:00:00Z',
             },
           ],
-        }),
-      })
-      .mockRejectedValueOnce(new Error("Network error"));
+        });
+      }
+      if (url.includes('/announcements') && options.method === 'POST') {
+        throw new Error('Network error');
+      }
+      return Promise.resolve({ success: true, announcements: [] });
+    });
 
     await act(async () => {
       render(
@@ -285,23 +217,23 @@ describe("Dashboard Component", () => {
       );
     });
 
-    const addBtn = screen.getByText("+");
+    const addBtn = screen.getByText('+');
     fireEvent.click(addBtn);
 
-    const actionInput = screen.getByPlaceholderText("Action");
-    fireEvent.change(actionInput, { target: { value: "New Action" } });
+    const actionInput = screen.getByPlaceholderText('Action');
+    fireEvent.change(actionInput, { target: { value: 'New Announcement' } });
 
-    const addButton = screen.getByText("Add");
+    const addButton = screen.getByText('Add');
     await act(async () => {
       fireEvent.click(addButton);
     });
 
     await waitFor(() => {
-      expect(screen.queryByText("New Action")).not.toBeInTheDocument();
+      expect(screen.queryByText('New Announcement')).not.toBeInTheDocument();
     });
   });
 
-  test("opens and closes manage announcements modal", async () => {
+  test('opens and closes manage announcements modal', async () => {
     await act(async () => {
       render(
         <BrowserRouter>
@@ -310,102 +242,29 @@ describe("Dashboard Component", () => {
       );
     });
 
-    const manageBtn = screen.getByText("Manage");
+    const manageBtn = screen.getByText('Manage');
     fireEvent.click(manageBtn);
 
-    expect(await screen.findByText("Manage Your Announcements")).toBeInTheDocument();
+    expect(await screen.findByText('Manage Your Announcements')).toBeInTheDocument();
 
-    const closeBtn = screen.getByText("Close");
+    const closeBtn = screen.getByText('Close');
     fireEvent.click(closeBtn);
 
     await waitFor(() => {
-      expect(screen.queryByText("Manage Your Announcements")).not.toBeInTheDocument();
+      expect(screen.queryByText('Manage Your Announcements')).not.toBeInTheDocument();
     });
   });
 
-  // test("deletes announcement", async () => {
-  //   fetch.mockResolvedValueOnce({
-  //     json: async () => ({ success: true }),
-  //   });
-
-  //   await act(async () => {
-  //     render(
-  //       <BrowserRouter>
-  //         <Dashboard />
-  //       </BrowserRouter>
-  //     );
-  //   });
-
-  //   const manageBtn = screen.getByText("Manage");
-  //   fireEvent.click(manageBtn);
-
-  //   const deleteBtn = await screen.findAllByRole("button", { name: "" })[0]; // Trash2 button
-  //   await act(async () => {
-  //     fireEvent.click(deleteBtn);
-  //   });
-
-  //   await waitFor(() => {
-  //     expect(screen.queryByText("Announcement 1")).not.toBeInTheDocument();
-  //   });
-  // });
-
-  // test("handles delete announcement network error", async () => {
-  //   fetch
-  //     .mockResolvedValueOnce({
-  //       json: async () => ({
-  //         success: true,
-  //         stats: { totalUsers: 10, blockedUsers: 2, pendingReports: 1 },
-  //       }),
-  //     })
-  //     .mockResolvedValueOnce({
-  //       json: async () => ({
-  //         success: true,
-  //         announcements: [
-  //           {
-  //             id: 1,
-  //             title: "Announcement 1",
-  //             content: "Details",
-  //             user: "testuser@example.com",
-  //             severity: "success",
-  //             created_at: "2023-10-01T12:00:00Z",
-  //           },
-  //         ],
-  //       }),
-  //     })
-  //     .mockRejectedValueOnce(new Error("Network error"));
-
-  //   await act(async () => {
-  //     render(
-  //       <BrowserRouter>
-  //         <Dashboard />
-  //       </BrowserRouter>
-  //     );
-  //   });
-
-  //   const manageBtn = screen.getByText("Manage");
-  //   fireEvent.click(manageBtn);
-
-  //   const deleteBtn = await screen.findAllByRole("button", { name: "" })[0]; // Trash2 button
-  //   await act(async () => {
-  //     fireEvent.click(deleteBtn);
-  //   });
-
-  //   await waitFor(() => {
-  //     expect(screen.getByText("Announcement 1")).toBeInTheDocument(); // Still present
-  //   });
-  // });
-
-  test("renders no announcements message in manage modal", async () => {
-    fetch
-      .mockResolvedValueOnce({
-        json: async () => ({
+  test('renders no announcements message in manage modal', async () => {
+    jest.mocked(require('../api/api_config').adminFetch).mockImplementation((url) => {
+      if (url.includes('/dashboard/stats')) {
+        return Promise.resolve({
           success: true,
           stats: { totalUsers: 10, blockedUsers: 2, pendingReports: 1 },
-        }),
-      })
-      .mockResolvedValueOnce({
-        json: async () => ({ success: true, announcements: [] }),
-      });
+        });
+      }
+      return Promise.resolve({ success: true, announcements: [] });
+    });
 
     await act(async () => {
       render(
@@ -415,9 +274,10 @@ describe("Dashboard Component", () => {
       );
     });
 
-    const manageBtn = screen.getByText("Manage");
+    const manageBtn = screen.getByText('Manage');
     fireEvent.click(manageBtn);
 
-    expect(await screen.findByText("No announcements posted by you.")).toBeInTheDocument();
+    expect(await screen.findByText('No announcements posted by you.')).toBeInTheDocument();
   });
+
 });
