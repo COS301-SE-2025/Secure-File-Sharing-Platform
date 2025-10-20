@@ -247,7 +247,7 @@ For demo videos relating to prior demos, make reference to the [demo documentati
 
 | Component | Description | Link |
 |------------|--------------|------|
-|**Main Platform** | Access the Secure File Sharing Platform  | [Open SFSP Web App](www.secureshare.co.za) |
+|**Main Platform** | Access the Secure File Sharing Platform  | [Open SFSP Web App](https://www.secureshare.co.za/) |
 |**Admin Dashboard** | Download the admin dashboard | [Download Admin Dashboard (.exe (Windows))](https://secureshare-admin.netlify.app/) |
 
 For admin privileges, please contact the team. 
