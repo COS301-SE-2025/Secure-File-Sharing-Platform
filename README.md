@@ -238,6 +238,15 @@ professional data.
 
 ## 💡 Project Demo Video
 
+<iframe 
+  src="https://drive.google.com/file/d/1CRDzhd5BXvAYxRMaxxT4zIbo8YTSEUBm/preview" 
+  width="640" 
+  height="360" 
+  allow="autoplay">
+</iframe>
+
+[![Watch the video](https://drive.google.com/thumbnail?id=1CRDzhd5BXvAYxRMaxxT4zIbo8YTSEUBm)](https://drive.google.com/file/d/1CRDzhd5BXvAYxRMaxxT4zIbo8YTSEUBm/view)
+
 
 For demo videos relating to prior demos, make reference to the [demo documentation](./assets/Demo.md).
 
