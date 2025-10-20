@@ -243,6 +243,21 @@ professional data.
 
 For demo videos relating to prior demos, make reference to the [demo documentation](./assets/Demo.md).
 
+## Research
+
+Research done for this project includes research done in regards to security concepts and encryption methods to ensure a privacy first design.
+
+### 📚 Reference Materials
+
+These are some of the resources that informed the project’s direction and implementation: 
+- Proton. (n.d.). Get a free, secure, and private email with Proton Mail. [online] Available at: https://proton.me/mail.
+- MIT OpenCourseWare (2019). How To Speak by Patrick Winston. YouTube. Available at: https://www.youtube.com/watch?v=Unzc731iCUY.
+- Arcserve (2023). 5 common encryption algorithms and the unbreakables of the future. [online] Arcserve. Available at: https://www.arcserve.com/blog/5-common-encryption-algorithms-and-unbreakables-future.
+- González, J.A. (2024). 3 Types of Encryption - Detailed Guide with Pros & Cons. [online] Sealpath. Available at: https://www.sealpath.com/blog/types-of-encryption-guide/.
+- ‌Wikipedia Contributors (2019). Public key infrastructure. [online] Wikipedia. Available at: https://en.wikipedia.org/wiki/Public_key_infrastructure.
+
+
+
 ## 🌐 Access the Project
 
 | Component | Description | Link |
