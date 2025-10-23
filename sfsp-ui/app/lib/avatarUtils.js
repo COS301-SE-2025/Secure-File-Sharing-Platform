@@ -37,7 +37,7 @@ export function UserAvatar({
     alt = "Avatar"
 }) {
     return (
-        <div className={`${size} bg-gray-300 rounded-full overflow-hidden ${textSize} ${className}`}>
+        <div className={`${size} bg-gray-300 rounded-full overflow-hidden ${textSize} ${className} flex items-center justify-center font-bold`}>
         {avatarUrl ? (
             <div className={`relative ${size} rounded-full overflow-hidden`}>
                 <Image

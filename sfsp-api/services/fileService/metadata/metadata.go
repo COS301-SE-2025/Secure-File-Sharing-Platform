@@ -613,6 +613,7 @@ func DeleteFolderHandler(w http.ResponseWriter, r *http.Request) {
 		Tags       []string `json:"tags"`
 	}
 
+	log.Println("Inside DeleteFolderHandler")
 	var req DeleteFolderRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		log.Println("Failed to parse JSON:", err)
@@ -620,7 +621,10 @@ func DeleteFolderHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Println("The request is: ", req)
+
 	if req.FolderID == "" {
+		log.Println("FolderID is missing in the request")
 		http.Error(w, "Missing folderId", http.StatusBadRequest)
 		return
 	}

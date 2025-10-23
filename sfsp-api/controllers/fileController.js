@@ -829,14 +829,17 @@ exports.getUsersWithFileAccess = async (req, res) => {
 
 exports.deleteFolder = async (req,res) => {
   const {folderId, parentPath,recursive,tags} = req.body;
-
+  console.log(req.body);
   if(!folderId){
+    console.log("FolderId not found")
     return res.status(400).send("Missing folderId");
   }
   if(!parentPath){
+    console.log("Parent path not found")
     return res.status(400).send("Missing parentPath");
   }
   if(!tags){
+    console.log("tags not found")
     return res.status(400).send("Missing tags");
   }
 
@@ -846,6 +849,7 @@ exports.deleteFolder = async (req,res) => {
       {folderId, parentPath, recursive,tags},
       {headers: {"Content-Type": "application/json"}}
     );
+    console.log(response)
 
     if(response.status !== 200){
       return res.status(response.status).send("Error deleting folder");
