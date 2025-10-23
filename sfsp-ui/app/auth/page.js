@@ -1136,39 +1136,88 @@ export default function AuthPage() {
                 <button
                   onClick={async () => {
                     const doc = new jsPDF();
+                    const img = new window.Image();
+                    img.src = "/img/shield-full-black.png";
+                    img.onload = () => {
+                      const pageWidth = doc.internal.pageSize.getWidth();
+                      const imgWidth = 20;
+                      const imgHeight = (img.height / img.width) * imgWidth;
+                      const x = (pageWidth - imgWidth) / 2;
+                      const y = 10;
 
-                    doc.setFontSize(20);
-                    doc.setTextColor(0, 0, 139);
-                    doc.text('Account Recovery Key Document', 55, 30);
+                      // Add centered logo
+                      doc.addImage(img, "PNG", x, y, imgWidth, imgHeight);
 
-                    doc.setFontSize(12);
-                    doc.setTextColor(255, 0, 0);
-                    doc.text('IMPORTANT: Keep this document in a secure location!', 20, 50);
+                      // Title
+                      doc.setFontSize(16);
+                      doc.setTextColor(0, 0, 0);
+                      doc.text("Account Recovery Key", pageWidth / 2, y + imgHeight + 10, { align: "center" });
 
-                    doc.setTextColor(0, 0, 0);
-                    doc.text([
-                      '• This recovery key is required to reset your password if you forget it.',
-                      '• Store this document offline in a secure location.',
-                      '• Do not share this key with anyone.',
-                      '• You cannot recover your account without this key.'
-                    ], 20, 70);
+                      // Important warning box
+                      const boxY = y + imgHeight + 20;
+                      doc.setFillColor(254, 226, 226); // Light red background
+                      doc.roundedRect(15, boxY, pageWidth - 30, 20, 3, 3, 'F');
+                      doc.setFontSize(10);
+                      doc.setTextColor(185, 28, 28); // Red text
+                      doc.setFont(undefined, 'bold');
+                      doc.text('IMPORTANT: Keep this document in a secure location!', pageWidth / 2, boxY + 7, { align: "center" });
+                      doc.setFont(undefined, 'normal');
+                      doc.setTextColor(127, 29, 29);
+                      doc.text('You cannot recover your account without this key.', pageWidth / 2, boxY + 14, { align: "center" });
 
-                    doc.setFontSize(14);
-                    doc.text('Your Recovery Key:', 20, 110);
-                    doc.setFontSize(12);
+                      // Instructions section
+                      doc.setTextColor(0, 0, 0);
+                      doc.setFontSize(11);
+                      let currentY = boxY + 35;
 
-                    const keyWords = recoveryKey.split(' ');
-                    let y = 120;
-                    for (let i = 0; i < keyWords.length; i += 6) {
-                      doc.text(keyWords.slice(i, i + 6).join(' '), 20, y);
-                      y += 10;
-                    }
+                      const instructions = [
+                        '• This recovery key is required to reset your password if you forget it.',
+                        '• Store this document offline in a secure location.',
+                        '• Do not share this key with anyone.',
+                        '• Never enter this key on websites claiming to be Secure Share.'
+                      ];
 
-                    doc.setFontSize(10);
-                    doc.text('Generated on: ' + new Date().toLocaleString(), 20, 280);
+                      instructions.forEach((instruction) => {
+                        doc.text(instruction, 20, currentY);
+                        currentY += 8;
+                      });
 
-                    doc.save('SFSP-Recovery-Key.pdf');
-                    showToast("Recovery key PDF downloaded successfully!", "success");
+                      // Recovery key section with border
+                      currentY += 10;
+                      doc.setFillColor(239, 246, 255); // Light blue background
+                      doc.roundedRect(15, currentY, pageWidth - 30, 50, 3, 3, 'F');
+                      doc.setDrawColor(59, 130, 246); // Blue border
+                      doc.setLineWidth(0.5);
+                      doc.roundedRect(15, currentY, pageWidth - 30, 50, 3, 3, 'S');
+
+                      doc.setFontSize(12);
+                      doc.setFont(undefined, 'bold');
+                      doc.setTextColor(37, 99, 235); // Blue text
+                      doc.text('Your Recovery Key:', 20, currentY + 10);
+
+                      // Display recovery key with monospace styling
+                      doc.setFont('courier', 'normal');
+                      doc.setFontSize(10);
+                      doc.setTextColor(0, 0, 0);
+                      const keyWords = recoveryKey.split(' ');
+                      let keyY = currentY + 20;
+                      for (let i = 0; i < keyWords.length; i += 6) {
+                        const line = keyWords.slice(i, i + 6).join(' ');
+                        doc.text(line, pageWidth / 2, keyY, { align: "center" });
+                        keyY += 7;
+                      }
+
+                      // Footer
+                      doc.setFont(undefined, 'normal');
+                      doc.setFontSize(9);
+                      doc.setTextColor(107, 114, 128);
+                      const pageHeight = doc.internal.pageSize.getHeight();
+                      doc.text('Generated on: ' + new Date().toLocaleString(), pageWidth / 2, pageHeight - 20, { align: "center" });
+                      doc.text('Secure Share - End-to-End Encrypted File Sharing', pageWidth / 2, pageHeight - 15, { align: "center" });
+
+                      doc.save('SecureShare-Recovery-Key.pdf');
+                      showToast("Recovery key PDF downloaded successfully!", "success");
+                    };
                   }}
                   className="w-full bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg transition-colors font-semibold flex items-center justify-center"
                 >
